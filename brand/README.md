@@ -1,6 +1,6 @@
 # Assets de marca
 
-Generados desde Sora Bold (Google Fonts) con las letras convertidas a trazados, interletrado -0.055em.
+Generados desde Sora Bold (el 77) e Inter Bold (la Δ, equivalente abierta de la fuente del sistema de Apple), letras convertidas a trazados, interletrado -0.055em.
 
 - `monograma.svg` · 77Δ en marfil y oro, fondo transparente. Para fondos oscuros.
 - `monograma-positivo.svg` · 77Δ en tinta y oro, fondo transparente. Para fondos claros.
@@ -11,4 +11,4 @@ Generados desde Sora Bold (Google Fonts) con las letras convertidas a trazados, 
 
 Tokens de color y tipografía: ver `../CLAUDE.md`, sección Sistema de diseño.
 Oro único: `#A7781B`. El mismo hex sobre tinta y sobre blanco.
-Regenerar: `scripts/brand-svg.mjs` (pendiente de extraer del historial de sesión) o pedirlo a Claude.
+Regenerar: `node scripts/brand-svg.mjs <Sora-Bold.ttf> <Inter-Bold.ttf>` (TTF estáticos de la API de Google Fonts con UA antiguo).
