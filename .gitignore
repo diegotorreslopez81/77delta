@@ -1,0 +1,8 @@
+node_modules/
+dist/
+.DS_Store
+.env
+.env.*
+
+# Notas internas del proyecto: no se publican (el repo es público para GitHub Pages)
+CLAUDE.md
