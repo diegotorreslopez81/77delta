@@ -13,3 +13,6 @@ pnpm-debug.log*
 
 # Notas internas del proyecto: no se publican (el repo es público para GitHub Pages)
 CLAUDE.md
+
+# Worktrees de agentes
+.claude/
