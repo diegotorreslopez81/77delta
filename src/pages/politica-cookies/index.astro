@@ -1,0 +1,130 @@
+---
+import Base from '../../layouts/Base.astro';
+import { site, href } from '../../lib/site';
+
+const enlace = 'text-marfil underline decoration-oro/50 underline-offset-4 transition-colors hover:text-oro';
+const parrafo = 'mt-4 text-[16px] text-pizarra';
+const titulo = 'mt-3 font-display text-[clamp(21px,2.2vw,27px)] font-semibold leading-[1.2]';
+const numero = 'font-mono text-[11px] tracking-[0.14em] text-oro';
+const lista = 'mt-4 list-disc space-y-2 pl-5 text-[16px] text-pizarra marker:text-oro';
+
+const navegadores = [
+  { nombre: 'Google Chrome', url: 'https://support.google.com/chrome/answer/95647' },
+  { nombre: 'Mozilla Firefox', url: 'https://support.mozilla.org/es/kb/Eliminar%20cookies' },
+  { nombre: 'Safari', url: 'https://support.apple.com/es-es/guide/safari/sfri11471/mac' },
+  {
+    nombre: 'Microsoft Edge',
+    url: 'https://support.microsoft.com/es-es/microsoft-edge/eliminar-las-cookies-en-microsoft-edge-63947406-40ac-c3b8-57b9-2a946a29ae09',
+  },
+];
+---
+
+<Base
+  title="Política de cookies"
+  description="Este sitio web no instala cookies propias ni de terceros. Sin analítica, sin publicidad, sin seguimiento."
+>
+  <section class="wrap pb-14 pt-20 md:pb-20 md:pt-28">
+    <p class="eyebrow" data-reveal>Legal</p>
+    <h1
+      class="mt-5 max-w-[16ch] font-display text-[clamp(38px,6vw,76px)] font-extralight leading-[1.04] tracking-[-0.035em]"
+      data-reveal
+    >
+      Sin cookies. Sin seguimiento.
+    </h1>
+    <p class="mt-7 max-w-[52ch] text-[clamp(17px,1.6vw,20px)] text-pizarra" data-reveal>
+      Este sitio web no instala cookies propias ni de terceros, y no utiliza herramientas de analítica ni de
+      publicidad.
+    </p>
+  </section>
+
+  <section class="hairline">
+    <div class="wrap py-16 md:py-24">
+      <article class="max-w-[68ch] space-y-14">
+        <section data-reveal>
+          <p class={numero}>01</p>
+          <h2 class={titulo}>¿Qué son las cookies?</h2>
+          <p class={parrafo}>
+            Las cookies son pequeños archivos de texto que un sitio web almacena en tu dispositivo cuando lo
+            visitas. Sirven para recordar preferencias, mantener sesiones activas o medir el uso del sitio.
+          </p>
+        </section>
+
+        <section data-reveal>
+          <p class={numero}>02</p>
+          <h2 class={titulo}>¿Qué cookies usamos?</h2>
+          <p class={parrafo}>
+            Ninguna. Este sitio web es estático y no requiere identificación ni sesión de usuario, así que no
+            instala cookies propias. Tampoco utilizamos cookies analíticas ni de terceros: no hay Google
+            Analytics, ni píxeles de redes sociales, ni herramientas de publicidad o de seguimiento entre
+            sitios.
+          </p>
+          <p class={parrafo}>
+            Al no instalarse ninguna cookie que requiera consentimiento, no verás un banner pidiéndotelo.
+          </p>
+        </section>
+
+        <section data-reveal>
+          <p class={numero}>03</p>
+          <h2 class={titulo}>Tipografías y contenido externo</h2>
+          <p class={parrafo}>
+            Las tipografías de la web (Sora e IBM Plex) se cargan desde Google Fonts, el servicio de
+            distribución de fuentes de Google. Esa petición no instala cookies en tu navegador, pero Google
+            recibe la dirección IP desde la que se solicitan los archivos de fuente, tal y como ocurre con
+            cualquier recurso servido desde un dominio externo.
+          </p>
+          <p class={parrafo}>
+            Si en algún momento incrustamos contenido externo, como vídeos o calendarios de reserva, esos
+            servicios pueden establecer sus propias cookies. En ese caso aparecerá el aviso correspondiente y
+            se solicitará tu consentimiento previo.
+          </p>
+        </section>
+
+        <section data-reveal>
+          <p class={numero}>04</p>
+          <h2 class={titulo}>¿Cómo gestionar las cookies?</h2>
+          <p class={parrafo}>
+            Puedes configurar tu navegador para aceptar, rechazar o eliminar cookies de cualquier sitio web.
+            Cada navegador ofrece opciones distintas:
+          </p>
+          <ul class={lista}>
+            {
+              navegadores.map((n) => (
+                <li>
+                  <a href={n.url} target="_blank" rel="noopener" class={enlace}>
+                    {n.nombre}
+                  </a>
+                </li>
+              ))
+            }
+          </ul>
+        </section>
+
+        <section data-reveal>
+          <p class={numero}>05</p>
+          <h2 class={titulo}>Cambios en la política</h2>
+          <p class={parrafo}>
+            Esta política puede actualizarse. Cualquier cambio se reflejará aquí, con la fecha de última
+            actualización al pie de la página.
+          </p>
+        </section>
+
+        <section data-reveal>
+          <p class={numero}>06</p>
+          <h2 class={titulo}>Contacto</h2>
+          <p class={parrafo}>
+            Para cualquier duda sobre cookies, escribe a <a href={`mailto:${site.email}`} class={enlace}
+              >{site.email}</a
+            >. El tratamiento de datos personales se detalla en la <a
+              href={href('/politica-privacidad/')}
+              class={enlace}>política de privacidad</a
+            >.
+          </p>
+        </section>
+
+        <p class="hairline pt-8 font-mono text-[12px] text-pizarra" data-reveal>
+          Última actualización: septiembre de 2026
+        </p>
+      </article>
+    </div>
+  </section>
+</Base>

@@ -1,0 +1,154 @@
+---
+import Base from '../../layouts/Base.astro';
+import { site, href } from '../../lib/site';
+
+const enlace = 'text-marfil underline decoration-oro/50 underline-offset-4 transition-colors hover:text-oro';
+const parrafo = 'mt-4 text-[16px] text-pizarra';
+const titulo = 'mt-3 font-display text-[clamp(21px,2.2vw,27px)] font-semibold leading-[1.2]';
+const numero = 'font-mono text-[11px] tracking-[0.14em] text-oro';
+const lista = 'mt-4 list-disc space-y-2 pl-5 text-[16px] text-pizarra marker:text-oro';
+---
+
+<Base
+  title="Aviso legal"
+  description={`Información societaria de ${site.sociedad}, titular de la marca ${site.nombre}, y condiciones de uso de este sitio web.`}
+>
+  <section class="wrap pb-14 pt-20 md:pb-20 md:pt-28">
+    <p class="eyebrow" data-reveal>Legal</p>
+    <h1
+      class="mt-5 max-w-[16ch] font-display text-[clamp(38px,6vw,76px)] font-extralight leading-[1.04] tracking-[-0.035em]"
+      data-reveal
+    >
+      Información societaria.
+    </h1>
+    <p class="mt-7 max-w-[52ch] text-[clamp(17px,1.6vw,20px)] text-pizarra" data-reveal>
+      Datos de la sociedad que opera bajo la marca {site.nombre} y términos de uso de este sitio web.
+    </p>
+  </section>
+
+  <section class="hairline">
+    <div class="wrap py-16 md:py-24">
+      <article class="max-w-[68ch] space-y-14">
+        <section data-reveal>
+          <p class={numero}>01</p>
+          <h2 class={titulo}>Titularidad del sitio web</h2>
+          <p class={parrafo}>
+            Este sitio web es titularidad de {site.sociedad}, sociedad española que desarrolla su actividad
+            comercial bajo el nombre {site.nombre}. Toda la contratación, la facturación y la responsabilidad
+            legal derivada de los servicios ofrecidos corresponden a esta sociedad.
+          </p>
+
+          <dl class="mt-8 grid gap-px overflow-hidden rounded-[4px] border border-linea bg-linea sm:grid-cols-2">
+            <div class="bg-tinta-honda p-6">
+              <dt class="eyebrow text-pizarra">Razón social</dt>
+              <dd class="mt-2 text-[15px] text-marfil">{site.sociedad}</dd>
+            </div>
+            <div class="bg-tinta-honda p-6">
+              <dt class="eyebrow text-pizarra">CIF</dt>
+              <dd class="mt-2 font-mono text-[15px] text-marfil">{site.cif}</dd>
+            </div>
+            <div class="bg-tinta-honda p-6">
+              <dt class="eyebrow text-pizarra">Domicilio social</dt>
+              <dd class="mt-2 text-[15px] text-marfil">{site.direccion}</dd>
+            </div>
+            <div class="bg-tinta-honda p-6">
+              <dt class="eyebrow text-pizarra">Registro</dt>
+              <dd class="mt-2 text-[15px] text-marfil">Inscrita en el Registro Mercantil de Barcelona</dd>
+            </div>
+            <div class="bg-tinta-honda p-6 sm:col-span-2">
+              <dt class="eyebrow text-pizarra">Email de contacto</dt>
+              <dd class="mt-2 text-[15px]">
+                <a href={`mailto:${site.email}`} class={enlace}>{site.email}</a>
+              </dd>
+            </div>
+          </dl>
+        </section>
+
+        <section data-reveal>
+          <p class={numero}>02</p>
+          <h2 class={titulo}>Objeto del sitio web</h2>
+          <p class={parrafo}>
+            Este sitio web tiene como finalidad informar sobre los servicios y productos de {site.nombre},
+            permitir la reserva de diagnósticos y conversaciones iniciales, así como facilitar el contacto
+            comercial.
+          </p>
+        </section>
+
+        <section data-reveal>
+          <p class={numero}>03</p>
+          <h2 class={titulo}>Condiciones de uso</h2>
+          <p class={parrafo}>
+            El acceso a este sitio web es gratuito y libre. El usuario se compromete a un uso lícito de los
+            contenidos y a no realizar actividades que puedan dañar el sitio o impedir su correcto
+            funcionamiento.
+          </p>
+          <ul class={lista}>
+            <li>Queda prohibida la reproducción total o parcial del contenido sin autorización expresa.</li>
+            <li>
+              Los logotipos y marcas comerciales mostrados son propiedad de sus respectivos titulares y se
+              utilizan con permiso o bajo amparo de las leyes de uso lícito.
+            </li>
+            <li>
+              {site.sociedad} se reserva el derecho a modificar o suspender el sitio web sin previo aviso.
+            </li>
+          </ul>
+        </section>
+
+        <section data-reveal>
+          <p class={numero}>04</p>
+          <h2 class={titulo}>Propiedad intelectual</h2>
+          <p class={parrafo}>
+            Los textos, las imágenes, el código, los diseños, las marcas y los demás contenidos publicados en
+            este sitio son propiedad de {site.sociedad} o se utilizan con licencia. Su reproducción,
+            distribución o modificación sin autorización expresa está prohibida.
+          </p>
+        </section>
+
+        <section data-reveal>
+          <p class={numero}>05</p>
+          <h2 class={titulo}>Exención de responsabilidad</h2>
+          <p class={parrafo}>
+            {site.sociedad} no se hace responsable de los daños derivados del uso de la información publicada
+            en este sitio web. La información tiene carácter orientativo y no constituye asesoramiento
+            profesional vinculante hasta que exista un contrato firmado.
+          </p>
+        </section>
+
+        <section data-reveal>
+          <p class={numero}>06</p>
+          <h2 class={titulo}>Ley aplicable y jurisdicción</h2>
+          <p class={parrafo}>
+            Para los servicios prestados y para cualquier controversia derivada del uso de este sitio web es de
+            aplicación la legislación española, con sumisión a los juzgados y tribunales de Barcelona, salvo
+            que el contrato concreto firmado con el cliente disponga otro fuero.
+          </p>
+        </section>
+
+        <section data-reveal>
+          <p class={numero}>07</p>
+          <h2 class={titulo}>Acreditación ACCIÓ</h2>
+          <p class={parrafo}>
+            {site.sociedad} es proveedor acreditado por ACCIÓ, la agencia de la Generalitat de Catalunya para
+            la competitividad empresarial. La acreditación nos habilita para ejecutar proyectos financiados
+            mediante programas públicos como el Cupó IA.
+          </p>
+        </section>
+
+        <section data-reveal>
+          <p class={numero}>08</p>
+          <h2 class={titulo}>Contacto</h2>
+          <p class={parrafo}>
+            Para cualquier consulta sobre este aviso legal, escribe a <a
+              href={`mailto:${site.email}`}
+              class={enlace}>{site.email}</a
+            > o utiliza el <a href={href('/contacto/')} class={enlace}>formulario de contacto</a>.
+          </p>
+        </section>
+
+        <p class="hairline pt-8 font-mono text-[12px] text-pizarra" data-reveal>
+          Última actualización: septiembre de 2026
+        </p>
+      </article>
+    </div>
+  </section>
+</Base>
