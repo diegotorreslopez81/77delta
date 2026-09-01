@@ -1,0 +1,94 @@
+---
+import Base from '../../layouts/Base.astro';
+import Cta from '../../components/Cta.astro';
+import { href } from '../../lib/site';
+import { historias, type Historia } from '../../data/historias';
+
+export function getStaticPaths() {
+  return historias.map((historia) => ({ params: { slug: historia.slug }, props: { historia } }));
+}
+
+interface Props {
+  historia: Historia;
+}
+const { historia } = Astro.props;
+
+const bloques = [
+  { n: '01', titulo: 'La situación inicial', texto: historia.situacion },
+  { n: '02', titulo: 'La solución implantada', texto: historia.solucion },
+  { n: '03', titulo: 'Cómo lo hicimos', texto: historia.como },
+  { n: '04', titulo: 'Los resultados verificados', texto: historia.resultados },
+];
+
+const cifra = `${historia.cifra.valor}${historia.cifra.sufijo}`;
+---
+
+<Base
+  title={`${historia.cliente} · ${cifra} ${historia.titular}`}
+  description={`${historia.cliente}. ${historia.resumen}`}
+>
+  <!-- Hero -->
+  <section class="wrap py-24 md:py-32">
+    <p class="eyebrow" data-reveal>{historia.sector} · Caso real</p>
+    <h1
+      class="mt-7 max-w-[16ch] font-display text-[clamp(38px,6vw,76px)] font-extralight leading-[1.04] tracking-[-0.035em]"
+      data-reveal
+    >
+      <span class="font-semibold text-oro" data-contador={historia.cifra.valor} data-sufijo={historia.cifra.sufijo}
+        >{cifra}</span
+      > {historia.titular}
+    </h1>
+    <p class="mt-8 max-w-[52ch] text-[clamp(17px,1.6vw,20px)] text-pizarra" data-reveal>{historia.cliente}</p>
+  </section>
+
+  <!-- Métricas -->
+  <section class="hairline bg-tinta-honda">
+    <div class="wrap py-14 md:py-16">
+      <ul class="grid gap-x-10 gap-y-10 sm:grid-cols-3" role="list">
+        {
+          historia.metricas.map((m) => (
+            <li data-reveal>
+              <p class="font-display text-[clamp(26px,3vw,38px)] font-extralight leading-[1.1] tracking-[-0.03em]">
+                {m.valor}
+              </p>
+              <p class="mt-3 font-mono text-[12px] uppercase tracking-[0.14em] text-pizarra">{m.etiqueta}</p>
+            </li>
+          ))
+        }
+      </ul>
+    </div>
+  </section>
+
+  <!-- El caso, en cuatro bloques -->
+  {
+    bloques.map((b) => (
+      <section class="hairline">
+        <div class="wrap grid gap-6 py-16 md:grid-cols-12 md:gap-10 md:py-24">
+          <div class="md:col-span-5" data-reveal>
+            <span class="font-mono text-[11px] tracking-[0.14em] text-oro">{b.n}</span>
+            <h2 class="mt-5 font-display text-[clamp(26px,3.2vw,40px)] font-extralight leading-[1.1] tracking-[-0.03em]">
+              {b.titulo}
+            </h2>
+          </div>
+          <div class="md:col-span-7" data-reveal>
+            <p class="text-[17px] text-pizarra md:pt-11">{b.texto}</p>
+          </div>
+        </div>
+      </section>
+    ))
+  }
+
+  <!-- Volver al índice -->
+  <section class="hairline">
+    <div class="wrap py-12" data-reveal>
+      <a href={href('/historias-de-exito/')} class="font-mono text-[12px] text-oro hover:text-marfil">
+        ← Ver las tres historias
+      </a>
+    </div>
+  </section>
+
+  <Cta
+    titulo="¿Tienes un problema parecido?"
+    texto="Cada empresa es distinta. El diagnóstico identifica si una solución similar tiene sentido en tu caso concreto."
+  />
+</Base>
