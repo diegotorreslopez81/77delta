@@ -15,9 +15,8 @@ permissions:
   id-token: write
 
 env:
-  # Hasta comprar el dominio. Con dominio: SITE_URL=https://77delta.com, SITE_BASE=/ y public/CNAME.
-  SITE_URL: https://diegotorreslopez81.github.io
-  SITE_BASE: /77delta
+  SITE_URL: https://77delta.com
+  SITE_BASE: /
 
 jobs:
   build:

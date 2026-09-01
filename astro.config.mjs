@@ -2,10 +2,9 @@
 import { defineConfig } from 'astro/config';
 import tailwindcss from '@tailwindcss/vite';
 
-// Hasta comprar el dominio la web vive en GitHub Pages bajo /77delta.
-// Con dominio: SITE_URL=https://77delta.com y SITE_BASE=/ (y public/CNAME).
-const site = process.env.SITE_URL ?? 'https://diegotorreslopez81.github.io';
-const base = process.env.SITE_BASE ?? '/77delta';
+// Dominio propio (public/CNAME). Para una previsualización bajo otra ruta, exportar SITE_URL y SITE_BASE.
+const site = process.env.SITE_URL ?? 'https://77delta.com';
+const base = process.env.SITE_BASE ?? '/';
 
 export default defineConfig({
   site,

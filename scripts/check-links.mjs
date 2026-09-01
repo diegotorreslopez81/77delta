@@ -1,10 +1,10 @@
 // Comprueba que todos los enlaces y recursos internos de dist/ existen.
-// Uso: node scripts/check-links.mjs [base]   (base por defecto: /77delta)
+// Uso: node scripts/check-links.mjs [base]   (base por defecto: /)
 import { readdirSync, readFileSync, statSync, existsSync } from 'node:fs';
 import { join, resolve } from 'node:path';
 
 const dist = resolve(process.env.DIST ?? 'dist');
-const base = (process.argv[2] ?? process.env.SITE_BASE ?? '/77delta').replace(/\/$/, '');
+const base = (process.argv[2] ?? process.env.SITE_BASE ?? '/').replace(/\/$/, '');
 
 function* html(dir) {
   for (const f of readdirSync(dir)) {
