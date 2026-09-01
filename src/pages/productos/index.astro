@@ -1,0 +1,83 @@
+---
+import Base from '../../layouts/Base.astro';
+import Boton from '../../components/Boton.astro';
+import Cta from '../../components/Cta.astro';
+import { href } from '../../lib/site';
+import { productos } from '../../data/productos';
+---
+
+<Base
+  title="Productos"
+  description="Siete SaaS propios en producción y desarrollo. Construimos lo que implantamos: productos validados con empresas activas."
+>
+  <!-- Hero -->
+  <section class="wrap py-24 md:py-32">
+    <p class="eyebrow" data-reveal>Productos propios</p>
+    <h1
+      class="mt-7 max-w-[20ch] font-display text-[clamp(38px,6vw,76px)] font-extralight leading-[1.04] tracking-[-0.035em]"
+      data-reveal
+    >
+      Siete SaaS construidos por nosotros. En producción con clientes reales.
+    </h1>
+    <p class="mt-8 max-w-[56ch] text-[clamp(17px,1.6vw,20px)] text-pizarra" data-reveal>
+      Construimos lo que implantamos. Nuestros productos están validados con empresas activas y son el
+      laboratorio donde refinamos las metodologías que luego aplicamos a tu caso concreto.
+    </p>
+  </section>
+
+  <!-- Los siete productos -->
+  <section class="hairline">
+    <div class="wrap py-20 md:py-24">
+      <ul class="grid gap-px overflow-hidden rounded-[4px] border border-linea bg-linea sm:grid-cols-2 lg:grid-cols-3" role="list">
+        {
+          productos.map((p) => (
+            <li id={p.slug} class="flex scroll-mt-24 flex-col bg-tinta p-8 md:p-10" data-reveal>
+              <img
+                src={href(`/img/productos/${p.logo}`)}
+                alt={`Logotipo de ${p.nombre}`}
+                width="256"
+                height="256"
+                loading="lazy"
+                decoding="async"
+                class="h-11 w-auto rounded-[8px] object-contain ring-1 ring-linea"
+              />
+              <span
+                class:list={['eyebrow mt-7 block', p.estado === 'En producción' ? '' : 'text-pizarra']}
+              >
+                {p.estado}
+              </span>
+              <h2 class="mt-3 font-display text-[22px] font-semibold leading-[1.2]">{p.nombre}</h2>
+              <p class="mt-2 font-mono text-[11px] uppercase tracking-[0.14em] text-pizarra">{p.categoria}</p>
+              <p class="mt-4 flex-1 text-[15px] text-pizarra">{p.descripcion}</p>
+              {p.url && (
+                <Boton href={p.url} variante="linea" externo class="mt-8 self-start">
+                  Visitar →
+                </Boton>
+              )}
+            </li>
+          ))
+        }
+      </ul>
+    </div>
+  </section>
+
+  <!-- A medida -->
+  <section class="hairline bg-tinta-honda">
+    <div class="wrap grid gap-10 py-24 md:grid-cols-12 md:py-32">
+      <div class="md:col-span-6" data-reveal>
+        <p class="eyebrow">A medida</p>
+        <h2 class="mt-5 font-display text-[clamp(28px,3.6vw,44px)] font-extralight leading-[1.1] tracking-[-0.03em]">
+          ¿Buscas una solución a medida?
+        </h2>
+      </div>
+      <div class="text-[17px] text-pizarra md:col-span-6 md:pt-12" data-reveal>
+        <p>
+          Si ninguno de nuestros productos encaja exacto en tu caso, los adaptamos o construimos desde cero.
+          El diagnóstico identifica el camino correcto.
+        </p>
+      </div>
+    </div>
+  </section>
+
+  <Cta />
+</Base>
