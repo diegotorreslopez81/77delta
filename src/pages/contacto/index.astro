@@ -1,0 +1,188 @@
+---
+import Base from '../../layouts/Base.astro';
+import { site, href } from '../../lib/site';
+
+const sectores = [
+  'Clínicas y centros de salud',
+  'Industria y talleres',
+  'Distribución y logística',
+  'Despachos profesionales',
+  'Administración pública',
+  'Formación y RRHH',
+  'Otro',
+];
+
+const vias = [
+  {
+    titulo: 'Reservar conversación',
+    texto:
+      '30 minutos por videoconferencia. Sin coste. Sin compromiso. Te entregamos propuesta personalizada tras la llamada.',
+    enlace: site.calendario,
+    etiqueta: 'Acceder al calendario →',
+    externo: true,
+  },
+  {
+    titulo: 'Email directo',
+    texto: 'Escríbenos directamente y respondemos en 24 horas hábiles.',
+    enlace: `mailto:${site.email}`,
+    etiqueta: `${site.email} →`,
+    externo: false,
+  },
+  {
+    titulo: 'LinkedIn',
+    texto: 'Sigue nuestro día a día y nuestra actividad pública. Mensajes también respondidos.',
+    enlace: site.linkedin,
+    etiqueta: 'Ver perfil →',
+    externo: true,
+  },
+];
+
+const campo =
+  'mt-3 w-full rounded-[3px] border border-linea bg-tinta-honda px-4 py-3 font-sans text-[15px] text-marfil transition-colors placeholder:text-pizarra/60 focus:border-oro';
+const etiqueta = 'block font-mono text-[11px] uppercase tracking-[0.18em] text-pizarra';
+---
+
+<Base
+  title="Contacto"
+  description="Cuéntanos tu situación. Respondemos en 24 horas hábiles o reserva directamente la conversación inicial de 30 minutos."
+>
+  <!-- Hero -->
+  <section class="wrap py-24 md:py-32">
+    <p class="eyebrow" data-reveal>Contacto</p>
+    <h1
+      class="mt-7 max-w-[16ch] font-display text-[clamp(38px,6vw,76px)] font-extralight leading-[1.04] tracking-[-0.035em]"
+      data-reveal
+    >
+      Cuéntanos tu situación.
+    </h1>
+    <p class="mt-8 max-w-[52ch] text-[clamp(17px,1.6vw,20px)] text-pizarra" data-reveal>
+      Respondemos en 24 horas hábiles. Si lo prefieres, reserva directamente la conversación inicial de 30 minutos
+      en el calendario.
+    </p>
+  </section>
+
+  <!-- Formulario y otras vías -->
+  <section class="hairline">
+    <div class="wrap grid gap-16 py-24 md:grid-cols-12 md:gap-12 md:py-32">
+      <!-- Formulario -->
+      <div class="md:col-span-7" data-reveal>
+        <p class="eyebrow">Escríbenos</p>
+        <h2 class="mt-5 font-display text-[clamp(28px,3.6vw,44px)] font-extralight leading-[1.1] tracking-[-0.03em]">
+          Describe tu situación con tus propias palabras.
+        </h2>
+        <p class="mt-6 max-w-[48ch] text-[17px] text-pizarra">
+          Te respondemos en menos de 24 horas hábiles.
+        </p>
+
+        <form
+          id="form-contacto"
+          class="mt-12 grid gap-7 sm:grid-cols-2"
+          action={`mailto:${site.email}`}
+          method="post"
+          enctype="text/plain"
+          data-destino={site.email}
+        >
+          <div>
+            <label class={etiqueta} for="nombre">Nombre</label>
+            <input class={campo} type="text" id="nombre" name="nombre" autocomplete="name" required />
+          </div>
+
+          <div>
+            <label class={etiqueta} for="empresa">Empresa</label>
+            <input class={campo} type="text" id="empresa" name="empresa" autocomplete="organization" required />
+          </div>
+
+          <div>
+            <label class={etiqueta} for="email">Email</label>
+            <input class={campo} type="email" id="email" name="email" autocomplete="email" required />
+          </div>
+
+          <div>
+            <label class={etiqueta} for="sector">Sector</label>
+            <select
+              class={`${campo} appearance-none [&_option]:bg-tinta-honda [&_option]:text-marfil`}
+              id="sector"
+              name="sector"
+              required
+            >
+              <option value="" disabled selected>Elige un sector</option>
+              {sectores.map((s) => <option value={s}>{s}</option>)}
+            </select>
+          </div>
+
+          <div class="sm:col-span-2">
+            <label class={etiqueta} for="mensaje">¿Qué te trae por aquí?</label>
+            <textarea class={campo} id="mensaje" name="mensaje" rows="6" required></textarea>
+          </div>
+
+          <div class="sm:col-span-2">
+            <button
+              type="submit"
+              class="inline-flex items-center gap-2 whitespace-nowrap rounded-[3px] bg-oro px-5 py-3 font-sans text-[14px] font-medium text-tinta-honda transition-colors duration-200 hover:bg-marfil"
+            >
+              Enviar mensaje →
+            </button>
+            <p class="mt-6 max-w-[52ch] text-[13px] text-pizarra">
+              Los datos se tratan en la Unión Europea conforme al RGPD. No los cedemos a terceros. Más detalle en
+              nuestra <a
+                href={href('/politica-privacidad/')}
+                class="text-marfil underline decoration-linea underline-offset-4 transition-colors hover:decoration-oro"
+                >política de privacidad</a
+              >.
+            </p>
+          </div>
+        </form>
+      </div>
+
+      <!-- Otras vías -->
+      <div class="md:col-span-5 md:pl-6" data-reveal>
+        <p class="eyebrow">Otras vías</p>
+        <ul class="mt-10" role="list">
+          {
+            vias.map((v) => (
+              <li class="border-t border-linea py-8 first:pt-0">
+                <h3 class="font-display text-[19px] font-semibold">{v.titulo}</h3>
+                <p class="mt-3 text-[15px] text-pizarra">{v.texto}</p>
+                <a
+                  href={v.enlace}
+                  target={v.externo ? '_blank' : undefined}
+                  rel={v.externo ? 'noopener' : undefined}
+                  class="mt-5 inline-block font-mono text-[12px] text-oro transition-colors hover:text-marfil"
+                >
+                  {v.etiqueta}
+                </a>
+              </li>
+            ))
+          }
+        </ul>
+      </div>
+    </div>
+  </section>
+
+  <script>
+    // Compone un mailto con los campos del formulario. Sin librerías ni backend.
+    const form = document.querySelector<HTMLFormElement>('#form-contacto');
+
+    form?.addEventListener('submit', (evento) => {
+      evento.preventDefault();
+      const destino = form.dataset.destino;
+      if (!destino) return;
+
+      const datos = new FormData(form);
+      const leer = (nombre: string) => String(datos.get(nombre) ?? '').trim();
+      const empresa = leer('empresa');
+
+      const asunto = `Contacto web · ${empresa}`;
+      const cuerpo = [
+        `Nombre: ${leer('nombre')}`,
+        `Empresa: ${empresa}`,
+        `Email: ${leer('email')}`,
+        `Sector: ${leer('sector')}`,
+        '',
+        leer('mensaje'),
+      ].join('\n');
+
+      window.location.href = `mailto:${destino}?subject=${encodeURIComponent(asunto)}&body=${encodeURIComponent(cuerpo)}`;
+    });
+  </script>
+</Base>
