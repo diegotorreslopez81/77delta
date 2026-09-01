@@ -1,0 +1,303 @@
+---
+import { Image } from 'astro:assets';
+import Base from '../../layouts/Base.astro';
+import Cta from '../../components/Cta.astro';
+import { site, href } from '../../lib/site';
+import diego from '../../assets/diego.png';
+
+const historia = [
+  '77 Delta nace de la experiencia acumulada por su fundador, Diego Torres, a lo largo de más de dos décadas en el ecosistema empresarial: como ingeniero, como emprendedor, como mentor de más de 500 startups y como responsable de iniciativas en Web3, Datos e Identidad Digital.',
+  'Durante años, Diego acompañó a empresas en su transformación digital. Y observó un patrón. Las grandes corporaciones disponían de equipos técnicos potentes y consultoras estratégicas para guiarles. Las pymes, en cambio, quedaban a menudo desorientadas frente a la avalancha tecnológica: bombardeadas por proveedores, con propuestas opacas y sin nadie que tradujera la tecnología a su realidad cotidiana.',
+  'Cuando la inteligencia artificial empezó a transformar el mercado, ese desequilibrio se hizo aún más evidente. Las pymes intuían el potencial, pero no tenían un interlocutor de confianza que les ayudara a aterrizarlo. Así nació 77 Delta: para ser ese interlocutor.',
+];
+
+const nombre = [
+  'Delta es la letra que la física, las matemáticas y el aprendizaje automático usan para lo mismo: el cambio. La diferencia entre un estado y el siguiente. Una red neuronal aprende exactamente así, calculando el delta entre lo que predijo y lo que era cierto.',
+  'Nos pareció el nombre honesto para una consultora. Porque una empresa no necesita un informe sobre inteligencia artificial: necesita que algo funcione distinto el mes que viene. Ese algo es el delta, y es lo único que facturamos.',
+];
+
+const carta = [
+  'He visto a empresas frustrarse con proyectos tecnológicos que no entendían y comprometerse con inversiones que no podían sostener. Y he visto lo contrario: empresas que, con la orientación correcta, han transformado profundamente su forma de trabajar.',
+  'La diferencia no es el presupuesto. Es el criterio con el que se toman las decisiones. Y ese criterio lo aporta alguien que conoce profundamente la tecnología pero también respeta profundamente el negocio del cliente.',
+  'Eso es lo que queremos ser para tu empresa. No un proveedor más. Un interlocutor honesto. Alguien que cuando termine un proyecto deje a la empresa más fuerte de lo que la encontró.',
+  'Si esa es la conversación que estás buscando, hablemos.',
+];
+
+const pilares = [
+  {
+    inicial: 'M',
+    titulo: 'Misión',
+    texto:
+      'Llevar la inteligencia artificial aplicada con criterio a las pymes europeas. Ser el interlocutor honesto que les ayude a transformar procesos, equipos y resultados sin tecnicismos ni promesas vacías.',
+  },
+  {
+    inicial: 'V',
+    titulo: 'Visión',
+    texto:
+      'Una Europa donde las pymes ganen capacidad y competitividad gracias a IA implantada con criterio profesional. Soberanía tecnológica, datos en territorio europeo y resultados medibles para todos.',
+  },
+];
+
+const valores = [
+  {
+    titulo: 'Honestidad antes que venta',
+    texto:
+      'Si un proyecto no tiene sentido, lo decimos. Si una tecnología no está madura, lo decimos. Preferimos perder una venta a comprometer una relación de confianza.',
+  },
+  {
+    titulo: 'Resultados medidos, no prometidos',
+    texto:
+      'Cada proyecto empieza con una estimación cuantificada y se sigue con métricas verificables. No vendemos potencial. Entregamos resultados que se pueden contar.',
+  },
+  {
+    titulo: 'Independencia del cliente',
+    texto:
+      'Al terminar un proyecto, tu empresa conserva el código, los datos y la documentación. La continuidad es una elección, no una imposición.',
+  },
+  {
+    titulo: 'Tecnología al servicio de las personas',
+    texto:
+      'La IA aumenta a los equipos, no los sustituye. Human-in-the-loop por defecto: liberamos tiempo para tareas de mayor valor.',
+  },
+  {
+    titulo: 'Datos en Europa por defecto',
+    texto:
+      'Infraestructura propia en la UE. Cumplimiento RGPD garantizado. Sin dependencias de terceros países. Soberanía técnica desde el día uno.',
+  },
+];
+
+const sellos = [
+  { src: 'accio.png', alt: 'Proveedor acreditado ACCIÓ', enlace: 'https://www.accio.gencat.cat' },
+  { src: 'gencat.svg', alt: 'Generalitat de Catalunya', enlace: 'https://www.gencat.cat' },
+];
+
+const descripcion =
+  'Más de 20 años aplicando tecnología a empresas reales. Quién hay detrás de 77 Delta, qué nos guía y por qué nos llamamos así.';
+---
+
+<Base title="Sobre nosotros" description={descripcion}>
+  <!-- Hero -->
+  <section class="wrap py-24 md:py-32">
+    <p class="eyebrow" data-reveal>Sobre nosotros</p>
+    <h1
+      class="mt-7 max-w-[16ch] font-display text-[clamp(38px,6vw,76px)] font-extralight leading-[1.04] tracking-[-0.035em]"
+      data-reveal
+    >
+      Una consultora con historia, nacida desde dentro del problema.
+    </h1>
+    <p class="mt-8 max-w-[52ch] text-[clamp(17px,1.6vw,20px)] text-pizarra" data-reveal>
+      Más de 20 años aplicando tecnología a empresas reales. Acreditados por la Generalitat de Catalunya. Con
+      clientes desde Barcelona hasta Dubái. Y con una convicción: la inteligencia artificial solo aporta valor
+      cuando se aplica con criterio.
+    </p>
+  </section>
+
+  <!-- 01 · Nuestra historia -->
+  <section class="hairline">
+    <div class="wrap grid gap-10 py-24 md:grid-cols-12 md:py-32">
+      <div class="md:col-span-6" data-reveal>
+        <p class="eyebrow">01 · Nuestra historia</p>
+        <h2 class="mt-5 font-display text-[clamp(28px,3.6vw,44px)] font-extralight leading-[1.1] tracking-[-0.03em]">
+          De acompañar a 500 startups a construir tecnología para pymes reales.
+        </h2>
+      </div>
+      <div class="space-y-5 text-[17px] text-pizarra md:col-span-6 md:pt-12" data-reveal>
+        {historia.map((p) => <p>{p}</p>)}
+      </div>
+    </div>
+  </section>
+
+  <!-- 02 · El nombre -->
+  <section class="hairline bg-tinta-honda">
+    <div class="wrap grid gap-10 py-24 md:grid-cols-12 md:py-32">
+      <div class="md:col-span-5" data-reveal>
+        <p class="eyebrow">02 · El nombre</p>
+        <h2 class="mt-5 font-display text-[clamp(28px,3.6vw,44px)] font-extralight leading-[1.1] tracking-[-0.03em]">
+          Por qué nos llamamos así
+        </h2>
+        <p class="monograma mt-10 text-[clamp(72px,10vw,140px)] text-oro" aria-hidden="true">Δ</p>
+      </div>
+      <div class="md:col-span-7 md:pt-12" data-reveal>
+        <div class="space-y-5 text-[17px] text-pizarra">
+          {nombre.map((p) => <p>{p}</p>)}
+        </div>
+        <p
+          class="mt-8 border-t border-linea pt-8 font-display text-[clamp(20px,2.4vw,28px)] font-extralight leading-[1.2] tracking-[-0.02em] text-marfil"
+        >
+          El 77 es nuestro. No lo explicamos.
+        </p>
+      </div>
+    </div>
+  </section>
+
+  <!-- Nota personal del fundador -->
+  <section class="hairline">
+    <div class="wrap py-24 md:py-32">
+      <p class="eyebrow" data-reveal>Una nota personal del fundador</p>
+      <figure class="mt-8 max-w-[68ch]">
+        <blockquote data-reveal>
+          <p class="font-display text-[clamp(24px,3.2vw,38px)] font-extralight leading-[1.14] tracking-[-0.03em]">
+            Cuando alguien me pregunta a qué nos dedicamos en {site.nombre}, mi respuesta no empieza por la
+            tecnología. Empieza por las personas.
+          </p>
+          <div class="mt-8 space-y-5 border-l border-linea pl-6 text-[17px] text-pizarra md:pl-8">
+            {carta.map((p) => <p>{p}</p>)}
+          </div>
+        </blockquote>
+        <figcaption class="mt-8 font-mono text-[12px] uppercase tracking-[0.14em] text-marfil/70" data-reveal>
+          Diego Torres · Fundador y director técnico
+        </figcaption>
+      </figure>
+    </div>
+  </section>
+
+  <!-- Misión · Visión · Valores -->
+  <section class="hairline bg-tinta-honda">
+    <div class="wrap py-24 md:py-32">
+      <div class="max-w-[62ch]" data-reveal>
+        <p class="eyebrow">Misión · Visión · Valores</p>
+        <h2 class="mt-5 font-display text-[clamp(28px,3.6vw,44px)] font-extralight leading-[1.1] tracking-[-0.03em]">
+          Lo que nos guía
+        </h2>
+        <p class="mt-6 text-[17px] text-pizarra">
+          Tres pilares que definen cómo trabajamos, qué priorizamos y por qué elegimos ciertos proyectos por encima
+          de otros.
+        </p>
+      </div>
+
+      <div class="mt-16 grid gap-x-12 gap-y-12 md:grid-cols-2">
+        {
+          pilares.map((p) => (
+            <div class="border-t border-linea pt-6" data-reveal>
+              <span class="monograma text-[28px] text-oro" aria-hidden="true">
+                {p.inicial}
+              </span>
+              <h3 class="mt-4 font-display text-[22px] font-semibold">{p.titulo}</h3>
+              <p class="mt-3 text-[16px] text-pizarra">{p.texto}</p>
+            </div>
+          ))
+        }
+      </div>
+
+      <div class="mt-24 max-w-[62ch]" data-reveal>
+        <h3 class="font-display text-[clamp(22px,2.4vw,30px)] font-semibold leading-[1.2]">Valores</h3>
+        <p class="mt-4 text-[17px] text-pizarra">
+          No son frases bonitas para la pared. Son los criterios reales con los que tomamos decisiones y elegimos a
+          nuestros clientes.
+        </p>
+      </div>
+      <ol class="mt-12 grid gap-x-12 gap-y-12 md:grid-cols-2 lg:grid-cols-3" role="list">
+        {
+          valores.map((v, i) => (
+            <li data-reveal>
+              <span class="font-mono text-[11px] tracking-[0.14em] text-oro">{String(i + 1).padStart(2, '0')}</span>
+              <h4 class="mt-4 font-display text-[18px] font-semibold">{v.titulo}</h4>
+              <p class="mt-3 text-[15px] text-pizarra">{v.texto}</p>
+            </li>
+          ))
+        }
+      </ol>
+    </div>
+  </section>
+
+  <!-- Acreditación -->
+  <section class="hairline">
+    <div class="wrap grid gap-10 py-24 md:grid-cols-12 md:py-32">
+      <div class="md:col-span-6" data-reveal>
+        <p class="eyebrow">Acreditación</p>
+        <h2 class="mt-5 font-display text-[clamp(28px,3.6vw,44px)] font-extralight leading-[1.1] tracking-[-0.03em]">
+          Proveedores acreditados ACCIÓ.
+        </h2>
+        <ul class="mt-12 flex flex-wrap items-center gap-x-12 gap-y-8" role="list">
+          {
+            sellos.map((s) => (
+              <li>
+                <a href={s.enlace} target="_blank" rel="noopener" title={s.alt} class="group block">
+                  <img
+                    src={href(`/img/logos/${s.src}`)}
+                    alt={s.alt}
+                    loading="lazy"
+                    decoding="async"
+                    class="h-auto max-h-10 w-auto max-w-[140px] object-contain opacity-45 brightness-0 invert transition-opacity duration-300 group-hover:opacity-90"
+                  />
+                </a>
+              </li>
+            ))
+          }
+        </ul>
+      </div>
+      <div class="space-y-5 text-[17px] text-pizarra md:col-span-6 md:pt-12" data-reveal>
+        <p>
+          Formamos parte del registro oficial de proveedores tecnológicos acreditados por ACCIÓ, la agencia de la
+          Generalitat de Catalunya para la competitividad empresarial.
+        </p>
+        <p>
+          Esta acreditación nos habilita para participar en los programas públicos de digitalización dirigidos a las
+          pymes catalanas, como el Cupó IA. Para tu empresa significa tres cosas: que un organismo público nos ha
+          verificado, que cumplimos los requisitos para gestionar fondos públicos y que el proyecto que ejecutemos
+          puede acogerse a ayudas oficiales.
+        </p>
+        <a href={href('/contacto/')} class="inline-block font-mono text-[12px] text-oro hover:text-marfil">
+          Cuéntanos tu caso →
+        </a>
+      </div>
+    </div>
+  </section>
+
+  <!-- El equipo -->
+  <section class="hairline bg-tinta-honda">
+    <div class="wrap py-24 md:py-32">
+      <div class="max-w-[62ch]" data-reveal>
+        <p class="eyebrow">El equipo</p>
+        <h2 class="mt-5 font-display text-[clamp(28px,3.6vw,44px)] font-extralight leading-[1.1] tracking-[-0.03em]">
+          Quién hay detrás de {site.nombre}
+        </h2>
+        <p class="mt-6 text-[17px] text-pizarra">
+          Criterio técnico profundo y trato directo con quien decide. Colaboradores especialistas se incorporan
+          según el proyecto.
+        </p>
+      </div>
+
+      <article class="mt-16 grid gap-10 border-t border-linea pt-12 md:grid-cols-12" data-reveal>
+        <div class="md:col-span-5">
+          <Image
+            src={diego}
+            width={720}
+            format="webp"
+            alt="Diego Torres"
+            loading="lazy"
+            class="w-full max-w-[360px] rounded-[4px] border border-linea object-cover grayscale"
+          />
+        </div>
+        <div class="md:col-span-7">
+          <h3 class="font-display text-[24px] font-semibold">Diego Torres</h3>
+          <p class="mt-2 font-mono text-[12px] uppercase tracking-[0.14em] text-oro">Fundador · Director técnico</p>
+          <div class="mt-6 space-y-5 text-[16px] text-pizarra">
+            <p>
+              Ingeniero de Telecomunicaciones, MBA y Máster en Investigación en IA. Más de 20 años de trayectoria
+              emprendedora.
+            </p>
+            <p>
+              Ha desarrollado iniciativas empresariales en Web3, Datos e Identidad Digital. Ha captado más de 2,5
+              millones de euros de financiación y mentorizado a más de 500 startups. Su visión combina solvencia
+              técnica con criterio de negocio.
+            </p>
+          </div>
+          <a
+            href={site.linkedin}
+            target="_blank"
+            rel="noopener"
+            class="mt-6 inline-block font-mono text-[12px] text-oro hover:text-marfil"
+          >
+            LinkedIn →
+          </a>
+        </div>
+      </article>
+    </div>
+  </section>
+
+  <Cta
+    titulo="Hablemos. 30 minutos. Sin compromiso."
+    texto="Diagnóstico estructurado de tu empresa con propuesta personalizada. Tú decides el siguiente paso."
+  />
+</Base>
