@@ -1,16 +1,22 @@
-// Genera los SVG de marca en brand/ y el componente src/components/Delta.astro
-// a partir de Sora Bold (TTF estático). Sora no tiene glifo Δ: la Δ se dibuja
-// como triángulo con el trazo derivado del asta de Sora Bold, de modo que sea
-// idéntica en web, favicon y print.
-// Uso: node scripts/brand-svg.mjs <ruta/Sora-Bold.ttf>
+// Genera los SVG de marca en brand/ y el componente src/components/Delta.astro.
+// El «77» sale de Sora Bold. Sora no tiene glifo Δ: en el documento de identidad
+// la ponía la fuente del sistema del Mac (SF Pro Bold). Aquí la Δ se toma de
+// Inter Bold, la equivalente abierta de SF, escalada a la caja alta de Sora,
+// de modo que sea idéntica en web, favicon y print.
+// Uso: node scripts/brand-svg.mjs <ruta/Sora-Bold.ttf> <ruta/Inter-Bold.ttf>
 import { readFileSync, writeFileSync, mkdirSync } from 'node:fs';
 import opentype from 'opentype.js';
 
-const ruta = process.argv[2];
-if (!ruta) throw new Error('Falta la ruta al TTF de Sora Bold');
-const buf = readFileSync(ruta);
-const font = opentype.parse(buf.buffer.slice(buf.byteOffset, buf.byteOffset + buf.byteLength));
+const [rutaSora, rutaInter] = process.argv.slice(2);
+if (!rutaSora || !rutaInter) throw new Error('Uso: brand-svg.mjs <Sora-Bold.ttf> <Inter-Bold.ttf>');
+const carga = (ruta) => {
+  const buf = readFileSync(ruta);
+  return opentype.parse(buf.buffer.slice(buf.byteOffset, buf.byteOffset + buf.byteLength));
+};
+const font = carga(rutaSora);
+const inter = carga(rutaInter);
 if (font.tables.os2.usWeightClass !== 700) throw new Error('Se espera Sora Bold (700)');
+if (inter.tables.os2.usWeightClass !== 700) throw new Error('Se espera Inter Bold (700)');
 
 const upm = font.unitsPerEm;
 const cap = font.tables.os2.sCapHeight || font.charToGlyph('H').getBoundingBox().y2;
@@ -18,27 +24,18 @@ const astaI = (() => { const g = font.charToGlyph('I').getBoundingBox(); return 
 const bearing = Math.round(font.charToGlyph('7').leftSideBearing);
 const track = -0.055 * upm;
 
-// Proporciones de la Δ: algo más estrecha que alta y con trazo diagonal un 20 % más fino que el asta vertical.
-const ANCHO_REL = 0.94;
-const TRAZO_REL = 0.8;
-
 const ORO = '#A7781B';
 const MARFIL = '#EDEAE3';
 const TINTA = '#060B14';
 
-/** Triángulo isósceles de altura `cap` y anchura ANCHO_REL·cap con hueco interior a distancia `s` de cada lado. Coordenadas: y hacia arriba. */
+/** Δ de Inter Bold escalada para que su caja alta coincida con la de Sora. Coordenadas: y negativa hacia arriba, como opentype. */
 function delta() {
-  const H = cap, W = ANCHO_REL * H, s = TRAZO_REL * astaI;
-  const A = [bearing + W / 2, H], B = [bearing + W, 0], C = [bearing, 0];
-  const d = (P, Q) => Math.hypot(P[0] - Q[0], P[1] - Q[1]);
-  const a = d(B, C), b = d(A, C), c = d(A, B), per = a + b + c;
-  const I = [(a * A[0] + b * B[0] + c * C[0]) / per, (a * A[1] + b * B[1] + c * C[1]) / per];
-  const area = Math.abs((B[0] - A[0]) * (C[1] - A[1]) - (C[0] - A[0]) * (B[1] - A[1])) / 2;
-  const r = area / (per / 2);
-  const k = (r - s) / r;
-  const inner = [A, B, C].map(([x, y]) => [I[0] + (x - I[0]) * k, I[1] + (y - I[1]) * k]);
-  const poly = (pts) => pts.map(([x, y], i) => `${i ? 'L' : 'M'}${x.toFixed(1)} ${(-y).toFixed(1)}`).join('') + 'Z';
-  return { d: poly([A, B, C]) + poly(inner), ancho: W + 2 * bearing, alto: H };
+  const g = inter.charToGlyph('Δ');
+  if (!g || g.index === 0) throw new Error('Inter sin glifo Δ');
+  const capInter = inter.tables.os2.sCapHeight;
+  const tam = (cap / capInter) * inter.unitsPerEm; // tamaño de fuente que deja la Δ a altura `cap`
+  const k = tam / inter.unitsPerEm;
+  return { d: g.getPath(0, 0, tam).toPathData(1), ancho: g.advanceWidth * k, alto: cap };
 }
 const D = delta();
 const PATH = (fill, extra = '') => `<path fill="${fill}" fill-rule="evenodd"${extra} d="${D.d}"/>`;
