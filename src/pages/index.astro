@@ -1,174 +1,141 @@
 ---
 import Base from '../layouts/Base.astro';
 import Boton from '../components/Boton.astro';
-import Cta from '../components/Cta.astro';
-import Confianza from '../components/Confianza.astro';
+import Campo from '../components/Campo.astro';
 import { site, href } from '../lib/site';
 import { sectores } from '../data/sectores';
-import { casos } from '../data/casos';
+import { productos } from '../data/productos';
+import { instituciones, tecnologia } from '../data/logos';
 
-const servicios = [
-  {
-    n: '01',
-    etiqueta: 'Primer paso · gratuito · 30 min',
-    titulo: 'Diagnóstico',
-    texto:
-      '30 minutos de entrevista estructurada y un formulario que nos permite entender tu realidad. Recibes una propuesta personalizada con el estado inicial de tu empresa, plan de trabajo y presupuesto. Sin compromiso.',
-    pie: 'Gratuito',
-    ruta: '/servicios/#diagnostico',
-  },
-  {
-    n: '02',
-    etiqueta: 'Proyecto a medida',
-    titulo: 'Transformación operativa con IA',
-    texto:
-      'Tras el diagnóstico, ejecutamos la propuesta acordada: implantación, integración con tus sistemas, automatización de procesos y capacitación de tu equipo. Todo lo que necesita la transformación. La inversión se define en la propuesta, ajustada al alcance.',
-    pie: 'Cotización personalizada en propuesta',
-    ruta: '/servicios/#transformacion',
-  },
-  {
-    n: '03',
-    etiqueta: 'Mensualidad',
-    titulo: 'Partner tecnológico',
-    texto:
-      'Acompañamiento continuo en la dirección estratégica de IA de tu empresa. Revisamos propuestas de proveedores, participamos en decisiones tecnológicas e identificamos nuevas oportunidades cada mes. Tres paquetes de horas con descuento por volumen.',
-    pie: 'Desde 1.000 €/mes · 6 meses mínimo',
-    ruta: '/servicios/#partner',
-  },
+const pasos = [
+  { n: '01', titulo: 'Diagnóstico', frase: 'Treinta minutos, gratis. Te decimos dónde la IA ahorra horas en tu empresa y dónde no.', pie: 'Primer paso · sin compromiso', ruta: '/servicios/#diagnostico' },
+  { n: '02', titulo: 'Transformación', frase: 'Del piloto a producción. Integrado con tus sistemas y con tu equipo formado para usarlo.', pie: 'Proyecto a medida · 4 a 12 semanas', ruta: '/servicios/#transformacion' },
+  { n: '03', titulo: 'Partner', frase: 'Criterio técnico a tu lado cada mes, sin contratar a nadie en plantilla.', pie: 'Desde 1.000 € al mes', ruta: '/servicios/#partner' },
 ];
 
-const razones = [
-  {
-    titulo: 'Transformación transversal, no solo tecnología',
-    texto:
-      'La IA cambia procesos, equipos y formas de decidir. No basta con instalar herramientas. Acompañamos la transformación completa de tu organización.',
-  },
-  {
-    titulo: 'La IA aumenta a las personas, no las sustituye',
-    texto:
-      'Diseñamos cada implantación con tu equipo en el centro. Human-in-the-loop por defecto: liberamos tiempo de tareas repetitivas para que tu gente se dedique a lo que aporta valor.',
-  },
-  {
-    titulo: 'Construimos lo que implantamos',
-    texto:
-      'Operamos productos propios en producción con empresas reales. La tecnología que proponemos está validada con clientes activos.',
-  },
-  {
-    titulo: 'Datos en Europa, cumplimiento garantizado',
-    texto:
-      'Infraestructura propia en la UE. Cumplimiento del RGPD. Sin dependencias de terceros países. Soporte en español y catalán.',
-  },
-  {
-    titulo: 'Resultados medidos en horas y en ventas',
-    texto:
-      'Cada proyecto empieza con una estimación cuantificada: tiempo recuperado, reducción de costes, aumento de producción o ventas. Seguimiento mensual con métricas verificables.',
-  },
-  {
-    titulo: 'Sin dependencia tecnológica',
-    texto:
-      'Al finalizar el proyecto, tu empresa conserva el código, las claves, los datos y la documentación. Independencia real.',
-  },
+const cifras = [
+  { valor: 38, sufijo: '%', frase: 'menos ausencias en tres clínicas dentales', historia: 'clinicas-dentales-barcelona' },
+  { valor: 2, sufijo: 'h', frase: 'al día recuperadas por cada comercial de una distribuidora', historia: 'distribuidora-industrial' },
+  { valor: 20, sufijo: 'h', frase: 'al mes liberadas por socio en un despacho mercantil', historia: 'despacho-mercantil' },
+  { valor: 45, sufijo: '%', frase: 'menos tiempo en presupuestos en una metalúrgica' },
+  { valor: 3, sufijo: '×', frase: 'más alumnos atendidos en tutoría en un centro de FP' },
 ];
+
+const frase = 'La inteligencia artificial está reordenando tu sector. La pregunta no es si te afectará, sino cómo aplicarla bien.';
+const palabras = frase.split(' ');
+const logos = [...instituciones, ...tecnologia];
 ---
 
 <Base title="" description={site.descripcion}>
-  <!-- Hero -->
-  <section class="wrap flex min-h-[calc(100svh-68px)] flex-col justify-center py-24 md:py-32">
-    <p class="eyebrow" data-reveal>Acreditados ACCIÓ · Generalitat de Catalunya</p>
-    <h1
-      class="mt-7 max-w-[15ch] font-display text-[clamp(42px,7.2vw,96px)] font-extralight leading-[1.02] tracking-[-0.035em]"
-      data-reveal
-    >
-      Aplicamos la IA para <span class="font-semibold text-oro">ahorrar costes</span> a tu empresa.
-    </h1>
-    <p class="mt-8 max-w-[48ch] text-[clamp(17px,1.6vw,21px)] text-pizarra" data-reveal>
-      Consultora tecnológica especializada en pymes. Diagnóstico gratuito, transformación operativa con IA y
-      partner tecnológico.
+  <!-- 01 · Hero con campo 3D -->
+  <section class="relative isolate flex min-h-[100svh] flex-col justify-end overflow-hidden">
+    <div class="absolute inset-0 -z-10 bg-tinta">
+      <Campo />
+      <div class="absolute inset-x-0 bottom-0 h-1/2 bg-[linear-gradient(to_top,#060B14_20%,transparent)]"></div>
+    </div>
+    <div class="wrap pb-20 pt-40 md:pb-28" data-hero>
+      <h1
+        class="max-w-[13ch] font-display text-[clamp(44px,8.6vw,124px)] font-extralight leading-[0.98] tracking-[-0.04em]"
+      >
+        Aplicamos la IA para <span class="font-semibold text-oro">ahorrar costes</span> a tu empresa.
+      </h1>
+      <div class="mt-10 flex flex-wrap items-center gap-x-8 gap-y-4">
+        <Boton href={href('/contacto/')}>Reservar diagnóstico</Boton>
+        <p class="font-display text-[15px] font-normal text-pizarra">Consultora de IA para pymes · {site.ciudad}</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- 02 · La frase que se enciende al bajar -->
+  <section class="wrap py-[22vh]" data-frase>
+    <p class="max-w-[22ch] font-display text-[clamp(30px,5vw,72px)] font-extralight leading-[1.08] tracking-[-0.03em]">
+      {palabras.map((p) => <span class="inline-block text-pizarra/45 transition-none" data-palabra>{p}&nbsp;</span>)}
     </p>
-    <div class="mt-10 flex flex-wrap gap-3" data-reveal>
-      <Boton href={href('/contacto/')}>Reservar diagnóstico →</Boton>
-      <Boton href={href('/servicios/')} variante="linea">Ver cómo trabajamos</Boton>
-    </div>
   </section>
 
-  <!-- El problema -->
-  <section class="hairline">
-    <div class="wrap grid gap-10 py-24 md:grid-cols-12 md:py-32">
-      <div class="md:col-span-7" data-reveal>
-        <p class="eyebrow">El problema</p>
-        <h2 class="mt-5 font-display text-[clamp(28px,3.6vw,44px)] font-extralight leading-[1.1] tracking-[-0.03em]">
-          La inteligencia artificial está reordenando tu sector. La pregunta no es si te afectará, sino cómo
-          aplicarla bien.
-        </h2>
-      </div>
-      <div class="space-y-5 text-[17px] text-pizarra md:col-span-5 md:pt-12" data-reveal>
-        <p>
-          La información disponible es abundante, pero distinguir lo que realmente transforma tu negocio de lo que
-          solo suena interesante requiere criterio y experiencia. La transformación no es solo tecnológica: toca
-          procesos, equipos y formas de decidir.
-        </p>
-        <p class="text-marfil">
-          ¿Qué tareas repetitivas consumen el día a día de tu equipo? ¿Qué decisiones se toman sin datos suficientes?
-          ¿Qué áreas están saturadas? ¿Qué pasa cuando una persona clave no está? ¿Cuál es la inversión real para
-          empezar y cómo se mide el retorno?
-        </p>
+  <!-- 03 · Cómo trabajamos · tres pantallas fijas -->
+  <section class="relative h-[300vh]" data-pasos>
+    <div class="sticky top-0 flex h-[100svh] items-center overflow-hidden">
+      <div class="wrap w-full">
+        <p class="font-display text-[15px] text-pizarra">Cómo trabajamos</p>
+        <div class="relative mt-6 h-[60vh]">
+          {
+            pasos.map((s, i) => (
+              <article class="absolute inset-0 flex flex-col justify-center" data-paso={i} style={i === 0 ? '' : 'opacity:0'}>
+                <p class="font-display text-[clamp(64px,14vw,200px)] font-extralight leading-none tracking-[-0.05em] text-oro">{s.n}</p>
+                <h2 class="mt-4 font-display text-[clamp(34px,5.6vw,80px)] font-semibold leading-[1] tracking-[-0.035em]">{s.titulo}</h2>
+                <p class="mt-6 max-w-[34ch] text-[clamp(17px,1.7vw,24px)] leading-snug text-pizarra">{s.frase}</p>
+                <a href={href(s.ruta)} class="mt-8 inline-block font-display text-[15px] text-marfil/80 hover:text-oro">{s.pie} →</a>
+              </article>
+            ))
+          }
+        </div>
+        <div class="mt-4 flex gap-2" aria-hidden="true">
+          {pasos.map((_, i) => <span class="h-px w-16 bg-linea" data-barra={i}><span class="block h-px w-full origin-left scale-x-0 bg-oro" data-progreso={i}></span></span>)}
+        </div>
       </div>
     </div>
   </section>
 
-  <!-- Cómo trabajamos -->
-  <section id="servicios" class="hairline">
-    <div class="wrap py-24 md:py-32">
-      <div class="max-w-[62ch]" data-reveal>
-        <p class="eyebrow">Cómo trabajamos</p>
-        <h2 class="mt-5 font-display text-[clamp(28px,3.6vw,44px)] font-extralight leading-[1.1] tracking-[-0.03em]">
-          Empezamos por un diagnóstico. Después, tú decides el recorrido.
-        </h2>
-        <p class="mt-6 text-[17px] text-pizarra">
-          Cada empresa es distinta. El proceso es lineal: primero entendemos tu realidad, luego construimos la
-          transformación y, si quieres, te acompañamos en el medio y largo plazo como tu partner tecnológico.
-        </p>
+  <!-- 04 · Resultados · cifras gigantes que se suceden -->
+  <section class="relative h-[400vh] bg-tinta-honda" data-cifras>
+    <div class="sticky top-0 flex h-[100svh] items-center overflow-hidden">
+      <div class="wrap w-full">
+        <p class="font-display text-[15px] text-pizarra">Resultados que se pueden contar</p>
+        <div class="relative mt-4 h-[56vh]">
+          {
+            cifras.map((c, i) => (
+              <article class="absolute inset-0 flex flex-col justify-center" data-cifra={i} style={i === 0 ? '' : 'opacity:0'}>
+                <p class="font-display text-[clamp(96px,22vw,320px)] font-extralight leading-[0.9] tracking-[-0.06em] text-marfil">
+                  <span data-num={c.valor}>{c.valor}</span><span class="text-oro">{c.sufijo}</span>
+                </p>
+                <p class="mt-6 max-w-[30ch] font-display text-[clamp(20px,2.6vw,36px)] font-normal leading-tight text-pizarra">{c.frase}</p>
+                {c.historia && (
+                  <a href={href(`/historias-de-exito/${c.historia}/`)} class="mt-6 inline-block font-display text-[15px] text-marfil/80 hover:text-oro">Leer el caso →</a>
+                )}
+              </article>
+            ))
+          }
+        </div>
       </div>
+    </div>
+  </section>
 
-      <div class="mt-16 grid gap-px overflow-hidden rounded-[4px] border border-linea bg-linea md:grid-cols-3">
-        {
-          servicios.map((s) => (
-            <a href={href(s.ruta)} class="group flex flex-col bg-tinta p-8 transition-colors hover:bg-tinta-honda md:p-10" data-reveal>
-              <span class="font-mono text-[11px] tracking-[0.14em] text-oro">{s.n}</span>
-              <span class="eyebrow mt-6 text-pizarra">{s.etiqueta}</span>
-              <h3 class="mt-3 font-display text-[22px] font-semibold">{s.titulo}</h3>
-              <p class="mt-4 flex-1 text-[15px] text-pizarra">{s.texto}</p>
-              <span class="mt-8 font-mono text-[12px] text-marfil/80 group-hover:text-oro">{s.pie} →</span>
+  <!-- 05 · Sectores · seis palabras -->
+  <section class="wrap py-32 md:py-44" data-sectores>
+    <h2 class="font-display text-[clamp(30px,5vw,72px)] font-extralight leading-[1.05] tracking-[-0.03em]">
+      Seis sectores.<br />Una metodología.
+    </h2>
+    <ul class="mt-16 grid gap-x-12 md:grid-cols-2" role="list">
+      {
+        sectores.map((s) => (
+          <li class="border-t border-linea">
+            <a href={href(`/sectores/${s.slug}/`)} class="group flex items-baseline justify-between gap-6 py-6 md:py-8">
+              <span class="font-display text-[clamp(22px,3vw,40px)] font-normal leading-tight tracking-[-0.02em] text-marfil transition-colors group-hover:text-oro">{s.nombre}</span>
+              <span class="shrink-0 font-display text-[15px] text-pizarra transition-transform group-hover:translate-x-1 group-hover:text-oro">→</span>
             </a>
-          ))
-        }
-      </div>
-    </div>
+          </li>
+        ))
+      }
+    </ul>
   </section>
 
-  <!-- Sectores -->
-  <section class="hairline bg-tinta-honda">
-    <div class="wrap py-24 md:py-32">
-      <div class="max-w-[62ch]" data-reveal>
-        <p class="eyebrow">Sectores</p>
-        <h2 class="mt-5 font-display text-[clamp(28px,3.6vw,44px)] font-extralight leading-[1.1] tracking-[-0.03em]">
-          Seis sectores. Una metodología.
-        </h2>
-        <p class="mt-6 text-[17px] text-pizarra">
-          En cada uno aplicamos una metodología contrastada. La tecnología es la parte visible. Lo que cambia es cómo
-          trabaja tu equipo.
-        </p>
-      </div>
-
-      <ul class="mt-16 grid gap-x-10 gap-y-12 sm:grid-cols-2 lg:grid-cols-3" role="list">
+  <!-- 06 · Productos -->
+  <section class="bg-tinta-honda">
+    <div class="wrap py-32 md:py-44">
+      <h2 class="max-w-[16ch] font-display text-[clamp(30px,5vw,72px)] font-extralight leading-[1.05] tracking-[-0.03em]">
+        Construimos lo que implantamos.
+      </h2>
+      <p class="mt-6 max-w-[40ch] text-[clamp(17px,1.5vw,21px)] text-pizarra">
+        Siete productos propios en producción con clientes reales. Son nuestro laboratorio.
+      </p>
+      <ul class="mt-14 flex flex-wrap gap-x-10 gap-y-6" role="list">
         {
-          sectores.map((s, i) => (
-            <li data-reveal>
-              <a href={href(`/sectores/${s.slug}/`)} class="group block border-t border-linea pt-6 transition-colors hover:border-oro">
-                <span class="font-mono text-[11px] tracking-[0.14em] text-oro">Sector {String(i + 1).padStart(2, '0')}</span>
-                <h3 class="mt-4 font-display text-[19px] font-semibold">{s.nombre}</h3>
-                <p class="mt-3 text-[15px] text-pizarra">{s.resumen}</p>
-                <span class="mt-5 inline-block font-mono text-[12px] text-marfil/70 group-hover:text-oro">Ver el sector →</span>
+          productos.map((p) => (
+            <li>
+              <a href={href('/productos/#' + p.slug)} class="group flex items-center gap-3">
+                <img src={href(`/img/productos/${p.logo}`)} alt="" width="256" height="256" loading="lazy" class="h-8 w-8 rounded-[6px] ring-1 ring-linea" />
+                <span class="font-display text-[clamp(18px,2vw,26px)] font-normal text-marfil transition-colors group-hover:text-oro">{p.nombre}</span>
               </a>
             </li>
           ))
@@ -177,98 +144,95 @@ const razones = [
     </div>
   </section>
 
-  <!-- Historias de éxito -->
-  <section class="hairline">
-    <div class="wrap py-24 md:py-32">
-      <div class="max-w-[62ch]" data-reveal>
-        <p class="eyebrow">Historias de éxito</p>
-        <h2 class="mt-5 font-display text-[clamp(28px,3.6vw,44px)] font-extralight leading-[1.1] tracking-[-0.03em]">
-          Resultados que se pueden contar.
-        </h2>
-      </div>
-
-      <ol class="mt-8" role="list">
-        {
-          casos.map((c, i) => (
-            <li class="grid gap-6 border-t border-linea py-14 md:grid-cols-12 md:gap-10 md:py-20" data-reveal>
-              <div class="md:col-span-5">
-                <p class="font-display text-[clamp(64px,9vw,128px)] font-extralight leading-none tracking-[-0.04em] text-oro">
-                  <span data-contador={c.valor} data-sufijo={c.sufijo}>0{c.sufijo}</span>
-                </p>
-                <p class="mt-3 font-mono text-[12px] uppercase tracking-[0.14em] text-pizarra">{c.etiqueta}</p>
-              </div>
-              <div class="md:col-span-7">
-                <p class="eyebrow text-pizarra">
-                  Caso {i + 1} de {casos.length} · {c.meta}
-                </p>
-                <h3 class="mt-4 font-display text-[clamp(22px,2.4vw,30px)] font-semibold leading-[1.2]">{c.titulo}</h3>
-                <p class="mt-5 text-[16px] text-pizarra">{c.situacion}</p>
-                <p class="mt-3 text-[16px]">{c.solucion}</p>
-                {c.historia && (
-                  <a href={href(`/historias-de-exito/${c.historia}/`)} class="mt-6 inline-block font-mono text-[12px] text-oro hover:text-marfil">
-                    Leer el caso completo →
-                  </a>
-                )}
-              </div>
-            </li>
-          ))
-        }
-      </ol>
+  <!-- 07 · Confianza · marquesina -->
+  <section class="overflow-hidden border-y border-linea py-10" aria-label="Instituciones y partners">
+    <div class="flex w-max gap-16 [animation:marquesina_70s_linear_infinite] motion-reduce:[animation:none]" data-marquesina>
+      {
+        [...logos, ...logos].map((l) => (
+          <img src={href(`/img/logos/${l.src}`)} alt={l.alt} loading="lazy" class="h-7 w-auto max-w-[140px] object-contain brightness-0 invert opacity-40" />
+        ))
+      }
     </div>
   </section>
 
-  <!-- Seis razones -->
-  <section class="hairline bg-tinta-honda">
-    <div class="wrap py-24 md:py-32">
-      <div class="max-w-[62ch]" data-reveal>
-        <p class="eyebrow">Por qué {site.nombre}</p>
-        <h2 class="mt-5 font-display text-[clamp(28px,3.6vw,44px)] font-extralight leading-[1.1] tracking-[-0.03em]">
-          Seis razones para confiar en nosotros
-        </h2>
-      </div>
-      <ol class="mt-16 grid gap-x-12 gap-y-12 md:grid-cols-2 lg:grid-cols-3" role="list">
-        {
-          razones.map((r, i) => (
-            <li data-reveal>
-              <span class="font-mono text-[11px] tracking-[0.14em] text-oro">{String(i + 1).padStart(2, '0')}</span>
-              <h3 class="mt-4 font-display text-[18px] font-semibold">{r.titulo}</h3>
-              <p class="mt-3 text-[15px] text-pizarra">{r.texto}</p>
-            </li>
-          ))
-        }
-      </ol>
+  <!-- 08 · Cierre -->
+  <section class="wrap py-36 md:py-48">
+    <h2 class="font-display text-[clamp(40px,7vw,112px)] font-extralight leading-[0.98] tracking-[-0.04em]">
+      30 minutos.<br /><span class="text-pizarra">Sin compromiso.</span>
+    </h2>
+    <div class="mt-12 flex flex-wrap items-center gap-x-8 gap-y-4">
+      <Boton href={href('/contacto/')}>Reservar diagnóstico</Boton>
+      <a href={href('/servicios/')} class="font-display text-[15px] text-marfil/80 hover:text-oro">Ver cómo trabajamos →</a>
     </div>
   </section>
-
-  <!-- Sobre nosotros -->
-  <section class="hairline">
-    <div class="wrap grid gap-10 py-24 md:grid-cols-12 md:py-32">
-      <div class="md:col-span-6" data-reveal>
-        <p class="eyebrow">Sobre nosotros</p>
-        <h2 class="mt-5 font-display text-[clamp(28px,3.6vw,44px)] font-extralight leading-[1.1] tracking-[-0.03em]">
-          Una consultora con historia, nacida desde dentro del problema.
-        </h2>
-      </div>
-      <div class="space-y-5 text-[17px] text-pizarra md:col-span-6 md:pt-12" data-reveal>
-        <p>
-          Más de 20 años aplicando tecnología a empresas reales. Acreditados por la Generalitat de Catalunya. Con
-          clientes desde Barcelona hasta Dubái. Y con una convicción: la IA solo aporta valor cuando se aplica con
-          criterio.
-        </p>
-        <p>
-          {site.nombre} nace de la experiencia acumulada por Diego Torres a lo largo de dos décadas. Tras acompañar a
-          más de 500 startups, observó un patrón: las grandes empresas tenían consultoras estratégicas, las pymes
-          quedaban desorientadas frente a la avalancha tecnológica. Nació para ser ese interlocutor de confianza
-          para tu empresa.
-        </p>
-        <p class="font-mono text-[12px] text-marfil/70">Diego Torres, fundador</p>
-        <a href={href('/sobre-nosotros/')} class="inline-block font-mono text-[12px] text-oro hover:text-marfil">
-          Nuestra misión es ayudarte, conócenos →
-        </a>
-      </div>
-    </div>
-  </section>
-
-  <Cta />
-  <Confianza />
 </Base>
+
+<style>
+  @keyframes marquesina {
+    from { transform: translateX(0); }
+    to { transform: translateX(-50%); }
+  }
+</style>
+
+<script>
+  import { gsap } from 'gsap';
+  import { ScrollTrigger } from 'gsap/ScrollTrigger';
+
+  gsap.registerPlugin(ScrollTrigger);
+  const reduce = matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+  // Hero: entrada.
+  if (!reduce) {
+    gsap.from('[data-hero] > *', { y: 28, opacity: 0, duration: 1.1, stagger: 0.12, ease: 'power3.out', delay: 0.15 });
+  }
+
+  // Frase: las palabras pasan de pizarra a marfil según bajas.
+  const palabras = gsap.utils.toArray<HTMLElement>('[data-palabra]');
+  if (palabras.length) {
+    gsap.to(palabras, {
+      color: '#EDEAE3',
+      stagger: 0.08,
+      ease: 'none',
+      scrollTrigger: { trigger: '[data-frase]', start: 'top 75%', end: 'bottom 55%', scrub: reduce ? false : 0.4 },
+    });
+  }
+
+  // Secuencias fijas: pasos y cifras.
+  function secuencia(seccion: string, item: string, extra?: (i: number, tl: gsap.core.Timeline) => void) {
+    const cont = document.querySelector(seccion);
+    const items = gsap.utils.toArray<HTMLElement>(item);
+    if (!cont || items.length < 2) return;
+    const tl = gsap.timeline({
+      scrollTrigger: { trigger: cont, start: 'top top', end: 'bottom bottom', scrub: reduce ? false : 0.5 },
+    });
+    items.forEach((el, i) => {
+      if (i > 0) {
+        tl.to(items[i - 1], { opacity: 0, y: -40, duration: 0.6, ease: 'power2.in' }, `p${i}`);
+        tl.fromTo(el, { opacity: 0, y: 60 }, { opacity: 1, y: 0, duration: 0.6, ease: 'power2.out' }, `p${i}+=0.3`);
+      }
+      extra?.(i, tl);
+      tl.to({}, { duration: 1 }); // pausa con el elemento quieto
+    });
+  }
+
+  secuencia('[data-pasos]', '[data-paso]', (i, tl) => {
+    const barra = document.querySelector(`[data-progreso="${i}"]`);
+    if (barra) tl.to(barra, { scaleX: 1, duration: 1, ease: 'none' }, '<');
+  });
+
+  secuencia('[data-cifras]', '[data-cifra]');
+
+  // Números: cuentan la primera vez que se muestran.
+  const nums = gsap.utils.toArray<HTMLElement>('[data-num]');
+  nums.forEach((el) => {
+    const fin = Number(el.dataset.num);
+    if (reduce) return;
+    const obj = { v: 0 };
+    ScrollTrigger.create({
+      trigger: el,
+      start: 'top 90%',
+      once: true,
+      onEnter: () => gsap.to(obj, { v: fin, duration: 1.2, ease: 'power2.out', onUpdate: () => (el.textContent = String(Math.round(obj.v))) }),
+    });
+  });
+</script>

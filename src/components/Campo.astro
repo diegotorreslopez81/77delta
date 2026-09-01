@@ -1,0 +1,125 @@
+---
+/**
+ * Fondo 3D del hero: un campo de puntos que ondula como una superficie de error
+ * (la que recorre una red neuronal al aprender). Pizarra con el valle en oro.
+ * Se detiene fuera de pantalla y con prefers-reduced-motion queda un fotograma fijo.
+ */
+---
+
+<canvas
+  data-campo
+  class="pointer-events-none absolute inset-0 h-full w-full"
+  aria-hidden="true"></canvas>
+
+<script>
+  import * as THREE from 'three';
+
+  const canvas = document.querySelector<HTMLCanvasElement>('[data-campo]');
+  if (canvas) iniciar(canvas);
+
+  function iniciar(canvas: HTMLCanvasElement) {
+    const reduce = matchMedia('(prefers-reduced-motion: reduce)').matches;
+    const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: true, powerPreference: 'high-performance' });
+    renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+
+    const escena = new THREE.Scene();
+    escena.fog = new THREE.Fog(0x060b14, 6, 14);
+    const camara = new THREE.PerspectiveCamera(38, 1, 0.1, 40);
+    camara.position.set(1.5, 3.4, 8.2);
+    camara.lookAt(1.5, -0.6, 0);
+
+    // Rejilla de puntos sobre el plano XZ.
+    const NX = 180, NZ = 110, ANCHO = 16, FONDO = 10;
+    const n = NX * NZ;
+    const pos = new Float32Array(n * 3);
+    const col = new Float32Array(n * 3);
+    const base = new Float32Array(n * 2);
+    let i = 0;
+    for (let z = 0; z < NZ; z++) {
+      for (let x = 0; x < NX; x++) {
+        const px = (x / (NX - 1) - 0.5) * ANCHO;
+        const pz = (z / (NZ - 1) - 0.5) * FONDO;
+        pos[i * 3] = px; pos[i * 3 + 1] = 0; pos[i * 3 + 2] = pz;
+        base[i * 2] = px; base[i * 2 + 1] = pz;
+        i++;
+      }
+    }
+    const geo = new THREE.BufferGeometry();
+    geo.setAttribute('position', new THREE.BufferAttribute(pos, 3));
+    geo.setAttribute('color', new THREE.BufferAttribute(col, 3));
+    const mat = new THREE.PointsMaterial({ size: 0.05, vertexColors: true, transparent: true, opacity: 0.95, sizeAttenuation: true, depthWrite: false });
+    const puntos = new THREE.Points(geo, mat);
+    escena.add(puntos);
+
+    const pizarra = new THREE.Color(0x8794a6);
+    const tenue = new THREE.Color(0x3b4a60);
+    const oro = new THREE.Color(0xa7781b);
+
+    function altura(x: number, z: number, t: number) {
+      // Ondas suaves con un valle que se desplaza despacio: el mínimo que busca el aprendizaje.
+      const cx = 2.2 + Math.sin(t * 0.11) * 2.4;
+      const cz = Math.cos(t * 0.09) * 1.6;
+      const d2 = (x - cx) * (x - cx) + (z - cz) * (z - cz);
+      const valle = -1.6 * Math.exp(-d2 / 6);
+      const ondas = 0.22 * Math.sin(x * 0.7 + t * 0.5) * Math.cos(z * 0.9 - t * 0.35) + 0.1 * Math.sin((x + z) * 1.6 + t * 0.8);
+      return valle + ondas;
+    }
+
+    function actualizar(t: number) {
+      const p = geo.attributes.position.array as Float32Array;
+      const c = geo.attributes.color.array as Float32Array;
+      for (let k = 0; k < n; k++) {
+        const x = base[k * 2], z = base[k * 2 + 1];
+        const y = altura(x, z, t);
+        p[k * 3 + 1] = y;
+        // Color por altura: valle en oro, laderas en pizarra, crestas apagadas.
+        const f = THREE.MathUtils.clamp((y + 0.2) / -1.1, 0, 1); // 0 arriba, 1 en el fondo del valle
+        const cc = f > 0.55 ? oro.clone().lerp(pizarra, (1 - f) * 1.6) : tenue.clone().lerp(pizarra, f * 1.6);
+        c[k * 3] = cc.r; c[k * 3 + 1] = cc.g; c[k * 3 + 2] = cc.b;
+      }
+      geo.attributes.position.needsUpdate = true;
+      geo.attributes.color.needsUpdate = true;
+    }
+
+    // Tamaño
+    function ajustar() {
+      const w = canvas.clientWidth, h = canvas.clientHeight;
+      renderer.setSize(w, h, false);
+      camara.aspect = w / h;
+      camara.updateProjectionMatrix();
+    }
+    ajustar();
+    addEventListener('resize', ajustar, { passive: true });
+
+    // Ratón: deriva muy leve de la cámara.
+    let mx = 0, my = 0;
+    addEventListener('pointermove', (e) => {
+      mx = (e.clientX / innerWidth - 0.5) * 2;
+      my = (e.clientY / innerHeight - 0.5) * 2;
+    }, { passive: true });
+
+    let visible = true;
+    new IntersectionObserver((es) => { visible = es[0].isIntersecting; }, { threshold: 0 }).observe(canvas);
+
+    const t0 = performance.now();
+    function cuadro() {
+      const t = (performance.now() - t0) / 1000;
+      actualizar(t);
+      puntos.rotation.y = mx * 0.05;
+      camara.position.y = 3.4 - my * 0.25;
+      camara.lookAt(1.5, -0.6, 0);
+      renderer.render(escena, camara);
+    }
+
+    if (reduce) {
+      actualizar(4);
+      renderer.render(escena, camara);
+      return;
+    }
+    function bucle() {
+      if (visible && !document.hidden) cuadro();
+      requestAnimationFrame(bucle);
+    }
+    bucle();
+  }
+</script>
