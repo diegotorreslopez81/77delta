@@ -1,0 +1,168 @@
+---
+import Base from '../../layouts/Base.astro';
+import { site, href } from '../../lib/site';
+
+const enlace = 'text-marfil underline decoration-oro/50 underline-offset-4 transition-colors hover:text-oro';
+const parrafo = 'mt-4 text-[16px] text-pizarra';
+const titulo = 'mt-3 font-display text-[clamp(21px,2.2vw,27px)] font-semibold leading-[1.2]';
+const numero = 'font-mono text-[11px] tracking-[0.14em] text-oro';
+const lista = 'mt-4 list-disc space-y-2 pl-5 text-[16px] text-pizarra marker:text-oro';
+---
+
+<Base
+  title="Política de privacidad"
+  description="Toda la información que nos proporcionas se procesa y almacena en la Unión Europea, conforme al Reglamento General de Protección de Datos."
+>
+  <section class="wrap pb-14 pt-20 md:pb-20 md:pt-28">
+    <p class="eyebrow" data-reveal>Legal</p>
+    <h1
+      class="mt-5 max-w-[16ch] font-display text-[clamp(38px,6vw,76px)] font-extralight leading-[1.04] tracking-[-0.035em]"
+      data-reveal
+    >
+      Tus datos en Europa. Conforme al RGPD.
+    </h1>
+    <p class="mt-7 max-w-[52ch] text-[clamp(17px,1.6vw,20px)] text-pizarra" data-reveal>
+      Toda la información que nos proporcionas se procesa y almacena en la Unión Europea, conforme al
+      Reglamento General de Protección de Datos.
+    </p>
+  </section>
+
+  <section class="hairline">
+    <div class="wrap py-16 md:py-24">
+      <article class="max-w-[68ch] space-y-14">
+        <section data-reveal>
+          <p class={numero}>01</p>
+          <h2 class={titulo}>Responsable del tratamiento</h2>
+          <p class={parrafo}>
+            El responsable del tratamiento de tus datos personales es {site.sociedad}, con CIF {site.cif} y
+            domicilio en {site.direccion}, sociedad que opera comercialmente bajo la marca {site.nombre}.
+          </p>
+          <p class={parrafo}>
+            Email de contacto en materia de privacidad: <a href={`mailto:${site.email}`} class={enlace}
+              >{site.email}</a
+            >.
+          </p>
+        </section>
+
+        <section data-reveal>
+          <p class={numero}>02</p>
+          <h2 class={titulo}>Datos que recopilamos</h2>
+          <p class={parrafo}>
+            Recopilamos únicamente los datos que tú nos proporcionas voluntariamente al rellenar formularios,
+            reservar diagnóstico o enviarnos un email. Estos datos pueden incluir:
+          </p>
+          <ul class={lista}>
+            <li>Nombre y apellidos</li>
+            <li>Empresa y cargo</li>
+            <li>Dirección de email</li>
+            <li>Número de teléfono, si nos lo proporcionas</li>
+            <li>Sector de actividad y descripción de tu situación</li>
+          </ul>
+          <p class={parrafo}>
+            Este sitio web no utiliza herramientas de analítica, ni cookies de seguimiento, ni perfilado
+            publicitario. No elaboramos perfiles de navegación ni cruzamos datos con fuentes externas. Puedes
+            consultar el detalle en la <a href={href('/politica-cookies/')} class={enlace}
+              >política de cookies</a
+            >.
+          </p>
+        </section>
+
+        <section data-reveal>
+          <p class={numero}>03</p>
+          <h2 class={titulo}>Finalidades del tratamiento</h2>
+          <ul class={lista}>
+            <li>Responder a tu solicitud de contacto o diagnóstico.</li>
+            <li>Enviarte propuestas comerciales personalizadas si así lo solicitas.</li>
+            <li>Mantener una relación contractual si decides contratar nuestros servicios.</li>
+            <li>Cumplir con obligaciones legales y fiscales.</li>
+            <li>Mejorar nuestros servicios mediante análisis agregado.</li>
+          </ul>
+        </section>
+
+        <section data-reveal>
+          <p class={numero}>04</p>
+          <h2 class={titulo}>Base legal del tratamiento</h2>
+          <p class={parrafo}>
+            La base legal del tratamiento es tu consentimiento explícito al rellenar nuestros formularios y, en
+            su caso, la ejecución de un contrato.
+          </p>
+        </section>
+
+        <section data-reveal>
+          <p class={numero}>05</p>
+          <h2 class={titulo}>Conservación de los datos</h2>
+          <p class={parrafo}>
+            Conservamos tus datos durante el tiempo necesario para cumplir con las finalidades indicadas, salvo
+            que la ley exija un plazo distinto. En el caso de contactos comerciales sin contrato firmado, los
+            datos se conservan durante un máximo de 24 meses desde el último contacto.
+          </p>
+        </section>
+
+        <section data-reveal>
+          <p class={numero}>06</p>
+          <h2 class={titulo}>Ubicación y transferencias de datos</h2>
+          <p class={parrafo}>
+            Todos los datos personales se almacenan y procesan en servidores ubicados en la Unión Europea,
+            principalmente en Frankfurt, Alemania. No realizamos transferencias internacionales de datos fuera
+            del Espacio Económico Europeo sin las garantías adecuadas.
+          </p>
+          <p class={parrafo}>
+            Cuando utilizamos servicios de terceros, como proveedores SaaS o herramientas de comunicación,
+            seleccionamos siempre aquellos que ofrecen residencia europea o garantías equivalentes.
+          </p>
+        </section>
+
+        <section data-reveal>
+          <p class={numero}>07</p>
+          <h2 class={titulo}>Tus derechos</h2>
+          <p class={parrafo}>Como interesado tienes derecho a:</p>
+          <ul class={lista}>
+            <li><span class="text-marfil">Acceso:</span> conocer qué datos tuyos tratamos.</li>
+            <li><span class="text-marfil">Rectificación:</span> corregir datos inexactos o incompletos.</li>
+            <li><span class="text-marfil">Supresión:</span> solicitar la eliminación de tus datos.</li>
+            <li><span class="text-marfil">Oposición:</span> oponerte al tratamiento de tus datos.</li>
+            <li><span class="text-marfil">Limitación:</span> solicitar la limitación del tratamiento.</li>
+            <li><span class="text-marfil">Portabilidad:</span> recibir tus datos en formato estructurado.</li>
+            <li>
+              <span class="text-marfil">Reclamación:</span> presentar reclamación ante la <a
+                href="https://www.aepd.es/"
+                target="_blank"
+                rel="noopener"
+                class={enlace}>Agencia Española de Protección de Datos</a
+              >.
+            </li>
+          </ul>
+          <p class={parrafo}>
+            Para ejercer cualquiera de estos derechos, escribe a <a href={`mailto:${site.email}`} class={enlace}
+              >{site.email}</a
+            > identificándote y especificando la solicitud.
+          </p>
+        </section>
+
+        <section data-reveal>
+          <p class={numero}>08</p>
+          <h2 class={titulo}>Seguridad</h2>
+          <p class={parrafo}>
+            Aplicamos medidas técnicas y organizativas razonables para proteger tus datos: cifrado en tránsito
+            con HTTPS, control de acceso por roles, auditoría de registros y copias de seguridad en
+            infraestructura europea. Aun así, ningún sistema es completamente invulnerable, y no podemos
+            garantizar una seguridad absoluta.
+          </p>
+        </section>
+
+        <section data-reveal>
+          <p class={numero}>09</p>
+          <h2 class={titulo}>Cambios en esta política</h2>
+          <p class={parrafo}>
+            Esta política puede actualizarse. La fecha de última actualización aparece al pie de la página. Los
+            cambios sustanciales se comunicarán por email a los contactos activos.
+          </p>
+        </section>
+
+        <p class="hairline pt-8 font-mono text-[12px] text-pizarra" data-reveal>
+          Última actualización: septiembre de 2026
+        </p>
+      </article>
+    </div>
+  </section>
+</Base>
