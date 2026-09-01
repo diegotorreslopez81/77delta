@@ -1,0 +1,90 @@
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="utf-8" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      rel="stylesheet"
+      href="https://fonts.googleapis.com/css2?family=Sora:wght@200;700&family=IBM+Plex+Mono:wght@400&display=swap"
+    />
+    <style>
+      html,
+      body {
+        margin: 0;
+        width: 1200px;
+        height: 630px;
+        background: #060b14;
+        color: #edeae3;
+        font-family: 'Sora', system-ui, sans-serif;
+        -webkit-font-smoothing: antialiased;
+      }
+      .wrap {
+        position: relative;
+        box-sizing: border-box;
+        width: 1200px;
+        height: 630px;
+        padding: 72px 84px;
+        display: flex;
+        flex-direction: column;
+        justify-content: space-between;
+      }
+      .marca {
+        display: inline-flex;
+        align-items: baseline;
+        font-weight: 700;
+        font-size: 96px;
+        letter-spacing: -0.055em;
+        line-height: 1;
+      }
+      .marca svg {
+        height: 0.73em;
+        width: auto;
+        fill: #a7781b;
+      }
+      h1 {
+        margin: 0;
+        font-weight: 200;
+        font-size: 72px;
+        line-height: 1.04;
+        letter-spacing: -0.035em;
+        max-width: 15ch;
+      }
+      h1 b {
+        font-weight: 700;
+        color: #a7781b;
+      }
+      .pie {
+        font-family: 'IBM Plex Mono', monospace;
+        font-size: 18px;
+        letter-spacing: 0.18em;
+        text-transform: uppercase;
+        color: #8794a6;
+      }
+      .linea {
+        position: absolute;
+        left: 84px;
+        right: 84px;
+        bottom: 150px;
+        height: 1px;
+        background: #15202e;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="wrap">
+      <div class="marca">
+        77<svg viewBox="0 0 752 730" aria-hidden="true"
+          ><path
+            fill-rule="evenodd"
+            transform="translate(0 730)"
+            d="M376.1 -730.0L719.2 0.0L33.0 0.0ZM376.1 -421.6L512.6 -131.2L239.6 -131.2Z"
+          ></path></svg
+        >
+      </div>
+      <h1>Aplicamos la IA para <b>ahorrar costes</b> a tu empresa.</h1>
+      <div class="linea"></div>
+      <p class="pie">Consultora de IA para pymes · Barcelona</p>
+    </div>
+  </body>
+</html>
