@@ -39,7 +39,7 @@ import { productos } from '../../data/productos';
                 height="256"
                 loading="lazy"
                 decoding="async"
-                class="h-11 w-auto rounded-[8px] object-contain ring-1 ring-linea"
+                class="h-11 w-11 self-start rounded-[8px] object-contain ring-1 ring-linea"
               />
               <span
                 class:list={['eyebrow mt-7 block', p.estado === 'En producción' ? '' : 'text-pizarra']}
@@ -57,6 +57,8 @@ import { productos } from '../../data/productos';
             </li>
           ))
         }
+        <li aria-hidden="true" class="hidden bg-tinta sm:block"></li>
+        <li aria-hidden="true" class="hidden bg-tinta lg:block"></li>
       </ul>
     </div>
   </section>
