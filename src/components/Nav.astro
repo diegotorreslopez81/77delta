@@ -1,0 +1,78 @@
+---
+import Monograma from './Monograma.astro';
+import Boton from './Boton.astro';
+import { nav, cta, href } from '../lib/site';
+
+const actual = Astro.url.pathname;
+const activo = (ruta: string) => actual.startsWith(href(ruta));
+---
+
+<header class="sticky top-0 z-50 border-b border-linea bg-tinta/85 backdrop-blur-md">
+  <div class="wrap flex h-[68px] items-center justify-between gap-6">
+    <a href={href('/')} class="text-marfil" aria-label="77 Delta, inicio">
+      <Monograma size={24} />
+    </a>
+
+    <nav aria-label="Principal" class="hidden items-center gap-7 lg:flex">
+      {
+        nav.map((n) => (
+          <a
+            href={href(n.ruta)}
+            class:list={[
+              'text-[14px] transition-colors duration-200 hover:text-marfil',
+              activo(n.ruta) ? 'text-oro' : 'text-pizarra',
+            ]}
+            aria-current={activo(n.ruta) ? 'page' : undefined}
+          >
+            {n.texto}
+          </a>
+        ))
+      }
+    </nav>
+
+    <div class="flex items-center gap-3">
+      <Boton href={href(cta.ruta)} class="hidden sm:inline-flex">{cta.texto}</Boton>
+      <button
+        type="button"
+        class="grid h-10 w-10 place-items-center text-marfil lg:hidden"
+        aria-label="Abrir menú"
+        aria-expanded="false"
+        aria-controls="menu-movil"
+        data-burger
+      >
+        <span class="block h-px w-5 bg-current transition-transform duration-200" data-l1></span>
+        <span class="mt-[6px] block h-px w-5 bg-current transition-opacity duration-200" data-l2></span>
+      </button>
+    </div>
+  </div>
+
+  <div id="menu-movil" class="hidden border-t border-linea bg-tinta-honda lg:hidden" data-menu>
+    <nav aria-label="Principal, móvil" class="wrap flex flex-col py-4">
+      {
+        nav.map((n) => (
+          <a
+            href={href(n.ruta)}
+            class:list={[
+              'border-b border-linea py-3 text-[15px]',
+              activo(n.ruta) ? 'text-oro' : 'text-marfil',
+            ]}
+          >
+            {n.texto}
+          </a>
+        ))
+      }
+      <Boton href={href(cta.ruta)} class="mt-4 justify-center sm:hidden">{cta.texto}</Boton>
+    </nav>
+  </div>
+</header>
+
+<script>
+  const boton = document.querySelector<HTMLButtonElement>('[data-burger]');
+  const menu = document.querySelector<HTMLElement>('[data-menu]');
+  boton?.addEventListener('click', () => {
+    const abierto = boton.getAttribute('aria-expanded') === 'true';
+    boton.setAttribute('aria-expanded', String(!abierto));
+    boton.setAttribute('aria-label', abierto ? 'Abrir menú' : 'Cerrar menú');
+    menu?.classList.toggle('hidden', abierto);
+  });
+</script>

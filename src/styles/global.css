@@ -1,0 +1,89 @@
+@import "tailwindcss";
+
+/* Sistema de diseño 77 Delta. Tokens canónicos en CLAUDE.md del repo. */
+@theme {
+  --color-tinta: #060b14;
+  --color-tinta-honda: #03060d;
+  --color-tinta-alta: #0c1524;
+  --color-oro: #a7781b;
+  --color-oro-tenue: #6e5013;
+  --color-marfil: #edeae3;
+  --color-pizarra: #8794a6;
+  --color-linea: #15202e;
+
+  --font-display: "Sora", system-ui, sans-serif;
+  --font-sans: "IBM Plex Sans", system-ui, sans-serif;
+  --font-mono: "IBM Plex Mono", ui-monospace, monospace;
+
+  --ease-suave: cubic-bezier(0.2, 0.7, 0.2, 1);
+}
+
+@layer base {
+  html {
+    scroll-behavior: smooth;
+    -webkit-font-smoothing: antialiased;
+  }
+  body {
+    background: var(--color-tinta);
+    color: var(--color-marfil);
+    font-family: var(--font-sans);
+    font-size: 16px;
+    line-height: 1.62;
+    overflow-x: hidden;
+  }
+  h1, h2, h3, h4 {
+    font-family: var(--font-display);
+    letter-spacing: -0.02em;
+    text-wrap: balance;
+  }
+  ::selection {
+    background: var(--color-oro);
+    color: var(--color-tinta-honda);
+  }
+  :focus-visible {
+    outline: 1px solid var(--color-oro);
+    outline-offset: 3px;
+  }
+}
+
+@utility eyebrow {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--color-oro);
+}
+
+@utility monograma {
+  font-family: var(--font-display);
+  font-weight: 700;
+  letter-spacing: -0.055em;
+  line-height: 1;
+}
+
+@utility wrap {
+  max-width: 1120px;
+  margin-inline: auto;
+  padding-inline: 24px;
+}
+
+@utility hairline {
+  border-top: 1px solid var(--color-linea);
+}
+
+/* Aparición al hacer scroll. Sin librerías; ver Reveal en Base.astro. */
+[data-reveal] {
+  opacity: 0;
+  transform: translateY(18px);
+  transition:
+    opacity 0.7s var(--ease-suave),
+    transform 0.7s var(--ease-suave);
+}
+[data-reveal].es-visible {
+  opacity: 1;
+  transform: none;
+}
+@media (prefers-reduced-motion: reduce) {
+  html { scroll-behavior: auto; }
+  [data-reveal] { opacity: 1; transform: none; transition: none; }
+}

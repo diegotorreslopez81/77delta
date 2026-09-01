@@ -1,0 +1,106 @@
+---
+import '../styles/global.css';
+import Nav from '../components/Nav.astro';
+import Footer from '../components/Footer.astro';
+import { site, href } from '../lib/site';
+
+interface Props {
+  /** Título de la página, sin el nombre de la marca. */
+  title: string;
+  description?: string;
+  /** Ruta de la imagen OG dentro de public/, sin base. */
+  ogImage?: string;
+}
+const { title, description = site.descripcion, ogImage = '/img/og.png' } = Astro.props;
+
+const tituloCompleto = title ? `${title} · ${site.nombre}` : `${site.nombre} · ${site.claim}`;
+const canonical = new URL(Astro.url.pathname, Astro.site).href;
+const og = new URL(href(ogImage), Astro.site).href;
+---
+
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>{tituloCompleto}</title>
+    <meta name="description" content={description} />
+    <link rel="canonical" href={canonical} />
+    <link rel="icon" type="image/svg+xml" href={href('/favicon.svg')} />
+    <meta name="theme-color" content="#060B14" />
+
+    <meta property="og:type" content="website" />
+    <meta property="og:site_name" content={site.nombre} />
+    <meta property="og:title" content={tituloCompleto} />
+    <meta property="og:description" content={description} />
+    <meta property="og:url" content={canonical} />
+    <meta property="og:image" content={og} />
+    <meta property="og:image:width" content="1200" />
+    <meta property="og:image:height" content="630" />
+    <meta property="og:locale" content="es_ES" />
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content={tituloCompleto} />
+    <meta name="twitter:description" content={description} />
+    <meta name="twitter:image" content={og} />
+
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      rel="stylesheet"
+      href="https://fonts.googleapis.com/css2?family=Sora:wght@200;400;600;700&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap"
+    />
+  </head>
+  <body class="min-h-screen bg-tinta text-marfil">
+    <Nav />
+    <main>
+      <slot />
+    </main>
+    <Footer />
+
+    <script>
+      // Aparición al hacer scroll y contadores. Sin librerías.
+      const reduce = matchMedia('(prefers-reduced-motion: reduce)').matches;
+      const reveals = document.querySelectorAll<HTMLElement>('[data-reveal]');
+      const contadores = document.querySelectorAll<HTMLElement>('[data-contador]');
+
+      function contar(el: HTMLElement) {
+        const fin = Number(el.dataset.contador ?? '0');
+        const sufijo = el.dataset.sufijo ?? '';
+        const decimales = (el.dataset.contador ?? '').split('.')[1]?.length ?? 0;
+        if (reduce) {
+          el.textContent = fin.toFixed(decimales) + sufijo;
+          return;
+        }
+        const t0 = performance.now();
+        const dur = 1100;
+        const paso = (t: number) => {
+          const p = Math.min(1, (t - t0) / dur);
+          const e = 1 - Math.pow(1 - p, 3);
+          el.textContent = (fin * e).toFixed(decimales) + sufijo;
+          if (p < 1) requestAnimationFrame(paso);
+        };
+        requestAnimationFrame(paso);
+      }
+
+      if (!('IntersectionObserver' in window) || reduce) {
+        reveals.forEach((e) => e.classList.add('es-visible'));
+        contadores.forEach(contar);
+      } else {
+        const io = new IntersectionObserver(
+          (entries) => {
+            for (const en of entries) {
+              if (!en.isIntersecting) continue;
+              const el = en.target as HTMLElement;
+              if (el.hasAttribute('data-reveal')) el.classList.add('es-visible');
+              if (el.hasAttribute('data-contador')) contar(el);
+              io.unobserve(el);
+            }
+          },
+          { rootMargin: '0px 0px -8% 0px', threshold: 0.15 },
+        );
+        reveals.forEach((e) => io.observe(e));
+        contadores.forEach((e) => io.observe(e));
+      }
+    </script>
+  </body>
+</html>

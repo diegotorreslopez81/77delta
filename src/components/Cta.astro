@@ -1,0 +1,28 @@
+---
+/** Bloque de cierre de página: titular, una frase y el botón de diagnóstico. */
+import Boton from './Boton.astro';
+import { href } from '../lib/site';
+
+interface Props {
+  titulo?: string;
+  texto?: string;
+  boton?: string;
+}
+const {
+  titulo = '30 minutos. Sin compromiso. Tú decides después.',
+  texto = 'Entrevista estructurada con tu empresa. Te entregamos una propuesta personalizada con estado inicial, plan de trabajo y presupuesto.',
+  boton = 'Reservar diagnóstico gratuito',
+} = Astro.props;
+---
+
+<section class="hairline">
+  <div class="wrap py-24 md:py-32" data-reveal>
+    <h2 class="max-w-[18ch] font-display text-[clamp(30px,4.6vw,52px)] font-extralight leading-[1.08] tracking-[-0.03em]">
+      {titulo}
+    </h2>
+    <p class="mt-6 max-w-[52ch] text-[17px] text-pizarra">{texto}</p>
+    <div class="mt-9">
+      <Boton href={href('/contacto/')}>{boton} →</Boton>
+    </div>
+  </div>
+</section>

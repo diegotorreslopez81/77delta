@@ -1,0 +1,87 @@
+---
+import Monograma from './Monograma.astro';
+import { site, href } from '../lib/site';
+
+const columnas = [
+  {
+    titulo: 'Servicios',
+    enlaces: [
+      { texto: 'Diagnóstico', ruta: '/servicios/#diagnostico' },
+      { texto: 'Transformación operativa', ruta: '/servicios/#transformacion' },
+      { texto: 'Partner tecnológico', ruta: '/servicios/#partner' },
+      { texto: 'Sectores', ruta: '/sectores/' },
+      { texto: 'Historias de éxito', ruta: '/historias-de-exito/' },
+    ],
+  },
+  {
+    titulo: 'Productos',
+    enlaces: [
+      { texto: 'Regulia', ruta: '/productos/#regulia' },
+      { texto: 'Contestia', ruta: '/productos/#contestia' },
+      { texto: 'InstantExam', ruta: '/productos/#instantexam' },
+      { texto: 'Canto', ruta: '/productos/#canto' },
+      { texto: 'ScoreFlow', ruta: '/productos/#scoreflow' },
+      { texto: 'Contablia', ruta: '/productos/#contablia' },
+      { texto: 'Swarmix', ruta: '/productos/#swarmix' },
+    ],
+  },
+  {
+    titulo: 'Empresa',
+    enlaces: [
+      { texto: 'Sobre nosotros', ruta: '/sobre-nosotros/' },
+      { texto: 'Contacto', ruta: '/contacto/' },
+    ],
+  },
+  {
+    titulo: 'Legal',
+    enlaces: [
+      { texto: 'Aviso legal', ruta: '/aviso-legal/' },
+      { texto: 'Privacidad', ruta: '/politica-privacidad/' },
+      { texto: 'Cookies', ruta: '/politica-cookies/' },
+    ],
+  },
+];
+---
+
+<footer class="border-t border-linea bg-tinta-honda">
+  <div class="wrap grid gap-12 py-16 md:grid-cols-[1.4fr_repeat(4,1fr)]">
+    <div>
+      <a href={href('/')} class="text-marfil" aria-label="77 Delta, inicio"><Monograma size={26} /></a>
+      <p class="mt-5 max-w-[30ch] text-[14px] text-pizarra">
+        Consultora tecnológica especializada en pymes. Transformamos pymes con inteligencia artificial
+        aplicada con criterio.
+      </p>
+      <p class="eyebrow mt-6">{site.ciudad}</p>
+    </div>
+
+    {
+      columnas.map((c) => (
+        <div>
+          <h4 class="eyebrow mb-4 text-pizarra">{c.titulo}</h4>
+          <ul class="space-y-2.5">
+            {c.enlaces.map((e) => (
+              <li>
+                <a href={href(e.ruta)} class="text-[14px] text-marfil/80 transition-colors hover:text-oro">
+                  {e.texto}
+                </a>
+              </li>
+            ))}
+          </ul>
+        </div>
+      ))
+    }
+  </div>
+
+  <div class="border-t border-linea">
+    <div class="wrap flex flex-col gap-3 py-6 text-[12px] text-pizarra md:flex-row md:items-center md:justify-between">
+      <p>
+        © {site.anio} {site.nombre} es una marca de <strong class="font-medium text-marfil/80">{site.sociedad}</strong> ·
+        CIF {site.cif} · {site.direccion}
+      </p>
+      <p class="flex items-center gap-4 whitespace-nowrap">
+        <span>Datos procesados en la Unión Europea · RGPD</span>
+        <a href={site.linkedin} target="_blank" rel="noopener" class="transition-colors hover:text-oro">LinkedIn</a>
+      </p>
+    </div>
+  </div>
+</footer>

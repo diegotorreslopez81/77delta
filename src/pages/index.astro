@@ -1,0 +1,274 @@
+---
+import Base from '../layouts/Base.astro';
+import Boton from '../components/Boton.astro';
+import Cta from '../components/Cta.astro';
+import Confianza from '../components/Confianza.astro';
+import { site, href } from '../lib/site';
+import { sectores } from '../data/sectores';
+import { casos } from '../data/casos';
+
+const servicios = [
+  {
+    n: '01',
+    etiqueta: 'Primer paso · gratuito · 30 min',
+    titulo: 'Diagnóstico',
+    texto:
+      '30 minutos de entrevista estructurada y un formulario que nos permite entender tu realidad. Recibes una propuesta personalizada con el estado inicial de tu empresa, plan de trabajo y presupuesto. Sin compromiso.',
+    pie: 'Gratuito',
+    ruta: '/servicios/#diagnostico',
+  },
+  {
+    n: '02',
+    etiqueta: 'Proyecto a medida',
+    titulo: 'Transformación operativa con IA',
+    texto:
+      'Tras el diagnóstico, ejecutamos la propuesta acordada: implantación, integración con tus sistemas, automatización de procesos y capacitación de tu equipo. Todo lo que necesita la transformación. La inversión se define en la propuesta, ajustada al alcance.',
+    pie: 'Cotización personalizada en propuesta',
+    ruta: '/servicios/#transformacion',
+  },
+  {
+    n: '03',
+    etiqueta: 'Mensualidad',
+    titulo: 'Partner tecnológico',
+    texto:
+      'Acompañamiento continuo en la dirección estratégica de IA de tu empresa. Revisamos propuestas de proveedores, participamos en decisiones tecnológicas e identificamos nuevas oportunidades cada mes. Tres paquetes de horas con descuento por volumen.',
+    pie: 'Desde 1.000 €/mes · 6 meses mínimo',
+    ruta: '/servicios/#partner',
+  },
+];
+
+const razones = [
+  {
+    titulo: 'Transformación transversal, no solo tecnología',
+    texto:
+      'La IA cambia procesos, equipos y formas de decidir. No basta con instalar herramientas. Acompañamos la transformación completa de tu organización.',
+  },
+  {
+    titulo: 'La IA aumenta a las personas, no las sustituye',
+    texto:
+      'Diseñamos cada implantación con tu equipo en el centro. Human-in-the-loop por defecto: liberamos tiempo de tareas repetitivas para que tu gente se dedique a lo que aporta valor.',
+  },
+  {
+    titulo: 'Construimos lo que implantamos',
+    texto:
+      'Operamos productos propios en producción con empresas reales. La tecnología que proponemos está validada con clientes activos.',
+  },
+  {
+    titulo: 'Datos en Europa, cumplimiento garantizado',
+    texto:
+      'Infraestructura propia en la UE. Cumplimiento del RGPD. Sin dependencias de terceros países. Soporte en español y catalán.',
+  },
+  {
+    titulo: 'Resultados medidos en horas y en ventas',
+    texto:
+      'Cada proyecto empieza con una estimación cuantificada: tiempo recuperado, reducción de costes, aumento de producción o ventas. Seguimiento mensual con métricas verificables.',
+  },
+  {
+    titulo: 'Sin dependencia tecnológica',
+    texto:
+      'Al finalizar el proyecto, tu empresa conserva el código, las claves, los datos y la documentación. Independencia real.',
+  },
+];
+---
+
+<Base title="" description={site.descripcion}>
+  <!-- Hero -->
+  <section class="wrap flex min-h-[calc(100svh-68px)] flex-col justify-center py-24 md:py-32">
+    <p class="eyebrow" data-reveal>Acreditados ACCIÓ · Generalitat de Catalunya</p>
+    <h1
+      class="mt-7 max-w-[15ch] font-display text-[clamp(42px,7.2vw,96px)] font-extralight leading-[1.02] tracking-[-0.035em]"
+      data-reveal
+    >
+      Aplicamos la IA para <span class="font-semibold text-oro">ahorrar costes</span> a tu empresa.
+    </h1>
+    <p class="mt-8 max-w-[48ch] text-[clamp(17px,1.6vw,21px)] text-pizarra" data-reveal>
+      Consultora tecnológica especializada en pymes. Diagnóstico gratuito, transformación operativa con IA y
+      partner tecnológico.
+    </p>
+    <div class="mt-10 flex flex-wrap gap-3" data-reveal>
+      <Boton href={href('/contacto/')}>Reservar diagnóstico →</Boton>
+      <Boton href={href('/servicios/')} variante="linea">Ver cómo trabajamos</Boton>
+    </div>
+  </section>
+
+  <!-- El problema -->
+  <section class="hairline">
+    <div class="wrap grid gap-10 py-24 md:grid-cols-12 md:py-32">
+      <div class="md:col-span-7" data-reveal>
+        <p class="eyebrow">El problema</p>
+        <h2 class="mt-5 font-display text-[clamp(28px,3.6vw,44px)] font-extralight leading-[1.1] tracking-[-0.03em]">
+          La inteligencia artificial está reordenando tu sector. La pregunta no es si te afectará, sino cómo
+          aplicarla bien.
+        </h2>
+      </div>
+      <div class="space-y-5 text-[17px] text-pizarra md:col-span-5 md:pt-12" data-reveal>
+        <p>
+          La información disponible es abundante, pero distinguir lo que realmente transforma tu negocio de lo que
+          solo suena interesante requiere criterio y experiencia. La transformación no es solo tecnológica: toca
+          procesos, equipos y formas de decidir.
+        </p>
+        <p class="text-marfil">
+          ¿Qué tareas repetitivas consumen el día a día de tu equipo? ¿Qué decisiones se toman sin datos suficientes?
+          ¿Qué áreas están saturadas? ¿Qué pasa cuando una persona clave no está? ¿Cuál es la inversión real para
+          empezar y cómo se mide el retorno?
+        </p>
+      </div>
+    </div>
+  </section>
+
+  <!-- Cómo trabajamos -->
+  <section id="servicios" class="hairline">
+    <div class="wrap py-24 md:py-32">
+      <div class="max-w-[62ch]" data-reveal>
+        <p class="eyebrow">Cómo trabajamos</p>
+        <h2 class="mt-5 font-display text-[clamp(28px,3.6vw,44px)] font-extralight leading-[1.1] tracking-[-0.03em]">
+          Empezamos por un diagnóstico. Después, tú decides el recorrido.
+        </h2>
+        <p class="mt-6 text-[17px] text-pizarra">
+          Cada empresa es distinta. El proceso es lineal: primero entendemos tu realidad, luego construimos la
+          transformación y, si quieres, te acompañamos en el medio y largo plazo como tu partner tecnológico.
+        </p>
+      </div>
+
+      <div class="mt-16 grid gap-px overflow-hidden rounded-[4px] border border-linea bg-linea md:grid-cols-3">
+        {
+          servicios.map((s) => (
+            <a href={href(s.ruta)} class="group flex flex-col bg-tinta p-8 transition-colors hover:bg-tinta-honda md:p-10" data-reveal>
+              <span class="font-mono text-[11px] tracking-[0.14em] text-oro">{s.n}</span>
+              <span class="eyebrow mt-6 text-pizarra">{s.etiqueta}</span>
+              <h3 class="mt-3 font-display text-[22px] font-semibold">{s.titulo}</h3>
+              <p class="mt-4 flex-1 text-[15px] text-pizarra">{s.texto}</p>
+              <span class="mt-8 font-mono text-[12px] text-marfil/80 group-hover:text-oro">{s.pie} →</span>
+            </a>
+          ))
+        }
+      </div>
+    </div>
+  </section>
+
+  <!-- Sectores -->
+  <section class="hairline bg-tinta-honda">
+    <div class="wrap py-24 md:py-32">
+      <div class="max-w-[62ch]" data-reveal>
+        <p class="eyebrow">Sectores</p>
+        <h2 class="mt-5 font-display text-[clamp(28px,3.6vw,44px)] font-extralight leading-[1.1] tracking-[-0.03em]">
+          Seis sectores. Una metodología.
+        </h2>
+        <p class="mt-6 text-[17px] text-pizarra">
+          En cada uno aplicamos una metodología contrastada. La tecnología es la parte visible. Lo que cambia es cómo
+          trabaja tu equipo.
+        </p>
+      </div>
+
+      <ul class="mt-16 grid gap-x-10 gap-y-12 sm:grid-cols-2 lg:grid-cols-3" role="list">
+        {
+          sectores.map((s, i) => (
+            <li data-reveal>
+              <a href={href(`/sectores/${s.slug}/`)} class="group block border-t border-linea pt-6 transition-colors hover:border-oro">
+                <span class="font-mono text-[11px] tracking-[0.14em] text-oro">Sector {String(i + 1).padStart(2, '0')}</span>
+                <h3 class="mt-4 font-display text-[19px] font-semibold">{s.nombre}</h3>
+                <p class="mt-3 text-[15px] text-pizarra">{s.resumen}</p>
+                <span class="mt-5 inline-block font-mono text-[12px] text-marfil/70 group-hover:text-oro">Ver el sector →</span>
+              </a>
+            </li>
+          ))
+        }
+      </ul>
+    </div>
+  </section>
+
+  <!-- Historias de éxito -->
+  <section class="hairline">
+    <div class="wrap py-24 md:py-32">
+      <div class="max-w-[62ch]" data-reveal>
+        <p class="eyebrow">Historias de éxito</p>
+        <h2 class="mt-5 font-display text-[clamp(28px,3.6vw,44px)] font-extralight leading-[1.1] tracking-[-0.03em]">
+          Resultados que se pueden contar.
+        </h2>
+      </div>
+
+      <ol class="mt-8" role="list">
+        {
+          casos.map((c, i) => (
+            <li class="grid gap-6 border-t border-linea py-14 md:grid-cols-12 md:gap-10 md:py-20" data-reveal>
+              <div class="md:col-span-5">
+                <p class="font-display text-[clamp(64px,9vw,128px)] font-extralight leading-none tracking-[-0.04em] text-oro">
+                  <span data-contador={c.valor} data-sufijo={c.sufijo}>0{c.sufijo}</span>
+                </p>
+                <p class="mt-3 font-mono text-[12px] uppercase tracking-[0.14em] text-pizarra">{c.etiqueta}</p>
+              </div>
+              <div class="md:col-span-7">
+                <p class="eyebrow text-pizarra">
+                  Caso {i + 1} de {casos.length} · {c.meta}
+                </p>
+                <h3 class="mt-4 font-display text-[clamp(22px,2.4vw,30px)] font-semibold leading-[1.2]">{c.titulo}</h3>
+                <p class="mt-5 text-[16px] text-pizarra">{c.situacion}</p>
+                <p class="mt-3 text-[16px]">{c.solucion}</p>
+                {c.historia && (
+                  <a href={href(`/historias-de-exito/${c.historia}/`)} class="mt-6 inline-block font-mono text-[12px] text-oro hover:text-marfil">
+                    Leer el caso completo →
+                  </a>
+                )}
+              </div>
+            </li>
+          ))
+        }
+      </ol>
+    </div>
+  </section>
+
+  <!-- Seis razones -->
+  <section class="hairline bg-tinta-honda">
+    <div class="wrap py-24 md:py-32">
+      <div class="max-w-[62ch]" data-reveal>
+        <p class="eyebrow">Por qué {site.nombre}</p>
+        <h2 class="mt-5 font-display text-[clamp(28px,3.6vw,44px)] font-extralight leading-[1.1] tracking-[-0.03em]">
+          Seis razones para confiar en nosotros
+        </h2>
+      </div>
+      <ol class="mt-16 grid gap-x-12 gap-y-12 md:grid-cols-2 lg:grid-cols-3" role="list">
+        {
+          razones.map((r, i) => (
+            <li data-reveal>
+              <span class="font-mono text-[11px] tracking-[0.14em] text-oro">{String(i + 1).padStart(2, '0')}</span>
+              <h3 class="mt-4 font-display text-[18px] font-semibold">{r.titulo}</h3>
+              <p class="mt-3 text-[15px] text-pizarra">{r.texto}</p>
+            </li>
+          ))
+        }
+      </ol>
+    </div>
+  </section>
+
+  <!-- Sobre nosotros -->
+  <section class="hairline">
+    <div class="wrap grid gap-10 py-24 md:grid-cols-12 md:py-32">
+      <div class="md:col-span-6" data-reveal>
+        <p class="eyebrow">Sobre nosotros</p>
+        <h2 class="mt-5 font-display text-[clamp(28px,3.6vw,44px)] font-extralight leading-[1.1] tracking-[-0.03em]">
+          Una consultora con historia, nacida desde dentro del problema.
+        </h2>
+      </div>
+      <div class="space-y-5 text-[17px] text-pizarra md:col-span-6 md:pt-12" data-reveal>
+        <p>
+          Más de 20 años aplicando tecnología a empresas reales. Acreditados por la Generalitat de Catalunya. Con
+          clientes desde Barcelona hasta Dubái. Y con una convicción: la IA solo aporta valor cuando se aplica con
+          criterio.
+        </p>
+        <p>
+          {site.nombre} nace de la experiencia acumulada por Diego Torres a lo largo de dos décadas. Tras acompañar a
+          más de 500 startups, observó un patrón: las grandes empresas tenían consultoras estratégicas, las pymes
+          quedaban desorientadas frente a la avalancha tecnológica. Nació para ser ese interlocutor de confianza
+          para tu empresa.
+        </p>
+        <p class="font-mono text-[12px] text-marfil/70">Diego Torres, fundador</p>
+        <a href={href('/sobre-nosotros/')} class="inline-block font-mono text-[12px] text-oro hover:text-marfil">
+          Nuestra misión es ayudarte, conócenos →
+        </a>
+      </div>
+    </div>
+  </section>
+
+  <Cta />
+  <Confianza />
+</Base>
