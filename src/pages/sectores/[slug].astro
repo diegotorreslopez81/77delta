@@ -1,0 +1,128 @@
+---
+import Base from '../../layouts/Base.astro';
+import Cta from '../../components/Cta.astro';
+import { href } from '../../lib/site';
+import { sectores, type Sector } from '../../data/sectores';
+
+export function getStaticPaths() {
+  return sectores.map((sector, i) => ({
+    params: { slug: sector.slug },
+    props: { sector, indice: i },
+  }));
+}
+
+interface Props {
+  sector: Sector;
+  indice: number;
+}
+
+const { sector, indice } = Astro.props;
+const numero = String(indice + 1).padStart(2, '0');
+
+// La cifra del caso es texto ("38%", "2h", "3x"). Si empieza por número, la animamos.
+const partes = /^([\d.,]+)(.*)$/.exec(sector.caso.cifra);
+const valor = partes ? Number(partes[1].replace(',', '.')) : null;
+const sufijo = partes ? partes[2] : '';
+---
+
+<Base title={sector.nombre} description={sector.lead}>
+  <!-- Hero -->
+  <section class="wrap py-24 md:py-32">
+    <p class="eyebrow" data-reveal>Sector {numero} · {sector.nombre}</p>
+    <h1
+      class="mt-7 max-w-[18ch] font-display text-[clamp(38px,6vw,76px)] font-extralight leading-[1.04] tracking-[-0.035em]"
+      data-reveal
+    >
+      {sector.h1}
+    </h1>
+    <p class="mt-8 max-w-[52ch] text-[clamp(17px,1.6vw,20px)] text-pizarra" data-reveal>{sector.lead}</p>
+  </section>
+
+  <!-- El problema típico del sector -->
+  <section class="hairline">
+    <div class="wrap grid gap-10 py-24 md:grid-cols-12 md:py-32">
+      <div class="md:col-span-7" data-reveal>
+        <p class="eyebrow">El problema típico del sector</p>
+        <h2 class="mt-5 font-display text-[clamp(28px,3.6vw,44px)] font-extralight leading-[1.1] tracking-[-0.03em]">
+          Lo que nos cuentan cuando llegan a nosotros
+        </h2>
+      </div>
+      <div class="md:col-span-5 md:pt-12" data-reveal>
+        <p class="text-[17px] text-pizarra">{sector.problema}</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- Cuatro líneas de transformación -->
+  <section class="hairline bg-tinta-honda">
+    <div class="wrap py-24 md:py-32">
+      <div class="max-w-[62ch]" data-reveal>
+        <p class="eyebrow">Soluciones aplicables</p>
+        <h2 class="mt-5 font-display text-[clamp(28px,3.6vw,44px)] font-extralight leading-[1.1] tracking-[-0.03em]">
+          Cuatro líneas de transformación con IA
+        </h2>
+        <p class="mt-6 text-[17px] text-pizarra">
+          Implantaciones contrastadas que adaptamos al caso concreto tras el diagnóstico.
+        </p>
+      </div>
+
+      <ol class="mt-16 grid gap-x-12 gap-y-12 md:grid-cols-2" role="list">
+        {
+          sector.soluciones.map((s, i) => (
+            <li data-reveal>
+              <span class="font-mono text-[11px] tracking-[0.14em] text-oro">{String(i + 1).padStart(2, '0')}</span>
+              <p class="mt-4 font-display text-[19px] font-semibold leading-[1.3]">{s}</p>
+            </li>
+          ))
+        }
+      </ol>
+    </div>
+  </section>
+
+  <!-- Caso destacado -->
+  <section class="hairline">
+    <div class="wrap grid gap-6 py-24 md:grid-cols-12 md:gap-10 md:py-32">
+      <div class="md:col-span-5" data-reveal>
+        <p class="font-display text-[clamp(64px,9vw,128px)] font-extralight leading-none tracking-[-0.04em] text-oro">
+          {
+            valor === null ? (
+              <span>{sector.caso.cifra}</span>
+            ) : (
+              <span data-contador={valor} data-sufijo={sufijo}>
+                0{sufijo}
+              </span>
+            )
+          }
+        </p>
+        <p class="mt-3 font-mono text-[12px] uppercase tracking-[0.14em] text-pizarra">{sector.caso.etiqueta}</p>
+      </div>
+      <div class="md:col-span-7" data-reveal>
+        <p class="eyebrow text-pizarra">Caso destacado</p>
+        <h2 class="mt-4 font-display text-[clamp(22px,2.4vw,30px)] font-semibold leading-[1.2]">
+          {sector.caso.titulo}
+        </h2>
+        <p class="mt-5 text-[16px] text-pizarra">{sector.caso.texto}</p>
+        <div class="mt-6 flex flex-wrap gap-x-8 gap-y-3">
+          {
+            sector.caso.historia && (
+              <a
+                href={href(`/historias-de-exito/${sector.caso.historia}/`)}
+                class="font-mono text-[12px] text-oro hover:text-marfil"
+              >
+                Leer el caso completo →
+              </a>
+            )
+          }
+          <a href={href('/historias-de-exito/')} class="font-mono text-[12px] text-marfil/70 hover:text-oro">
+            Ver más casos del sector →
+          </a>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <Cta
+    titulo={sector.ctaTitulo}
+    texto="Diagnóstico de 30 minutos. Te entregamos propuesta personalizada con estado inicial, plan de trabajo y presupuesto. Sin compromiso."
+  />
+</Base>
