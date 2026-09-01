@@ -1,5 +1,7 @@
 ---
-/** Monograma 77Δ. Las tres figuras como una sola pieza; la Δ en oro. */
+/** Monograma 77Δ. Las tres figuras como una sola pieza; la Δ en oro, como SVG para que no dependa de la fuente del sistema. */
+import Delta from './Delta.astro';
+
 interface Props {
   /** Tamaño en px del texto. */
   size?: number;
@@ -8,6 +10,6 @@ interface Props {
 const { size = 22, class: extra = '' } = Astro.props;
 ---
 
-<span class:list={['monograma', extra]} style={`font-size:${size}px`} aria-label="77 Delta"
-  >77<span class="text-oro">Δ</span></span
+<span class:list={['monograma inline-flex items-baseline', extra]} style={`font-size:${size}px`} role="img" aria-label="77 Delta"
+  >77<Delta class="text-oro" /></span
 >

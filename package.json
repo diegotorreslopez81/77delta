@@ -17,5 +17,9 @@
     "astro": "7.2.9",
     "sharp": "^0.35.4",
     "tailwindcss": "^4.3.3"
+  },
+  "devDependencies": {
+    "opentype.js": "^2.0.0",
+    "playwright-core": "^1.62.1"
   }
 }
