@@ -1,0 +1,43 @@
+---
+/**
+ * Iconos planos de la marca: trazo fino, un solo color (el del texto),
+ * 24×24. El triángulo es el módulo cuando el concepto lo admite.
+ */
+const iconos = {
+  diagnostico: '<path d="M12 4l8 14H4z"/><path d="M4 21h16"/><path d="M8 21v-2M12 21v-2M16 21v-2"/>',
+  transformacion: '<rect x="3" y="3" width="18" height="18" rx="2"/><path d="M12 7l5 9H7z"/>',
+  partner: '<path d="M9 6l7 12H2z"/><circle cx="17.5" cy="8.5" r="3.5"/>',
+  medir: '<path d="M12 4l8 14H4z"/><path d="M9.5 13l2 2 3.5-3.5"/>',
+  piloto: '<path d="M12 5l6 11H6z"/><circle cx="12" cy="13" r="1.5" fill="currentColor" stroke="none"/>',
+  integracion: '<path d="M3 12h5M16 12h5"/><path d="M12 6l4 6-4 6-4-6z"/>',
+  produccion: '<rect x="3" y="4" width="18" height="13" rx="2"/><path d="M12 8l3.5 6h-7z"/><path d="M9 21h6"/>',
+  clinicas: '<path d="M12 4l8 14H4z"/><path d="M12 10v6M9 13h6"/>',
+  industria: '<path d="M3 20V9l5 3V9l5 3V9l5 3v8z"/><path d="M3 20h18"/><path d="M8 17h2M13 17h2"/>',
+  distribucion: '<path d="M3 7h11v10H3z"/><path d="M14 10h4l3 3v4h-7z"/><circle cx="7" cy="18" r="1.6"/><circle cx="17" cy="18" r="1.6"/>',
+  despachos: '<path d="M6 3h9l4 4v14H6z"/><path d="M15 3v4h4"/><path d="M9 12h7M9 16h7"/>',
+  administracion: '<path d="M3 21h18"/><path d="M6 21v-9M10 21v-9M14 21v-9M18 21v-9"/><path d="M3 12l9-7 9 7z"/>',
+  formacion: '<path d="M2 9l10-5 10 5-10 5z"/><path d="M6 11.5V16c0 1.6 2.7 3 6 3s6-1.4 6-3v-4.5"/><path d="M22 9v5"/>',
+  reloj: '<circle cx="12" cy="12" r="8.5"/><path d="M12 7.5V12l3 2"/>',
+  euro: '<path d="M16 7.5a5.5 5.5 0 0 0-10 3v3a5.5 5.5 0 0 0 10 3"/><path d="M4 11.5h8M4 14.5h8"/>',
+  propuesta: '<path d="M5 4h10l4 4v12H5z"/><path d="M15 4v4h4"/><path d="M9 14l2 2 4-4"/>',
+  flecha: '<path d="M5 12h14"/><path d="M13 6l6 6-6 6"/>',
+} as const;
+
+interface Props {
+  nombre: keyof typeof iconos;
+  class?: string;
+}
+const { nombre, class: extra = 'h-6 w-6' } = Astro.props;
+---
+
+<svg
+  viewBox="0 0 24 24"
+  fill="none"
+  stroke="currentColor"
+  stroke-width="1.5"
+  stroke-linecap="round"
+  stroke-linejoin="round"
+  class={extra}
+  aria-hidden="true"
+  set:html={iconos[nombre]}
+/>

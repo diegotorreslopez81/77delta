@@ -1,7 +1,7 @@
 ---
 import Monograma from './Monograma.astro';
 import Boton from './Boton.astro';
-import { nav, cta, href } from '../lib/site';
+import { nav, navSecundaria, cta, href } from '../lib/site';
 
 const actual = Astro.url.pathname;
 const activo = (ruta: string) => actual.startsWith(href(ruta));
@@ -31,7 +31,8 @@ const activo = (ruta: string) => actual.startsWith(href(ruta));
     </nav>
 
     <div class="flex items-center gap-3">
-      <Boton href={href(cta.ruta)} class="hidden sm:inline-flex">{cta.texto}</Boton>
+      <div class="hidden sm:block"><Boton href={href(cta.ruta)}>{cta.texto}</Boton></div>
+      <a href={href(cta.ruta)} class="rounded-[3px] border border-oro/70 px-3 py-1.5 font-display text-[13px] text-oro sm:hidden">Hablemos</a>
       <button
         type="button"
         class="grid h-10 w-10 place-items-center text-marfil lg:hidden"
@@ -49,7 +50,7 @@ const activo = (ruta: string) => actual.startsWith(href(ruta));
   <div id="menu-movil" class="hidden border-t border-linea bg-tinta-honda lg:hidden" data-menu>
     <nav aria-label="Principal, móvil" class="wrap flex flex-col py-4">
       {
-        nav.map((n) => (
+        [...nav, ...navSecundaria].map((n) => (
           <a
             href={href(n.ruta)}
             class:list={[

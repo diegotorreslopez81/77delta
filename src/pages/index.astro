@@ -3,6 +3,9 @@ import { Image } from 'astro:assets';
 import Base from '../layouts/Base.astro';
 import Boton from '../components/Boton.astro';
 import Campo from '../components/Campo.astro';
+import Delta from '../components/Delta.astro';
+import Icono from '../components/Icono.astro';
+import Marcador from '../components/Marcador.astro';
 import { site, href } from '../lib/site';
 import { sectores } from '../data/sectores';
 import regulia from '../assets/productos/regulia.webp';
@@ -10,25 +13,43 @@ import contestia from '../assets/productos/contestia.webp';
 import instantexam from '../assets/productos/instantexam.webp';
 import swarmix from '../assets/productos/swarmix.webp';
 
+const pasos = [
+  { icono: 'piloto', nombre: 'Piloto', texto: 'Versión mínima en un proceso acotado.' },
+  { icono: 'integracion', nombre: 'Integración', texto: 'ERP, CRM, WhatsApp, agenda. Datos de punta a punta.' },
+  { icono: 'produccion', nombre: 'Producción', texto: 'Salida real, equipo formado, medición desde el día uno.' },
+] as const;
+
 const cifras = [
-  { valor: 38, sufijo: '%', frase: 'menos ausencias en tres clínicas dentales', historia: 'clinicas-dentales-barcelona' },
-  { valor: 2, sufijo: 'h', frase: 'al día recuperadas por cada comercial', historia: 'distribuidora-industrial' },
-  { valor: 20, sufijo: 'h', frase: 'al mes liberadas por socio en un despacho', historia: 'despacho-mercantil' },
-];
+  { valor: 38, sufijo: '%', frase: 'menos ausencias en tres clínicas dentales', historia: 'clinicas-dentales-barcelona', icono: 'clinicas', meta: 'Clínicas dentales · Barcelona' },
+  { valor: 2, sufijo: 'h', frase: 'al día recuperadas por cada comercial', historia: 'distribuidora-industrial', icono: 'distribucion', meta: 'Distribución industrial · Catalunya' },
+  { valor: 20, sufijo: 'h', frase: 'al mes liberadas por socio en un despacho', historia: 'despacho-mercantil', icono: 'despachos', meta: 'Derecho mercantil · Madrid' },
+] as const;
 
 const capturas = [
-  { img: regulia, nombre: 'Regulia', que: 'Cumplimiento europeo automatizado', slug: 'regulia' },
-  { img: contestia, nombre: 'Contestia', que: 'Recepcionista por WhatsApp para clínicas', slug: 'contestia' },
-  { img: instantexam, nombre: 'InstantExam', que: 'Exámenes con IA en 30 segundos', slug: 'instantexam' },
-  { img: swarmix, nombre: 'Swarmix', que: 'Prospección con agentes', slug: 'swarmix' },
+  { img: regulia, nombre: 'Regulia', que: 'Cumplimiento europeo automatizado', slug: 'regulia', url: 'regulia.app' },
+  { img: contestia, nombre: 'Contestia', que: 'Recepcionista por WhatsApp para clínicas', slug: 'contestia', url: 'contestia.co' },
+  { img: instantexam, nombre: 'InstantExam', que: 'Exámenes con IA en 30 segundos', slug: 'instantexam', url: 'instantexam.co' },
+  { img: swarmix, nombre: 'Swarmix', que: 'Prospección con agentes', slug: 'swarmix', url: 'swarmix.co' },
 ];
 
-const h2 = 'font-display text-[clamp(38px,6.4vw,96px)] font-extralight leading-[0.98] tracking-[-0.04em] text-marfil';
-const linea = 'mt-7 max-w-[34ch] font-display text-[clamp(17px,1.6vw,23px)] font-normal leading-snug text-marfil/75';
+const datosCierre = [
+  { icono: 'reloj', texto: '30 minutos' },
+  { icono: 'euro', texto: 'Sin coste' },
+  { icono: 'propuesta', texto: 'Propuesta tras la llamada' },
+] as const;
+
+const h2 = 'font-display text-[clamp(36px,6vw,92px)] font-extralight leading-[0.98] tracking-[-0.04em] text-marfil';
+const linea = 'mt-6 max-w-[34ch] font-display text-[clamp(17px,1.5vw,22px)] font-normal leading-snug text-marfil/75';
+const enlace = 'group/e mt-8 inline-flex items-center gap-2 font-display text-[15px] text-oro';
 ---
 
 <Base title="" description={site.descripcion}>
   <Campo />
+
+  <!-- Hilo de oro: progreso lateral con la Δ bajando -->
+  <div class="fixed right-6 top-1/2 z-40 hidden h-[36vh] w-px -translate-y-1/2 bg-linea lg:block" aria-hidden="true">
+    <span class="absolute -left-[5px] block transition-[top] duration-150" data-rail><Delta class="block h-[11px] text-oro" /></span>
+  </div>
 
   <!-- 1 · Hero -->
   <section class="flex min-h-[100svh] flex-col justify-end" data-panel data-hero>
@@ -38,7 +59,7 @@ const linea = 'mt-7 max-w-[34ch] font-display text-[clamp(17px,1.6vw,23px)] font
       </h1>
       <div class="mt-10 flex flex-wrap items-center gap-x-8 gap-y-4">
         <Boton href={href('/contacto/')}>Reservar diagnóstico</Boton>
-        <p class="font-display text-[15px] text-pizarra">Consultora de IA para pymes · {site.ciudad}</p>
+        <p class="flex items-center gap-2 font-display text-[15px] text-pizarra"><Delta class="h-[0.7em] text-oro" /> Consultora de IA para pymes · {site.ciudad}</p>
       </div>
     </div>
   </section>
@@ -47,9 +68,11 @@ const linea = 'mt-7 max-w-[34ch] font-display text-[clamp(17px,1.6vw,23px)] font
   <section class="flex min-h-[100svh] items-center" data-panel>
     <div class="wrap sombra-texto flex justify-end" data-cont>
       <div class="md:w-1/2">
-        <h2 class={h2}>Primero medimos dónde estás.</h2>
+        <Marcador n="01" texto="Diagnóstico" />
+        <Icono nombre="diagnostico" class="mt-8 h-11 w-11 text-oro" />
+        <h2 class:list={[h2, 'mt-5']}>Primero medimos dónde estás.</h2>
         <p class={linea}>Treinta minutos, gratis. Te decimos dónde la IA ahorra horas en tu empresa y dónde no.</p>
-        <a href={href('/servicios/#diagnostico')} class="mt-8 inline-block font-display text-[15px] text-marfil/80 hover:text-oro">Diagnóstico →</a>
+        <a href={href('/servicios/#diagnostico')} class={enlace}>Cómo es el diagnóstico <Icono nombre="flecha" class="h-4 w-4 transition-transform group-hover/e:translate-x-1" /></a>
       </div>
     </div>
   </section>
@@ -57,28 +80,45 @@ const linea = 'mt-7 max-w-[34ch] font-display text-[clamp(17px,1.6vw,23px)] font
   <!-- 3 · Construir -->
   <section class="flex min-h-[100svh] items-center" data-panel>
     <div class="wrap sombra-texto" data-cont>
-      <div class="md:w-[56%]">
-        <h2 class={h2}>Construimos hasta que entra en producción.</h2>
-        <p class={linea}>Integrado con tus sistemas. Tu equipo formado. Sin pilotos que no acaban nunca.</p>
-        <a href={href('/servicios/#transformacion')} class="mt-8 inline-block font-display text-[15px] text-marfil/80 hover:text-oro">Transformación →</a>
+      <div class="md:w-[60%]">
+        <Marcador n="02" texto="Transformación" />
+        <Icono nombre="transformacion" class="mt-8 h-11 w-11 text-oro" />
+        <h2 class:list={[h2, 'mt-5']}>Construimos hasta que entra en producción.</h2>
       </div>
+      <ul class="mt-12 grid max-w-[900px] gap-px overflow-hidden rounded-[4px] border border-linea bg-linea md:grid-cols-3" role="list">
+        {
+          pasos.map((p) => (
+            <li class="bg-tinta/80 p-6 backdrop-blur-sm [text-shadow:none]">
+              <Icono nombre={p.icono} class="h-6 w-6 text-oro" />
+              <p class="mt-4 font-display text-[18px] text-marfil">{p.nombre}</p>
+              <p class="mt-1.5 text-[14px] text-pizarra">{p.texto}</p>
+            </li>
+          ))
+        }
+      </ul>
+      <a href={href('/servicios/#transformacion')} class={enlace}>Las cuatro fases <Icono nombre="flecha" class="h-4 w-4 transition-transform group-hover/e:translate-x-1" /></a>
     </div>
   </section>
 
   <!-- 4 · Medir otra vez · cifras -->
   <section class="relative h-[280vh]" data-panel data-cifras>
-    <div class="sticky top-0 flex h-[100svh] items-center sombra-texto" data-cont>
-      <div class="wrap">
-        <p class="font-display text-[clamp(20px,2.2vw,30px)] font-normal text-pizarra">Después medimos otra vez.</p>
-        <div class="relative mt-6 h-[52vh]">
+    <div class="sticky top-0 flex h-[100svh] items-center bg-oro/[0.06] sombra-texto" data-cont>
+      <div class="wrap w-full">
+        <Marcador n="03" texto="Resultados" />
+        <p class="mt-3 font-display text-[clamp(18px,2vw,26px)] text-pizarra">Después medimos otra vez.</p>
+        <div class="relative mt-4 h-[54vh]">
           {
             cifras.map((c, i) => (
               <article class="absolute inset-0 flex flex-col justify-center" data-cifra={i} style={i === 0 ? '' : 'opacity:0'}>
-                <p class="font-display text-[clamp(110px,24vw,340px)] font-extralight leading-[0.9] tracking-[-0.06em] text-marfil">
+                <p class="inline-flex w-fit items-center gap-2 rounded-full border border-oro/40 px-3 py-1 font-display text-[13px] text-marfil/85">
+                  <Icono nombre={c.icono} class="h-4 w-4 text-oro" />
+                  {c.meta}
+                </p>
+                <p class="mt-4 font-display text-[clamp(100px,22vw,320px)] font-extralight leading-[0.9] tracking-[-0.06em] text-marfil">
                   <span data-num={c.valor}>{c.valor}</span><span class="text-oro">{c.sufijo}</span>
                 </p>
-                <p class="mt-6 max-w-[26ch] font-display text-[clamp(20px,2.6vw,36px)] font-normal leading-tight text-pizarra">{c.frase}</p>
-                <a href={href(`/historias-de-exito/${c.historia}/`)} class="mt-6 inline-block font-display text-[15px] text-marfil/80 hover:text-oro">Leer el caso →</a>
+                <p class="mt-5 max-w-[26ch] font-display text-[clamp(20px,2.6vw,34px)] font-normal leading-tight text-pizarra">{c.frase}</p>
+                <a href={href(`/historias-de-exito/${c.historia}/`)} class={enlace.replace('mt-8', 'mt-6')}>Leer el caso <Icono nombre="flecha" class="h-4 w-4 transition-transform group-hover/e:translate-x-1" /></a>
               </article>
             ))
           }
@@ -88,14 +128,23 @@ const linea = 'mt-7 max-w-[34ch] font-display text-[clamp(17px,1.6vw,23px)] font
   </section>
 
   <!-- 5 · Sectores -->
-  <section class="flex min-h-[100svh] items-center" data-panel>
+  <section class="flex min-h-[100svh] items-center py-24" data-panel>
     <div class="wrap sombra-texto" data-cont>
-      <h2 class={h2}>Seis sectores.<br />Una metodología.</h2>
-      <ul class="mt-10 flex max-w-[60ch] flex-wrap gap-x-7 gap-y-3" role="list">
+      <Marcador n="04" texto="Sectores" />
+      <h2 class:list={[h2, 'mt-5']}>Seis sectores.<br />Una metodología.</h2>
+      <ul class="mt-12 grid gap-4 sm:grid-cols-2 lg:grid-cols-3" role="list">
         {
           sectores.map((s) => (
             <li>
-              <a href={href(`/sectores/${s.slug}/`)} class="font-display text-[clamp(17px,1.7vw,24px)] text-marfil/85 transition-colors hover:text-oro">{s.nombre}</a>
+              <a
+                href={href(`/sectores/${s.slug}/`)}
+                class="group block h-full rounded-[4px] border border-linea bg-tinta/85 p-6 backdrop-blur-sm transition-[border-color,transform] duration-300 textura-delta [text-shadow:none] hover:-translate-y-1 hover:border-oro/70"
+              >
+                <Icono nombre={s.slug as 'clinicas'} class="h-7 w-7 text-oro" />
+                <p class="mt-5 font-display text-[20px] leading-tight text-marfil">{s.nombre}</p>
+                <p class="mt-2 text-[14px] leading-snug text-pizarra">{s.resumen}</p>
+                <span class="mt-5 inline-flex items-center gap-1.5 font-display text-[13px] text-oro opacity-0 transition-opacity group-hover:opacity-100">Ver el sector <Icono nombre="flecha" class="h-3.5 w-3.5" /></span>
+              </a>
             </li>
           ))
         }
@@ -103,36 +152,56 @@ const linea = 'mt-7 max-w-[34ch] font-display text-[clamp(17px,1.6vw,23px)] font
     </div>
   </section>
 
-  <!-- 6 · Productos · tira horizontal -->
+  <!-- 6 · Productos · ventanas -->
   <section class="relative h-[240vh]" data-panel data-productos>
-    <div class="sticky top-0 flex h-[100svh] flex-col justify-start overflow-hidden pt-[11vh] sombra-texto" data-cont>
+    <div class="sticky top-0 flex h-[100svh] flex-col justify-start overflow-hidden pt-[10vh] sombra-texto" data-cont>
       <div class="wrap">
-        <h2 class="font-display text-[clamp(32px,4.8vw,68px)] font-extralight leading-[1] tracking-[-0.035em] text-marfil">Construimos lo que implantamos.</h2>
-        <p class="mt-4 max-w-[40ch] font-display text-[clamp(16px,1.4vw,20px)] text-marfil/75">Productos propios en producción con clientes reales. Nuestro laboratorio.</p>
+        <Marcador n="05" texto="Productos propios" />
+        <h2 class="mt-5 font-display text-[clamp(32px,4.8vw,68px)] font-extralight leading-[1] tracking-[-0.035em] text-marfil">Construimos lo que implantamos.</h2>
+        <p class="mt-4 max-w-[40ch] font-display text-[clamp(16px,1.4vw,20px)] text-marfil/75">Productos en producción con clientes reales. Nuestro laboratorio.</p>
       </div>
       <div class="mt-8 flex w-max gap-8 pl-[max(24px,calc((100vw-1120px)/2))] [perspective:1400px]" data-tira>
         {
           capturas.map((c) => (
             <a href={href(`/productos/#${c.slug}`)} class="group block w-[min(66vw,600px)] shrink-0 [transform:rotateY(-6deg)] transition-transform duration-500 hover:[transform:rotateY(0deg)]">
-              <Image src={c.img} alt={`Web de ${c.nombre}`} width={1200} format="webp" quality={78} class="w-full rounded-[6px] border border-linea shadow-[0_30px_80px_-30px_rgba(0,0,0,.8)]" loading="lazy" />
+              <div class="overflow-hidden rounded-[8px] border border-linea bg-tinta-honda [text-shadow:none] shadow-[0_40px_90px_-30px_rgba(0,0,0,.9)] transition-[border-color,transform] duration-500 group-hover:-translate-y-1 group-hover:border-oro/70">
+                <div class="flex items-center gap-1.5 border-b border-linea px-3.5 py-2.5">
+                  <span class="h-2 w-2 rounded-full bg-linea" /><span class="h-2 w-2 rounded-full bg-linea" /><span class="h-2 w-2 rounded-full bg-linea" />
+                  <span class="ml-3 rounded-[3px] bg-tinta px-2.5 py-0.5 font-mono text-[11px] text-pizarra">{c.url}</span>
+                  <Delta class="ml-auto h-2.5 text-oro/70" />
+                </div>
+                <Image src={c.img} alt={`Web de ${c.nombre}`} width={1200} format="webp" quality={78} class="w-full" loading="lazy" />
+              </div>
               <p class="mt-4 font-display text-[18px] text-marfil">{c.nombre} <span class="text-pizarra">· {c.que}</span></p>
             </a>
           ))
         }
-        <a href={href('/productos/')} class="flex w-[40vw] shrink-0 items-center font-display text-[clamp(20px,2.4vw,32px)] text-marfil/80 hover:text-oro">Los siete productos →</a>
+        <a href={href('/productos/')} class="flex w-[40vw] shrink-0 items-center gap-3 font-display text-[clamp(20px,2.4vw,32px)] text-marfil/80 hover:text-oro">Los siete productos <Icono nombre="flecha" class="h-6 w-6" /></a>
       </div>
     </div>
   </section>
 
   <!-- 7 · Cierre -->
-  <section class="flex min-h-[100svh] items-center" data-panel>
+  <section class="relative flex min-h-[100svh] items-center overflow-hidden bg-oro/[0.06]" data-panel>
+    <div class="pointer-events-none absolute -bottom-[6vh] right-[4vw]"><Delta class="block h-[72vh] text-oro/[0.09]" /></div>
     <div class="wrap sombra-texto" data-cont>
-      <h2 class="font-display text-[clamp(44px,8vw,124px)] font-extralight leading-[0.96] tracking-[-0.045em]">
+      <Marcador n="06" texto="Hablemos" />
+      <h2 class="mt-5 font-display text-[clamp(44px,8vw,124px)] font-extralight leading-[0.96] tracking-[-0.045em]">
         30 minutos.<br /><span class="text-pizarra">Sin compromiso.</span>
       </h2>
-      <div class="mt-12 flex flex-wrap items-center gap-x-8 gap-y-4">
+      <ul class="mt-10 flex flex-wrap gap-x-8 gap-y-3" role="list">
+        {
+          datosCierre.map((d) => (
+            <li class="flex items-center gap-2.5 font-display text-[15px] text-marfil/85">
+              <Icono nombre={d.icono} class="h-5 w-5 text-oro" />
+              {d.texto}
+            </li>
+          ))
+        }
+      </ul>
+      <div class="mt-10 flex flex-wrap items-center gap-x-8 gap-y-4">
         <Boton href={href('/contacto/')}>Reservar diagnóstico</Boton>
-        <a href={href('/servicios/')} class="font-display text-[15px] text-marfil/80 hover:text-oro">Cómo trabajamos →</a>
+        <a href={href('/servicios/')} class="group/e inline-flex items-center gap-2 font-display text-[15px] text-oro">Cómo trabajamos <Icono nombre="flecha" class="h-4 w-4 transition-transform group-hover/e:translate-x-1" /></a>
       </div>
     </div>
   </section>
@@ -154,11 +223,15 @@ const linea = 'mt-7 max-w-[34ch] font-display text-[clamp(17px,1.6vw,23px)] font
     gsap.ticker.lagSmoothing(0);
   }
 
-  // Progreso global para el escenario 3D.
+  // Progreso global: escenario 3D y Δ del carril lateral.
+  const rail = document.querySelector<HTMLElement>('[data-rail]');
   ScrollTrigger.create({
     start: 0,
     end: () => document.documentElement.scrollHeight - innerHeight,
-    onUpdate: (s) => { window.__progreso = s.progress; },
+    onUpdate: (s) => {
+      window.__progreso = s.progress;
+      if (rail) rail.style.top = `${s.progress * 100}%`;
+    },
   });
 
   // Cada panel entra, se sostiene y sale con el scroll.

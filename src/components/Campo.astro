@@ -32,7 +32,8 @@
     const camara = new THREE.PerspectiveCamera(38, 1, 0.1, 40);
 
     // Rejilla de puntos sobre el plano XZ.
-    const NX = 190, NZ = 120, ANCHO = 18, FONDO = 11;
+    const movil = innerWidth < 768;
+    const NX = movil ? 120 : 190, NZ = movil ? 76 : 120, ANCHO = 18, FONDO = 11;
     const n = NX * NZ;
     const pos = new Float32Array(n * 3);
     const col = new Float32Array(n * 3);
@@ -103,7 +104,7 @@
         const y = altura(x, z, t, amp, valle);
         p[k * 3 + 1] = y;
         const f = THREE.MathUtils.clamp((y + 0.2) / -1.1, 0, 1);
-        const cc = f > 0.55 ? oro.clone().lerp(pizarra, (1 - f) * 1.6) : tenue.clone().lerp(pizarra, f * 1.6);
+        const cc = f > 0.48 ? oro.clone().lerp(pizarra, (1 - f) * 1.4) : tenue.clone().lerp(pizarra, f * 1.7);
         c[k * 3] = cc.r; c[k * 3 + 1] = cc.g; c[k * 3 + 2] = cc.b;
       }
       geo.attributes.position.needsUpdate = true;
@@ -158,8 +159,10 @@
       renderer.render(escena, camara);
       return;
     }
+    let par = false;
     function bucle() {
-      if (!document.hidden) cuadro();
+      par = !par;
+      if (!document.hidden && (!movil || par)) cuadro(); // 30 fps en móvil
       requestAnimationFrame(bucle);
     }
     bucle();

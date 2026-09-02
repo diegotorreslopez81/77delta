@@ -28,8 +28,12 @@ export function href(path: string): string {
 export const nav = [
   { texto: 'Servicios', ruta: '/servicios/' },
   { texto: 'Sectores', ruta: '/sectores/' },
-  { texto: 'Historias de éxito', ruta: '/historias-de-exito/' },
+  { texto: 'Casos', ruta: '/historias-de-exito/' },
   { texto: 'Productos', ruta: '/productos/' },
+] as const;
+
+/** Enlaces que solo van en el menú móvil y en el footer. */
+export const navSecundaria = [
   { texto: 'Sobre nosotros', ruta: '/sobre-nosotros/' },
   { texto: 'Contacto', ruta: '/contacto/' },
 ] as const;

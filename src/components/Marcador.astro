@@ -1,0 +1,17 @@
+---
+/** Señalética de sección: Δ en oro, numeral y nombre corto. */
+import Delta from './Delta.astro';
+
+interface Props {
+  n: string;
+  texto: string;
+  class?: string;
+}
+const { n, texto, class: extra = '' } = Astro.props;
+---
+
+<p class:list={['flex items-center gap-2.5 font-display text-[13px] tracking-[0.04em]', extra]}>
+  <Delta class="h-[0.72em] text-oro" />
+  <span class="text-oro">{n}</span>
+  <span class="text-pizarra">{texto}</span>
+</p>
