@@ -7,7 +7,7 @@ const actual = Astro.url.pathname;
 const activo = (ruta: string) => actual.startsWith(href(ruta));
 ---
 
-<header class="sticky top-0 z-50 border-b border-marfil/10 bg-tinta/95 text-marfil backdrop-blur-xl">
+<header class="sticky top-0 z-50 border-b border-marfil/10 bg-marino/95 text-marfil backdrop-blur-xl">
   <div class="wrap flex h-[72px] items-center justify-between gap-6">
     <a href={href('/')} class="text-marfil" aria-label="77 Delta, inicio">
       <Monograma size={26} />
@@ -51,7 +51,7 @@ const activo = (ruta: string) => actual.startsWith(href(ruta));
     </div>
   </div>
 
-  <div id="menu-movil" class="hidden border-t border-marfil/10 bg-tinta shadow-[0_16px_40px_rgba(0,0,0,.35)] lg:hidden" data-menu>
+  <div id="menu-movil" class="hidden border-t border-marfil/10 bg-marino shadow-[0_16px_40px_rgba(0,0,0,.35)] lg:hidden" data-menu>
     <nav aria-label="Principal, móvil" class="wrap flex flex-col py-3">
       {
         nav.map((n) => (

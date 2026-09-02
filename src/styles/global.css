@@ -16,7 +16,8 @@
   /* Tema claro (decidido 2026-09-02): papel beige, tinta para texto y franjas oscuras, ocre como único acento. */
   --color-papel: #f3eee4; /* fondo de página */
   --color-panel: #faf7f0; /* tarjetas y franjas alternas */
-  --color-tinta: #0a1628; /* texto principal y franjas oscuras: azul marino, no negro */
+  --color-tinta: #0a1628; /* texto principal: azul marino, no negro */
+  --color-marino: #06101f; /* fondo de cabecera, hero, casos, cierre y pie */
   --color-tinta-honda: #060b14; /* la tinta del logo */
   --color-tinta-2: #26354d;
   --color-oro: #a7781b; /* acento: botones, cifras, énfasis */
