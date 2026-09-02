@@ -5,11 +5,13 @@
   --color-tinta: #060b14;
   --color-tinta-honda: #03060d;
   --color-tinta-alta: #0c1524;
-  --color-oro: #a7781b;
+  --color-oro: #a7781b; /* logo, botón, superficies grandes */
+  --color-oro-luz: #d4a03a; /* texto, iconos y líneas pequeñas sobre tinta (9:1) */
   --color-oro-tenue: #6e5013;
   --color-marfil: #edeae3;
-  --color-pizarra: #8794a6;
-  --color-linea: #15202e;
+  --color-pizarra: #aeb8c6; /* texto secundario */
+  --color-pizarra-tenue: #8794a6; /* terciario: pies, metadatos */
+  --color-linea: #1e2b3b;
 
   --font-display: "Sora", system-ui, sans-serif;
   --font-sans: "IBM Plex Sans", system-ui, sans-serif;
@@ -51,7 +53,7 @@
   font-size: 11px;
   letter-spacing: 0.18em;
   text-transform: uppercase;
-  color: var(--color-oro);
+  color: var(--color-oro-luz);
 }
 
 @utility monograma {
@@ -75,7 +77,7 @@
 }
 
 @utility textura-delta {
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='36' height='36' viewBox='0 0 36 36'%3E%3Cpath d='M18 9l8 16H10z' fill='none' stroke='%23A7781B' stroke-opacity='.09' stroke-width='1'/%3E%3C/svg%3E");
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='36' height='36' viewBox='0 0 36 36'%3E%3Cpath d='M18 9l8 16H10z' fill='none' stroke='%23D4A03A' stroke-opacity='.08' stroke-width='1'/%3E%3C/svg%3E");
   background-size: 36px 36px;
 }
 

@@ -20,7 +20,7 @@ const activo = (ruta: string) => actual.startsWith(href(ruta));
             href={href(n.ruta)}
             class:list={[
               'text-[14px] transition-colors duration-200 hover:text-marfil',
-              activo(n.ruta) ? 'text-oro' : 'text-pizarra',
+              activo(n.ruta) ? 'text-oro-luz' : 'text-pizarra',
             ]}
             aria-current={activo(n.ruta) ? 'page' : undefined}
           >
@@ -32,7 +32,7 @@ const activo = (ruta: string) => actual.startsWith(href(ruta));
 
     <div class="flex items-center gap-3">
       <div class="hidden sm:block"><Boton href={href(cta.ruta)}>{cta.texto}</Boton></div>
-      <a href={href(cta.ruta)} class="rounded-[3px] border border-oro/70 px-3 py-1.5 font-display text-[13px] text-oro sm:hidden">Hablemos</a>
+      <a href={href(cta.ruta)} class="rounded-[3px] border border-oro-luz/70 px-3 py-1.5 font-display text-[13px] text-oro-luz sm:hidden">Hablemos</a>
       <button
         type="button"
         class="grid h-10 w-10 place-items-center text-marfil lg:hidden"
@@ -55,7 +55,7 @@ const activo = (ruta: string) => actual.startsWith(href(ruta));
             href={href(n.ruta)}
             class:list={[
               'border-b border-linea py-3 text-[15px]',
-              activo(n.ruta) ? 'text-oro' : 'text-marfil',
+              activo(n.ruta) ? 'text-oro-luz' : 'text-marfil',
             ]}
           >
             {n.texto}

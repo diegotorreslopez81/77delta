@@ -40,7 +40,7 @@ const datosCierre = [
 
 const h2 = 'font-display text-[clamp(36px,6vw,92px)] font-extralight leading-[0.98] tracking-[-0.04em] text-marfil';
 const linea = 'mt-6 max-w-[34ch] font-display text-[clamp(17px,1.5vw,22px)] font-normal leading-snug text-marfil/75';
-const enlace = 'group/e mt-8 inline-flex items-center gap-2 font-display text-[15px] text-oro';
+const enlace = 'group/e mt-8 inline-flex items-center gap-2 font-display text-[15px] text-oro-luz';
 ---
 
 <Base title="" description={site.descripcion}>
@@ -48,18 +48,18 @@ const enlace = 'group/e mt-8 inline-flex items-center gap-2 font-display text-[1
 
   <!-- Hilo de oro: progreso lateral con la Δ bajando -->
   <div class="fixed right-6 top-1/2 z-40 hidden h-[36vh] w-px -translate-y-1/2 bg-linea lg:block" aria-hidden="true">
-    <span class="absolute -left-[5px] block transition-[top] duration-150" data-rail><Delta class="block h-[11px] text-oro" /></span>
+    <span class="absolute -left-[5px] block transition-[top] duration-150" data-rail><Delta class="block h-[11px] text-oro-luz" /></span>
   </div>
 
   <!-- 1 · Hero -->
   <section class="flex min-h-[100svh] flex-col justify-end" data-panel data-hero>
     <div class="wrap sombra-texto pb-20 md:pb-24" data-cont>
       <h1 class="max-w-[13ch] font-display text-[clamp(44px,8.6vw,124px)] font-extralight leading-[0.98] tracking-[-0.04em]">
-        Aplicamos la IA para <span class="font-semibold text-oro">ahorrar costes</span> a tu empresa.
+        Aplicamos la IA para <span class="font-semibold text-oro-luz">ahorrar costes</span> a tu empresa.
       </h1>
       <div class="mt-10 flex flex-wrap items-center gap-x-8 gap-y-4">
         <Boton href={href('/contacto/')}>Reservar diagnóstico</Boton>
-        <p class="flex items-center gap-2 font-display text-[15px] text-pizarra"><Delta class="h-[0.7em] text-oro" /> Consultora de IA para pymes · {site.ciudad}</p>
+        <p class="flex items-center gap-2 font-display text-[15px] text-pizarra"><Delta class="h-[0.7em] text-oro-luz" /> Consultora de IA para pymes · {site.ciudad}</p>
       </div>
     </div>
   </section>
@@ -69,7 +69,6 @@ const enlace = 'group/e mt-8 inline-flex items-center gap-2 font-display text-[1
     <div class="wrap sombra-texto flex justify-end" data-cont>
       <div class="md:w-1/2">
         <Marcador n="01" texto="Diagnóstico" />
-        <Icono nombre="diagnostico" class="mt-8 h-11 w-11 text-oro" />
         <h2 class:list={[h2, 'mt-5']}>Primero medimos dónde estás.</h2>
         <p class={linea}>Treinta minutos, gratis. Te decimos dónde la IA ahorra horas en tu empresa y dónde no.</p>
         <a href={href('/servicios/#diagnostico')} class={enlace}>Cómo es el diagnóstico <Icono nombre="flecha" class="h-4 w-4 transition-transform group-hover/e:translate-x-1" /></a>
@@ -82,14 +81,13 @@ const enlace = 'group/e mt-8 inline-flex items-center gap-2 font-display text-[1
     <div class="wrap sombra-texto" data-cont>
       <div class="md:w-[60%]">
         <Marcador n="02" texto="Transformación" />
-        <Icono nombre="transformacion" class="mt-8 h-11 w-11 text-oro" />
         <h2 class:list={[h2, 'mt-5']}>Construimos hasta que entra en producción.</h2>
       </div>
       <ul class="mt-12 grid max-w-[900px] gap-px overflow-hidden rounded-[4px] border border-linea bg-linea md:grid-cols-3" role="list">
         {
           pasos.map((p) => (
             <li class="bg-tinta/80 p-6 backdrop-blur-sm [text-shadow:none]">
-              <Icono nombre={p.icono} class="h-6 w-6 text-oro" />
+              <span class="grid h-12 w-12 place-items-center rounded-[6px] bg-oro/10 text-oro-luz"><Icono nombre={p.icono} class="h-7 w-7" /></span>
               <p class="mt-4 font-display text-[18px] text-marfil">{p.nombre}</p>
               <p class="mt-1.5 text-[14px] text-pizarra">{p.texto}</p>
             </li>
@@ -110,12 +108,12 @@ const enlace = 'group/e mt-8 inline-flex items-center gap-2 font-display text-[1
           {
             cifras.map((c, i) => (
               <article class="absolute inset-0 flex flex-col justify-center" data-cifra={i} style={i === 0 ? '' : 'opacity:0'}>
-                <p class="inline-flex w-fit items-center gap-2 rounded-full border border-oro/40 px-3 py-1 font-display text-[13px] text-marfil/85">
-                  <Icono nombre={c.icono} class="h-4 w-4 text-oro" />
+                <p class="inline-flex w-fit items-center gap-2 rounded-full border border-oro-luz/40 px-3 py-1 font-display text-[13px] text-marfil/85">
+                  <Icono nombre={c.icono} class="h-4 w-4 text-oro-luz" />
                   {c.meta}
                 </p>
                 <p class="mt-4 font-display text-[clamp(100px,22vw,320px)] font-extralight leading-[0.9] tracking-[-0.06em] text-marfil">
-                  <span data-num={c.valor}>{c.valor}</span><span class="text-oro">{c.sufijo}</span>
+                  <span data-num={c.valor}>{c.valor}</span><span class="text-oro-luz">{c.sufijo}</span>
                 </p>
                 <p class="mt-5 max-w-[26ch] font-display text-[clamp(20px,2.6vw,34px)] font-normal leading-tight text-pizarra">{c.frase}</p>
                 <a href={href(`/historias-de-exito/${c.historia}/`)} class={enlace.replace('mt-8', 'mt-6')}>Leer el caso <Icono nombre="flecha" class="h-4 w-4 transition-transform group-hover/e:translate-x-1" /></a>
@@ -138,12 +136,12 @@ const enlace = 'group/e mt-8 inline-flex items-center gap-2 font-display text-[1
             <li>
               <a
                 href={href(`/sectores/${s.slug}/`)}
-                class="group block h-full rounded-[4px] border border-linea bg-tinta/85 p-6 backdrop-blur-sm transition-[border-color,transform] duration-300 textura-delta [text-shadow:none] hover:-translate-y-1 hover:border-oro/70"
+                class="group block h-full rounded-[4px] border border-linea bg-tinta/85 p-6 backdrop-blur-sm transition-[border-color,transform] duration-300 textura-delta [text-shadow:none] hover:-translate-y-1 hover:border-oro-luz/70"
               >
-                <Icono nombre={s.slug as 'clinicas'} class="h-7 w-7 text-oro" />
+                <span class="grid h-12 w-12 place-items-center rounded-[6px] bg-oro/10 text-oro-luz"><Icono nombre={s.slug as 'clinicas'} class="h-7 w-7" /></span>
                 <p class="mt-5 font-display text-[20px] leading-tight text-marfil">{s.nombre}</p>
                 <p class="mt-2 text-[14px] leading-snug text-pizarra">{s.resumen}</p>
-                <span class="mt-5 inline-flex items-center gap-1.5 font-display text-[13px] text-oro opacity-0 transition-opacity group-hover:opacity-100">Ver el sector <Icono nombre="flecha" class="h-3.5 w-3.5" /></span>
+                <span class="mt-5 inline-flex items-center gap-1.5 font-display text-[13px] text-oro-luz opacity-0 transition-opacity group-hover:opacity-100">Ver el sector <Icono nombre="flecha" class="h-3.5 w-3.5" /></span>
               </a>
             </li>
           ))
@@ -164,7 +162,7 @@ const enlace = 'group/e mt-8 inline-flex items-center gap-2 font-display text-[1
         {
           capturas.map((c) => (
             <a href={href(`/productos/#${c.slug}`)} class="group block w-[min(66vw,600px)] shrink-0 [transform:rotateY(-6deg)] transition-transform duration-500 hover:[transform:rotateY(0deg)]">
-              <div class="overflow-hidden rounded-[8px] border border-linea bg-tinta-honda [text-shadow:none] shadow-[0_40px_90px_-30px_rgba(0,0,0,.9)] transition-[border-color,transform] duration-500 group-hover:-translate-y-1 group-hover:border-oro/70">
+              <div class="overflow-hidden rounded-[8px] border border-linea bg-tinta-honda [text-shadow:none] shadow-[0_40px_90px_-30px_rgba(0,0,0,.9)] transition-[border-color,transform] duration-500 group-hover:-translate-y-1 group-hover:border-oro-luz/70">
                 <div class="flex items-center gap-1.5 border-b border-linea px-3.5 py-2.5">
                   <span class="h-2 w-2 rounded-full bg-linea" /><span class="h-2 w-2 rounded-full bg-linea" /><span class="h-2 w-2 rounded-full bg-linea" />
                   <span class="ml-3 rounded-[3px] bg-tinta px-2.5 py-0.5 font-mono text-[11px] text-pizarra">{c.url}</span>
@@ -176,7 +174,7 @@ const enlace = 'group/e mt-8 inline-flex items-center gap-2 font-display text-[1
             </a>
           ))
         }
-        <a href={href('/productos/')} class="flex w-[40vw] shrink-0 items-center gap-3 font-display text-[clamp(20px,2.4vw,32px)] text-marfil/80 hover:text-oro">Los siete productos <Icono nombre="flecha" class="h-6 w-6" /></a>
+        <a href={href('/productos/')} class="flex w-[40vw] shrink-0 items-center gap-3 font-display text-[clamp(20px,2.4vw,32px)] text-marfil/80 hover:text-oro-luz">Los siete productos <Icono nombre="flecha" class="h-6 w-6" /></a>
       </div>
     </div>
   </section>
@@ -193,7 +191,7 @@ const enlace = 'group/e mt-8 inline-flex items-center gap-2 font-display text-[1
         {
           datosCierre.map((d) => (
             <li class="flex items-center gap-2.5 font-display text-[15px] text-marfil/85">
-              <Icono nombre={d.icono} class="h-5 w-5 text-oro" />
+              <Icono nombre={d.icono} class="h-5 w-5 text-oro-luz" />
               {d.texto}
             </li>
           ))
@@ -201,7 +199,7 @@ const enlace = 'group/e mt-8 inline-flex items-center gap-2 font-display text-[1
       </ul>
       <div class="mt-10 flex flex-wrap items-center gap-x-8 gap-y-4">
         <Boton href={href('/contacto/')}>Reservar diagnóstico</Boton>
-        <a href={href('/servicios/')} class="group/e inline-flex items-center gap-2 font-display text-[15px] text-oro">Cómo trabajamos <Icono nombre="flecha" class="h-4 w-4 transition-transform group-hover/e:translate-x-1" /></a>
+        <a href={href('/servicios/')} class="group/e inline-flex items-center gap-2 font-display text-[15px] text-oro-luz">Cómo trabajamos <Icono nombre="flecha" class="h-4 w-4 transition-transform group-hover/e:translate-x-1" /></a>
       </div>
     </div>
   </section>

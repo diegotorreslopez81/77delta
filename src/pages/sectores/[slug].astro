@@ -70,7 +70,7 @@ const sufijo = partes ? partes[2] : '';
         {
           sector.soluciones.map((s, i) => (
             <li data-reveal>
-              <span class="font-mono text-[11px] tracking-[0.14em] text-oro">{String(i + 1).padStart(2, '0')}</span>
+              <span class="font-mono text-[11px] tracking-[0.14em] text-oro-luz">{String(i + 1).padStart(2, '0')}</span>
               <p class="mt-4 font-display text-[19px] font-semibold leading-[1.3]">{s}</p>
             </li>
           ))
@@ -83,7 +83,7 @@ const sufijo = partes ? partes[2] : '';
   <section class="hairline">
     <div class="wrap grid gap-6 py-24 md:grid-cols-12 md:gap-10 md:py-32">
       <div class="md:col-span-5" data-reveal>
-        <p class="font-display text-[clamp(64px,9vw,128px)] font-extralight leading-none tracking-[-0.04em] text-oro">
+        <p class="font-display text-[clamp(64px,9vw,128px)] font-extralight leading-none tracking-[-0.04em] text-oro-luz">
           {
             valor === null ? (
               <span>{sector.caso.cifra}</span>
@@ -107,13 +107,13 @@ const sufijo = partes ? partes[2] : '';
             sector.caso.historia && (
               <a
                 href={href(`/historias-de-exito/${sector.caso.historia}/`)}
-                class="font-mono text-[12px] text-oro hover:text-marfil"
+                class="font-mono text-[12px] text-oro-luz hover:text-marfil"
               >
                 Leer el caso completo →
               </a>
             )
           }
-          <a href={href('/historias-de-exito/')} class="font-mono text-[12px] text-marfil/70 hover:text-oro">
+          <a href={href('/historias-de-exito/')} class="font-mono text-[12px] text-marfil/70 hover:text-oro-luz">
             Ver más casos del sector →
           </a>
         </div>

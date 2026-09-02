@@ -34,7 +34,7 @@ const cifra = `${historia.cifra.valor}${historia.cifra.sufijo}`;
       class="mt-7 max-w-[16ch] font-display text-[clamp(38px,6vw,76px)] font-extralight leading-[1.04] tracking-[-0.035em]"
       data-reveal
     >
-      <span class="font-semibold text-oro" data-contador={historia.cifra.valor} data-sufijo={historia.cifra.sufijo}
+      <span class="font-semibold text-oro-luz" data-contador={historia.cifra.valor} data-sufijo={historia.cifra.sufijo}
         >{cifra}</span
       > {historia.titular}
     </h1>
@@ -65,7 +65,7 @@ const cifra = `${historia.cifra.valor}${historia.cifra.sufijo}`;
       <section class="hairline">
         <div class="wrap grid gap-6 py-16 md:grid-cols-12 md:gap-10 md:py-24">
           <div class="md:col-span-5" data-reveal>
-            <span class="font-mono text-[11px] tracking-[0.14em] text-oro">{b.n}</span>
+            <span class="font-mono text-[11px] tracking-[0.14em] text-oro-luz">{b.n}</span>
             <h2 class="mt-5 font-display text-[clamp(26px,3.2vw,40px)] font-extralight leading-[1.1] tracking-[-0.03em]">
               {b.titulo}
             </h2>
@@ -81,7 +81,7 @@ const cifra = `${historia.cifra.valor}${historia.cifra.sufijo}`;
   <!-- Volver al índice -->
   <section class="hairline">
     <div class="wrap py-12" data-reveal>
-      <a href={href('/historias-de-exito/')} class="font-mono text-[12px] text-oro hover:text-marfil">
+      <a href={href('/historias-de-exito/')} class="font-mono text-[12px] text-oro-luz hover:text-marfil">
         ← Ver las tres historias
       </a>
     </div>

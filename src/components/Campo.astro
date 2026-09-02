@@ -53,15 +53,15 @@
     escena.add(new THREE.Points(geo, mat));
 
     // La bola: el estado de la empresa bajando hasta el mínimo.
-    const bola = new THREE.Mesh(new THREE.SphereGeometry(0.16, 32, 32), new THREE.MeshBasicMaterial({ color: 0xa7781b }));
-    const halo = new THREE.Mesh(new THREE.SphereGeometry(0.3, 32, 32), new THREE.MeshBasicMaterial({ color: 0xa7781b, transparent: true, opacity: 0.18, depthWrite: false }));
+    const bola = new THREE.Mesh(new THREE.SphereGeometry(0.16, 32, 32), new THREE.MeshBasicMaterial({ color: 0xd4a03a }));
+    const halo = new THREE.Mesh(new THREE.SphereGeometry(0.3, 32, 32), new THREE.MeshBasicMaterial({ color: 0xd4a03a, transparent: true, opacity: 0.2, depthWrite: false }));
     bola.add(halo);
     bola.visible = false;
     escena.add(bola);
 
-    const pizarra = new THREE.Color(0x8794a6);
-    const tenue = new THREE.Color(0x3b4a60);
-    const oro = new THREE.Color(0xa7781b);
+    const pizarra = new THREE.Color(0xa3aebd);
+    const tenue = new THREE.Color(0x4a5a72);
+    const oro = new THREE.Color(0xd4a03a);
 
     // Claves de cámara y escena por progreso de scroll.
     const claves = [
