@@ -57,7 +57,7 @@ const h2 = 'font-display text-[clamp(30px,4vw,52px)] font-extralight leading-[1.
       </div>
       <div class="hidden md:col-span-5 md:block">
         <div class="ml-auto max-w-[380px] rounded-[6px] border border-linea bg-tinta/70 p-6 backdrop-blur-sm">
-          <Marcador n="Δ" texto="Antes y después" />
+          <p class="flex items-center gap-2.5 font-display text-[13px] tracking-[0.04em] text-pizarra"><Delta class="h-[0.72em] text-oro-luz" /> Antes y después</p>
           <ul class="mt-5 divide-y divide-linea" role="list">
             {casos.slice(0, 3).map((c) => (
               <li class="flex items-baseline justify-between gap-4 py-3">
