@@ -2,11 +2,11 @@
 import Base from '../../layouts/Base.astro';
 import { site, href } from '../../lib/site';
 
-const enlace = 'text-marfil underline decoration-oro/50 underline-offset-4 transition-colors hover:text-oro-luz';
+const enlace = 'text-tinta underline decoration-oro/50 underline-offset-4 transition-colors hover:text-oro-oscuro';
 const parrafo = 'mt-4 text-[16px] text-pizarra';
 const titulo = 'mt-3 font-display text-[clamp(21px,2.2vw,27px)] font-semibold leading-[1.2]';
-const numero = 'font-mono text-[11px] tracking-[0.14em] text-oro-luz';
-const lista = 'mt-4 list-disc space-y-2 pl-5 text-[16px] text-pizarra marker:text-oro-luz';
+const numero = 'font-mono text-[11px] tracking-[0.14em] text-oro-oscuro';
+const lista = 'mt-4 list-disc space-y-2 pl-5 text-[16px] text-pizarra marker:text-oro-oscuro';
 ---
 
 <Base
@@ -59,9 +59,11 @@ const lista = 'mt-4 list-disc space-y-2 pl-5 text-[16px] text-pizarra marker:tex
             <li>Sector de actividad y descripción de tu situación</li>
           </ul>
           <p class={parrafo}>
-            Este sitio web no utiliza herramientas de analítica, ni cookies de seguimiento, ni perfilado
-            publicitario. No elaboramos perfiles de navegación ni cruzamos datos con fuentes externas. Puedes
-            consultar el detalle en la <a href={href('/politica-cookies/')} class={enlace}
+            Para medir el uso de la web utilizamos Umami, una herramienta de analítica sin cookies que no
+            identifica al visitante ni guarda su dirección IP: registra de forma anónima y agregada las páginas
+            vistas, el país, el tipo de dispositivo y el origen de la visita, en un servidor propio en la Unión
+            Europea. No hay cookies de seguimiento ni perfilado publicitario, y no cruzamos datos con fuentes
+            externas. Puedes consultar el detalle en la <a href={href('/politica-cookies/')} class={enlace}
               >política de cookies</a
             >.
           </p>
@@ -124,14 +126,14 @@ const lista = 'mt-4 list-disc space-y-2 pl-5 text-[16px] text-pizarra marker:tex
           <h2 class={titulo}>Tus derechos</h2>
           <p class={parrafo}>Como interesado tienes derecho a:</p>
           <ul class={lista}>
-            <li><span class="text-marfil">Acceso:</span> conocer qué datos tuyos tratamos.</li>
-            <li><span class="text-marfil">Rectificación:</span> corregir datos inexactos o incompletos.</li>
-            <li><span class="text-marfil">Supresión:</span> solicitar la eliminación de tus datos.</li>
-            <li><span class="text-marfil">Oposición:</span> oponerte al tratamiento de tus datos.</li>
-            <li><span class="text-marfil">Limitación:</span> solicitar la limitación del tratamiento.</li>
-            <li><span class="text-marfil">Portabilidad:</span> recibir tus datos en formato estructurado.</li>
+            <li><span class="text-tinta">Acceso:</span> conocer qué datos tuyos tratamos.</li>
+            <li><span class="text-tinta">Rectificación:</span> corregir datos inexactos o incompletos.</li>
+            <li><span class="text-tinta">Supresión:</span> solicitar la eliminación de tus datos.</li>
+            <li><span class="text-tinta">Oposición:</span> oponerte al tratamiento de tus datos.</li>
+            <li><span class="text-tinta">Limitación:</span> solicitar la limitación del tratamiento.</li>
+            <li><span class="text-tinta">Portabilidad:</span> recibir tus datos en formato estructurado.</li>
             <li>
-              <span class="text-marfil">Reclamación:</span> presentar reclamación ante la <a
+              <span class="text-tinta">Reclamación:</span> presentar reclamación ante la <a
                 href="https://www.aepd.es/"
                 target="_blank"
                 rel="noopener"

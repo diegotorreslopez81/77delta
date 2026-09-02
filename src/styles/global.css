@@ -13,16 +13,21 @@
 
 /* Sistema de diseño 77 Delta. Tokens canónicos en CLAUDE.md del repo. */
 @theme {
-  --color-tinta: #060b14;
+  /* Tema claro (decidido 2026-09-02): papel beige, tinta para texto y franjas oscuras, ocre como único acento. */
+  --color-papel: #f3eee4; /* fondo de página */
+  --color-panel: #faf7f0; /* tarjetas y franjas alternas */
+  --color-tinta: #060b14; /* texto principal y franjas oscuras */
   --color-tinta-honda: #03060d;
-  --color-tinta-alta: #0c1524;
-  --color-oro: #a7781b; /* logo, botón, superficies grandes */
-  --color-oro-luz: #d4a03a; /* texto, iconos y líneas pequeñas sobre tinta (9:1) */
-  --color-oro-tenue: #6e5013;
-  --color-marfil: #edeae3;
-  --color-pizarra: #aeb8c6; /* texto secundario */
-  --color-pizarra-tenue: #8794a6; /* terciario: pies, metadatos */
-  --color-linea: #1e2b3b;
+  --color-tinta-2: #2a3648;
+  --color-oro: #a7781b; /* acento: botones, cifras, énfasis */
+  --color-oro-oscuro: #8a6216; /* oro como texto pequeño sobre papel (5,2:1) */
+  --color-oro-luz: #d4a03a; /* oro como texto sobre franjas oscuras */
+  --color-marfil: #edeae3; /* texto sobre franjas oscuras */
+  --color-pizarra: #5c6879; /* texto secundario sobre papel */
+  --color-pizarra-tenue: #9aa3b0;
+  --color-pizarra-clara: #aeb8c6; /* texto secundario sobre franjas oscuras */
+  --color-linea: #e0d9cb; /* hairlines sobre papel */
+  --color-linea-oscura: #1e2b3b; /* hairlines sobre tinta */
 
   --font-display: "Sora", system-ui, sans-serif;
   --font-sans: "IBM Plex Sans", system-ui, sans-serif;
@@ -37,8 +42,8 @@
     -webkit-font-smoothing: antialiased;
   }
   body {
-    background: var(--color-tinta);
-    color: var(--color-marfil);
+    background: var(--color-papel);
+    color: var(--color-tinta);
     font-family: var(--font-sans);
     font-size: 16px;
     line-height: 1.62;
@@ -64,7 +69,7 @@
   font-size: 11px;
   letter-spacing: 0.18em;
   text-transform: uppercase;
-  color: var(--color-oro-luz);
+  color: var(--color-oro-oscuro);
 }
 
 @utility monograma {
@@ -80,15 +85,8 @@
   padding-inline: 24px;
 }
 
-@utility sombra-texto {
-  text-shadow:
-    0 1px 2px rgba(6, 11, 20, 0.9),
-    0 0 28px rgba(6, 11, 20, 0.95),
-    0 0 60px rgba(6, 11, 20, 0.8);
-}
-
 @utility textura-delta {
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='36' height='36' viewBox='0 0 36 36'%3E%3Cpath d='M18 9l8 16H10z' fill='none' stroke='%23D4A03A' stroke-opacity='.08' stroke-width='1'/%3E%3C/svg%3E");
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='36' height='36' viewBox='0 0 36 36'%3E%3Cpath d='M18 9l8 16H10z' fill='none' stroke='%23A7781B' stroke-opacity='.10' stroke-width='1'/%3E%3C/svg%3E");
   background-size: 36px 36px;
 }
 

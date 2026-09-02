@@ -28,16 +28,18 @@ export function href(path: string): string {
 }
 
 export const nav = [
-  { texto: 'Servicios', ruta: '/servicios/' },
   { texto: 'Sectores', ruta: '/sectores/' },
-  { texto: 'Casos', ruta: '/historias-de-exito/' },
+  { texto: 'Servicios', ruta: '/servicios/' },
+  { texto: 'Historias de éxito', ruta: '/historias-de-exito/' },
   { texto: 'Productos', ruta: '/productos/' },
-] as const;
-
-/** Enlaces que solo van en el menú móvil y en el footer. */
-export const navSecundaria = [
   { texto: 'Sobre nosotros', ruta: '/sobre-nosotros/' },
   { texto: 'Contacto', ruta: '/contacto/' },
 ] as const;
+
+/** Analítica sin cookies (Umami). Vacío = sin script. */
+export const umami = {
+  script: 'https://umami.infinitelabs.co/script.js',
+  websiteId: '0847eaa4-a0ce-47ee-9acf-8e796160bdd9',
+} as const;
 
 export const cta = { texto: 'Reservar diagnóstico', ruta: '/contacto/' } as const;

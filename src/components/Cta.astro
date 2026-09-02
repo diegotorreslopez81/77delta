@@ -1,6 +1,5 @@
 ---
-/** Bloque de cierre de página: titular, una frase y el botón de diagnóstico. */
-import Boton from './Boton.astro';
+/** Cierre de página: franja de tinta con foto al fondo y el botón de diagnóstico, como en la web anterior. */
 import { href } from '../lib/site';
 
 interface Props {
@@ -15,14 +14,27 @@ const {
 } = Astro.props;
 ---
 
-<section class="hairline">
-  <div class="wrap py-24 md:py-32" data-reveal>
-    <h2 class="max-w-[18ch] font-display text-[clamp(30px,4.6vw,52px)] font-extralight leading-[1.08] tracking-[-0.03em]">
+<section class="relative isolate overflow-hidden bg-tinta text-marfil">
+  <img
+    src={href('/img/fotos/oficina-1600.webp')}
+    alt=""
+    width="1600"
+    height="1067"
+    loading="lazy"
+    decoding="async"
+    class="absolute inset-0 -z-20 h-full w-full object-cover opacity-35"
+  />
+  <div class="absolute inset-0 -z-10 bg-[radial-gradient(ellipse_at_center,rgba(167,120,27,.22)_0%,rgba(6,11,20,.55)_45%,rgba(6,11,20,.96)_75%)]"></div>
+  <div class="wrap py-28 text-center md:py-36" data-reveal>
+    <h2 class="mx-auto max-w-[20ch] font-display text-[clamp(32px,4.8vw,64px)] font-semibold leading-[1.08] tracking-[-0.025em]">
       {titulo}
     </h2>
-    <p class="mt-6 max-w-[52ch] text-[17px] text-pizarra">{texto}</p>
-    <div class="mt-9">
-      <Boton href={href('/contacto/')}>{boton} →</Boton>
-    </div>
+    <p class="mx-auto mt-6 max-w-[56ch] text-[clamp(16px,1.3vw,19px)] text-marfil/78">{texto}</p>
+    <a
+      href={href('/contacto/')}
+      class="mt-10 inline-flex items-center gap-2 rounded-[10px] border border-marfil/50 bg-marfil px-8 py-4 text-[16px] font-bold text-oro-oscuro shadow-[0_12px_40px_rgba(237,234,227,.18)] transition-[background-color,color,transform] duration-200 hover:-translate-y-0.5 hover:bg-oro hover:text-marfil"
+    >
+      {boton} →
+    </a>
   </div>
 </section>

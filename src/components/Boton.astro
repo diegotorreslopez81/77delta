@@ -1,21 +1,23 @@
 ---
 /**
  * Botón o enlace con aspecto de botón.
- * `oro`: relleno de oro (una sola llamada a la acción por pantalla).
- * `linea`: solo contorno, para la acción secundaria.
+ * `oro`: relleno de oro, la llamada a la acción principal.
+ * `linea`: contorno, para la acción secundaria.
+ * `tinta`: relleno de tinta, para la barra de navegación.
  */
 interface Props {
   href: string;
-  variante?: 'oro' | 'linea';
+  variante?: 'oro' | 'linea' | 'tinta';
   externo?: boolean;
   class?: string;
 }
 const { href, variante = 'oro', externo = false, class: extra = '' } = Astro.props;
 const base =
-  'inline-flex items-center gap-2 rounded-[3px] px-5 py-3 font-sans text-[14px] font-medium transition-colors duration-200 whitespace-nowrap';
+  'inline-flex items-center gap-2 rounded-[10px] px-6 py-3.5 font-sans text-[15px] font-semibold transition-[background-color,color,border-color,transform,box-shadow] duration-200 whitespace-nowrap';
 const estilos = {
-  oro: 'bg-oro text-tinta-honda hover:bg-marfil',
-  linea: 'border border-linea text-marfil hover:border-oro hover:text-oro',
+  oro: 'bg-oro text-marfil shadow-[0_6px_24px_rgba(167,120,27,.30)] hover:-translate-y-px hover:bg-oro-oscuro hover:shadow-[0_12px_32px_rgba(167,120,27,.30)]',
+  linea: 'border border-tinta/20 text-tinta hover:border-tinta hover:bg-panel',
+  tinta: 'bg-tinta text-marfil hover:bg-oro',
 };
 ---
 

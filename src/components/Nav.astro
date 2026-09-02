@@ -1,26 +1,25 @@
 ---
 import Monograma from './Monograma.astro';
-import Boton from './Boton.astro';
-import { nav, navSecundaria, cta, href } from '../lib/site';
+import { nav, cta, href } from '../lib/site';
 
 const actual = Astro.url.pathname;
 const activo = (ruta: string) => actual.startsWith(href(ruta));
 ---
 
-<header class="sticky top-0 z-50 border-b border-linea bg-tinta/85 backdrop-blur-md">
-  <div class="wrap flex h-[68px] items-center justify-between gap-6">
-    <a href={href('/')} class="text-marfil" aria-label="77 Delta, inicio">
-      <Monograma size={24} />
+<header class="sticky top-0 z-50 border-b border-linea bg-papel/92 backdrop-blur-xl">
+  <div class="wrap flex h-[72px] items-center justify-between gap-6">
+    <a href={href('/')} class="text-tinta" aria-label="77 Delta, inicio">
+      <Monograma size={26} />
     </a>
 
-    <nav aria-label="Principal" class="hidden items-center gap-7 lg:flex">
+    <nav aria-label="Principal" class="hidden items-center gap-6 lg:flex">
       {
         nav.map((n) => (
           <a
             href={href(n.ruta)}
             class:list={[
-              'text-[14px] transition-colors duration-200 hover:text-marfil',
-              activo(n.ruta) ? 'text-oro-luz' : 'text-pizarra',
+              'text-[14px] font-medium transition-colors duration-200 hover:text-oro-oscuro',
+              activo(n.ruta) ? 'text-oro-oscuro' : 'text-tinta-2',
             ]}
             aria-current={activo(n.ruta) ? 'page' : undefined}
           >
@@ -31,38 +30,41 @@ const activo = (ruta: string) => actual.startsWith(href(ruta));
     </nav>
 
     <div class="flex items-center gap-3">
-      <div class="hidden sm:block"><Boton href={href(cta.ruta)}>{cta.texto}</Boton></div>
-      <a href={href(cta.ruta)} class="rounded-[3px] border border-oro-luz/70 px-3 py-1.5 font-display text-[13px] text-oro-luz sm:hidden">Hablemos</a>
+      <a
+        href={href(cta.ruta)}
+        class="inline-flex items-center whitespace-nowrap rounded-[8px] bg-tinta px-4 py-2.5 text-[13px] font-semibold text-marfil transition-[background-color,box-shadow] duration-200 hover:bg-oro hover:shadow-[0_6px_20px_rgba(167,120,27,.35)] sm:px-5"
+      >
+        <span class="hidden sm:inline">{cta.texto}</span><span class="sm:hidden">Reservar</span>
+      </a>
       <button
         type="button"
-        class="grid h-10 w-10 place-items-center text-marfil lg:hidden"
+        class="grid h-10 w-10 place-items-center text-tinta lg:hidden"
         aria-label="Abrir menú"
         aria-expanded="false"
         aria-controls="menu-movil"
         data-burger
       >
-        <span class="block h-px w-5 bg-current transition-transform duration-200" data-l1></span>
-        <span class="mt-[6px] block h-px w-5 bg-current transition-opacity duration-200" data-l2></span>
+        <span class="block h-0.5 w-5 rounded bg-current"></span>
+        <span class="mt-[5px] block h-0.5 w-5 rounded bg-current"></span>
       </button>
     </div>
   </div>
 
-  <div id="menu-movil" class="hidden border-t border-linea bg-tinta-honda lg:hidden" data-menu>
-    <nav aria-label="Principal, móvil" class="wrap flex flex-col py-4">
+  <div id="menu-movil" class="hidden border-t border-linea bg-panel shadow-[0_16px_40px_rgba(6,11,20,.08)] lg:hidden" data-menu>
+    <nav aria-label="Principal, móvil" class="wrap flex flex-col py-3">
       {
-        [...nav, ...navSecundaria].map((n) => (
+        nav.map((n) => (
           <a
             href={href(n.ruta)}
             class:list={[
-              'border-b border-linea py-3 text-[15px]',
-              activo(n.ruta) ? 'text-oro-luz' : 'text-marfil',
+              'rounded-[8px] px-3 py-3 text-[15px] font-medium hover:bg-oro/10',
+              activo(n.ruta) ? 'text-oro-oscuro' : 'text-tinta',
             ]}
           >
             {n.texto}
           </a>
         ))
       }
-      <Boton href={href(cta.ruta)} class="mt-4 justify-center sm:hidden">{cta.texto}</Boton>
     </nav>
   </div>
 </header>

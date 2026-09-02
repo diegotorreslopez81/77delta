@@ -31,7 +31,7 @@ import { productos } from '../../data/productos';
       <ul class="grid gap-px overflow-hidden rounded-[4px] border border-linea bg-linea sm:grid-cols-2 lg:grid-cols-3" role="list">
         {
           productos.map((p) => (
-            <li id={p.slug} class="flex scroll-mt-24 flex-col bg-tinta p-8 md:p-10" data-reveal>
+            <li id={p.slug} class="flex scroll-mt-24 flex-col bg-panel p-8 md:p-10" data-reveal>
               <img
                 src={href(`/img/productos/${p.logo}`)}
                 alt={`Logotipo de ${p.nombre}`}
@@ -57,14 +57,14 @@ import { productos } from '../../data/productos';
             </li>
           ))
         }
-        <li aria-hidden="true" class="hidden bg-tinta sm:block"></li>
-        <li aria-hidden="true" class="hidden bg-tinta lg:block"></li>
+        <li aria-hidden="true" class="hidden bg-panel sm:block"></li>
+        <li aria-hidden="true" class="hidden bg-panel lg:block"></li>
       </ul>
     </div>
   </section>
 
   <!-- A medida -->
-  <section class="hairline bg-tinta-honda">
+  <section class="hairline bg-panel">
     <div class="wrap grid gap-10 py-24 md:grid-cols-12 md:py-32">
       <div class="md:col-span-6" data-reveal>
         <p class="eyebrow">A medida</p>

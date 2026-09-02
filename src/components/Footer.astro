@@ -1,4 +1,5 @@
 ---
+/** Pie de página: franja de tinta, como en la web anterior. */
 import Monograma from './Monograma.astro';
 import { site, href } from '../lib/site';
 
@@ -9,6 +10,7 @@ const columnas = [
       { texto: 'Diagnóstico', ruta: '/servicios/#diagnostico' },
       { texto: 'Transformación operativa', ruta: '/servicios/#transformacion' },
       { texto: 'Partner tecnológico', ruta: '/servicios/#partner' },
+      { texto: 'Cupó IA', ruta: '/servicios/#cupo' },
       { texto: 'Sectores', ruta: '/sectores/' },
       { texto: 'Historias de éxito', ruta: '/historias-de-exito/' },
     ],
@@ -43,25 +45,25 @@ const columnas = [
 ];
 ---
 
-<footer class="border-t border-linea bg-tinta-honda">
-  <div class="wrap grid gap-12 py-16 md:grid-cols-[1.4fr_repeat(4,1fr)]">
+<footer class="bg-tinta text-marfil/70">
+  <div class="wrap grid gap-10 py-20 md:grid-cols-[1.6fr_repeat(4,1fr)]">
     <div>
-      <a href={href('/')} class="text-marfil" aria-label="77 Delta, inicio"><Monograma size={26} /></a>
-      <p class="mt-5 max-w-[30ch] text-[14px] text-pizarra">
-        Consultora tecnológica especializada en pymes. Transformamos pymes con inteligencia artificial
-        aplicada con criterio.
+      <a href={href('/')} class="text-marfil" aria-label="77 Delta, inicio"><Monograma size={30} /></a>
+      <p class="mt-5 max-w-[28ch] text-[14px] leading-[1.55] text-marfil/60">
+        Consultora tecnológica especializada en pymes. Transformamos pymes con inteligencia artificial aplicada
+        con criterio.
       </p>
-      <p class="eyebrow mt-6">{site.ciudad}</p>
+      <p class="mt-6 text-[13px] text-marfil/55">Oficina en <strong class="font-semibold text-marfil/85">{site.ciudad}</strong></p>
     </div>
 
     {
       columnas.map((c) => (
         <div>
-          <h4 class="eyebrow mb-4 text-pizarra">{c.titulo}</h4>
+          <h4 class="mb-4 text-[13px] font-semibold uppercase tracking-[0.05em] text-marfil">{c.titulo}</h4>
           <ul class="space-y-2.5">
             {c.enlaces.map((e) => (
               <li>
-                <a href={href(e.ruta)} class="text-[14px] text-marfil/80 transition-colors hover:text-oro-luz">
+                <a href={href(e.ruta)} class="text-[14px] text-marfil/65 transition-colors hover:text-marfil">
                   {e.texto}
                 </a>
               </li>
@@ -72,15 +74,15 @@ const columnas = [
     }
   </div>
 
-  <div class="border-t border-linea">
-    <div class="wrap flex flex-col gap-3 py-6 text-[12px] text-pizarra md:flex-row md:items-center md:justify-between">
+  <div class="border-t border-marfil/10">
+    <div class="wrap flex flex-col gap-3 py-8 text-[13px] text-marfil/50 md:flex-row md:items-center md:justify-between">
       <p>
-        © {site.anio} {site.nombre} es una marca de <strong class="font-medium text-marfil/80">{site.sociedad}</strong> ·
+        © {site.anio} {site.nombre} es una marca de <strong class="font-semibold text-marfil/80">{site.sociedad}</strong> ·
         CIF {site.cif} · {site.direccion}
       </p>
-      <p class="flex items-center gap-4 whitespace-nowrap">
+      <p class="flex items-center gap-5 whitespace-nowrap">
         <span>Datos procesados en la Unión Europea · RGPD</span>
-        <a href={site.linkedin} target="_blank" rel="noopener" class="transition-colors hover:text-oro-luz">LinkedIn</a>
+        <a href={site.linkedin} target="_blank" rel="noopener" class="transition-colors hover:text-marfil">LinkedIn</a>
       </p>
     </div>
   </div>

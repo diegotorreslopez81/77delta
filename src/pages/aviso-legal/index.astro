@@ -2,11 +2,11 @@
 import Base from '../../layouts/Base.astro';
 import { site, href } from '../../lib/site';
 
-const enlace = 'text-marfil underline decoration-oro/50 underline-offset-4 transition-colors hover:text-oro-luz';
+const enlace = 'text-tinta underline decoration-oro/50 underline-offset-4 transition-colors hover:text-oro-oscuro';
 const parrafo = 'mt-4 text-[16px] text-pizarra';
 const titulo = 'mt-3 font-display text-[clamp(21px,2.2vw,27px)] font-semibold leading-[1.2]';
-const numero = 'font-mono text-[11px] tracking-[0.14em] text-oro-luz';
-const lista = 'mt-4 list-disc space-y-2 pl-5 text-[16px] text-pizarra marker:text-oro-luz';
+const numero = 'font-mono text-[11px] tracking-[0.14em] text-oro-oscuro';
+const lista = 'mt-4 list-disc space-y-2 pl-5 text-[16px] text-pizarra marker:text-oro-oscuro';
 ---
 
 <Base
@@ -39,23 +39,23 @@ const lista = 'mt-4 list-disc space-y-2 pl-5 text-[16px] text-pizarra marker:tex
           </p>
 
           <dl class="mt-8 grid gap-px overflow-hidden rounded-[4px] border border-linea bg-linea sm:grid-cols-2">
-            <div class="bg-tinta-honda p-6">
+            <div class="bg-panel p-6">
               <dt class="eyebrow text-pizarra">Razón social</dt>
-              <dd class="mt-2 text-[15px] text-marfil">{site.sociedad}</dd>
+              <dd class="mt-2 text-[15px] text-tinta">{site.sociedad}</dd>
             </div>
-            <div class="bg-tinta-honda p-6">
+            <div class="bg-panel p-6">
               <dt class="eyebrow text-pizarra">CIF</dt>
-              <dd class="mt-2 font-mono text-[15px] text-marfil">{site.cif}</dd>
+              <dd class="mt-2 font-mono text-[15px] text-tinta">{site.cif}</dd>
             </div>
-            <div class="bg-tinta-honda p-6">
+            <div class="bg-panel p-6">
               <dt class="eyebrow text-pizarra">Domicilio social</dt>
-              <dd class="mt-2 text-[15px] text-marfil">{site.direccion}</dd>
+              <dd class="mt-2 text-[15px] text-tinta">{site.direccion}</dd>
             </div>
-            <div class="bg-tinta-honda p-6">
+            <div class="bg-panel p-6">
               <dt class="eyebrow text-pizarra">Registro</dt>
-              <dd class="mt-2 text-[15px] text-marfil">Inscrita en el Registro Mercantil de Barcelona</dd>
+              <dd class="mt-2 text-[15px] text-tinta">Inscrita en el Registro Mercantil de Barcelona</dd>
             </div>
-            <div class="bg-tinta-honda p-6 sm:col-span-2">
+            <div class="bg-panel p-6 sm:col-span-2">
               <dt class="eyebrow text-pizarra">Email de contacto</dt>
               <dd class="mt-2 text-[15px]">
                 <a href={`mailto:${site.email}`} class={enlace}>{site.email}</a>

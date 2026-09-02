@@ -38,7 +38,7 @@ const vias = [
 ];
 
 const campo =
-  'mt-3 w-full rounded-[3px] border border-linea bg-tinta-honda px-4 py-3 font-sans text-[15px] text-marfil transition-colors placeholder:text-pizarra/60 focus:border-oro';
+  'mt-3 w-full rounded-[8px] border border-tinta/15 bg-panel px-4 py-3 font-sans text-[15px] text-tinta transition-colors placeholder:text-pizarra/60 focus:border-oro';
 const etiqueta = 'block font-mono text-[11px] uppercase tracking-[0.18em] text-pizarra';
 ---
 
@@ -100,7 +100,7 @@ const etiqueta = 'block font-mono text-[11px] uppercase tracking-[0.18em] text-p
           <div>
             <label class={etiqueta} for="sector">Sector</label>
             <select
-              class={`${campo} appearance-none [&_option]:bg-tinta-honda [&_option]:text-marfil`}
+              class={`${campo} appearance-none [&_option]:bg-panel [&_option]:text-tinta`}
               id="sector"
               name="sector"
               required
@@ -118,7 +118,7 @@ const etiqueta = 'block font-mono text-[11px] uppercase tracking-[0.18em] text-p
           <div class="sm:col-span-2">
             <button
               type="submit"
-              class="inline-flex items-center gap-2 whitespace-nowrap rounded-[3px] bg-oro px-5 py-3 font-sans text-[14px] font-medium text-tinta-honda transition-colors duration-200 hover:bg-marfil"
+              class="inline-flex items-center gap-2 whitespace-nowrap rounded-[10px] bg-oro px-6 py-3.5 font-sans text-[15px] font-semibold text-marfil shadow-[0_6px_24px_rgba(167,120,27,.30)] transition-[background-color,transform] duration-200 hover:-translate-y-px hover:bg-oro-oscuro"
             >
               Enviar mensaje →
             </button>
@@ -126,7 +126,7 @@ const etiqueta = 'block font-mono text-[11px] uppercase tracking-[0.18em] text-p
               Los datos se tratan en la Unión Europea conforme al RGPD. No los cedemos a terceros. Más detalle en
               nuestra <a
                 href={href('/politica-privacidad/')}
-                class="text-marfil underline decoration-linea underline-offset-4 transition-colors hover:decoration-oro"
+                class="text-tinta underline decoration-linea underline-offset-4 transition-colors hover:decoration-oro"
                 >política de privacidad</a
               >.
             </p>
@@ -147,7 +147,7 @@ const etiqueta = 'block font-mono text-[11px] uppercase tracking-[0.18em] text-p
                   href={v.enlace}
                   target={v.externo ? '_blank' : undefined}
                   rel={v.externo ? 'noopener' : undefined}
-                  class="mt-5 inline-block font-mono text-[12px] text-oro-luz transition-colors hover:text-marfil"
+                  class="mt-5 inline-block font-mono text-[12px] text-oro-oscuro transition-colors hover:text-tinta"
                 >
                   {v.etiqueta}
                 </a>

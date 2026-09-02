@@ -108,21 +108,21 @@ const descripcion =
   </section>
 
   <!-- 02 · El nombre -->
-  <section class="hairline bg-tinta-honda">
+  <section class="hairline bg-panel">
     <div class="wrap grid gap-10 py-24 md:grid-cols-12 md:py-32">
       <div class="md:col-span-5" data-reveal>
         <p class="eyebrow">02 · El nombre</p>
         <h2 class="mt-5 font-display text-[clamp(28px,3.6vw,44px)] font-extralight leading-[1.1] tracking-[-0.03em]">
           Por qué nos llamamos así
         </h2>
-        <p class="monograma mt-10 text-[clamp(72px,10vw,140px)] text-oro-luz" aria-hidden="true">Δ</p>
+        <p class="monograma mt-10 text-[clamp(72px,10vw,140px)] text-oro-oscuro" aria-hidden="true">Δ</p>
       </div>
       <div class="md:col-span-7 md:pt-12" data-reveal>
         <div class="space-y-5 text-[17px] text-pizarra">
           {nombre.map((p) => <p>{p}</p>)}
         </div>
         <p
-          class="mt-8 border-t border-linea pt-8 font-display text-[clamp(20px,2.4vw,28px)] font-extralight leading-[1.2] tracking-[-0.02em] text-marfil"
+          class="mt-8 border-t border-linea pt-8 font-display text-[clamp(20px,2.4vw,28px)] font-extralight leading-[1.2] tracking-[-0.02em] text-tinta"
         >
           El 77 es nuestro. No lo explicamos.
         </p>
@@ -144,7 +144,7 @@ const descripcion =
             {carta.map((p) => <p>{p}</p>)}
           </div>
         </blockquote>
-        <figcaption class="mt-8 font-mono text-[12px] uppercase tracking-[0.14em] text-marfil/70" data-reveal>
+        <figcaption class="mt-8 font-mono text-[12px] uppercase tracking-[0.14em] text-tinta/70" data-reveal>
           Diego Torres · Fundador y director técnico
         </figcaption>
       </figure>
@@ -152,7 +152,7 @@ const descripcion =
   </section>
 
   <!-- Misión · Visión · Valores -->
-  <section class="hairline bg-tinta-honda">
+  <section class="hairline bg-panel">
     <div class="wrap py-24 md:py-32">
       <div class="max-w-[62ch]" data-reveal>
         <p class="eyebrow">Misión · Visión · Valores</p>
@@ -169,7 +169,7 @@ const descripcion =
         {
           pilares.map((p) => (
             <div class="border-t border-linea pt-6" data-reveal>
-              <span class="monograma text-[28px] text-oro-luz" aria-hidden="true">
+              <span class="monograma text-[28px] text-oro-oscuro" aria-hidden="true">
                 {p.inicial}
               </span>
               <h3 class="mt-4 font-display text-[22px] font-semibold">{p.titulo}</h3>
@@ -190,7 +190,7 @@ const descripcion =
         {
           valores.map((v, i) => (
             <li data-reveal>
-              <span class="font-mono text-[11px] tracking-[0.14em] text-oro-luz">{String(i + 1).padStart(2, '0')}</span>
+              <span class="font-mono text-[11px] tracking-[0.14em] text-oro-oscuro">{String(i + 1).padStart(2, '0')}</span>
               <h4 class="mt-4 font-display text-[18px] font-semibold">{v.titulo}</h4>
               <p class="mt-3 text-[15px] text-pizarra">{v.texto}</p>
             </li>
@@ -237,7 +237,7 @@ const descripcion =
           verificado, que cumplimos los requisitos para gestionar fondos públicos y que el proyecto que ejecutemos
           puede acogerse a ayudas oficiales.
         </p>
-        <a href={href('/contacto/')} class="inline-block font-mono text-[12px] text-oro-luz hover:text-marfil">
+        <a href={href('/contacto/')} class="inline-block font-mono text-[12px] text-oro-oscuro hover:text-tinta">
           Cuéntanos tu caso →
         </a>
       </div>
@@ -245,7 +245,7 @@ const descripcion =
   </section>
 
   <!-- El equipo -->
-  <section class="hairline bg-tinta-honda">
+  <section class="hairline bg-panel">
     <div class="wrap py-24 md:py-32">
       <div class="max-w-[62ch]" data-reveal>
         <p class="eyebrow">El equipo</p>
@@ -271,7 +271,7 @@ const descripcion =
         </div>
         <div class="md:col-span-7">
           <h3 class="font-display text-[24px] font-semibold">Diego Torres</h3>
-          <p class="mt-2 font-mono text-[12px] uppercase tracking-[0.14em] text-oro-luz">Fundador · Director técnico</p>
+          <p class="mt-2 font-mono text-[12px] uppercase tracking-[0.14em] text-oro-oscuro">Fundador · Director técnico</p>
           <div class="mt-6 space-y-5 text-[16px] text-pizarra">
             <p>
               Ingeniero de Telecomunicaciones, MBA y Máster en Investigación en IA. Más de 20 años de trayectoria
@@ -287,7 +287,7 @@ const descripcion =
             href={site.linkedin}
             target="_blank"
             rel="noopener"
-            class="mt-6 inline-block font-mono text-[12px] text-oro-luz hover:text-marfil"
+            class="mt-6 inline-block font-mono text-[12px] text-oro-oscuro hover:text-tinta"
           >
             LinkedIn →
           </a>
