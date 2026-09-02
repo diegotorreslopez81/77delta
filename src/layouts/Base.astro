@@ -10,8 +10,10 @@ interface Props {
   description?: string;
   /** Ruta de la imagen OG dentro de public/, sin base. */
   ogImage?: string;
+  /** Borradores y páginas de prueba: fuera de buscadores. */
+  noindex?: boolean;
 }
-const { title, description = site.descripcion, ogImage = '/img/og.png' } = Astro.props;
+const { title, description = site.descripcion, ogImage = '/img/og.png', noindex = false } = Astro.props;
 
 const tituloCompleto = title ? `${title} · ${site.nombre}` : `${site.nombre} · ${site.claim}`;
 const canonical = new URL(Astro.url.pathname, Astro.site).href;
@@ -28,6 +30,7 @@ const og = new URL(href(ogImage), Astro.site).href;
     <link rel="canonical" href={canonical} />
     <link rel="icon" type="image/svg+xml" href={href('/favicon.svg')} />
     <meta name="theme-color" content="#060B14" />
+    {noindex && <meta name="robots" content="noindex, nofollow" />}
 
     <meta property="og:type" content="website" />
     <meta property="og:site_name" content={site.nombre} />
