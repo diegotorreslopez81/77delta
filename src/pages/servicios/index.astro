@@ -479,6 +479,40 @@ const faq = [
     </div>
   </section>
 
+  <!-- Cupó IA -->
+  <section id="cupo" class="hairline scroll-mt-[68px] bg-oro/[0.06]">
+    <div class="wrap grid gap-10 py-24 md:grid-cols-12 md:py-28">
+      <div class="md:col-span-7" data-reveal>
+        <p class="eyebrow">Cupó IA d'ACCIÓ · Generalitat de Catalunya</p>
+        <h2 class="mt-5 font-display text-[clamp(28px,3.6vw,44px)] font-extralight leading-[1.1] tracking-[-0.03em]">
+          Hasta 8.000 € de tu proyecto los paga la Generalitat.
+        </h2>
+        <p class="mt-6 max-w-[58ch] text-[17px] text-pizarra">
+          Somos proveedor acreditado de ACCIÓ. Si tu empresa tiene sede en Catalunya, al menos 10 trabajadores y
+          un IAE elegible, gestionamos la solicitud completa y parte del coste del proyecto lo asume el programa.
+          Lo comprobamos en 24 horas tras la conversación inicial.
+        </p>
+        <a href={href('/contacto/')} class="mt-8 inline-flex items-center gap-2 font-display text-[15px] text-oro-luz">
+          Comprobar si tu empresa encaja →
+        </a>
+      </div>
+      <ul class="grid gap-4 self-center md:col-span-5" role="list" data-reveal>
+        {
+          [
+            ['Hasta 8.000 €', 'de subvención por proyecto'],
+            ['24 h', 'para confirmar si encajas'],
+            ['0 gestiones', 'para ti: la solicitud la hacemos nosotros'],
+          ].map(([cifra, texto]) => (
+            <li class="flex items-baseline gap-4 rounded-[4px] border border-linea bg-tinta/80 px-5 py-4">
+              <span class="font-display text-[26px] font-extralight tracking-[-0.03em] text-oro-luz">{cifra}</span>
+              <span class="text-[14px] text-pizarra">{texto}</span>
+            </li>
+          ))
+        }
+      </ul>
+    </div>
+  </section>
+
   <!-- El recorrido típico -->
   <section class="hairline bg-tinta-honda">
     <div class="wrap py-24 md:py-32">
