@@ -1,0 +1,790 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta name="robots" content="noindex, nofollow">
+<link rel="icon" type="image/svg+xml" href="/favicon.svg">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>77 Delta · Aplicamos la IA para ahorrar costes a tu empresa</title>
+<meta name="description" content="Aplicamos la IA para ahorrar costes a tu empresa. Consultora tecnológica especializada en PYMEs. Diagnóstico gratuito, transformación operativa con IA y Partner tecnológico. Acreditados ACCIÓ.">
+<meta property="og:title" content="77 Delta · Aplicamos la IA para ahorrar costes a tu empresa">
+<meta property="og:description" content="Consultora tecnológica especializada en PYMEs. Diagnóstico gratuito y transformación operativa con IA aplicada con criterio.">
+<meta property="og:image" content="https://77delta.com/img/og-image.png">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta property="og:type" content="website">
+<meta property="og:url" content="https://77delta.com/">
+<meta property="og:site_name" content="77 Delta">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="77 Delta · Aplicamos la IA para ahorrar costes">
+<meta name="twitter:description" content="Consultora tecnológica especializada en PYMEs. Acreditados ACCIÓ.">
+<meta name="twitter:image" content="https://77delta.com/img/og-image.png">
+
+<link rel="stylesheet" href="/borrador-c/fuentes.css">
+<style>
+  :root{
+    --paper:#F3EEE4;
+    --white:#FAF7F0;
+    --ink:#060B14;
+    --ink-2:#2A3648;
+    --ink-3:#5C6879;
+    --ink-4:#9AA3B0;
+    --accent:#A7781B;
+    --accent-2:#8A6216;
+    --accent-soft:rgba(167,120,27,.12);
+    --accent-glow:rgba(167,120,27,.35);
+    --line:rgba(6,11,20,.10);
+    --line-strong:rgba(6,11,20,.18);
+    --dark:#060B14;
+    --ease:cubic-bezier(.2,.7,.2,1);
+  }
+  *{box-sizing:border-box;margin:0;padding:0;min-width:0}
+  html{scroll-behavior:smooth;overflow-x:hidden}
+  body{font-family:'IBM Plex Sans',system-ui,sans-serif;color:var(--ink);background:var(--paper);line-height:1.55;-webkit-font-smoothing:antialiased;overflow-x:hidden;max-width:100vw;width:100%}
+  section{max-width:100%;overflow-x:clip;position:relative}
+  img,video{max-width:100%;height:auto;display:block}
+  h1,h2,h3,h4{font-family:'Sora',system-ui,sans-serif;font-weight:600;letter-spacing:-.025em;line-height:1.08}
+  a{color:inherit;text-decoration:none}
+  img{display:block;max-width:100%;height:auto}
+  .wrap{max-width:1280px;margin:0 auto;padding:0 32px}
+
+  /* NAV */
+  nav.top{position:sticky;top:0;z-index:50;background:rgba(250,250,247,.92);backdrop-filter:blur(20px);border-bottom:1px solid var(--line)}
+  nav.top .wrap{display:flex;align-items:center;justify-content:space-between;height:76px;gap:20px;position:relative}
+  nav.top .brand img{height:28px;width:auto;display:block}
+  nav.top ul.nav-list{display:flex;gap:20px;list-style:none;align-items:center;flex:1;justify-content:center}
+  nav.top ul.nav-list a{font-size:14px;color:var(--ink-2);font-weight:500;transition:color .2s;display:inline-flex;align-items:center;gap:6px;white-space:nowrap}
+  nav.top ul.nav-list a:hover,nav.top ul.nav-list a.active{color:var(--accent)}
+  nav.top .nav-burger{display:none;background:none;border:none;width:36px;height:36px;cursor:pointer;align-items:center;justify-content:center;flex-direction:column;gap:5px;padding:6px;flex-shrink:0}
+  nav.top .nav-burger span{display:block;width:22px;height:2px;background:var(--ink);border-radius:2px;transition:all .25s var(--ease)}
+  nav.top.menu-open .nav-burger span:nth-child(1){transform:translateY(7px) rotate(45deg)}
+  nav.top.menu-open .nav-burger span:nth-child(2){opacity:0}
+  nav.top.menu-open .nav-burger span:nth-child(3){transform:translateY(-7px) rotate(-45deg)}
+  nav.top .cta{background:var(--ink);color:#EDEAE3;padding:11px 20px;border-radius:8px;font-size:13px;font-weight:600;transition:background .2s,box-shadow .2s;display:inline-flex;align-items:center;white-space:nowrap;flex-shrink:0}
+  nav.top .cta .cta-full{display:inline}
+  nav.top .cta .cta-mob{display:none}
+  nav.top .cta:hover{background:var(--accent);box-shadow:0 6px 20px var(--accent-glow)}
+
+  /* HERO asimétrico (texto izquierda + foto derecha) */
+  .hero{min-height:calc(100vh - 76px);padding:60px 0;position:relative;overflow:hidden;display:flex;align-items:center}
+  .hero .wrap{width:100%}
+  .hero .grid{display:grid;grid-template-columns:5fr 7fr;gap:80px;align-items:center}
+  .hero .eyebrow{display:inline-flex;align-items:center;gap:10px;padding:8px 16px;border:1px solid var(--line-strong);background:var(--white);border-radius:100px;font-size:13px;color:var(--ink-2);margin-bottom:28px;font-weight:500}
+  .hero .eyebrow .badge{width:8px;height:8px;background:var(--accent);border-radius:50%;box-shadow:0 0 12px var(--accent-glow),0 0 4px var(--accent)}
+  .hero h1{font-size:clamp(40px,4.8vw,68px);font-weight:500;margin-bottom:28px;color:var(--ink)}
+  .hero h1 em{font-style:normal;color:var(--accent);font-weight:700}
+  .hero .lead{font-size:19px;color:var(--ink-2);margin-bottom:36px;line-height:1.5}
+  .hero .ctas{display:flex;gap:12px;flex-wrap:wrap}
+  .btn-primary{background:var(--accent);color:#EDEAE3;padding:15px 26px;border-radius:10px;font-weight:600;font-size:15px;display:inline-flex;align-items:center;gap:10px;transition:background .2s,transform .2s,box-shadow .2s;box-shadow:0 6px 24px var(--accent-glow)}
+  .btn-primary:hover{background:var(--accent-2);transform:translateY(-1px);box-shadow:0 12px 32px var(--accent-glow)}
+  .btn-ghost{background:transparent;color:var(--ink);padding:15px 26px;border-radius:10px;font-weight:600;font-size:15px;border:1px solid var(--line-strong);transition:background .2s,border-color .2s}
+  .btn-ghost:hover{background:var(--white);border-color:var(--ink)}
+  .hero .photo{aspect-ratio:5/4;border-radius:20px;overflow:hidden;background:#ddd;position:relative;box-shadow:0 24px 60px rgba(6,11,20,.12)}
+  .hero .photo img{width:100%;height:100%;object-fit:cover}
+  .hero .photo .tag{position:absolute;bottom:24px;left:24px;background:rgba(6,11,20,.78);backdrop-filter:blur(20px);color:#EDEAE3;padding:10px 16px;border-radius:100px;font-size:12px;font-weight:600;letter-spacing:.05em;text-transform:uppercase}
+
+  /* TRUST BAND (al final, antes del footer) */
+  .trust{padding:80px 0 100px;background:var(--paper);border-top:1px solid var(--line)}
+  .trust .header{text-align:center;margin-bottom:48px}
+  .trust .header .section-tag{display:inline-block;font-size:12px;color:var(--accent);font-weight:700;letter-spacing:.14em;text-transform:uppercase;margin-bottom:14px}
+  .trust .header h2{font-size:clamp(28px,3vw,40px);max-width:680px;margin:0 auto 14px}
+  .trust .header p{font-size:16px;color:var(--ink-3);max-width:580px;margin:0 auto;line-height:1.5}
+  .trust .logos{display:grid;grid-template-columns:repeat(6,1fr);gap:32px 24px;align-items:center;max-width:1080px;margin:0 auto}
+  .trust .logo{display:flex;align-items:center;justify-content:center;padding:14px 10px;min-height:64px;text-decoration:none}
+  .trust .logo img{max-height:34px;max-width:140px;width:auto;height:auto;object-fit:contain;filter:brightness(0) opacity(.5);transition:filter .25s var(--ease),transform .25s var(--ease)}
+  .trust .logo.tall img{max-height:48px;max-width:90px}
+  .trust .logo.wide img{max-height:28px;max-width:170px}
+  .trust .logo:hover img{filter:brightness(0) opacity(.9);transform:scale(1.04)}
+
+  /* PROBLEMA (foto izq + texto derecha) · DARK ANCHOR */
+  .problem{min-height:100vh;padding:120px 0;background:var(--dark);color:#EDEAE3;position:relative;overflow:hidden;display:flex;align-items:center}
+  .problem::before{content:"";position:absolute;top:-20%;right:-10%;width:600px;height:600px;background:radial-gradient(circle,rgba(167,120,27,.18),transparent 60%);filter:blur(60px);pointer-events:none}
+  .problem .wrap{position:relative;z-index:1}
+  .problem .grid{display:grid;grid-template-columns:6fr 6fr;gap:80px;align-items:center}
+  .problem .photo{aspect-ratio:4/5;border-radius:20px;overflow:hidden}
+  .problem .photo img{width:100%;height:100%;object-fit:cover}
+  .problem h2{font-size:clamp(34px,4vw,52px);margin-bottom:28px;color:#EDEAE3}
+  .problem h2 em{color:var(--accent);font-style:normal;font-weight:400;text-shadow:none}
+  .problem .lead{font-size:18px;color:rgba(237,234,227,.78);margin-bottom:24px;line-height:1.55}
+  .problem .section-tag{color:var(--accent)}
+  .problem .questions{font-size:18px;color:rgba(237,234,227,.92);font-family:'Sora',system-ui,sans-serif;font-style:normal;line-height:1.5;padding:24px;background:rgba(167,120,27,.12);border-radius:14px;border-left:3px solid var(--accent);backdrop-filter:blur(20px)}
+
+  /* SERVICIOS */
+  .services{padding:140px 0}
+  .section-head{margin-bottom:64px;max-width:880px}
+  .section-tag{display:inline-block;font-size:12px;color:var(--accent);font-weight:700;letter-spacing:.14em;text-transform:uppercase;margin-bottom:18px}
+  .section-head h2{font-size:clamp(34px,4vw,52px);margin-bottom:18px}
+  .section-head p{font-size:18px;color:var(--ink-3);line-height:1.55}
+
+  .svc-featured{position:relative;border-radius:24px;overflow:hidden;margin-bottom:20px;min-height:460px;box-shadow:0 24px 60px rgba(6,11,20,.18)}
+  .svc-featured img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover}
+  .svc-featured::before{content:"";position:absolute;inset:0;background:linear-gradient(115deg,rgba(6,11,20,.35) 0%,rgba(6,11,20,.15) 60%,transparent 100%)}
+  .svc-featured .content{position:relative;padding:48px;display:flex;flex-direction:column;justify-content:flex-end;height:100%;min-height:460px}
+  .svc-featured .text-panel{background:rgba(6,11,20,.48);backdrop-filter:blur(40px) saturate(180%);-webkit-backdrop-filter:blur(40px) saturate(180%);border:1px solid rgba(237,234,227,.14);border-radius:20px;padding:36px;max-width:540px;box-shadow:0 20px 60px rgba(0,0,0,.35),inset 0 1px 0 rgba(237,234,227,.08)}
+  .svc-featured .badge{display:inline-flex;align-items:center;background:rgba(167,120,27,.32);backdrop-filter:blur(20px);color:#EDEAE3;padding:8px 16px;border-radius:100px;font-size:11px;font-weight:700;letter-spacing:.12em;margin-bottom:22px;width:fit-content;border:1px solid rgba(167,120,27,.55);box-shadow:0 0 20px rgba(167,120,27,.35)}
+  .svc-featured h3{font-size:42px;color:#EDEAE3;margin-bottom:14px;font-weight:500;text-shadow:0 2px 16px rgba(0,0,0,.4)}
+  .svc-featured p{color:rgba(237,234,227,.94);font-size:16px;margin-bottom:24px;line-height:1.55;text-shadow:0 1px 8px rgba(0,0,0,.35)}
+  .svc-featured .arrow-btn{display:inline-flex;align-items:center;gap:10px;color:#EDEAE3;font-weight:600;font-size:15px;padding:14px 24px;background:var(--accent);border-radius:10px;border:1px solid rgba(237,234,227,.18);width:fit-content;transition:background .2s,transform .2s,box-shadow .2s;box-shadow:0 6px 24px rgba(167,120,27,.5)}
+  .svc-featured .arrow-btn:hover{background:var(--accent-2);transform:translateY(-1px);box-shadow:0 12px 32px rgba(167,120,27,.65)}
+
+  .svc-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:20px}
+  .svc-card{background:var(--white);border:1px solid var(--line);border-radius:18px;padding:40px;transition:transform .25s var(--ease),box-shadow .25s var(--ease),border-color .25s var(--ease)}
+  .svc-card:hover{transform:translateY(-4px);box-shadow:0 16px 40px rgba(6,11,20,.08);border-color:var(--line-strong)}
+  .svc-card .num{font-family:'Sora',system-ui,sans-serif;font-size:13px;color:var(--accent);font-weight:600;margin-bottom:24px;letter-spacing:.05em}
+  .svc-card h3{font-size:24px;margin-bottom:12px}
+  .svc-card p{color:var(--ink-3);font-size:15px;margin-bottom:24px;line-height:1.55}
+  .svc-card .price{font-size:14px;color:var(--ink-2);font-weight:600;padding-top:20px;border-top:1px solid var(--line);display:flex;justify-content:space-between;align-items:center}
+  .svc-card .price .arrow{color:var(--accent);font-size:18px}
+
+  /* SECTORES (fotos verticales con overlay) */
+  .sectors{padding:140px 0;background:var(--white)}
+  .sec-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:16px}
+  .sec-card{aspect-ratio:3/4;border-radius:18px;overflow:hidden;position:relative;cursor:pointer;transition:transform .3s var(--ease)}
+  .sec-card:hover{transform:scale(1.02)}
+  .sec-card img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;transition:transform .6s var(--ease)}
+  .sec-card:hover img{transform:scale(1.08)}
+  .sec-card::before{content:"";position:absolute;inset:0;background:linear-gradient(180deg,transparent 30%,rgba(6,11,20,.85) 100%);z-index:1}
+  .sec-card .content{position:absolute;bottom:0;left:0;right:0;padding:28px;color:#EDEAE3;z-index:2}
+  .sec-card .num{font-family:'Sora',system-ui,sans-serif;font-size:13px;color:rgba(237,234,227,.6);font-weight:600;margin-bottom:10px;letter-spacing:.05em}
+  .sec-card h3{color:#EDEAE3;font-size:24px;margin-bottom:8px;font-weight:500}
+  .sec-card p{color:rgba(237,234,227,.85);font-size:14px;line-height:1.5;margin-bottom:14px}
+  .sec-card .arrow{display:inline-flex;align-items:center;gap:8px;font-size:13px;font-weight:600}
+
+  /* CASO DESTACADO (foto background + cifra gigante + CARRUSEL) */
+  .case{padding:0;position:relative;min-height:100vh;display:flex;align-items:center;overflow:hidden;background:var(--dark)}
+  .case .slides{position:absolute;inset:0;width:100%;height:100%}
+  .case .slide{position:absolute;inset:0;opacity:0;transition:opacity .8s var(--ease);pointer-events:none}
+  .case .slide.active{opacity:1;pointer-events:auto}
+  .case .slide .bg{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;opacity:.45}
+  .case .slide::after{content:"";position:absolute;inset:0;background:linear-gradient(90deg,rgba(6,11,20,.92) 0%,rgba(6,11,20,.72) 50%,rgba(6,11,20,.5) 100%)}
+  .case .slide .content{position:absolute;inset:0;display:flex;align-items:center;z-index:2}
+  .case .slide .wrap{padding:140px 32px;width:100%;color:#EDEAE3}
+  .case .slide .grid{display:grid;grid-template-columns:5fr 7fr;gap:80px;align-items:center;max-width:1280px;margin:0 auto}
+  .case .big{font-family:'Sora',system-ui,sans-serif;font-size:clamp(120px,16vw,220px);line-height:.9;color:var(--accent);font-weight:700;letter-spacing:-.05em;text-shadow:none}
+  .case .big .pct{font-size:.5em;color:#EDEAE3}
+  .case .label{font-size:14px;color:rgba(237,234,227,.7);text-transform:uppercase;letter-spacing:.14em;margin-top:20px;font-weight:600}
+  .case .section-tag{color:rgba(237,234,227,.6)}
+  .case h3{font-size:36px;color:#EDEAE3;margin-bottom:24px;max-width:580px;font-weight:500}
+  .case p{font-size:17px;color:rgba(237,234,227,.82);margin-bottom:18px;max-width:620px;line-height:1.55}
+  .case .arrow-btn{display:inline-flex;align-items:center;gap:10px;color:#EDEAE3;font-weight:600;font-size:15px;margin-top:18px;padding:14px 22px;background:rgba(237,234,227,.12);backdrop-filter:blur(20px);border-radius:10px;border:1px solid rgba(237,234,227,.2)}
+
+  /* Flechas y dots del carrusel */
+  .case .nav-btn{position:absolute;top:50%;transform:translateY(-50%);z-index:5;width:56px;height:56px;border-radius:50%;background:rgba(237,234,227,.08);backdrop-filter:blur(20px);border:1px solid rgba(237,234,227,.2);color:#EDEAE3;font-size:24px;display:flex;align-items:center;justify-content:center;cursor:pointer;transition:background .2s,transform .2s,box-shadow .2s}
+  .case .nav-btn:hover{background:var(--accent);box-shadow:0 8px 24px var(--accent-glow);transform:translateY(-50%) scale(1.05);border-color:transparent}
+  .case .nav-btn.prev{left:32px}
+  .case .nav-btn.next{right:32px}
+  .case .dots{position:absolute;bottom:40px;left:50%;transform:translateX(-50%);z-index:5;display:flex;gap:10px}
+  .case .dot{width:8px;height:8px;border-radius:50%;background:rgba(237,234,227,.25);cursor:pointer;transition:all .3s var(--ease);border:none;padding:0}
+  .case .dot.active{background:var(--accent);width:32px;border-radius:100px;box-shadow:0 0 12px var(--accent-glow)}
+
+  /* POR QUÉ INFINITE LABS (6 puntos sobrios) */
+  .why{padding:140px 0}
+  .why-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:32px 24px;margin-top:32px}
+  .why-item{padding-top:32px;border-top:2px solid var(--ink)}
+  .why-item .icon{font-size:36px;margin-bottom:24px;font-family:'Sora',system-ui,sans-serif;color:var(--accent);font-weight:600}
+  .why-item h3{font-size:20px;margin-bottom:12px;font-weight:600;font-family:'Inter',sans-serif;letter-spacing:-.01em}
+  .why-item p{color:var(--ink-3);font-size:14px;line-height:1.6}
+
+  /* BLOG CARRUSEL */
+  .blog{padding:140px 0;background:var(--white)}
+  .blog .header{display:flex;justify-content:space-between;align-items:end;margin-bottom:48px;flex-wrap:wrap;gap:24px}
+  .blog .header h2{font-size:clamp(30px,3.6vw,44px);max-width:580px}
+  .blog .header .view-all{font-size:14px;color:var(--accent);font-weight:600;display:inline-flex;align-items:center;gap:8px}
+  .blog-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:24px}
+  .blog-card{display:flex;flex-direction:column;gap:16px;cursor:pointer}
+  .blog-card .thumb{aspect-ratio:16/10;border-radius:14px;overflow:hidden;background:#eee}
+  .blog-card .thumb img{width:100%;height:100%;object-fit:cover;transition:transform .5s var(--ease)}
+  .blog-card:hover .thumb img{transform:scale(1.05)}
+  .blog-card .meta{font-size:12px;color:var(--ink-3);font-weight:600;letter-spacing:.05em;text-transform:uppercase;display:flex;gap:12px;align-items:center}
+  .blog-card .meta .dot{width:3px;height:3px;background:var(--ink-3);border-radius:50%}
+  .blog-card h3{font-size:20px;line-height:1.25;font-weight:500;color:var(--ink)}
+  .blog-card p{color:var(--ink-3);font-size:14px;line-height:1.5}
+
+  /* SOBRE NOSOTROS PREVIEW · LILA SUTIL */
+  .about{min-height:100vh;padding:120px 0;background:linear-gradient(180deg,var(--paper) 0%,rgba(167,120,27,.06) 100%);position:relative;overflow:hidden;display:flex;align-items:center}
+  .about::before{content:"";position:absolute;top:-30%;right:-15%;width:600px;height:600px;background:radial-gradient(circle,rgba(167,120,27,.12),transparent 60%);filter:blur(80px);pointer-events:none}
+  .about .wrap{position:relative;z-index:1}
+  .about .grid{display:grid;grid-template-columns:7fr 5fr;gap:80px;align-items:center}
+  .about h2{font-size:clamp(34px,4vw,52px);margin-bottom:24px}
+  .about h2 em{color:var(--accent);font-style:normal;font-weight:400}
+  .about p{font-size:18px;color:var(--ink-2);margin-bottom:18px;line-height:1.55}
+  .about .signature{margin-top:32px;font-family:'Sora',system-ui,sans-serif;font-style:normal;font-size:18px;color:var(--ink-2)}
+  .about .signature strong{color:var(--ink);font-weight:600;font-style:normal}
+  .about .photo{aspect-ratio:4/5;border-radius:20px;overflow:hidden;position:relative}
+  .about .photo img{width:100%;height:100%;object-fit:cover;transition:transform .5s var(--ease)}
+  .about .photo:hover img{transform:scale(1.03)}
+  .about .arrow-btn{margin-top:28px;display:inline-flex;align-items:center;gap:10px;color:var(--accent);font-weight:600;font-size:15px;padding:14px 22px;border:1px solid var(--accent);border-radius:10px;transition:background .2s,color .2s}
+  .about .arrow-btn:hover{background:var(--accent);color:#EDEAE3}
+
+  /* CTA CIERRE */
+  .closing{padding:0;position:relative;min-height:100vh;display:flex;align-items:center;overflow:hidden;background:var(--ink)}
+  .closing .bg{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;opacity:.35}
+  .closing::after{content:"";position:absolute;inset:0;background:radial-gradient(ellipse at center,rgba(167,120,27,.22) 0%,rgba(6,11,20,.55) 45%,rgba(6,11,20,.96) 75%);z-index:1}
+  .closing .wrap{position:relative;z-index:2;padding:120px 32px;text-align:center;color:#EDEAE3}
+  .closing h2{font-size:clamp(38px,5vw,76px);max-width:920px;margin:0 auto 28px;color:#EDEAE3;font-weight:500;line-height:1.08}
+  .closing h2 em{color:#EDEAE3;font-style:normal;text-shadow:none;background:linear-gradient(180deg,#EDEAE3 0%,#EDEAE3 100%);background-clip:text;-webkit-background-clip:text}
+  .closing h2 br{display:block}
+  .closing p{font-size:19px;color:rgba(237,234,227,.78);max-width:680px;margin:0 auto 40px;line-height:1.5}
+  .closing .btn-primary{background:#EDEAE3;color:var(--accent);padding:20px 36px;font-size:17px;font-weight:700;box-shadow:0 12px 40px rgba(237,234,227,.25),0 0 80px var(--accent-glow);border:1px solid rgba(237,234,227,.5)}
+  .closing .btn-primary:hover{background:var(--accent);color:#EDEAE3;box-shadow:0 16px 50px var(--accent-glow),0 0 100px var(--accent-glow);transform:translateY(-2px)}
+
+  /* FOOTER */
+  footer{background:var(--ink);color:rgba(237,234,227,.7);padding:80px 0 40px;font-size:14px}
+  footer .top{display:grid;grid-template-columns:1.6fr 1fr 1fr 1fr 1fr;gap:40px;padding-bottom:48px;border-bottom:1px solid rgba(237,234,227,.1)}
+  footer .brand img{height:32px;width:auto;margin-bottom:18px;display:block}
+  footer .tagline{color:rgba(237,234,227,.6);font-size:14px;line-height:1.55;max-width:280px;margin-bottom:24px}
+  footer .locations{color:rgba(237,234,227,.55);font-size:13px;line-height:1.6}
+  footer .locations strong{color:rgba(237,234,227,.85);font-weight:600;display:inline-block;margin-right:6px}
+  footer .col h4{color:#EDEAE3;font-size:13px;font-weight:600;margin-bottom:16px;letter-spacing:.05em;text-transform:uppercase;font-family:'Inter',sans-serif}
+  footer .col ul{list-style:none}
+  footer .col li{margin-bottom:10px}
+  footer .col a{color:rgba(237,234,227,.65);font-size:14px;transition:color .2s}
+  footer .col a:hover{color:#EDEAE3}
+  footer .bottom{padding-top:40px;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:16px}
+  footer .bottom .legal{color:rgba(237,234,227,.5);font-size:13px}
+  footer .bottom .legal a{color:rgba(237,234,227,.5);margin-left:24px}
+  footer .bottom .legal a:hover{color:#EDEAE3}
+
+  /* RESPONSIVE */
+  @media(max-width:1024px){
+    .wrap{padding:0 24px}
+    .hero .grid,.problem .grid,.case .slide .grid,.about .grid{grid-template-columns:1fr;gap:48px}
+    .sec-grid,.blog-grid{grid-template-columns:repeat(2,1fr)}
+    .svc-grid{grid-template-columns:1fr}
+    .trust .logos{grid-template-columns:repeat(3,1fr);gap:24px 16px}
+    .why-grid{grid-template-columns:repeat(2,1fr)}
+    footer .top{grid-template-columns:1fr 1fr;gap:32px}
+    .case .nav-btn{width:44px;height:44px}
+    .case .nav-btn.prev{left:16px}
+    .case .nav-btn.next{right:16px}
+  }
+  @media(max-width:1100px){
+    nav.top .nav-burger{display:flex}
+    nav.top ul.nav-list{display:none;position:absolute;top:100%;left:0;right:0;background:var(--white);border-bottom:1px solid var(--line);flex-direction:column;padding:16px 24px 24px;gap:2px;justify-content:flex-start;box-shadow:0 16px 40px rgba(6,11,20,.08)}
+    nav.top.menu-open ul.nav-list{display:flex}
+    nav.top.menu-open ul.nav-list a{padding:14px 16px;border-radius:8px;width:100%;font-size:15px;font-weight:500}
+    nav.top.menu-open ul.nav-list a:hover{background:var(--accent-soft)}
+  }
+  @media(max-width:640px){
+    .wrap{padding:0 20px}
+    nav.top .wrap{height:64px}
+    nav.top .brand img{height:24px}
+    nav.top .cta{padding:9px 12px;font-size:11px;white-space:nowrap}
+    nav.top .cta .cta-full{display:none}
+    nav.top .cta .cta-mob{display:inline}
+    .hero{padding:48px 0 64px;min-height:auto}
+    .hero h1{font-size:36px;line-height:1.1}
+    .hero .lead{font-size:16px}
+    .hero .ctas{flex-direction:column;align-items:stretch}
+    .hero .ctas a{justify-content:center;text-align:center}
+    .btn-primary,.btn-ghost{padding:14px 22px;font-size:14px}
+    .problem{padding:80px 0;min-height:auto}
+    .problem h2{font-size:30px;line-height:1.15}
+    .problem .lead,.problem .questions{font-size:16px}
+    .services{padding:80px 0}
+    .section-head h2{font-size:28px;line-height:1.15}
+    .section-head p{font-size:16px}
+    .svc-featured{min-height:auto}
+    .svc-featured .content{padding:32px 24px;min-height:380px}
+    .svc-featured .text-panel{padding:24px}
+    .svc-featured h3{font-size:28px}
+    .svc-featured p{font-size:15px}
+    .svc-card{padding:28px}
+    .svc-card h3{font-size:20px}
+    .sectors{padding:80px 0}
+    .sec-grid,.blog-grid{grid-template-columns:1fr;gap:16px}
+    .sec-card{aspect-ratio:4/3}
+    .why{padding:80px 0}
+    .why-grid{grid-template-columns:1fr;gap:24px}
+    .why-item{padding-top:24px}
+    .why-item h3{font-size:18px}
+    .case{min-height:auto;padding:0}
+    .case .slide .wrap{padding:80px 20px;min-height:100vh;display:flex;align-items:center}
+    .case .big{font-size:96px;line-height:1}
+    .case h3{font-size:24px}
+    .case p{font-size:15px}
+    .case .nav-btn{width:40px;height:40px;font-size:20px}
+    .case .nav-btn.prev{left:8px}
+    .case .nav-btn.next{right:8px}
+    .case .dots{bottom:20px}
+    .blog{padding:80px 0}
+    .blog .header{flex-direction:column;align-items:flex-start}
+    .blog-card h3{font-size:18px}
+    .about{padding:80px 0;min-height:auto}
+    .about h2{font-size:28px;line-height:1.15}
+    .about p{font-size:16px}
+    .closing{min-height:auto}
+    .closing .wrap{padding:80px 20px}
+    .closing h2{font-size:32px;line-height:1.15}
+    .closing p{font-size:16px}
+    .trust{padding:60px 0}
+    .trust .header h2{font-size:24px;line-height:1.2}
+    .trust .header p{font-size:14px}
+    .trust .logos{grid-template-columns:repeat(2,1fr);gap:20px 12px}
+    .trust .logo img{max-width:120px}
+    footer{padding:60px 0 30px}
+    footer .top{grid-template-columns:1fr;gap:32px}
+    footer .bottom{flex-direction:column;align-items:flex-start;gap:12px;text-align:left}
+  }
+</style>
+</head>
+<body>
+
+<nav class="top">
+  <div class="wrap">
+    <a href="/" class="brand"><img src="/borrador-c/monograma-positivo.svg" alt="77 Delta" style="height:26px"></a>
+    <ul class="nav-list">
+      <li><a href="/sectores/">Sectores</a></li>
+      <li><a href="/sectores/">Casos de uso</a></li>
+      <li><a href="/servicios/">Servicios</a></li>
+      <li><a href="/historias-de-exito/">Historias de éxito</a></li>
+      <li><a href="/productos/">Productos</a></li>
+            <li><a href="/sobre-nosotros/">Sobre nosotros</a></li>
+      <li><a href="/contacto/">Contacto</a></li>
+    </ul>
+    <button class="nav-burger" aria-label="Menú" onclick="this.closest('nav').classList.toggle('menu-open')"><span></span><span></span><span></span></button>
+    <a href="/contacto/" class="cta"><span class="cta-full">Reservar diagnóstico</span><span class="cta-mob">Reservar</span></a>
+  </div>
+</nav>
+
+<!-- HERO -->
+<section class="hero">
+  <div class="wrap">
+    <div class="grid">
+      <div>
+        <div class="eyebrow"><span class="badge"></span>Acreditados ACCIÓ · Generalitat de Catalunya</div>
+        <h1>Aplicamos la IA para <em>ahorrar costes</em> a tu empresa.</h1>
+        <p class="lead">Consultora tecnológica especializada en PYMEs. Diagnóstico gratuito, transformación operativa con IA y Partner tecnológico.</p>
+        <div class="ctas">
+          <a href="/contacto/" class="btn-primary">Reservar diagnóstico <span>→</span></a>
+          <a href="/servicios/" class="btn-ghost">Ver cómo trabajamos</a>
+        </div>
+      </div>
+      <div class="photo">
+        <img src="https://images.unsplash.com/photo-1542744173-8e7e53415bb0?w=1400&q=80&auto=format&fit=crop" alt="Equipo profesional trabajando">
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- PROBLEMA -->
+<section class="problem">
+  <div class="wrap">
+    <div class="grid">
+      <div class="photo">
+        <img src="https://images.unsplash.com/photo-1556761175-b413da4baf72?w=1200&q=80&auto=format&fit=crop" alt="Gerente PYME revisando informes">
+      </div>
+      <div>
+        <span class="section-tag">El problema</span>
+        <h2>La inteligencia artificial está reordenando tu sector. <em>La pregunta no es si te afectará, sino cómo aplicarla bien.</em></h2>
+        <p class="lead">La información disponible es abundante, pero distinguir lo que realmente transforma tu negocio de lo que solo suena interesante requiere criterio y experiencia. La transformación no es solo tecnológica: toca procesos, equipos y formas de decidir.</p>
+        <p class="questions">¿Qué tareas repetitivas consumen el día a día de tu equipo? ¿Qué decisiones se toman sin datos suficientes? ¿Qué áreas están saturadas? ¿Qué pasa cuando una persona clave no está? ¿Cuál es la inversión real para empezar y cómo se mide el retorno?</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- SERVICIOS -->
+<section class="services" id="servicios">
+  <div class="wrap">
+    <div class="section-head">
+      <span class="section-tag">Cómo trabajamos</span>
+      <h2>Empezamos por un diagnóstico. Después, tú decides el recorrido.</h2>
+      <p>Cada empresa es distinta. El proceso es lineal: primero entendemos tu realidad, luego construimos la transformación y, si quieres, te acompañamos en el medio y largo plazo como tu Partner tecnológico.</p>
+    </div>
+
+    <div class="svc-featured">
+      <img src="https://images.unsplash.com/photo-1556761175-4b46a572b786?w=1800&q=80&auto=format&fit=crop" alt="Diagnóstico inicial">
+      <div class="content">
+        <div class="text-panel">
+          <span class="badge">PRIMER PASO · GRATUITO · 30 MIN</span>
+          <h3>Diagnóstico</h3>
+          <p>30 minutos de entrevista estructurada y un formulario que nos permite entender tu realidad. Recibes una propuesta personalizada con el estado inicial de tu empresa, plan de trabajo y presupuesto. Sin compromiso.</p>
+          <a href="/contacto/" class="arrow-btn">Reservar diagnóstico <span>→</span></a>
+        </div>
+      </div>
+    </div>
+
+    <div class="svc-grid">
+      <div class="svc-card">
+        <div class="num">02 · Proyecto a medida</div>
+        <h3>Transformación operativa con IA</h3>
+        <p>Tras el diagnóstico, ejecutamos la propuesta acordada: implantación, integración con tus sistemas, automatización de procesos y capacitación de tu equipo. Todo lo que necesita la transformación. La inversión se define en la propuesta, ajustada al alcance.</p>
+        <div class="price"><span>Cotización personalizada en propuesta</span><span class="arrow">→</span></div>
+      </div>
+      <div class="svc-card">
+        <div class="num">03 · Mensualidad</div>
+        <h3>Partner tecnológico</h3>
+        <p>Acompañamiento continuo en la dirección estratégica de IA de tu empresa. Revisamos propuestas de proveedores, participamos en decisiones tecnológicas e identificamos nuevas oportunidades cada mes. Tres paquetes de horas con descuento por volumen.</p>
+        <div class="price"><span>Desde 1.000€/mes · 6 meses mín.</span><span class="arrow">→</span></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- SECTORES -->
+<section class="sectors" id="sectores">
+  <div class="wrap">
+    <div class="section-head">
+      <span class="section-tag">Sectores</span>
+      <h2>Seis sectores. Una metodología.</h2>
+      <p>En cada uno aplicamos una metodología contrastada. La tecnología es la parte visible. Lo que cambia es cómo trabaja tu equipo.</p>
+    </div>
+    <div class="sec-grid">
+      <a href="/sectores/?sector=clinicas" class="sec-card">
+        <img src="https://images.unsplash.com/photo-1629909613654-28e377c37b09?w=900&q=80&auto=format&fit=crop" alt="Clínicas">
+        <div class="content">
+          <div class="num">Sector 01</div>
+          <h3>Clínicas y centros de salud</h3>
+          <p>Repensamos la recepción, la agenda, el seguimiento del paciente y la trazabilidad clínica.</p>
+          <span class="arrow">Ver casos del sector →</span>
+        </div>
+      </a>
+      <a href="/sectores/?sector=industria" class="sec-card">
+        <img src="https://images.unsplash.com/photo-1581092160562-40aa08e78837?w=900&q=80&auto=format&fit=crop" alt="Industria">
+        <div class="content">
+          <div class="num">Sector 02</div>
+          <h3>Industria y talleres</h3>
+          <p>Transformamos el ciclo de presupuesto, mantenimiento y control de calidad de procesos productivos.</p>
+          <span class="arrow">Ver casos del sector →</span>
+        </div>
+      </a>
+      <a href="/sectores/?sector=distribucion" class="sec-card">
+        <img src="https://images.unsplash.com/photo-1553413077-190dd305871c?w=900&q=80&auto=format&fit=crop" alt="Distribución">
+        <div class="content">
+          <div class="num">Sector 03</div>
+          <h3>Distribución y logística</h3>
+          <p>Repensamos cómo se reciben los pedidos, cómo se valida el stock y cómo trabajan los comerciales.</p>
+          <span class="arrow">Ver casos del sector →</span>
+        </div>
+      </a>
+      <a href="/sectores/?sector=despachos" class="sec-card">
+        <img src="https://images.unsplash.com/photo-1450101499163-c8848c66ca85?w=900&q=80&auto=format&fit=crop" alt="Despachos">
+        <div class="content">
+          <div class="num">Sector 04</div>
+          <h3>Despachos profesionales</h3>
+          <p>Liberamos horas del personal sénior automatizando documentos repetitivos y búsquedas sobre archivo.</p>
+          <span class="arrow">Ver casos del sector →</span>
+        </div>
+      </a>
+      <a href="/sectores/?sector=administracion" class="sec-card">
+        <img src="https://images.unsplash.com/photo-1486325212027-8081e485255e?w=900&q=80&auto=format&fit=crop" alt="Administración pública">
+        <div class="content">
+          <div class="num">Sector 05</div>
+          <h3>Administración pública</h3>
+          <p>Transformamos la atención ciudadana, la gestión documental y el análisis de expedientes históricos.</p>
+          <span class="arrow">Ver casos del sector →</span>
+        </div>
+      </a>
+      <a href="/sectores/?sector=formacion" class="sec-card">
+        <img src="https://images.unsplash.com/photo-1523240795612-9a054b0db644?w=900&q=80&auto=format&fit=crop" alt="Formación">
+        <div class="content">
+          <div class="num">Sector 06</div>
+          <h3>Formación y recursos humanos</h3>
+          <p>Cambiamos cómo se evalúa, cómo se hace el onboarding y cómo se analiza el progreso del alumno.</p>
+          <span class="arrow">Ver casos del sector →</span>
+        </div>
+      </a>
+    </div>
+  </div>
+</section>
+
+<!-- CASO DESTACADO · CARRUSEL ROTATIVO 5 CASOS -->
+<section class="case" id="casos">
+  <div class="slides">
+
+    <!-- Slide 1 · Clínicas dentales -->
+    <div class="slide active" data-slide="0">
+      <img class="bg" src="https://images.unsplash.com/photo-1629909613654-28e377c37b09?w=2000&q=80&auto=format&fit=crop" alt="Clínica moderna">
+      <div class="content"><div class="wrap"><div class="grid">
+        <div>
+          <div class="big">38<span class="pct">%</span></div>
+          <div class="label">menos ausencias en consulta</div>
+        </div>
+        <div>
+          <span class="section-tag">Caso 1 de 5 · Clínicas dentales · Barcelona</span>
+          <h3>Tres clínicas dentales compartían el mismo problema.</h3>
+          <p>Un número elevado de pacientes no acudía a sus citas sin previo aviso. La recepción no disponía del tiempo necesario para las llamadas de confirmación.</p>
+          <p>En cuatro semanas implantamos Contestia, una recepcionista virtual por WhatsApp. La inversión se amortizó en menos de un mes.</p>
+          <a href="/historias-de-exito/clinicas-dentales-barcelona/" class="arrow-btn">Leer el caso completo <span>→</span></a>
+        </div>
+      </div></div></div>
+    </div>
+
+    <!-- Slide 2 · Distribuidora industrial -->
+    <div class="slide" data-slide="1">
+      <img class="bg" src="https://images.unsplash.com/photo-1553413077-190dd305871c?w=2000&q=80&auto=format&fit=crop" alt="Distribuidora industrial">
+      <div class="content"><div class="wrap"><div class="grid">
+        <div>
+          <div class="big">2<span class="pct">h</span></div>
+          <div class="label">recuperadas por comercial / día</div>
+        </div>
+        <div>
+          <span class="section-tag">Caso 2 de 5 · Distribución industrial · Catalunya</span>
+          <h3>12 comerciales perdían dos horas diarias en pedidos manuales.</h3>
+          <p>Los pedidos llegaban por WhatsApp, llamada y correo. Los comerciales dedicaban las dos primeras horas del día a transcribirlos al ERP.</p>
+          <p>Conectamos un asistente de IA al WhatsApp principal: identifica al cliente, reconoce referencias, valida stock y genera el pedido. El comercial solo interviene en excepciones.</p>
+          <a href="/historias-de-exito/distribuidora-industrial/" class="arrow-btn">Leer el caso completo <span>→</span></a>
+        </div>
+      </div></div></div>
+    </div>
+
+    <!-- Slide 3 · Despacho de abogados -->
+    <div class="slide" data-slide="2">
+      <img class="bg" src="https://images.unsplash.com/photo-1450101499163-c8848c66ca85?w=2000&q=80&auto=format&fit=crop" alt="Despacho abogados">
+      <div class="content"><div class="wrap"><div class="grid">
+        <div>
+          <div class="big">20<span class="pct">h</span></div>
+          <div class="label">liberadas por socio sénior / mes</div>
+        </div>
+        <div>
+          <span class="section-tag">Caso 3 de 5 · Derecho mercantil · Madrid</span>
+          <h3>Un despacho de 18 profesionales repetía cinco plantillas de contratos.</h3>
+          <p>Cada socio sénior dedicaba entre 4 y 6 horas semanales a redactar y revisar contratos que eran variaciones de las mismas plantillas.</p>
+          <p>Desarrollamos un generador de contratos basado en sus plantillas. El tiempo medio de respuesta a clientes pasó de 3 días a 6 horas.</p>
+          <a href="/historias-de-exito/despacho-mercantil/" class="arrow-btn">Leer el caso completo <span>→</span></a>
+        </div>
+      </div></div></div>
+    </div>
+
+    <!-- Slide 4 · Taller industrial -->
+    <div class="slide" data-slide="3">
+      <img class="bg" src="https://images.unsplash.com/photo-1581092160562-40aa08e78837?w=2000&q=80&auto=format&fit=crop" alt="Taller industrial">
+      <div class="content"><div class="wrap"><div class="grid">
+        <div>
+          <div class="big">45<span class="pct">%</span></div>
+          <div class="label">menos tiempo en presupuestos</div>
+        </div>
+        <div>
+          <span class="section-tag">Caso 4 de 5 · Industria metalúrgica · Sabadell</span>
+          <h3>Cada presupuesto industrial se demoraba 3 días en oficina técnica.</h3>
+          <p>El cliente enviaba planos por correo. La oficina técnica calculaba materiales, mano de obra y márgenes a mano. El presupuesto tardaba 3 días en salir.</p>
+          <p>Implantamos un sistema de IA que interpreta el plano, calcula la estimación y propone márgenes. El equipo revisa y aprueba. Plazo: 4 horas.</p>
+          <a href="/historias-de-exito/clinicas-dentales-barcelona/" class="arrow-btn">Leer el caso completo <span>→</span></a>
+        </div>
+      </div></div></div>
+    </div>
+
+    <!-- Slide 5 · Centro formación -->
+    <div class="slide" data-slide="4">
+      <img class="bg" src="https://images.unsplash.com/photo-1523240795612-9a054b0db644?w=2000&q=80&auto=format&fit=crop" alt="Centro formación">
+      <div class="content"><div class="wrap"><div class="grid">
+        <div>
+          <div class="big">3<span class="pct">x</span></div>
+          <div class="label">más alumnos atendidos en tutoría</div>
+        </div>
+        <div>
+          <span class="section-tag">Caso 5 de 5 · Formación profesional · Valencia</span>
+          <h3>Un centro de FP tenía cola de un mes para tutorías personalizadas.</h3>
+          <p>Los formadores no daban abasto con las dudas individuales. Los alumnos esperaban hasta un mes para una tutoría, lo que afectaba a la tasa de aprobado.</p>
+          <p>Construimos un asistente formativo entrenado con su material. Resuelve dudas 24/7 y escala a tutor humano solo en casos complejos. La cola se eliminó.</p>
+          <a href="/historias-de-exito/clinicas-dentales-barcelona/" class="arrow-btn">Leer el caso completo <span>→</span></a>
+        </div>
+      </div></div></div>
+    </div>
+
+  </div>
+
+  <button class="nav-btn prev" aria-label="Caso anterior" onclick="changeCase(-1)">‹</button>
+  <button class="nav-btn next" aria-label="Caso siguiente" onclick="changeCase(1)">›</button>
+
+  <div class="dots">
+    <button class="dot active" onclick="gotoCase(0)" aria-label="Caso 1"></button>
+    <button class="dot" onclick="gotoCase(1)" aria-label="Caso 2"></button>
+    <button class="dot" onclick="gotoCase(2)" aria-label="Caso 3"></button>
+    <button class="dot" onclick="gotoCase(3)" aria-label="Caso 4"></button>
+    <button class="dot" onclick="gotoCase(4)" aria-label="Caso 5"></button>
+  </div>
+</section>
+
+<script>
+  let currentCase = 0;
+  const totalCases = 5;
+  function gotoCase(idx){
+    document.querySelectorAll('.case .slide').forEach((s,i)=>s.classList.toggle('active',i===idx));
+    document.querySelectorAll('.case .dot').forEach((d,i)=>d.classList.toggle('active',i===idx));
+    currentCase = idx;
+  }
+  function changeCase(delta){
+    let next = (currentCase + delta + totalCases) % totalCases;
+    gotoCase(next);
+  }
+  // Auto-rotate cada 7 segundos
+  setInterval(()=>changeCase(1), 7000);
+</script>
+
+<!-- POR QUÉ INFINITE LABS -->
+<section class="why">
+  <div class="wrap">
+    <div class="section-head">
+      <span class="section-tag">Por qué 77 Delta</span>
+      <h2>Seis razones para confiar en nosotros</h2>
+    </div>
+    <div class="why-grid">
+      <div class="why-item">
+        <div class="icon">01</div>
+        <h3>Transformación transversal, no solo tecnología</h3>
+        <p>La IA cambia procesos, equipos y formas de decidir. No basta con instalar herramientas. Acompañamos la transformación completa de tu organización.</p>
+      </div>
+      <div class="why-item">
+        <div class="icon">02</div>
+        <h3>La IA aumenta a las personas, no las sustituye</h3>
+        <p>Diseñamos cada implantación con tu equipo en el centro. Human-in-the-loop por defecto: liberamos tiempo de tareas repetitivas para que tu gente se dedique a lo que aporta valor.</p>
+      </div>
+      <div class="why-item">
+        <div class="icon">03</div>
+        <h3>Construimos lo que implantamos</h3>
+        <p>Operamos productos propios en producción con empresas reales. La tecnología que proponemos está validada con clientes activos.</p>
+      </div>
+      <div class="why-item">
+        <div class="icon">04</div>
+        <h3>Datos en Europa, cumplimiento garantizado</h3>
+        <p>Infraestructura propia en la UE. Cumplimiento del RGPD. Sin dependencias de terceros países. Soporte en español y catalán.</p>
+      </div>
+      <div class="why-item">
+        <div class="icon">05</div>
+        <h3>Resultados medidos en horas y en ventas</h3>
+        <p>Cada proyecto empieza con una estimación cuantificada: tiempo recuperado, reducción de costes, aumento de producción o ventas. Seguimiento mensual con métricas verificables.</p>
+      </div>
+      <div class="why-item">
+        <div class="icon">06</div>
+        <h3>Sin dependencia tecnológica</h3>
+        <p>Al finalizar el proyecto, tu empresa conserva el código, las claves, los datos y la documentación. Independencia real.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- BLOG -->
+
+
+<!-- SOBRE NOSOTROS PREVIEW -->
+<section class="about" id="sobre">
+  <div class="wrap">
+    <div class="grid">
+      <div>
+        <span class="section-tag">Sobre nosotros</span>
+        <h2>Una consultora con historia, <em>nacida desde dentro del problema.</em></h2>
+        <p>Más de 20 años aplicando tecnología a empresas reales. Acreditados por la Generalitat de Catalunya. Con clientes desde Barcelona hasta Dubai. Y con una convicción: la IA solo aporta valor cuando se aplica con criterio.</p>
+        <p>77 Delta nace de la experiencia acumulada por Diego Torres a lo largo de dos décadas. Tras acompañar a más de 500 startups, observó un patrón: las grandes empresas tenían consultoras estratégicas, las PYMEs quedaban desorientadas frente a la avalancha tecnológica. Nació para ser ese interlocutor de confianza para tu empresa.</p>
+        <p class="signature">— <strong>Diego Torres</strong>, fundador</p>
+        <a href="/sobre-nosotros/" class="arrow-btn">Nuestra misión es ayudarte, conócenos <span>→</span></a>
+      </div>
+      <div class="photo">
+        <img src="/borrador-c/campus.jpg" alt="77 Delta · campus tecnológico europeo">
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- CTA CIERRE -->
+<section class="closing" id="contacto">
+  <img class="bg" src="https://images.unsplash.com/photo-1497366216548-37526070297c?w=2000&q=80&auto=format&fit=crop" alt="Oficina con vista">
+  <div class="wrap">
+    <h2>30 minutos. <em>Sin compromiso.</em><br>Tú decides después.</h2>
+    <p>Entrevista estructurada con tu empresa. Te entregamos una propuesta personalizada con estado inicial, plan de trabajo y presupuesto.</p>
+    <a href="/contacto/" class="btn-primary">Reservar diagnóstico gratuito →</a>
+  </div>
+</section>
+
+<!-- TRUST BAND (al final, antes del footer) -->
+<section class="trust">
+  <div class="wrap">
+    <div class="header">
+      <span class="section-tag">Confianza demostrada</span>
+      <h2>Instituciones, corporaciones y partners tecnológicos de primer nivel</h2>
+      <p>Más de 7 años aplicando IA con criterio en Catalunya, Europa y el mundo.</p>
+    </div>
+    <div class="logos">
+      <a class="logo" href="https://www.accio.gencat.cat" target="_blank" rel="noopener"><img src="/img/logos/accio.png" alt="ACCIÓ"></a>
+      <a class="logo tall" href="https://barcelonactiva.cat" target="_blank" rel="noopener"><img src="/img/logos/barcelona-activa.png" alt="Barcelona Activa"></a>
+      <a class="logo" href="https://futurium.ec.europa.eu" target="_blank" rel="noopener"><img src="/img/logos/futurium.svg" alt="Futurium European Commission"></a>
+      <a class="logo" href="https://www.gencat.cat" target="_blank" rel="noopener"><img src="/img/logos/gencat.svg" alt="Generalitat de Catalunya"></a>
+      <a class="logo" href="https://www.dubai.gov.ae" target="_blank" rel="noopener"><img src="/img/logos/gov-dubai.svg" alt="Government of Dubai"></a>
+      <a class="logo wide" href="https://i2cat.net" target="_blank" rel="noopener"><img src="/img/logos/i2cat.svg" alt="i2CAT"></a>
+      <a class="logo" href="https://alastria.io" target="_blank" rel="noopener"><img src="/img/logos/alastria.png" alt="Alastria"></a>
+      <a class="logo tall" href="https://alltechishuman.org" target="_blank" rel="noopener"><img src="/img/logos/all-tech-is-human.png" alt="All Tech Is Human"></a>
+      <a class="logo wide" href="https://www.bancsabadell.com" target="_blank" rel="noopener"><img src="/img/logos/sabadell.png" alt="Banc Sabadell"></a>
+      <a class="logo" href="https://www.eba-online.org" target="_blank" rel="noopener"><img src="/img/logos/eba.png" alt="Euro Banking Association"></a>
+      <a class="logo" href="https://interledger.org" target="_blank" rel="noopener"><img src="/img/logos/interledger.svg" alt="Interledger Foundation"></a>
+      <a class="logo" href="https://www.mydata.org" target="_blank" rel="noopener"><img src="/img/logos/mydata.png" alt="MyData Global"></a>
+      <a class="logo" href="https://www.opensocietyfoundations.org" target="_blank" rel="noopener"><img src="/img/logos/open-society.png" alt="Open Society Foundations"></a>
+      <a class="logo wide" href="https://peninsula.es" target="_blank" rel="noopener"><img src="/img/logos/peninsula.png" alt="Peninsula"></a>
+      <a class="logo wide" href="https://www.anthropic.com" target="_blank" rel="noopener"><img src="/img/logos/anthropic.svg" alt="Anthropic"></a>
+      <a class="logo wide" href="https://aws.amazon.com" target="_blank" rel="noopener"><img src="/img/logos/aws.svg" alt="Amazon Web Services"></a>
+      <a class="logo wide" href="https://www.cloudflare.com" target="_blank" rel="noopener"><img src="/img/logos/cloudflare.svg" alt="Cloudflare"></a>
+      <a class="logo" href="https://www.deepseek.com" target="_blank" rel="noopener"><img src="/img/logos/deepseek.svg" alt="DeepSeek"></a>
+      <a class="logo" href="https://gemini.google.com" target="_blank" rel="noopener"><img src="/img/logos/gemini.svg" alt="Google Gemini"></a>
+      <a class="logo wide" href="https://cloud.google.com" target="_blank" rel="noopener"><img src="/img/logos/googlecloud.svg" alt="Google Cloud"></a>
+      <a class="logo" href="https://www.hetzner.com" target="_blank" rel="noopener"><img src="/img/logos/hetzner.svg" alt="Hetzner Cloud"></a>
+      <a class="logo wide" href="https://huggingface.co" target="_blank" rel="noopener"><img src="/img/logos/huggingface.svg" alt="Hugging Face"></a>
+      <a class="logo wide" href="https://mistral.ai" target="_blank" rel="noopener"><img src="/img/logos/mistral.svg" alt="Mistral AI"></a>
+      <a class="logo wide" href="https://openai.com" target="_blank" rel="noopener"><img src="/img/logos/openai.svg" alt="OpenAI"></a>
+    </div>
+  </div>
+</section>
+
+<!-- FOOTER -->
+<footer>
+  <div class="wrap">
+    <div class="top">
+      <div>
+        <a href="/" class="brand"><img src="/borrador-c/monograma.svg" alt="77 Delta" style="height:26px"></a>
+        <p class="tagline">Consultora tecnológica especializada en PYMEs. Transformamos PYMEs con inteligencia artificial aplicada con criterio.</p>
+        <div class="locations">
+          Oficinas en <strong>Barcelona</strong> y <strong>Tallinn</strong>
+        </div>
+      </div>
+      <div class="col">
+        <h4>Servicios</h4>
+        <ul>
+          <li><a href="/servicios/#diagnostico">Diagnóstico</a></li>
+          <li><a href="/servicios/#transformacion">Transformación operativa</a></li>
+          <li><a href="/servicios/#partner">Partner tecnológico</a></li>
+          <li><a href="/sectores/">Sectores</a></li>
+          <li><a href="/historias-de-exito/">Historias de éxito</a></li>
+        </ul>
+      </div>
+      <div class="col">
+        <h4>Productos</h4>
+        <ul>
+          <li><a href="/productos/regulia/">Regulia</a></li>
+          <li><a href="/productos/contestia/">Contestia</a></li>
+          <li><a href="/productos/instantexam/">InstantExam</a></li>
+          <li><a href="/productos/canto/">Canto</a></li>
+          <li><a href="/productos/scoreflow/">ScoreFlow</a></li>
+          <li><a href="/productos/contablia/">Contablia</a></li>
+          <li><a href="/productos/swarmix/">Swarmix</a></li>
+        </ul>
+      </div>
+      <div class="col">
+        <h4>Empresa</h4>
+        <ul>
+          <li><a href="/sobre-nosotros/">Sobre nosotros</a></li>
+          <li><a href="/sectores/">Casos de uso</a></li>
+                    <li><a href="/servicios/#cupo"">Cupons ACCIÓ</a></li>
+          <li><a href="/contacto/">Contacto</a></li>
+        </ul>
+      </div>
+      <div class="col">
+        <h4>Legal</h4>
+        <ul>
+          <li><a href="/aviso-legal/">Aviso legal</a></li>
+          <li><a href="/politica-privacidad/">Privacidad</a></li>
+          <li><a href="/politica-cookies/">Cookies</a></li>
+          <li><a href="https://www.linkedin.com/company/infinitelabs-co">LinkedIn</a></li>
+        </ul>
+      </div>
+    </div>
+    <div class="bottom">
+      <div>© 2026 77 Delta · Datos procesados en la Unión Europea · RGPD garantizado</div>
+      <div class="legal">
+        <a href="/aviso-legal/">Aviso legal</a>
+        <a href="/politica-privacidad/">Privacidad</a>
+      </div>
+    </div>
+  </div>
+</footer>
+
+</body>
+</html>
