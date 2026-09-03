@@ -386,7 +386,7 @@ import { site } from '../lib/site';
 
 
   /* HERO asimétrico (texto izquierda + foto derecha) */
-  .hero{min-height:calc(100vh - 72px);padding:60px 0;position:relative;overflow:hidden;display:flex;align-items:center;background:var(--dark);color:#EDEAE3}
+  .hero{min-height:min(calc(100vh - 72px),880px);padding:60px 0;position:relative;overflow:hidden;display:flex;align-items:center;background:var(--dark);color:#EDEAE3}
   .hero::before{content:"";position:absolute;top:-30%;right:-10%;width:700px;height:700px;background:radial-gradient(circle,rgba(167,120,27,.16),transparent 60%);filter:blur(70px);pointer-events:none}
   .hero .cont{position:relative;z-index:1}
   .hero .cont{width:100%;position:relative;z-index:1}
@@ -421,7 +421,7 @@ import { site } from '../lib/site';
   .trust .logo:hover img{filter:brightness(0) opacity(.9);transform:scale(1.04)}
 
   /* PROBLEMA (foto izq + texto derecha) · DARK ANCHOR */
-  .problem{min-height:100vh;padding:120px 0;background:var(--white);color:var(--ink);position:relative;overflow:hidden;display:flex;align-items:center}
+  .problem{min-height:min(100vh,880px);padding:120px 0;background:var(--white);color:var(--ink);position:relative;overflow:hidden;display:flex;align-items:center}
   .problem::before{content:"";position:absolute;top:-20%;right:-10%;width:600px;height:600px;background:radial-gradient(circle,rgba(167,120,27,.10),transparent 60%);filter:blur(60px);pointer-events:none}
   .problem .cont{position:relative;z-index:1}
   .problem .grid{display:grid;grid-template-columns:6fr 6fr;gap:80px;align-items:center}
@@ -475,7 +475,7 @@ import { site } from '../lib/site';
   .sec-card .arrow{display:inline-flex;align-items:center;gap:8px;font-size:13px;font-weight:600}
 
   /* CASO DESTACADO (foto background + cifra gigante + CARRUSEL) */
-  .case{padding:0;position:relative;min-height:100vh;display:flex;align-items:center;overflow:hidden;background:var(--dark)}
+  .case{padding:0;position:relative;min-height:min(100vh,860px);display:flex;align-items:center;overflow:hidden;background:var(--dark)}
   .case .slides{position:absolute;inset:0;width:100%;height:100%}
   .case .slide{position:absolute;inset:0;opacity:0;transition:opacity .8s var(--ease);pointer-events:none}
   .case .slide.active{opacity:1;pointer-events:auto}
@@ -512,7 +512,7 @@ import { site } from '../lib/site';
 
 
   /* SOBRE NOSOTROS PREVIEW · LILA SUTIL */
-  .about{min-height:100vh;padding:120px 0;background:linear-gradient(180deg,var(--paper) 0%,rgba(167,120,27,.06) 100%);position:relative;overflow:hidden;display:flex;align-items:center}
+  .about{min-height:min(100vh,880px);padding:120px 0;background:linear-gradient(180deg,var(--paper) 0%,rgba(167,120,27,.06) 100%);position:relative;overflow:hidden;display:flex;align-items:center}
   .about::before{content:"";position:absolute;top:-30%;right:-15%;width:600px;height:600px;background:radial-gradient(circle,rgba(167,120,27,.12),transparent 60%);filter:blur(80px);pointer-events:none}
   .about .cont{position:relative;z-index:1}
   .about .grid{display:grid;grid-template-columns:7fr 5fr;gap:80px;align-items:center}
@@ -528,7 +528,7 @@ import { site } from '../lib/site';
   .about .arrow-btn:hover{background:var(--ink);color:#EDEAE3;border-color:var(--ink)}
 
   /* CTA CIERRE */
-  .closing{padding:0;position:relative;min-height:100vh;display:flex;align-items:center;overflow:hidden;background:var(--dark)}
+  .closing{padding:0;position:relative;min-height:min(100vh,820px);display:flex;align-items:center;overflow:hidden;background:var(--dark)}
   .closing .bg{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;opacity:.35}
   .closing::after{content:"";position:absolute;inset:0;background:radial-gradient(ellipse at center,rgba(167,120,27,.22) 0%,rgba(10,22,40,.55) 45%,rgba(10,22,40,.96) 75%);z-index:1}
   .closing .cont{position:relative;z-index:2;padding:120px 32px;text-align:center;color:#EDEAE3}
@@ -539,6 +539,15 @@ import { site } from '../lib/site';
   .closing .btn-primary{background:var(--accent);color:#EDEAE3;padding:20px 36px;font-size:17px;font-weight:700;box-shadow:0 12px 40px rgba(255,255,255,.25),0 0 80px var(--accent-glow);border:1px solid rgba(255,255,255,.5)}
   .closing .btn-primary:hover{background:#EDEAE3;color:var(--ink);box-shadow:0 16px 50px rgba(0,0,0,.35);transform:translateY(-2px)}
 
+
+  /* PANTALLAS GRANDES */
+  @media(min-width:1800px){
+    .cont{max-width:1440px}
+    .hero h1{font-size:66px}
+    .hero .lead{font-size:21px;max-width:56ch}
+    .hero .grid{gap:96px}
+    .section-head h2,.problem h2,.about h2{font-size:56px}
+  }
 
   /* RESPONSIVE */
   @media(max-width:1024px){

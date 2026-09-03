@@ -81,9 +81,16 @@
 }
 
 @utility wrap {
-  max-width: 1120px;
+  max-width: 1280px;
   margin-inline: auto;
-  padding-inline: 24px;
+  padding-inline: 32px;
+}
+
+/* Pantallas grandes: el contenedor crece para no quedar perdido en el centro. */
+@media (min-width: 1800px) {
+  .wrap {
+    max-width: 1440px;
+  }
 }
 
 @utility textura-delta {
