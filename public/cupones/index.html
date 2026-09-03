@@ -643,14 +643,22 @@ document.addEventListener('click', function(ev){
   }
 
   /* ---- rol ---- */
-  function applyRole(){
-    if(rol !== 'cliente') return;
-    ['#act-mgmt', '#act-pilot'].forEach(function(id){ var el = $(id); if(el){ var blk = el.closest('.block'); if(blk) blk.hidden = true; } });
-    $$('#lg-mgmt, #lg-pilot').forEach(function(el){ var p = el.closest('div'); if(p) p.hidden = true; });
+  function lockHours(){
+    /* Las horas tienen una sola fuente (horas.csv en el repo, mantenido por Claude): en la web son solo lectura para todos. */
     $$('.hrs, .lh').forEach(function(i){ i.readOnly = true; i.tabIndex = -1; });
     $$('[data-add="hourrow"]').forEach(function(b){ b.hidden = true; });
     $$('section[data-tab="horas"] [contenteditable]').forEach(function(el){ el.contentEditable = 'false'; });
     $$('.chip.imp').forEach(function(b){ b.disabled = true; });
+    var chk = $('#lg-check'); if(chk && rol !== 'cliente') chk.textContent = 'Las horas se registran desde el repositorio (horas.csv) y no se editan aquí.';
+    /* La bitácora también tiene una sola fuente (bitacora.csv): solo lectura en la web. */
+    $$('#log [contenteditable]').forEach(function(el){ el.contentEditable = 'false'; });
+    $$('[data-add="entry"]').forEach(function(b){ b.hidden = true; });
+  }
+  function applyRole(){
+    lockHours();
+    if(rol !== 'cliente') return;
+    ['#act-mgmt', '#act-pilot'].forEach(function(id){ var el = $(id); if(el){ var blk = el.closest('.block'); if(blk) blk.hidden = true; } });
+    $$('#lg-mgmt, #lg-pilot').forEach(function(el){ var p = el.closest('div'); if(p) p.hidden = true; });
     $$('section[data-tab="expediente"] [contenteditable], section[data-tab="plan"] [contenteditable], section[data-tab="resumen"] [contenteditable]').forEach(function(el){ el.contentEditable = 'false'; });
     $$('.statebtn, .inc, .wks, #start').forEach(function(el){ el.disabled = true; });
   }
