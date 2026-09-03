@@ -69,6 +69,7 @@ const valores = [
 const sellos = [
   { src: 'accio.png', alt: 'Proveedor acreditado ACCIÓ', enlace: 'https://www.accio.gencat.cat' },
   { src: 'gencat.svg', alt: 'Generalitat de Catalunya', enlace: 'https://www.gencat.cat' },
+  { src: 'anthropic.svg', alt: 'Claude Partner Network · Anthropic', enlace: 'https://www.anthropic.com' },
 ];
 
 const descripcion =
@@ -206,7 +207,7 @@ const descripcion =
       <div class="md:col-span-6" data-reveal>
         <p class="eyebrow">Acreditación</p>
         <h2 class="mt-5 font-display text-[clamp(28px,3.6vw,44px)] font-extralight leading-[1.1] tracking-[-0.03em]">
-          Proveedores acreditados ACCIÓ.
+          Acreditados por ACCIÓ. Partners de Anthropic.
         </h2>
         <ul class="mt-12 flex flex-wrap items-center gap-x-12 gap-y-8" role="list">
           {
@@ -236,6 +237,11 @@ const descripcion =
           pymes catalanas, como el Cupó IA. Para tu empresa significa tres cosas: que un organismo público nos ha
           verificado, que cumplimos los requisitos para gestionar fondos públicos y que el proyecto que ejecutemos
           puede acogerse a ayudas oficiales.
+        </p>
+        <p>
+          Formamos parte además del Claude Partner Network, el programa de partners de Anthropic, la empresa que
+          desarrolla Claude. Trabajamos con sus modelos con acceso directo a su equipo y a sus herramientas, y
+          diseñamos cada proyecto para que tu empresa no dependa de un único proveedor.
         </p>
         <a href={href('/contacto/')} class="inline-block font-mono text-[12px] text-oro-oscuro hover:text-tinta">
           Cuéntanos tu caso →
