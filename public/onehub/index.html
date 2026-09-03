@@ -985,6 +985,10 @@ window.initFicha = function(){
     recalcAll();
   }
   function recalcAll(){
+    applying = true;
+    try { recalcFire(); } finally { setTimeout(function(){ applying = false; }, 0); }
+  }
+  function recalcFire(){
     var hrs = $('.hrs'); if(hrs) hrs.dispatchEvent(new Event('input', {bubbles:true}));
     var lh = $('.lh'); if(lh) lh.dispatchEvent(new Event('input', {bubbles:true}));
     var wk = $('.wks'); if(wk) wk.dispatchEvent(new Event('input', {bubbles:true}));
@@ -1005,7 +1009,7 @@ window.initFicha = function(){
     });
   }
   function onChange(ev){
-    if(applying) return;
+    if(applying || ev.isTrusted === false) return;
     var el = ev.target; if(!el || !el.closest) return;
     if(el.closest('.fbtn') || el.closest('nav') || el.closest('[data-add]')) return;
     var r = rowOf(el); if(!r) return;
