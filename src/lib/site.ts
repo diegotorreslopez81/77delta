@@ -11,6 +11,8 @@ export const site = {
   // Pendiente: activar el buzón cuando se compre el dominio.
   email: 'hola@77delta.com',
   calendario: 'https://calendar.app.google/3nhQL1Fp3EW9YhBj6',
+  /** Endpoint del formulario de contacto (carpeta api/ del repo). Si falla, el formulario cae a mailto. */
+  formulario: 'https://api.77delta.com/contacto',
   linkedin: 'https://www.linkedin.com/in/diegotorreslopez',
   /** Con prefijo internacional, solo dígitos (34XXXXXXXXX). Vacío = sin botón flotante. */
   whatsapp: '',

@@ -76,12 +76,19 @@ const etiqueta = 'block font-mono text-[11px] uppercase tracking-[0.18em] text-p
 
         <form
           id="form-contacto"
-          class="mt-12 grid gap-7 sm:grid-cols-2"
+          class="relative mt-12 grid gap-7 sm:grid-cols-2"
           action={`mailto:${site.email}`}
           method="post"
           enctype="text/plain"
           data-destino={site.email}
+          data-endpoint={site.formulario}
+          novalidate={false}
         >
+          <!-- Honeypot: oculto a personas, los bots lo rellenan. -->
+          <div class="absolute -left-[9999px] h-px w-px overflow-hidden" aria-hidden="true">
+            <label for="web">Web</label>
+            <input type="text" id="web" name="web" tabindex="-1" autocomplete="off" />
+          </div>
           <div>
             <label class={etiqueta} for="nombre">Nombre</label>
             <input class={campo} type="text" id="nombre" name="nombre" autocomplete="name" required />
@@ -118,10 +125,11 @@ const etiqueta = 'block font-mono text-[11px] uppercase tracking-[0.18em] text-p
           <div class="sm:col-span-2">
             <button
               type="submit"
-              class="inline-flex items-center gap-2 whitespace-nowrap rounded-[10px] bg-oro px-6 py-3.5 font-sans text-[15px] font-semibold text-marfil shadow-[0_6px_24px_rgba(167,120,27,.30)] transition-[background-color,transform] duration-200 hover:-translate-y-px hover:bg-tinta"
+              class="inline-flex items-center gap-2 whitespace-nowrap rounded-[10px] bg-oro px-6 py-3.5 font-sans text-[15px] font-semibold text-marfil shadow-[0_6px_24px_rgba(167,120,27,.30)] transition-[background-color,transform] duration-200 hover:-translate-y-px hover:bg-tinta disabled:cursor-wait disabled:opacity-60"
             >
               Enviar mensaje →
             </button>
+            <p id="form-estado" class="mt-5 hidden max-w-[52ch] text-[15px] text-tinta" role="status" aria-live="polite"></p>
             <p class="mt-6 max-w-[52ch] text-[13px] text-pizarra">
               Los datos se tratan en la Unión Europea conforme al RGPD. No los cedemos a terceros. Más detalle en
               nuestra <a
@@ -160,29 +168,70 @@ const etiqueta = 'block font-mono text-[11px] uppercase tracking-[0.18em] text-p
   </section>
 
   <script>
-    // Compone un mailto con los campos del formulario. Sin librerías ni backend.
+    // Envía el formulario al endpoint propio (api/ del repo). Si no responde, cae al mailto de siempre.
     const form = document.querySelector<HTMLFormElement>('#form-contacto');
+    const estado = document.querySelector<HTMLParagraphElement>('#form-estado');
+    const boton = form?.querySelector<HTMLButtonElement>('button[type=submit]');
 
-    form?.addEventListener('submit', (evento) => {
-      evento.preventDefault();
-      const destino = form.dataset.destino;
-      if (!destino) return;
+    const mostrar = (texto: string) => {
+      if (!estado) return;
+      estado.textContent = texto;
+      estado.classList.remove('hidden');
+    };
 
-      const datos = new FormData(form);
+    const leerCampos = (f: HTMLFormElement) => {
+      const datos = new FormData(f);
       const leer = (nombre: string) => String(datos.get(nombre) ?? '').trim();
-      const empresa = leer('empresa');
+      return {
+        nombre: leer('nombre'),
+        empresa: leer('empresa'),
+        email: leer('email'),
+        sector: leer('sector'),
+        mensaje: leer('mensaje'),
+        web: leer('web'),
+        origen: location.pathname,
+      };
+    };
 
-      const asunto = `Contacto web · ${empresa}`;
-      const cuerpo = [
-        `Nombre: ${leer('nombre')}`,
-        `Empresa: ${empresa}`,
-        `Email: ${leer('email')}`,
-        `Sector: ${leer('sector')}`,
-        '',
-        leer('mensaje'),
-      ].join('\n');
-
+    const abrirCorreo = (destino: string, c: ReturnType<typeof leerCampos>) => {
+      const asunto = `Contacto web · ${c.empresa}`;
+      const cuerpo = [`Nombre: ${c.nombre}`, `Empresa: ${c.empresa}`, `Email: ${c.email}`, `Sector: ${c.sector}`, '', c.mensaje].join('\n');
       window.location.href = `mailto:${destino}?subject=${encodeURIComponent(asunto)}&body=${encodeURIComponent(cuerpo)}`;
+    };
+
+    form?.addEventListener('submit', async (evento) => {
+      evento.preventDefault();
+      const destino = form.dataset.destino ?? '';
+      const endpoint = form.dataset.endpoint ?? '';
+      const campos = leerCampos(form);
+
+      if (!endpoint) return abrirCorreo(destino, campos);
+
+      if (boton) boton.disabled = true;
+      mostrar('Enviando…');
+      try {
+        const r = await fetch(endpoint, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(campos),
+        });
+        const respuesta = (await r.json().catch(() => ({}))) as { ok?: boolean; error?: string };
+        if (r.ok && respuesta.ok) {
+          form.reset();
+          mostrar('Recibido. Te respondemos en menos de 24 horas hábiles.');
+          return;
+        }
+        if (r.status === 400 || r.status === 429) {
+          mostrar(respuesta.error ?? 'No hemos podido enviar el mensaje. Revisa los campos.');
+          return;
+        }
+        throw new Error(`respuesta ${r.status}`);
+      } catch {
+        mostrar('El envío directo no está disponible ahora mismo: se abre tu programa de correo con el mensaje preparado.');
+        abrirCorreo(destino, campos);
+      } finally {
+        if (boton) boton.disabled = false;
+      }
     });
   </script>
 </Base>
