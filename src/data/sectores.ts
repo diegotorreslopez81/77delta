@@ -22,6 +22,8 @@ export interface Sector {
   };
   /** Titular del bloque de cierre de la ficha. */
   ctaTitulo: string;
+  /** Bloque opcional antes del cierre: otra línea de negocio relacionada con el sector. */
+  aparte?: { eyebrow: string; titulo: string; texto: string; enlace: string; etiqueta: string };
 }
 
 export const sectores: Sector[] = [
@@ -165,5 +167,13 @@ export const sectores: Sector[] = [
         'Construimos un asistente formativo entrenado con el material del centro. Resuelve dudas 24/7 y escala a tutor humano solo en casos complejos. La cola de tutorías se eliminó y la tasa de aprobado subió cinco puntos.',
     },
     ctaTitulo: '¿Aplicamos esto a tu centro?',
+    aparte: {
+      eyebrow: 'También para recursos humanos',
+      titulo: 'Formación en salud para tu plantilla',
+      texto:
+        'Corpora es nuestra línea de formaciones en salud para empresas: ergonomía del puesto, dolor de espalda y cuello, micropausas, menopausia en el trabajo, longevidad y descanso. Impartida por una fisioterapeuta y docente universitaria, presencial u online, en castellano y catalán. Bonificable por FUNDAE.',
+      enlace: 'https://corpora.cat',
+      etiqueta: 'Ver el catálogo en corpora.cat →',
+    },
   },
 ];

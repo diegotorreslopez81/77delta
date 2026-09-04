@@ -121,6 +121,32 @@ const sufijo = partes ? partes[2] : '';
     </div>
   </section>
 
+  {
+    sector.aparte && (
+      <section class="hairline">
+        <div class="wrap grid gap-10 py-24 md:grid-cols-12 md:py-32">
+          <div class="md:col-span-6" data-reveal>
+            <p class="eyebrow">{sector.aparte.eyebrow}</p>
+            <h2 class="mt-5 font-display text-[clamp(28px,3.6vw,44px)] font-extralight leading-[1.1] tracking-[-0.03em]">
+              {sector.aparte.titulo}
+            </h2>
+          </div>
+          <div class="md:col-span-6 md:pt-12" data-reveal>
+            <p class="text-[17px] text-pizarra">{sector.aparte.texto}</p>
+            <a
+              href={sector.aparte.enlace}
+              target="_blank"
+              rel="noopener"
+              class="mt-6 inline-block font-mono text-[12px] text-oro-oscuro transition-colors hover:text-tinta"
+            >
+              {sector.aparte.etiqueta}
+            </a>
+          </div>
+        </div>
+      </section>
+    )
+  }
+
   <Cta
     titulo={sector.ctaTitulo}
     texto="Diagnóstico de 30 minutos. Te entregamos propuesta personalizada con estado inicial, plan de trabajo y presupuesto. Sin compromiso."

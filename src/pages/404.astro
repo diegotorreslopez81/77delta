@@ -1,0 +1,24 @@
+---
+import Base from '../layouts/Base.astro';
+import Boton from '../components/Boton.astro';
+import { href } from '../lib/site';
+---
+
+<Base title="Página no encontrada" description="Esta página no existe o ha cambiado de sitio." noindex>
+  <section class="wrap py-32 md:py-44">
+    <p class="eyebrow" data-reveal>Error 404</p>
+    <h1
+      class="mt-7 max-w-[18ch] font-display text-[clamp(38px,6vw,76px)] font-extralight leading-[1.04] tracking-[-0.035em]"
+      data-reveal
+    >
+      Esta página no existe o ha cambiado de sitio.
+    </h1>
+    <p class="mt-8 max-w-[52ch] text-[clamp(17px,1.6vw,20px)] text-pizarra" data-reveal>
+      Revisa la dirección o vuelve al inicio. Si llegaste desde un enlace nuestro, escríbenos y lo arreglamos.
+    </p>
+    <div class="mt-12 flex flex-wrap gap-4" data-reveal>
+      <Boton href={href('/')}>Volver al inicio →</Boton>
+      <Boton href={href('/contacto/')} variante="linea">Contacto</Boton>
+    </div>
+  </section>
+</Base>
