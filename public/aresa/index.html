@@ -430,6 +430,8 @@ thead th,.hdr-row,.tk-gh,.ctl label{font-family:var(--mono);font-weight:500;lett
 .avatar{background:var(--oro-suave);color:var(--oro-oscuro)}
 
 html,body{margin:0;padding:0} *{box-sizing:border-box} img{max-width:100%} [hidden]{display:none!important}
+#docs .lk{display:flex;gap:8px;align-items:center} #docs .lk .link-in{flex:1;min-width:0}
+#docs .go{flex:none;font:600 12px var(--body);color:var(--oro-oscuro);text-decoration:none;border:1px solid var(--linea);border-radius:999px;padding:5px 10px;background:var(--panel);white-space:nowrap} #docs .go:hover{background:var(--oro);color:#EDEAE3}
 .ficha-msg{max-width:560px;margin:80px auto;padding:28px 32px;background:var(--panel);border:1px solid var(--linea);border-radius:var(--radio);font:15px/1.6 var(--body);color:var(--tinta)}
 #ficha-status{position:fixed;right:14px;bottom:14px;z-index:50;font:500 11px/1 var(--mono);letter-spacing:.12em;text-transform:uppercase;padding:8px 12px;border-radius:999px;background:var(--marino);color:var(--marfil);border:1px solid var(--linea-oscura);opacity:.85}
 #ficha-status[data-kind="error"]{background:var(--error);color:#fff;text-transform:none;letter-spacing:0}
@@ -937,6 +939,19 @@ window.initFicha = function(){
   }
   function setHtml(el, v){ if(el && typeof v === 'string' && el.innerHTML !== v && document.activeElement !== el) el.innerHTML = v; }
   function setVal(el, v){ if(el && v !== undefined && String(el.value) !== String(v) && document.activeElement !== el) el.value = v; }
+  /* Botón "Abrir" junto a cada enlace de Documentos: aparece solo cuando hay una URL. */
+  function goify(r){
+    var li = $('.link-in', r); if(!li) return;
+    var a = $('a.go', r);
+    if(!a){
+      var wrap = document.createElement('div'); wrap.className = 'lk';
+      li.parentNode.insertBefore(wrap, li); wrap.appendChild(li);
+      a = document.createElement('a'); a.className = 'go'; a.target = '_blank'; a.rel = 'noopener'; a.textContent = 'Abrir'; wrap.appendChild(a);
+    }
+    var v = (li.value || '').trim();
+    if(/^https?:\/\//i.test(v)){ a.href = v; a.hidden = false; } else { a.removeAttribute('href'); a.hidden = true; }
+  }
+  function goifyAll(){ $$('#docs tr').forEach(goify); }
   function applyRow(r, s){
     if(!s) return;
     if(r.matches('.tk')){
@@ -950,6 +965,7 @@ window.initFicha = function(){
     } else if(r.matches('#docs tr')){
       setHtml($('.cell', r), s.title); setHtml($('.phase-cell .cell', r), s.phase); setVal($('.link-in', r), s.link);
       var cs = $('.chip[data-st]', r); if(cs && s.st){ cs.dataset.st = s.st; cs.textContent = ST_LABEL[s.st] || s.st; }
+      goify(r);
     } else if(r.matches('.entry')){ setHtml($('.when', r), s.when); setHtml($('.what', r), s.what); }
     else if(r.matches('.trow')){ setVal($('.hrs', r), s.h); setHtml($('.t-name', r), s.name); setHtml($('.t-bud[contenteditable]', r), s.bud); }
     else if(r.matches('.pstep')){ if(s.state){ r.dataset.state = s.state; var sb2 = $('.statebtn', r); if(sb2) sb2.textContent = PH_LABEL[s.state] || s.state; } }
@@ -1034,6 +1050,8 @@ window.initFicha = function(){
         });
       });
     });
+    var obs2 = new MutationObserver(function(muts){ var hit = muts.some(function(m){ return Array.prototype.some.call(m.addedNodes, function(n){ return n.nodeType === 1 && n.matches && n.matches('tr') && n.closest('#docs'); }); }); if(hit) goifyAll(); });
+    obs2.observe(root, {childList: true, subtree: true});
     obs.observe(root, {childList: true, subtree: true});
   }
 
@@ -1073,9 +1091,11 @@ window.initFicha = function(){
     if(typeof window.initFicha === 'function') window.initFicha();
     keyify();
     applyPatch(estado);
+    goifyAll();
     applyRole();
     document.body.appendChild(bar); setStatus('ok');
     document.addEventListener('input', onChange);
+    document.addEventListener('input', function(ev){ var t = ev.target; if(t && t.matches && t.matches('#docs .link-in')) goify(t.closest('tr')); });
     document.addEventListener('change', onChange);
     document.addEventListener('click', function(ev){ setTimeout(function(){ onChange(ev); }, 0); });
     watchAdds();
