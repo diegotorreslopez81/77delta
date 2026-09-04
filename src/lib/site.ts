@@ -40,7 +40,7 @@ export const nav = [
 
 /** Analítica sin cookies (Umami). Vacío = sin script. */
 export const umami = {
-  script: 'https://umami.infinitelabs.co/script.js',
+  script: 'https://stats.77delta.com/script.js',
   websiteId: '0847eaa4-a0ce-47ee-9acf-8e796160bdd9',
 } as const;
 
