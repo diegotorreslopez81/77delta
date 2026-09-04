@@ -18,6 +18,10 @@ const transporte = SMTP_OK
       port: Number(process.env.SMTP_PORT || 465),
       secure: (process.env.SMTP_SECURE || 'true') !== 'false',
       auth: { user: process.env.SMTP_USER, pass: process.env.SMTP_PASS },
+      // Tiempos cortos: si el SMTP no responde, no bloquea al visitante (el envío es asíncrono).
+      connectionTimeout: 10_000,
+      greetingTimeout: 10_000,
+      socketTimeout: 20_000,
     })
   : null;
 
@@ -103,7 +107,9 @@ const servidor = http.createServer(async (req, res) => {
   await guardar(lead);
   console.log('lead', JSON.stringify({ ...lead, mensaje: lead.mensaje.slice(0, 80) }));
 
-  if (!transporte) return responder(res, 200, { ok: true, enviado: false });
+  // El lead ya está a salvo: respondemos ya y el correo sale en segundo plano.
+  responder(res, 200, { ok: true, enviado: Boolean(transporte) });
+  if (!transporte) return;
 
   const texto = [
     `Nombre: ${lead.nombre}`,
@@ -115,20 +121,16 @@ const servidor = http.createServer(async (req, res) => {
     lead.mensaje,
   ].join('\n');
 
-  try {
-    await transporte.sendMail({
+  transporte
+    .sendMail({
       from: `"77 Delta · web" <${MAIL_FROM}>`,
       to: MAIL_TO,
       replyTo: `"${lead.nombre}" <${lead.email}>`,
       subject: `Contacto web · ${lead.empresa}`,
       text: texto,
-    });
-    return responder(res, 200, { ok: true, enviado: true });
-  } catch (e) {
-    console.error('smtp', e.message);
-    // El lead ya está guardado en LEADS_FILE; no hacemos fallar al visitante.
-    return responder(res, 200, { ok: true, enviado: false });
-  }
+    })
+    .then((info) => console.log('smtp ok', info.messageId, lead.email))
+    .catch((e) => console.error('smtp error', e.message, '· lead guardado en', LEADS_FILE));
 });
 
 servidor.listen(PORT, () => console.log(`api.77delta.com en :${PORT} · smtp=${SMTP_OK} · leads=${LEADS_FILE}`));
