@@ -171,7 +171,9 @@ h2.sec-t small{color:var(--oro-oscuro)}
 .hoja{position:fixed;inset:0;background:rgba(6,16,31,.55);z-index:40;display:none;align-items:flex-end}
 .hoja.on{display:flex}
 .hoja .cuerpo{background:var(--papel);width:100%;max-height:90vh;overflow:auto;border-radius:18px 18px 0 0;padding:14px 18px calc(24px + env(safe-area-inset-bottom));max-width:720px;margin:0 auto}
-.hoja .asa{width:40px;height:4px;border-radius:99px;background:var(--linea-fuerte);margin:0 auto 14px}
+.hoja .asa{width:40px;height:4px;border-radius:99px;background:var(--linea-fuerte);margin:0 auto 14px;padding:0}
+.hoja .cerrar{position:absolute;right:12px;top:10px;width:36px;height:36px;border-radius:99px;background:var(--panel-2);color:var(--tinta);font-size:16px;display:grid;place-items:center}
+.hoja .cuerpo{position:relative}
 .hoja .centro{text-align:center}
 .hoja dl{margin:14px 0 0;display:grid;grid-template-columns:auto 1fr;gap:7px 12px;font-size:14px}
 .hoja dt{color:var(--pizarra);font-family:var(--mono);font-size:12px;padding-top:2px}
@@ -262,6 +264,7 @@ if (params.get('t')) localStorage.setItem('hq_t', params.get('t'));
 var TOKEN = localStorage.getItem('hq_t');
 if (TOKEN && !params.get('t')) { params.set('t', TOKEN); history.replaceState(null, '', location.pathname + '?' + params); }
 var marcar = params.get('id') ? Number(params.get('id')) : null;
+if (marcar){ params.delete('id'); history.replaceState(null, '', location.pathname + '?' + params); }
 if (!TOKEN) {
   var campo = el('input', { type: 'text', placeholder: 'Pega aquí tu enlace de HQ', style: 'width:100%;font:15px var(--body);padding:12px;border:1px solid var(--linea-fuerte);border-radius:10px;background:var(--panel);color:var(--tinta)' });
   app.textContent = '';
@@ -343,7 +346,7 @@ function renderBandeja(){
   var h = el('h2', { class: 'sec-t', onclick: function(){ S.hist = !S.hist; render(); } }, [(S.hist ? '▾ ' : '▸ ') + 'Historial ', el('small', { text: S.hq.historial.length })]);
   app.appendChild(h);
   if (S.hist) S.hq.historial.forEach(function(s){ app.appendChild(filaHist(s)); });
-  if (marcar){ var c = document.getElementById('s-' + marcar); if (c){ c.classList.add('marcada'); c.scrollIntoView({ block: 'center' }); } marcar = null; }
+  if (marcar){ var c = document.getElementById('s-' + marcar); if (c){ c.classList.add('marcada'); c.scrollIntoView({ block: 'center' }); } else { var s = S.hq.seguimiento.concat(S.hq.historial).filter(function(x){ return x.id === marcar; })[0]; if (s) hojaSolicitud(s); } marcar = null; }
 }
 
 function tarjeta(s){
@@ -539,7 +542,15 @@ function tarjetaAgente(a, coste, total){ var ct = a.contrato || {}, u = ultimo(a
     el('div', { class: 'avw' }, [avatar(a), el('span', { class: 'punto ' + est })]),
     el('div', { class: 'txt' }, [el('div', { class: 'n' }, [el('span', { class: 'num', text: '#' + a._n }), persona(a)]), rol, tags]), sw]); }
 
-function hoja(kids){ var h = document.getElementById('hoja'), b = document.getElementById('hoja-cuerpo'); b.textContent = ''; b.appendChild(el('div', { class: 'asa' })); kids.forEach(function(k){ b.appendChild(k); }); h.classList.add('on'); b.scrollTop = 0; }
+function hoja(kids){ var h = document.getElementById('hoja'), b = document.getElementById('hoja-cuerpo'); b.textContent = '';
+  b.appendChild(el('div', { class: 'asa', onclick: cerrarHoja }));
+  b.appendChild(el('button', { class: 'cerrar', 'aria-label': 'Cerrar', text: '✕', onclick: cerrarHoja }));
+  kids.forEach(function(k){ b.appendChild(k); }); b.appendChild(el('div', { class: 'acciones' }, [el('button', { class: 'btn no', text: 'Cerrar', onclick: cerrarHoja })]));
+  h.classList.add('on'); b.scrollTop = 0; }
+(function(){ var b = document.getElementById('hoja-cuerpo'), y0 = null;
+  b.addEventListener('pointerdown', function(e){ y0 = (b.scrollTop <= 0) ? e.clientY : null; });
+  b.addEventListener('pointermove', function(e){ if (y0 != null && e.clientY - y0 > 90 && b.scrollTop <= 0){ y0 = null; cerrarHoja(); } });
+  b.addEventListener('pointerup', function(){ y0 = null; }); })();
 document.getElementById('hoja').addEventListener('click', function(e){ if (e.target.id === 'hoja') e.target.classList.remove('on'); });
 function cerrarHoja(){ document.getElementById('hoja').classList.remove('on'); }
 function hojaAgente(a, c, total){ var ct = a.contrato || {}, mias = S.hq.pendientes.concat(S.hq.seguimiento).filter(function(s){ return s.agente === a.id; });
@@ -754,6 +765,8 @@ function renderPlan(u){ (u.plan || []).forEach(function(p){
 function emitir(){ try { canal && canal.send({ type: 'broadcast', event: 'cambio', payload: { origen: 'hq' } }); } catch (e) {} }
 var canal = null;
 function suscribir(){ if (!S.hq) return; canal = sb.channel('omc:' + S.hq.empresa.id).on('broadcast', { event: 'cambio' }, function(){ cargar(); }).subscribe(); }
+function abrirSolicitud(id){ S.tab = 'bandeja'; S.filtro = 'todo'; marcar = Number(id); cargar().then(function(){ if (marcar){ render(); } }); }
+if ('serviceWorker' in navigator) navigator.serviceWorker.addEventListener('message', function(ev){ if (ev.data && ev.data.tipo === 'abrir' && ev.data.id) abrirSolicitud(ev.data.id); });
 document.addEventListener('visibilitychange', function(){ if (!document.hidden) cargar(); });
 setInterval(function(){ if (!document.hidden) cargar(); }, 90000);
 document.getElementById('tabs').addEventListener('click', function(e){ var b = e.target.closest('button'); if (!b) return; S.tab = b.dataset.t; render(); window.scrollTo(0, 0); });

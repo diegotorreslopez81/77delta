@@ -140,6 +140,7 @@ async function notificar(token, id, texto = '') {
     body: texto ? String(texto).slice(0, 300) : s.titulo + (extra ? `\n${extra}` : ''),
     url: `${HQ.app}?id=${s.id}`,
     tag: `hq-${s.id}`,
+    id: s.id,
   });
   let enviados = 0, fallidos = 0;
   for (const fila of subs) {

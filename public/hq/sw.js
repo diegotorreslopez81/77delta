@@ -1,5 +1,5 @@
 /* HQ · service worker: shell offline y avisos push. */
-var CACHE = 'hq-v2';
+var CACHE = 'hq-v3';
 var SHELL = ['/hq/', '/hq/manifest.webmanifest', '/hq/icon-192.png', '/hq/icon-512.png'];
 
 self.addEventListener('install', function (e) {
@@ -17,14 +17,15 @@ self.addEventListener('fetch', function (e) {
 self.addEventListener('push', function (e) {
   var d = {}; try { d = e.data ? e.data.json() : {}; } catch (err) { d = { body: e.data && e.data.text() }; }
   e.waitUntil(self.registration.showNotification(d.title || 'HQ', {
-    body: d.body || '', icon: '/hq/icon-192.png', badge: '/hq/icon-192.png', tag: d.tag || 'hq', renotify: true, data: { url: d.url || '/hq/' }
+    body: d.body || '', icon: '/hq/icon-192.png', badge: '/hq/icon-192.png', tag: d.tag || 'hq', renotify: true, data: { url: d.url || '/hq/', id: d.id || null }
   }));
 });
 self.addEventListener('notificationclick', function (e) {
   e.notification.close();
-  var url = (e.notification.data && e.notification.data.url) || '/hq/';
+  var d = e.notification.data || {}, url = d.url || '/hq/';
   e.waitUntil(clients.matchAll({ type: 'window', includeUncontrolled: true }).then(function (ws) {
-    for (var i = 0; i < ws.length; i++) { if (ws[i].url.indexOf('/hq/') >= 0 && 'focus' in ws[i]) { ws[i].navigate(url); return ws[i].focus(); } }
+    // Si la app ya está abierta, se le pide que abra la tarjeta (navigate no funciona en la app instalada de iOS).
+    for (var i = 0; i < ws.length; i++) { if (ws[i].url.indexOf('/hq/') >= 0) { if (d.id) ws[i].postMessage({ tipo: 'abrir', id: d.id }); return ws[i].focus ? ws[i].focus() : null; } }
     return clients.openWindow(url);
   }));
 });
