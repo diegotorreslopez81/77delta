@@ -369,9 +369,10 @@ function deslizar(card, si, no){
     if (dx > 90) si(); else if (dx < -90) no(); else card.style.transform = ''; }
   card.addEventListener('pointerup', fin); card.addEventListener('pointercancel', fin);
 }
-/* Dictado: se graba en el móvil (MediaRecorder, funciona en Safari instalado como app) y se transcribe en api.77delta.com con Mistral.
-   Un toque empieza, otro toque para; se corta solo a los 90 s. */
+/* Dictado: el micrófono del teclado del móvil (dictado nativo de iOS/Android) funciona en cualquier casilla y en la app instalada.
+   El botón solo abre la casilla y el teclado. La grabación con transcripción en servidor queda disponible con ?rec=1 por si hiciera falta. */
 function dictar(ta, btn){
+  if (!params.get('rec')){ ta.focus(); if (!dictar.avisado){ dictar.avisado = true; toast('Dicta con el micrófono del teclado.'); } return; }
   if (btn.rec){ try { btn.rec.stop(); } catch (e) {} return; }
   if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia || !window.MediaRecorder){ toast('Este navegador no graba. Usa el micrófono del teclado.'); ta.focus(); return; }
   navigator.mediaDevices.getUserMedia({ audio: true }).then(function(stream){
