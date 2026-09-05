@@ -72,6 +72,7 @@ main{padding:calc(114px + env(safe-area-inset-top)) 14px 0;max-width:720px;margi
 .av{width:52px;height:52px;border-radius:50%;background:var(--panel-2);border:2px solid var(--linea);display:block;object-fit:cover}
 .av.peq{width:38px;height:38px}
 .av.grande{width:88px;height:88px;margin:0 auto 10px}
+.av.logo{border-radius:22%;border:0;background:transparent}
 .punto{width:12px;height:12px;border-radius:99px;border:2px solid var(--panel);background:var(--pizarra-tenue);position:absolute;right:-1px;bottom:-1px}
 .punto.vivo{background:var(--exito)} .punto.tibio{background:var(--oro-luz)} .punto.off{background:var(--pizarra-tenue)} .punto.nada{background:transparent;border-color:var(--pizarra-tenue)}
 .tags{display:flex;flex-wrap:wrap;gap:5px;margin-top:7px}
@@ -294,7 +295,7 @@ function rpc(fn, args){ return sb.rpc(fn, args).then(function(r){ if (r.error) t
 function agente(id){ return (S.hq.agentes || []).filter(function(a){ return a.id === id; })[0]; }
 function persona(a){ var c = (a && a.contrato) || {}; return c.persona || (a ? a.nombre : ''); }
 function rolDe(a){ var c = (a && a.contrato) || {}; return c.rol || (a ? a.nombre : ''); }
-function avatar(a, cls){ var c = (a && a.contrato) || {}; return el('img', { class: 'av ' + (cls || ''), src: c.avatar || OWNER_AV, alt: '' }); }
+function avatar(a, cls){ var c = (a && a.contrato) || {}; return el('img', { class: 'av ' + (cls || '') + (c.avatar ? '' : ' logo'), src: c.avatar || OWNER_AV, alt: '' }); }
 function familia(m){ m = String(m || '').toLowerCase(); return m.indexOf('fable') >= 0 ? 'fable' : m.indexOf('mythos') >= 0 ? 'mythos' : m.indexOf('opus') >= 0 ? 'opus' : m.indexOf('sonnet') >= 0 ? 'sonnet' : m.indexOf('haiku') >= 0 ? 'haiku' : (m || '?'); }
 function nombreModelo(m){ var s = String(m || '').toLowerCase(), mil = s.indexOf('[1m]') >= 0 ? ' · 1M' : '';
   if (!s) return ''; if (/fable-5-1/.test(s)) return 'Fable 5.1' + mil; if (/fable/.test(s)) return 'Fable 5' + mil; if (/mythos-5-1/.test(s)) return 'Mythos 5.1'; if (/mythos/.test(s)) return 'Mythos 5';
@@ -441,7 +442,7 @@ function subtabs(){ var st = el('div', { class: 'subtabs' }); [['lista', 'Lista'
 function renderEquipo(){
   var o = ordenados(), coste = costePorAgente(), total = S.uso.mes.coste || 0, ags = S.hq.agentes;
   subtabs();
-  app.appendChild(el('div', { class: 'ag owner' }, [el('div', { class: 'avw' }, [el('img', { class: 'av', src: OWNER_AV, alt: '' }), el('span', { class: 'punto vivo' })]),
+  app.appendChild(el('div', { class: 'ag owner' }, [el('div', { class: 'avw' }, [el('img', { class: 'av logo', src: OWNER_AV, alt: '' }), el('span', { class: 'punto vivo' })]),
     el('div', { class: 'txt' }, [el('div', { class: 'n', text: 'Diego Torres' }), el('div', { class: 'rol', text: 'Owner · ' + S.hq.empresa.nombre + ' · decide lo irreversible' }),
       el('div', { class: 'tags' }, [el('span', { class: 'dato oro', text: S.hq.pendientes.length + ' esperando tu firma' }), el('span', { class: 'dato', text: o.lista.filter(function(a){ return a.activo; }).length + ' agentes activos de ' + o.lista.length })])])]));
   renderCapacidad(coste);
@@ -480,7 +481,7 @@ function renderOrganigrama(coste, total){
   lineas.forEach(function(l){ var ln = document.createElementNS('http://www.w3.org/2000/svg', 'line'); ln.setAttribute('x1', l[0]); ln.setAttribute('y1', l[1]); ln.setAttribute('x2', l[2]); ln.setAttribute('y2', l[3]); svg.appendChild(ln); });
   var lienzo = el('div', { class: 'org-lienzo', style: 'width:' + ancho + 'px;height:' + alto + 'px' }); lienzo.appendChild(svg);
   nodos.forEach(function(n){ var a = n.a, box;
-    if (a.owner) box = el('div', { class: 'org-nodo owner' }, [el('img', { class: 'av peq', src: OWNER_AV, alt: '' }), el('b', { text: 'Diego Torres' }), el('span', { text: 'Owner · decide lo irreversible' })]);
+    if (a.owner) box = el('div', { class: 'org-nodo owner' }, [el('img', { class: 'av peq logo', src: OWNER_AV, alt: '' }), el('b', { text: 'Diego Torres' }), el('span', { text: 'Owner · decide lo irreversible' })]);
     else if (a.etiqueta) box = el('div', { class: 'org-nodo etiqueta' }, [el('b', { text: a.etiqueta }), el('span', { text: 'sin director · reporta al chief' })]);
     else { var ct = a.contrato || {}, c = coste[a.id] || 0; box = el('div', { class: 'org-nodo' + (a.activo ? '' : ' off'), onclick: function(){ hojaAgente(a, c, total); } }, [
       el('div', { class: 'avw' }, [avatar(a, 'peq'), el('span', { class: 'punto ' + estadoAg(a) })]), el('b', { text: persona(a) }), el('span', { text: rolDe(a) }),
