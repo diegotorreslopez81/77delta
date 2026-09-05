@@ -227,6 +227,10 @@ h2.sec-t small{color:var(--oro-oscuro)}
 .menu.on{display:block}
 .menu button{display:block;width:100%;text-align:left;padding:10px 12px;border-radius:8px;font-size:14px}
 .menu button:active{background:var(--panel-2)}
+.menu.resumen{right:56px;left:12px;min-width:0;max-height:70vh;overflow:auto}
+.menu.resumen button{display:flex;gap:10px;align-items:center;text-align:left}
+.menu.resumen .txt{flex:1;min-width:0} .menu.resumen b{display:block;font-size:14px;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap} .menu.resumen span{display:block;font-family:var(--mono);font-size:11px;color:var(--pizarra);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.pill{cursor:pointer}
 .msg{padding:40px 20px;text-align:center;color:var(--pizarra)}
 </style>
 </head>
@@ -238,7 +242,8 @@ h2.sec-t small{color:var(--oro-oscuro)}
   <button class="icono" id="btn-menu" aria-label="Menú">⋯</button>
   <div class="menu" id="menu">
     <button data-m="push">🔔 Activar avisos en este móvil</button>
-    <button data-m="recargar">↻ Recargar</button>
+    <button data-m="datos">↻ Actualizar datos</button>
+    <button data-m="recargar">⟳ Recargar la app (versión nueva)</button>
     <button data-m="salir">Cerrar sesión</button>
   </div>
 </header>
@@ -794,10 +799,23 @@ document.addEventListener('visibilitychange', function(){ if (!document.hidden) 
 setInterval(function(){ if (!document.hidden) cargar(); }, 90000);
 document.getElementById('tabs').addEventListener('click', function(e){ var b = e.target.closest('button'); if (!b) return; S.tab = b.dataset.t; render(); window.scrollTo(0, 0); });
 var menu = document.getElementById('menu');
-document.getElementById('btn-menu').addEventListener('click', function(e){ e.stopPropagation(); menu.classList.toggle('on'); });
-document.addEventListener('click', function(){ menu.classList.remove('on'); });
+document.getElementById('btn-menu').addEventListener('click', function(e){ e.stopPropagation(); menu.classList.toggle('on'); resumen.classList.remove('on'); });
+document.addEventListener('click', function(){ menu.classList.remove('on'); resumen.classList.remove('on'); });
+var resumen = el('div', { class: 'menu resumen' }); document.body.appendChild(resumen);
+document.getElementById('pend').addEventListener('click', function(e){ e.stopPropagation(); menu.classList.remove('on'); if (resumen.classList.contains('on')){ resumen.classList.remove('on'); return; }
+  resumen.textContent = ''; if (!S.hq) return;
+  var pend = S.hq.pendientes || [], pos = S.hq.pospuestas || [], lic = licPorDecidir();
+  resumen.appendChild(el('div', { class: 'eyebrow', style: 'padding:8px 12px 4px', text: pend.length + ' esperando tu decisión' }));
+  if (!pend.length) resumen.appendChild(el('div', { class: 'peq', style: 'padding:6px 12px 10px', text: 'Nada pendiente.' }));
+  pend.slice(0, 8).forEach(function(s){ var ag = agente(s.agente), lc = s.importe == null ? licDe(s) : null, imp = s.importe != null ? s.importe : (lc ? lc.importe : null);
+    resumen.appendChild(el('button', { onclick: function(){ resumen.classList.remove('on'); abrirSolicitud(s.id); } }, [avatar(ag, 'peq'), el('div', { class: 'txt' }, [el('b', { text: s.titulo }), el('span', { text: (ag ? persona(ag) : s.agente) + ' · ' + (TIPO[s.tipo] || s.tipo) + (imp != null ? ' · ' + eur(imp) : '') + (s.vence ? ' · vence ' + rel(s.vence) : '') })])])); });
+  if (pend.length > 8) resumen.appendChild(el('div', { class: 'peq', style: 'padding:4px 12px', text: 'y ' + (pend.length - 8) + ' más en la bandeja' }));
+  if (lic.length) resumen.appendChild(el('button', { onclick: function(){ resumen.classList.remove('on'); S.tab = 'licita'; render(); window.scrollTo(0, 0); } }, [el('div', { class: 'tipo-ic', text: '§' }), el('div', { class: 'txt' }, [el('b', { text: lic.length + ' licitaciones por decidir' }), el('span', { text: 'ir a Licita' })])]));
+  if (pos.length) resumen.appendChild(el('div', { class: 'peq', style: 'padding:6px 12px 10px', text: pos.length + ' pospuestas · la próxima vuelve ' + rel(pos[0].pospuesta_hasta) }));
+  resumen.classList.add('on'); });
 menu.addEventListener('click', function(e){ var b = e.target.closest('button'); if (!b) return; menu.classList.remove('on');
-  if (b.dataset.m === 'recargar') cargar().then(function(){ toast('Actualizado'); });
+  if (b.dataset.m === 'datos') cargar().then(function(){ toast('Datos actualizados'); });
+  if (b.dataset.m === 'recargar') recargarDuro();
   if (b.dataset.m === 'salir'){ localStorage.removeItem('hq_t'); location.reload(); }
   if (b.dataset.m === 'push') activarPush(); });
 function b64(s){ var p = '='.repeat((4 - s.length % 4) % 4), b = (s + p).replace(/-/g, '+').replace(/_/g, '/'), r = atob(b), o = new Uint8Array(r.length); for (var i = 0; i < r.length; i++) o[i] = r.charCodeAt(i); return o; }
@@ -806,7 +824,12 @@ function activarPush(){ if (!('serviceWorker' in navigator) || !('PushManager' i
     return fetch(CFG.notify + '/hq/vapid').then(function(r){ return r.json(); }).then(function(v){ return reg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: b64(v.publicKey) }); }); }); })
   .then(function(sub){ return rpc('omc_guardar_push', { p_token: TOKEN, p_sub: sub.toJSON() }); }).then(function(){ toast('Avisos activados en este dispositivo'); })
   .catch(function(e){ toast('No se pudo activar: ' + e.message); }); }
-if ('serviceWorker' in navigator) navigator.serviceWorker.register('/hq/sw.js').catch(function(){});
+function recargarDuro(){ toast('Cargando la versión nueva…'); var fin = function(){ location.replace(location.pathname + '?t=' + TOKEN + '&v=' + Date.now()); };
+  (window.caches ? caches.keys().then(function(ks){ return Promise.all(ks.map(function(k){ return caches.delete(k); })); }) : Promise.resolve()).then(fin, fin); }
+if ('serviceWorker' in navigator) navigator.serviceWorker.register('/hq/sw.js').then(function(reg){
+  reg.addEventListener('updatefound', function(){ var nw = reg.installing; if (!nw) return; nw.addEventListener('statechange', function(){ if (nw.state === 'installed' && navigator.serviceWorker.controller) toast('Hay una versión nueva de HQ', 'Actualizar', recargarDuro); }); });
+  document.addEventListener('visibilitychange', function(){ if (!document.hidden) reg.update().catch(function(){}); });
+}).catch(function(){});
 conf().then(function(c){ CFG.url = c.url; CFG.anon = c.anon; sb = window.supabase.createClient(CFG.url, CFG.anon, { auth: { persistSession: false, autoRefreshToken: false } }); return cargar(); }).then(suscribir)
   .catch(function(e){ app.textContent = ''; app.appendChild(el('div', { class: 'msg', text: 'No se ha podido cargar la configuración: ' + e.message })); });
 })();
