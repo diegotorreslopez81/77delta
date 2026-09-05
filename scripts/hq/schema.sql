@@ -598,6 +598,21 @@ begin
           from public.omc_licitaciones where empresa = t.empresa and (p_todas or pestana = 'Licitaciones'));
 end $$;
 
+-- Eventos de Diego desde una fecha (comentarios y resoluciones) para despertar a los agentes.
+create or replace function public.omc_eventos(p_token text, p_desde timestamptz)
+returns jsonb language plpgsql security definer set search_path = public as $$
+declare t public.omc_tokens;
+begin
+  t := public.omc_tok(p_token);
+  return (select coalesce(jsonb_agg(x order by x->>'ts'), '[]'::jsonb) from (
+    select jsonb_build_object('tipo', 'comentario', 'ts', m.ts, 'id', s.id, 'agente', s.agente, 'titulo', s.titulo, 'texto', m.texto, 'estado', s.estado)
+      from public.omc_mensajes m join public.omc_solicitudes s on s.id = m.solicitud_id where m.empresa = t.empresa and m.autor = 'diego' and m.ts > p_desde
+    union all
+    select jsonb_build_object('tipo', 'resolucion', 'ts', s.resolved_at, 'id', s.id, 'agente', s.agente, 'titulo', s.titulo, 'texto', s.respuesta, 'estado', s.estado)
+      from public.omc_solicitudes s where s.empresa = t.empresa and s.resolved_at > p_desde and s.estado in ('aprobada','rechazada','respondida') and s.done_at is null
+  ) e(x));
+end $$;
+
 -- Latido: el agente pregunta si está activo (hook de arranque) y deja constancia de actividad.
 create or replace function public.omc_latido(p_token text, p_agente text)
 returns jsonb language plpgsql security definer set search_path = public as $$
@@ -659,11 +674,11 @@ revoke all on function public.omc_token_info(text), public.omc_hq(text), public.
   public.omc_agente_set(text, text, jsonb), public.omc_pedir(text, jsonb), public.omc_estado(text, bigint), public.omc_reportar(text, bigint, boolean, text),
   public.omc_latido(text, text), public.omc_mis_solicitudes(text, text), public.omc_subir_uso(text, jsonb), public.omc_guardar_push(text, jsonb), public.omc_subir_plan(text, jsonb), public.omc_subir_actividad(text, jsonb),
   public.omc_kpi_set(text, jsonb), public.omc_ingreso_set(text, jsonb), public.omc_ingresos(text), public.omc_comentar(text, bigint, text), public.omc_retirar(text, bigint, text),
-  public.omc_licitaciones_subir(text, jsonb), public.omc_licitacion_decidir(text, text, text, jsonb, text), public.omc_licitaciones_pendientes_sync(text), public.omc_licitaciones_sincronizadas(text, jsonb), public.omc_licitaciones_lista(text, boolean), public.omc_posponer(text, bigint, timestamptz), public.omc_pospuestas_vencidas(text) from public;
+  public.omc_licitaciones_subir(text, jsonb), public.omc_licitacion_decidir(text, text, text, jsonb, text), public.omc_licitaciones_pendientes_sync(text), public.omc_licitaciones_sincronizadas(text, jsonb), public.omc_licitaciones_lista(text, boolean), public.omc_posponer(text, bigint, timestamptz), public.omc_pospuestas_vencidas(text), public.omc_eventos(text, timestamptz) from public;
 grant execute on function public.omc_token_info(text), public.omc_hq(text), public.omc_hq_uso(text), public.omc_resolver(text, bigint, text, text),
   public.omc_agente_set(text, text, jsonb), public.omc_pedir(text, jsonb), public.omc_estado(text, bigint), public.omc_reportar(text, bigint, boolean, text),
   public.omc_latido(text, text), public.omc_mis_solicitudes(text, text), public.omc_subir_uso(text, jsonb), public.omc_guardar_push(text, jsonb), public.omc_subir_plan(text, jsonb), public.omc_subir_actividad(text, jsonb),
   public.omc_kpi_set(text, jsonb), public.omc_ingreso_set(text, jsonb), public.omc_ingresos(text), public.omc_comentar(text, bigint, text), public.omc_retirar(text, bigint, text),
-  public.omc_licitaciones_subir(text, jsonb), public.omc_licitacion_decidir(text, text, text, jsonb, text), public.omc_licitaciones_pendientes_sync(text), public.omc_licitaciones_sincronizadas(text, jsonb), public.omc_licitaciones_lista(text, boolean), public.omc_posponer(text, bigint, timestamptz), public.omc_pospuestas_vencidas(text)
+  public.omc_licitaciones_subir(text, jsonb), public.omc_licitacion_decidir(text, text, text, jsonb, text), public.omc_licitaciones_pendientes_sync(text), public.omc_licitaciones_sincronizadas(text, jsonb), public.omc_licitaciones_lista(text, boolean), public.omc_posponer(text, bigint, timestamptz), public.omc_pospuestas_vencidas(text), public.omc_eventos(text, timestamptz)
   to anon, authenticated, service_role;
 notify pgrst, 'reload schema';
