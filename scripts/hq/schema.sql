@@ -128,6 +128,17 @@ create table if not exists public.omc_ingresos (
   updated_at timestamptz not null default now()
 );
 
+-- Hilo de conversación de cada solicitud (Diego y el agente se cruzan mensajes hasta resolver).
+create table if not exists public.omc_mensajes (
+  id bigserial primary key,
+  empresa text not null references public.omc_empresas(id) on delete cascade,
+  solicitud_id bigint not null references public.omc_solicitudes(id) on delete cascade,
+  autor text not null,
+  texto text not null,
+  ts timestamptz not null default now()
+);
+create index if not exists omc_mensajes_sol on public.omc_mensajes (solicitud_id, ts);
+
 create table if not exists public.omc_push (
   id bigserial primary key,
   empresa text not null references public.omc_empresas(id) on delete cascade,
@@ -146,8 +157,9 @@ alter table public.omc_plan enable row level security;
 alter table public.omc_actividad enable row level security;
 alter table public.omc_kpis enable row level security;
 alter table public.omc_ingresos enable row level security;
-revoke all on public.omc_empresas, public.omc_tokens, public.omc_agentes, public.omc_solicitudes, public.omc_uso, public.omc_push, public.omc_plan, public.omc_actividad, public.omc_kpis, public.omc_ingresos from anon, authenticated;
-revoke all on sequence public.omc_solicitudes_id_seq, public.omc_push_id_seq, public.omc_ingresos_id_seq from anon, authenticated;
+alter table public.omc_mensajes enable row level security;
+revoke all on public.omc_empresas, public.omc_tokens, public.omc_agentes, public.omc_solicitudes, public.omc_uso, public.omc_push, public.omc_plan, public.omc_actividad, public.omc_kpis, public.omc_ingresos, public.omc_mensajes from anon, authenticated;
+revoke all on sequence public.omc_solicitudes_id_seq, public.omc_push_id_seq, public.omc_ingresos_id_seq, public.omc_mensajes_id_seq from anon, authenticated;
 
 -- Helper interno: no se concede a anon.
 create or replace function public.omc_tok(p_token text)
@@ -198,6 +210,10 @@ begin
                         where rn <= 6 group by agente) y),
     'kpis', (select coalesce(jsonb_object_agg(k.clave, jsonb_build_object('valor', k.valor, 'texto', k.texto, 'fuente', k.fuente, 'updated_at', k.updated_at)), '{}'::jsonb)
              from public.omc_kpis k where k.empresa = e.id),
+    'hilos', (select coalesce(jsonb_object_agg(h.sid, h.items), '{}'::jsonb)
+              from (select m.solicitud_id sid, jsonb_agg(jsonb_build_object('id', m.id, 'autor', m.autor, 'texto', m.texto, 'ts', m.ts) order by m.ts) items
+                    from public.omc_mensajes m join public.omc_solicitudes s on s.id = m.solicitud_id
+                    where m.empresa = e.id and (s.estado in ('pendiente','aprobada','respondida') or s.resolved_at > now() - interval '30 days') group by m.solicitud_id) h),
     'ingresos', (select coalesce(jsonb_agg(to_jsonb(i) order by i.fecha desc nulls last, i.id desc), '[]'::jsonb) from public.omc_ingresos i where i.empresa = e.id)
   );
 end $$;
@@ -383,7 +399,22 @@ begin
   t := public.omc_tok(p_token);
   select * into s from public.omc_solicitudes where id = p_id and empresa = t.empresa;
   if not found then raise exception 'solicitud no encontrada' using errcode = 'P0002'; end if;
-  return to_jsonb(s);
+  return to_jsonb(s) || jsonb_build_object('hilo', (select coalesce(jsonb_agg(jsonb_build_object('id', m.id, 'autor', m.autor, 'texto', m.texto, 'ts', m.ts) order by m.ts), '[]'::jsonb)
+                                                     from public.omc_mensajes m where m.solicitud_id = s.id));
+end $$;
+
+-- Comentar en el hilo de una solicitud sin resolverla. Diego (owner) firma como 'diego'; el agente firma con el id de la solicitud.
+create or replace function public.omc_comentar(p_token text, p_id bigint, p_texto text)
+returns jsonb language plpgsql security definer set search_path = public as $$
+declare t public.omc_tokens; s public.omc_solicitudes; m public.omc_mensajes;
+begin
+  t := public.omc_tok(p_token);
+  select * into s from public.omc_solicitudes where id = p_id and empresa = t.empresa;
+  if not found then raise exception 'solicitud no encontrada' using errcode = 'P0001'; end if;
+  if coalesce(trim(p_texto), '') = '' then raise exception 'texto vacío' using errcode = 'P0001'; end if;
+  insert into public.omc_mensajes (empresa, solicitud_id, autor, texto) values (t.empresa, s.id, case when t.rol = 'owner' then 'diego' else s.agente end, trim(p_texto)) returning * into m;
+  if t.rol <> 'owner' then update public.omc_agentes set ultima_actividad = now() where empresa = t.empresa and id = s.agente; end if;
+  return to_jsonb(m);
 end $$;
 
 -- El agente cierra el bucle: ejecutada o fallida.
@@ -411,7 +442,10 @@ begin
   update public.omc_agentes set ultima_actividad = now() where empresa = t.empresa and id = a.id;
   return jsonb_build_object('existe', true, 'activo', a.activo, 'agente', a.id, 'nombre', a.nombre, 'depto', a.depto, 'nivel', a.nivel,
                             'modelo', a.contrato->>'modelo', 'subagentes', a.contrato->>'subagentes',
-                            'pendientes', (select count(*) from public.omc_solicitudes s where s.empresa = t.empresa and s.agente = a.id and s.estado in ('aprobada','respondida')));
+                            'pendientes', (select count(*) from public.omc_solicitudes s where s.empresa = t.empresa and s.agente = a.id and s.estado in ('aprobada','respondida')),
+                            'comentarios', (select coalesce(jsonb_agg(distinct s.id), '[]'::jsonb) from public.omc_mensajes m join public.omc_solicitudes s on s.id = m.solicitud_id
+                                            where s.empresa = t.empresa and s.agente = a.id and s.estado = 'pendiente' and m.autor = 'diego'
+                                              and m.ts > coalesce((select max(m2.ts) from public.omc_mensajes m2 where m2.solicitud_id = s.id and m2.autor <> 'diego'), s.created_at)));
 end $$;
 
 create or replace function public.omc_mis_solicitudes(p_token text, p_agente text)
@@ -457,10 +491,10 @@ end $$;
 revoke all on function public.omc_token_info(text), public.omc_hq(text), public.omc_hq_uso(text), public.omc_resolver(text, bigint, text, text),
   public.omc_agente_set(text, text, jsonb), public.omc_pedir(text, jsonb), public.omc_estado(text, bigint), public.omc_reportar(text, bigint, boolean, text),
   public.omc_latido(text, text), public.omc_mis_solicitudes(text, text), public.omc_subir_uso(text, jsonb), public.omc_guardar_push(text, jsonb), public.omc_subir_plan(text, jsonb), public.omc_subir_actividad(text, jsonb),
-  public.omc_kpi_set(text, jsonb), public.omc_ingreso_set(text, jsonb), public.omc_ingresos(text) from public;
+  public.omc_kpi_set(text, jsonb), public.omc_ingreso_set(text, jsonb), public.omc_ingresos(text), public.omc_comentar(text, bigint, text) from public;
 grant execute on function public.omc_token_info(text), public.omc_hq(text), public.omc_hq_uso(text), public.omc_resolver(text, bigint, text, text),
   public.omc_agente_set(text, text, jsonb), public.omc_pedir(text, jsonb), public.omc_estado(text, bigint), public.omc_reportar(text, bigint, boolean, text),
   public.omc_latido(text, text), public.omc_mis_solicitudes(text, text), public.omc_subir_uso(text, jsonb), public.omc_guardar_push(text, jsonb), public.omc_subir_plan(text, jsonb), public.omc_subir_actividad(text, jsonb),
-  public.omc_kpi_set(text, jsonb), public.omc_ingreso_set(text, jsonb), public.omc_ingresos(text)
+  public.omc_kpi_set(text, jsonb), public.omc_ingreso_set(text, jsonb), public.omc_ingresos(text), public.omc_comentar(text, bigint, text)
   to anon, authenticated, service_role;
 notify pgrst, 'reload schema';

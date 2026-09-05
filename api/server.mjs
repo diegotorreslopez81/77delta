@@ -130,14 +130,14 @@ async function supa(ruta, opciones = {}, clave = HQ.anon) {
 const rpc = (fn, args) => supa(`/rest/v1/rpc/${fn}`, { method: 'POST', body: JSON.stringify(args) });
 const TIPO = { gasto: 'Gasto', contacto: 'Contacto', publicacion: 'Publicación', estrategia: 'Estrategia', duda: 'Duda', accion: 'Acción humana', otro: 'Aprobación' };
 
-async function notificar(token, id) {
+async function notificar(token, id, texto = '') {
   const info = await rpc('omc_token_info', { p_token: token });
   const s = await rpc('omc_estado', { p_token: token, p_id: id });
   const subs = await supa(`/rest/v1/omc_push?empresa=eq.${encodeURIComponent(info.empresa)}&select=id,endpoint,sub`, {}, HQ.service);
   const extra = [s.importe != null ? `${s.importe} €` : '', s.vence ? `vence ${new Date(s.vence).toLocaleString('es-ES', { timeZone: 'Europe/Madrid', day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })}` : ''].filter(Boolean).join(' · ');
   const carga = JSON.stringify({
-    title: `${TIPO[s.tipo] || 'HQ'} · ${s.agente}`,
-    body: s.titulo + (extra ? `\n${extra}` : ''),
+    title: texto ? `${s.agente} responde · #${s.id}` : `${TIPO[s.tipo] || 'HQ'} · ${s.agente}`,
+    body: texto ? String(texto).slice(0, 300) : s.titulo + (extra ? `\n${extra}` : ''),
     url: `${HQ.app}?id=${s.id}`,
     tag: `hq-${s.id}`,
   });
@@ -196,7 +196,7 @@ const servidor = http.createServer(async (req, res) => {
     const token = limpiar(cuerpo.token, 120), id = Number(cuerpo.id);
     if (!token || !Number.isInteger(id)) return responder(res, 400, { ok: false, error: 'Faltan token o id.' });
     try {
-      const r = await notificar(token, id);
+      const r = await notificar(token, id, String(cuerpo.texto ?? '').trim().slice(0, 300));
       console.log('hq push', id, JSON.stringify(r));
       return responder(res, 200, { ok: true, ...r });
     } catch (e) {

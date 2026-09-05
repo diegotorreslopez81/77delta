@@ -107,7 +107,13 @@ main{padding:14px 14px 0;max-width:720px;margin:0 auto}
 .nota{margin-top:10px;display:flex;gap:8px;align-items:flex-end}
 .nota textarea{flex:1;font:15px var(--body);color:var(--tinta);background:var(--papel);border:1px solid var(--linea-fuerte);border-radius:10px;padding:10px 12px;min-height:44px;resize:vertical}
 .nota textarea:focus{outline:2px solid var(--oro);outline-offset:1px}
-.mic{width:44px;height:44px;border-radius:10px;border:1px solid var(--linea-fuerte);display:grid;place-items:center;font-size:18px;color:var(--pizarra)}
+.mic{width:44px;height:44px;border-radius:10px;border:1px solid var(--linea-fuerte);display:grid;place-items:center;font-size:18px;color:var(--pizarra);flex:0 0 auto}
+.enviar{width:44px;height:44px;border-radius:10px;background:var(--oro);color:#EDEAE3;display:grid;place-items:center;font-size:17px;flex:0 0 auto}
+.hilo{margin-top:12px;display:flex;flex-direction:column;gap:6px}
+.burbuja{max-width:88%;padding:8px 12px;border-radius:12px;font-size:14px;white-space:pre-wrap;line-height:1.45}
+.burbuja.diego{align-self:flex-end;background:var(--tinta);color:var(--papel);border-bottom-right-radius:4px}
+.burbuja.agente{align-self:flex-start;background:var(--panel-2);border-bottom-left-radius:4px}
+.burbuja small{display:block;font-family:var(--mono);font-size:10px;opacity:.7;margin-top:3px}
 .mic.rec{background:var(--error-suave);border-color:var(--error);color:var(--error)}
 .pista{position:absolute;inset:0;border-radius:var(--radio);display:grid;place-items:center;font:700 14px var(--mono);letter-spacing:.12em;opacity:0;pointer-events:none;transition:opacity .15s}
 .pista.si{background:var(--exito-suave);color:var(--exito)} .pista.no{background:var(--error-suave);color:var(--error)}
@@ -329,14 +335,17 @@ function tarjeta(s){
   if (s.prioridad === 1) datos.appendChild(el('span', { class: 'dato oro', text: 'ingresos' }));
   if (/^https?:\/\//.test(s.enlace)) datos.appendChild(el('span', { class: 'dato tinta' }, [el('a', { href: s.enlace, target: '_blank', rel: 'noopener', text: 'Abrir ↗' })]));
   if (datos.children.length) card.appendChild(datos);
-  var ta = el('textarea', { placeholder: esDuda ? 'Tu respuesta' : 'Nota para el agente (opcional)', rows: '1' });
+  var hilo = (S.hq.hilos || {})[s.id] || [];
+  if (hilo.length) card.appendChild(burbujas(hilo, ag));
+  var ta = el('textarea', { placeholder: esDuda ? 'Tu respuesta o una pregunta' : (hilo.length ? 'Sigue la conversación' : 'Nota o pregunta para ' + (ag ? persona(ag) : 'el agente')), rows: '1' });
   var mic = el('button', { class: 'mic', 'aria-label': 'Dictar', text: '🎤', onclick: function(){ dictar(ta, mic); } });
-  var nota = el('div', { class: 'nota', style: esDuda ? '' : 'display:none' }, [ta, mic]);
+  var env = el('button', { class: 'enviar', 'aria-label': 'Enviar comentario', title: 'Enviar sin resolver', text: '➤', onclick: function(){ comentar(s, ta, ag); } });
+  var nota = el('div', { class: 'nota', style: (esDuda || hilo.length) ? '' : 'display:none' }, [ta, mic, env]);
   card.appendChild(nota);
   var acc = el('div', { class: 'acciones' });
-  if (esDuda){ acc.appendChild(el('button', { class: 'btn si', text: 'Responder', onclick: function(){ if (!ta.value.trim()) { ta.focus(); return; } resolver(s, 'respondida', ta.value.trim()); } })); }
+  if (esDuda){ acc.appendChild(el('button', { class: 'btn si', text: 'Responder y cerrar', onclick: function(){ if (!ta.value.trim()) { ta.focus(); return; } resolver(s, 'respondida', ta.value.trim()); } })); }
   else {
-    acc.appendChild(el('button', { class: 'btn peq sec', text: '✎', 'aria-label': 'Añadir nota', onclick: function(){ nota.style.display = nota.style.display === 'none' ? 'flex' : 'none'; if (nota.style.display !== 'none') ta.focus(); } }));
+    acc.appendChild(el('button', { class: 'btn peq sec', text: '💬', 'aria-label': 'Conversar', onclick: function(){ nota.style.display = nota.style.display === 'none' ? 'flex' : 'none'; if (nota.style.display !== 'none') ta.focus(); } }));
     acc.appendChild(el('button', { class: 'btn no', text: 'Rechazar', onclick: function(){ resolver(s, 'rechazada', ta.value.trim()); } }));
     acc.appendChild(el('button', { class: 'btn si', text: 'Aprobar', onclick: function(){ resolver(s, 'aprobada', ta.value.trim()); } }));
     deslizar(card, function(){ resolver(s, 'aprobada', ta.value.trim()); }, function(){ resolver(s, 'rechazada', ta.value.trim()); });
@@ -344,10 +353,15 @@ function tarjeta(s){
   card.appendChild(acc);
   return card;
 }
-function filaHist(s){ var ag = agente(s.agente);
+function filaHist(s){ var ag = agente(s.agente), n = ((S.hq.hilos || {})[s.id] || []).length;
   return el('div', { class: 'fila', onclick: function(){ hojaSolicitud(s); } }, [avatar(ag, 'peq'),
-    el('div', { class: 'txt' }, [el('div', { class: 't', text: s.titulo }), el('div', { class: 'm', text: (ag ? persona(ag) : s.agente) + ' · ' + (TIPO[s.tipo] || s.tipo) + (s.importe != null ? ' · ' + eur(s.importe) : '') + ' · ' + rel(s.done_at || s.resolved_at || s.created_at) })]),
+    el('div', { class: 'txt' }, [el('div', { class: 't', text: s.titulo }), el('div', { class: 'm', text: (ag ? persona(ag) : s.agente) + ' · ' + (TIPO[s.tipo] || s.tipo) + (s.importe != null ? ' · ' + eur(s.importe) : '') + (n ? ' · 💬 ' + n : '') + ' · ' + rel(s.done_at || s.resolved_at || s.created_at) })]),
     el('span', { class: 'estado ' + s.estado, text: ESTADO[s.estado] || s.estado })]); }
+function burbujas(hilo, ag){ var box = el('div', { class: 'hilo' });
+  hilo.forEach(function(m){ box.appendChild(el('div', { class: 'burbuja ' + (m.autor === 'diego' ? 'diego' : 'agente') }, [m.texto, el('small', { text: (m.autor === 'diego' ? 'Tú' : (ag ? persona(ag) : m.autor)) + ' · ' + rel(m.ts) })])); });
+  return box; }
+function comentar(s, ta, ag){ var txt = ta.value.trim(); if (!txt){ ta.focus(); return; }
+  rpc('omc_comentar', { p_token: TOKEN, p_id: s.id, p_texto: txt }).then(function(){ ta.value = ''; return cargar(); }).then(function(){ toast('Enviado a ' + (ag ? persona(ag) : s.agente)); emitir(); }).catch(function(e){ toast('No se pudo enviar: ' + e.message); }); }
 
 /* ---- acciones ---- */
 function resolver(s, estado, respuesta){
@@ -452,7 +466,11 @@ function hojaSolicitud(s){ var ag = agente(s.agente), dl = el('dl'); [['Agente',
     .forEach(function(p){ if (p[1]) { dl.appendChild(el('dt', { text: p[0] })); dl.appendChild(el('dd', { text: p[1] })); } });
   var kids = [el('div', { class: 'eyebrow', text: '#' + s.id }), el('h2', { text: s.titulo }), dl];
   if (/^https?:\/\//.test(s.enlace)) kids.push(el('p', {}, [el('a', { href: s.enlace, target: '_blank', rel: 'noopener', text: 'Abrir enlace ↗' })]));
-  if (s.estado !== 'ejecutada' && s.estado !== 'fallida') kids.push(el('div', { class: 'acciones' }, [el('button', { class: 'btn no', text: 'Devolver a pendiente', onclick: function(){ cerrarHoja(); rpc('omc_resolver', { p_token: TOKEN, p_id: s.id, p_estado: 'pendiente', p_respuesta: '' }).then(cargar).catch(function(e){ toast(e.message); }); } })]));
+  var hilo = (S.hq.hilos || {})[s.id] || []; if (hilo.length) kids.push(burbujas(hilo, ag));
+  if (s.estado !== 'ejecutada' && s.estado !== 'fallida' && s.estado !== 'rechazada'){
+    var ta = el('textarea', { placeholder: 'Mensaje para ' + (ag ? persona(ag) : s.agente), rows: '1' }), mic = el('button', { class: 'mic', text: '🎤', onclick: function(){ dictar(ta, mic); } });
+    kids.push(el('div', { class: 'nota' }, [ta, mic, el('button', { class: 'enviar', text: '➤', onclick: function(){ cerrarHoja(); comentar(s, ta, ag); } })]));
+    kids.push(el('div', { class: 'acciones' }, [el('button', { class: 'btn no', text: 'Devolver a pendiente', onclick: function(){ cerrarHoja(); rpc('omc_resolver', { p_token: TOKEN, p_id: s.id, p_estado: 'pendiente', p_respuesta: '' }).then(cargar).catch(function(e){ toast(e.message); }); } })])); }
   hoja(kids); }
 
 /* ---- negocio ---- */

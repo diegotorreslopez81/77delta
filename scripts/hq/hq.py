@@ -78,7 +78,7 @@ def avisar(solicitud):
     if E.get('HQ_NOTIFY_URL'):
         try:
             req = urllib.request.Request(E['HQ_NOTIFY_URL'].rstrip('/') + '/hq/notificar', method='POST',
-                                         data=json.dumps({'token': E['HQ_TOKEN'], 'id': solicitud['id']}).encode(),
+                                         data=json.dumps({'token': E['HQ_TOKEN'], 'id': solicitud['id'], 'texto': solicitud.get('texto', '')}).encode(),
                                          headers={'Content-Type': 'application/json'})
             urllib.request.urlopen(req, timeout=15).read()
         except Exception:
@@ -107,17 +107,30 @@ def salida(obj, js):
         print(linea(obj))
 
 
-def esperar(sid, timeout, intervalo, js):
+def comentarios_diego(s):
+    return [m for m in (s.get('hilo') or []) if m['autor'] == 'diego']
+
+
+def esperar(sid, timeout, intervalo, js, vistos=None):
+    """Bloquea hasta que Diego resuelve (0 aprobada/respondida, 1 rechazada/caducada) o comenta en el hilo (5: responde con 'comentar' y vuelve a esperar)."""
     fin = time.time() + timeout
+    s = rpc('omc_estado', p_token=E['HQ_TOKEN'], p_id=sid)
+    vistos = len(comentarios_diego(s)) if vistos is None else vistos
     while True:
-        s = rpc('omc_estado', p_token=E['HQ_TOKEN'], p_id=sid)
         if s['estado'] != 'pendiente':
             salida(s, js)
             return 0 if s['estado'] in ('aprobada', 'respondida') else 1
+        nuevos = comentarios_diego(s)[vistos:]
+        if nuevos:
+            for m in nuevos:
+                print(f"#{sid} Diego comenta ({m['ts'][:16].replace('T', ' ')}): {m['texto']}")
+            print(f"Responde con: hq comentar {sid} --texto \"...\" y vuelve a esperar con: hq esperar {sid} --vistos {len(comentarios_diego(s))}")
+            return 5
         if time.time() > fin:
             print(f"#{sid} sigue pendiente tras {timeout}s", file=sys.stderr)
             return 4
         time.sleep(intervalo)
+        s = rpc('omc_estado', p_token=E['HQ_TOKEN'], p_id=sid)
 
 
 def main():
@@ -141,7 +154,9 @@ def main():
     p = sub.add_parser('pedir'); comun(p); p.add_argument('--tipo', choices=TIPOS, default='otro')
     p = sub.add_parser('duda'); comun(p)
     p = sub.add_parser('estado'); p.add_argument('id', type=int)
-    p = sub.add_parser('esperar'); p.add_argument('id', type=int); p.add_argument('--timeout', type=int, default=21600); p.add_argument('--intervalo', type=int, default=30)
+    p = sub.add_parser('esperar'); p.add_argument('id', type=int); p.add_argument('--timeout', type=int, default=21600); p.add_argument('--intervalo', type=int, default=30); p.add_argument('--vistos', type=int, help='comentarios de Diego ya leídos')
+    p = sub.add_parser('comentar', help='responder en el hilo de una solicitud sin cerrarla'); p.add_argument('id', type=int); p.add_argument('--texto', required=True)
+    p = sub.add_parser('hilo', help='ver el hilo de una solicitud'); p.add_argument('id', type=int)
     p = sub.add_parser('hecho'); p.add_argument('id', type=int); p.add_argument('--nota', default='')
     p = sub.add_parser('fallo'); p.add_argument('id', type=int); p.add_argument('--nota', default='')
     p = sub.add_parser('activo'); p.add_argument('agente', nargs='?')
@@ -168,7 +183,17 @@ def main():
     elif a.cmd == 'estado':
         salida(rpc('omc_estado', p_token=E['HQ_TOKEN'], p_id=a.id), a.json)
     elif a.cmd == 'esperar':
-        sys.exit(esperar(a.id, a.timeout, a.intervalo, a.json))
+        sys.exit(esperar(a.id, a.timeout, a.intervalo, a.json, a.vistos))
+    elif a.cmd == 'comentar':
+        m = rpc('omc_comentar', p_token=E['HQ_TOKEN'], p_id=a.id, p_texto=a.texto)
+        avisar({'id': a.id, 'texto': a.texto})
+        print(json.dumps(m, ensure_ascii=False) if a.json else f"#{a.id} comentario enviado a Diego ({m['autor']})")
+    elif a.cmd == 'hilo':
+        s = rpc('omc_estado', p_token=E['HQ_TOKEN'], p_id=a.id)
+        if a.json: print(json.dumps(s.get('hilo') or [], ensure_ascii=False))
+        else:
+            print(linea(s))
+            for m in (s.get('hilo') or []): print(f"  [{m['ts'][:16].replace('T', ' ')}] {m['autor']}: {m['texto']}")
     elif a.cmd in ('hecho', 'fallo'):
         salida(rpc('omc_reportar', p_token=E['HQ_TOKEN'], p_id=a.id, p_ok=(a.cmd == 'hecho'), p_nota=a.nota), a.json)
     elif a.cmd == 'activo':
@@ -179,7 +204,9 @@ def main():
             print(f"{r['agente']}: no está dado de alta en HQ (se considera activo)")
         else:
             modelo = f" · modelo {r['modelo']} (subagentes {r.get('subagentes') or 'por defecto'})" if r.get('modelo') else ''
-            print(f"{r['agente']} ({r['depto']}): {'ACTIVO' if r['activo'] else 'DESACTIVADO'} · {r['pendientes']} aprobadas por ejecutar{modelo}")
+            com = r.get('comentarios') or []
+            aviso = f" · DIEGO HA COMENTADO en {', '.join('#' + str(x) for x in com)}: léelo con 'hq hilo <id>' y contesta con 'hq comentar <id> --texto ...'" if com else ''
+            print(f"{r['agente']} ({r['depto']}): {'ACTIVO' if r['activo'] else 'DESACTIVADO'} · {r['pendientes']} aprobadas por ejecutar{modelo}{aviso}")
         sys.exit(0 if not r['existe'] and False else (3 if not r['existe'] else (0 if r['activo'] else 2)))
     elif a.cmd == 'pendientes':
         salida(rpc('omc_mis_solicitudes', p_token=E['HQ_TOKEN'], p_agente=agente_actual(a.agente)), a.json)
