@@ -97,7 +97,7 @@ returns public.omc_tokens language plpgsql security definer set search_path = pu
 declare t public.omc_tokens;
 begin
   select * into t from public.omc_tokens where token = p_token;
-  if not found then raise exception 'token no válido' using errcode = 'P0002'; end if;
+  if not found then raise exception 'token no válido' using errcode = 'P0001'; end if;
   return t;
 end $$;
 revoke all on function public.omc_tok(text) from public;
@@ -254,8 +254,9 @@ returns jsonb language plpgsql security definer set search_path = public as $$
 declare t public.omc_tokens; a public.omc_agentes;
 begin
   t := public.omc_tok(p_token);
-  update public.omc_agentes set ultima_actividad = now() where empresa = t.empresa and id = p_agente returning * into a;
+  select * into a from public.omc_agentes where empresa = t.empresa and (id = p_agente or p_agente = any(sesiones)) order by (id = p_agente) desc limit 1;
   if not found then return jsonb_build_object('existe', false, 'activo', true, 'agente', p_agente); end if;
+  update public.omc_agentes set ultima_actividad = now() where empresa = t.empresa and id = a.id;
   return jsonb_build_object('existe', true, 'activo', a.activo, 'agente', a.id, 'nombre', a.nombre, 'depto', a.depto, 'nivel', a.nivel,
                             'pendientes', (select count(*) from public.omc_solicitudes s where s.empresa = t.empresa and s.agente = a.id and s.estado in ('aprobada','respondida')));
 end $$;
