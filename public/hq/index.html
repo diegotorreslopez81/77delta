@@ -166,6 +166,10 @@ h2.sec-t small{color:var(--oro-oscuro)}
 .kpi .cifra{font-family:var(--display);font-size:40px;font-weight:600;letter-spacing:-.03em;line-height:1.05;margin:4px 0 6px}
 .kpi .cifra small{font-size:16px;color:var(--oro-luz);font-weight:500;margin-left:6px}
 .kpi .sub{color:var(--pizarra-clara);font-size:13px;display:flex;flex-wrap:wrap;gap:6px 14px}
+.kpi.cap .medidor{height:10px;border-radius:99px;background:#1E2B3B;overflow:hidden;margin:6px 0 10px}
+.kpi.cap .medidor i{display:block;height:100%;border-radius:99px;background:var(--oro-luz)}
+.kpi.cap .medidor i.verde{background:#8CB897} .kpi.cap .medidor i.rojo{background:#E08678}
+.kpi.cap .frase{margin:10px 0 0;font-size:15px;line-height:1.45;color:#EDEAE3}
 .grid2{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:12px}
 .mini{background:var(--panel);border:1px solid var(--linea);border-radius:12px;padding:12px 14px}
 .mini .v{font-family:var(--display);font-size:22px;font-weight:600;letter-spacing:-.02em}
@@ -418,6 +422,7 @@ function renderEquipo(){
   app.appendChild(el('div', { class: 'ag owner' }, [el('div', { class: 'avw' }, [el('img', { class: 'av', src: OWNER_AV, alt: '' }), el('span', { class: 'punto vivo' })]),
     el('div', { class: 'txt' }, [el('div', { class: 'n', text: 'Diego Torres' }), el('div', { class: 'rol', text: 'Owner · ' + S.hq.empresa.nombre + ' · decide lo irreversible' }),
       el('div', { class: 'tags' }, [el('span', { class: 'dato oro', text: S.hq.pendientes.length + ' esperando tu firma' }), el('span', { class: 'dato', text: o.lista.filter(function(a){ return a.activo; }).length + ' agentes activos de ' + o.lista.length })])])]));
+  renderCapacidad(coste);
   app.appendChild(el('h2', { class: 'sec-t', text: 'Dirección y control' }));
   ags.filter(function(a){ return a.nivel === 1; }).forEach(function(a){ app.appendChild(tarjetaAgente(a, coste, total)); });
   o.deptos.forEach(function(d){ var mios = ags.filter(function(a){ return a.depto === d && a.nivel > 1; }), dir = mios.filter(function(a){ return a.nivel === 2; }), ej = mios.filter(function(a){ return a.nivel === 3; });
@@ -426,6 +431,39 @@ function renderEquipo(){
     dir.forEach(function(a){ box.appendChild(tarjetaAgente(a, coste, total)); });
     var sang = el('div', { class: dir.length ? 'sang' : '' }); ej.forEach(function(a){ sang.appendChild(tarjetaAgente(a, coste, total)); }); box.appendChild(sang); app.appendChild(box); });
   var sin = coste[''] || 0; if (sin) app.appendChild(el('p', { class: 'peq', text: 'Sin asignar a ningún agente este mes: ' + usd(sin) }));
+}
+/* Capacidad de la cuenta Max: carga = % de la semana consumido y su proyección a ritmo actual; aprovechamiento = media del máximo alcanzado en cada ventana de 5 h ya cerrada. */
+function capacidad(){
+  var p = (S.uso.plan || []).filter(function(x){ return x.cuenta === 'principal'; })[0]; if (!p) return null;
+  var ahora = Date.now(), fin = p.semana_reset ? new Date(p.semana_reset).getTime() : null, inicio = fin ? fin - 7 * 864e5 : null;
+  var frac = inicio ? Math.max(0.02, Math.min(1, (ahora - inicio) / (7 * 864e5))) : null, sem = Number(p.semana) || 0;
+  var proy = frac ? sem / frac : null, agota = (proy && proy > 100 && inicio) ? new Date(inicio + (100 / sem) * frac * 7 * 864e5) : null;
+  var ventanas = {}; (S.uso.plan_serie || []).forEach(function(x){ if (x.cuenta !== 'principal') return; var k = x.cinco_h_reset || x.ts.slice(0, 13); ventanas[k] = Math.max(ventanas[k] || 0, Number(x.cinco_h) || 0); });
+  var cerradas = Object.keys(ventanas).filter(function(k){ return new Date(k).getTime() < ahora; }), aprov = cerradas.length ? cerradas.reduce(function(s, k){ return s + ventanas[k]; }, 0) / cerradas.length : null;
+  var semanas = {}; (S.uso.plan_serie || []).forEach(function(x){ if (x.cuenta === 'principal' && x.semana_reset) semanas[x.semana_reset] = Math.max(semanas[x.semana_reset] || 0, Number(x.semana) || 0); });
+  var activos = (S.uso.por_agente || []).filter(function(x){ return x.agente && x.coste > 0; }).length || 1, porAgente = proy ? proy / activos : null;
+  var caben = porAgente ? Math.max(0, Math.floor((100 - Math.min(100, proy)) / porAgente)) : null;
+  var frase;
+  if (proy == null) frase = 'Sin datos de la cuenta todavía.';
+  else if (proy >= 95) frase = 'Al límite: a este ritmo agotas la semana' + (agota ? ' el ' + agota.toLocaleDateString('es-ES', { weekday: 'long' }) : '') + '. Toca segunda cuenta o bajar Opus y Fable en los agentes de volumen.';
+  else if (proy >= 70) frase = 'Cerca del límite: cabe poca carga más esta semana. Vigila el jueves y el viernes.';
+  else if (proy >= 40) frase = 'Carga sana: puedes añadir agentes' + (caben ? ' (unos ' + caben + ' más como los actuales)' : '') + '.';
+  else frase = 'Capacidad sobrante: puedes meter el doble de carga sin tocar la cuenta' + (caben ? ' (unos ' + caben + ' agentes más como los actuales)' : '') + '.';
+  if (aprov != null && aprov < 40) frase += ' Las ventanas de 5 h van medio vacías (' + Math.round(aprov) + ' %): lanza lo pesado por lotes al abrir ventana.';
+  else if (aprov != null && aprov >= 85) frase += ' Las ventanas de 5 h se agotan (' + Math.round(aprov) + ' %): reparte lo pesado entre ventanas.';
+  return { sem: sem, proy: proy, agota: agota, aprov: aprov, cinco: Number(p.cinco_h) || 0, cincoReset: p.cinco_h_reset, semReset: p.semana_reset, ts: p.ts, frase: frase, activos: activos, caben: caben, semanas: semanas, tipo: p.tipo };
+}
+function renderCapacidad(){
+  var c = capacidad(); if (!c) return;
+  var carga = Math.min(100, Math.round(c.proy || c.sem)), cls = carga >= 95 ? 'rojo' : carga >= 70 ? 'oro' : 'verde';
+  var caja = el('div', { class: 'kpi cap' });
+  caja.appendChild(el('div', { class: 'eyebrow', text: 'Carga de la cuenta Max' + (c.tipo ? ' · ' + c.tipo.replace('default_claude_', '').replace('_', ' ') : '') + ' · muestra ' + rel(c.ts) }));
+  caja.appendChild(el('div', { class: 'cifra' }, [carga + ' %', el('small', { text: 'a ritmo actual, al cierre de la semana' })]));
+  var m = el('div', { class: 'medidor' }); m.appendChild(el('i', { class: cls, style: 'width:' + carga + '%' })); caja.appendChild(m);
+  caja.appendChild(el('div', { class: 'sub' }, [el('span', { text: 'consumido ' + Math.round(c.sem) + ' %' + (c.semReset ? ' · reinicia ' + rel(c.semReset) : '') }), el('span', { text: 'ventana 5 h ' + Math.round(c.cinco) + ' %' + (c.cincoReset ? ' · reinicia ' + rel(c.cincoReset) : '') }), c.aprov != null ? el('span', { text: 'aprovechamiento de ventanas ' + Math.round(c.aprov) + ' %' }) : null, el('span', { text: c.activos + ' agentes consumiendo' })]));
+  caja.appendChild(el('p', { class: 'frase', text: c.frase }));
+  var sem = Object.keys(c.semanas).sort(); if (sem.length > 1) caja.appendChild(el('div', { class: 'sub' }, [el('span', { text: 'semanas anteriores: ' + sem.slice(0, -1).slice(-4).map(function(k){ return Math.round(c.semanas[k]) + ' %'; }).join(' · ') + ' (segunda cuenta cuando dos seguidas pasen del 80 %)' })]));
+  app.appendChild(caja);
 }
 function tarjetaAgente(a, coste, total){ var ct = a.contrato || {}, u = ultimo(a), c = coste[a.id] || 0, est = estadoAg(a);
   var sw = el('label', { class: 'sw', onclick: function(e){ e.stopPropagation(); } }, [el('input', { type: 'checkbox', onchange: function(e){ toggleAgente(a, e.target.checked); } }), el('span')]); sw.firstChild.checked = a.activo;
@@ -604,6 +642,7 @@ function renderCostes(){
   app.appendChild(el('div', { class: 'kpi' }, [el('div', { class: 'eyebrow', text: 'Consumo de tokens · ' + hoy.toLocaleString('es-ES', { month: 'long', year: 'numeric' }) }),
     el('div', { class: 'cifra' }, [usd(mes), el('small', { text: 'valor a precio de API' })]),
     el('div', { class: 'sub' }, [el('span', { text: 'Plan Max ' + usd(plan) + '/mes · consumido ' + veces.toLocaleString('es-ES', { maximumFractionDigits: 1 }) + '× su precio' }), el('span', { text: 'proyección fin de mes ' + usd(proy) }), el('span', { text: 'mes anterior ' + usd(u.mes_anterior) })])]));
+  renderCapacidad();
   renderPlan(u);
   app.appendChild(el('div', { class: 'grid2' }, [mini(num(u.mes.mensajes), 'respuestas'), mini(num(Math.round((u.mes.output || 0) / 1000)) + 'k', 'tokens generados'), mini(num(Math.round((u.mes.cache_read || 0) / 1e6)) + 'M', 'contexto leído de caché'), mini(num(Math.round((u.mes.cache_write || 0) / 1e6)) + 'M', 'contexto escrito en caché')]));
   var dias = el('div', { class: 'dias' }), max = 0; (u.dias || []).forEach(function(d){ if (d.coste > max) max = d.coste; });
