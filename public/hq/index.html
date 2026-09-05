@@ -390,9 +390,8 @@ function deslizar(card, si, no){
   card.addEventListener('pointerup', fin); card.addEventListener('pointercancel', fin);
 }
 /* Dictado: el micrófono del teclado del móvil (dictado nativo de iOS/Android) funciona en cualquier casilla y en la app instalada.
-   El botón solo abre la casilla y el teclado. La grabación con transcripción en servidor queda disponible con ?rec=1 por si hiciera falta. */
+   El botón graba (un toque empieza, otro para) y transcribe en api.77delta.com con Mistral; si falla, la casilla lo dice y queda el micrófono del teclado. */
 function dictar(ta, btn){
-  if (!params.get('rec')){ ta.focus(); if (!dictar.avisado){ dictar.avisado = true; toast('Dicta con el micrófono del teclado.'); } return; }
   if (btn.rec){ try { btn.rec.stop(); } catch (e) {} return; }
   if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia || !window.MediaRecorder){ toast('Este navegador no graba. Usa el micrófono del teclado.'); ta.focus(); return; }
   navigator.mediaDevices.getUserMedia({ audio: true }).then(function(stream){
