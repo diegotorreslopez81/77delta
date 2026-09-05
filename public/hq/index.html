@@ -164,6 +164,8 @@ h2.sec-t small{color:var(--oro-oscuro)}
 .mini{background:var(--panel);border:1px solid var(--linea);border-radius:12px;padding:12px 14px}
 .mini .v{font-family:var(--display);font-size:22px;font-weight:600;letter-spacing:-.02em}
 .mini .l{font-size:12px;color:var(--pizarra);font-family:var(--mono)}
+.mini .v small{font-size:12px;color:var(--pizarra);font-weight:400;font-family:var(--mono);letter-spacing:0}
+.mini.plan .v{color:var(--oro-oscuro)}
 .barra{margin-bottom:9px}
 .barra .l{display:flex;justify-content:space-between;font-size:13px;margin-bottom:4px;gap:8px}
 .barra .l b{font-weight:500;overflow:hidden;text-overflow:ellipsis;white-space:nowrap} .barra .l span{font-family:var(--mono);color:var(--pizarra);white-space:nowrap}
@@ -206,6 +208,7 @@ h2.sec-t small{color:var(--oro-oscuro)}
 </header>
 <nav class="tabs" id="tabs">
   <button data-t="bandeja" class="on">Bandeja<small id="n-bandeja"></small></button>
+  <button data-t="negocio">Negocio</button>
   <button data-t="equipo">Equipo</button>
   <button data-t="costes">Costes</button>
 </nav>
@@ -280,7 +283,7 @@ function render(){ var p = S.hq.pendientes.length, pill = document.getElementByI
   document.getElementById('n-bandeja').textContent = p ? p : '';
   document.querySelectorAll('#tabs button').forEach(function(b){ b.classList.toggle('on', b.dataset.t === S.tab); });
   app.textContent = '';
-  if (S.tab === 'bandeja') renderBandeja(); else if (S.tab === 'equipo') renderEquipo(); else renderCostes(); }
+  if (S.tab === 'bandeja') renderBandeja(); else if (S.tab === 'negocio') renderNegocio(); else if (S.tab === 'equipo') renderEquipo(); else renderCostes(); }
 
 /* ---- bandeja ---- */
 function renderBandeja(){
@@ -422,6 +425,50 @@ function hojaSolicitud(s){ var ag = agente(s.agente), dl = el('dl'); [['Agente',
   if (/^https?:\/\//.test(s.enlace)) kids.push(el('p', {}, [el('a', { href: s.enlace, target: '_blank', rel: 'noopener', text: 'Abrir enlace ↗' })]));
   if (s.estado !== 'ejecutada' && s.estado !== 'fallida') kids.push(el('div', { class: 'acciones' }, [el('button', { class: 'btn no', text: 'Devolver a pendiente', onclick: function(){ cerrarHoja(); rpc('omc_resolver', { p_token: TOKEN, p_id: s.id, p_estado: 'pendiente', p_respuesta: '' }).then(cargar).catch(function(e){ toast(e.message); }); } })]));
   hoja(kids); }
+
+/* ---- negocio ---- */
+var LINEA = { cupones: 'Cupones ACCIÓ', licitaciones: 'Licitaciones', consultoria: 'Consultoría', producto: 'Producto', formacion: 'Formación', otro: 'Otros' };
+var EST_ING = { propuesto: 'Propuesto', concedido: 'Concedido', contratado: 'Contratado', facturado: 'Facturado', cobrado: 'Cobrado', perdido: 'Perdido' };
+function kpi(c){ var k = (S.hq.kpis || {})[c]; return k ? (k.valor != null ? Number(k.valor) : k.texto) : null; }
+function renderNegocio(){
+  var ing = S.hq.ingresos || [], firmes = ing.filter(function(i){ return ['concedido','contratado','facturado','cobrado'].indexOf(i.estado) >= 0; });
+  var suma = function(l){ var s = 0; l.forEach(function(i){ s += Number(i.importe); }); return s; };
+  var comprometido = suma(firmes), facturado = suma(ing.filter(function(i){ return i.estado === 'facturado' || i.estado === 'cobrado'; })), cobrado = suma(ing.filter(function(i){ return i.estado === 'cobrado'; })), propuesto = suma(ing.filter(function(i){ return i.estado === 'propuesto'; }));
+  var anio = new Date().getFullYear();
+  app.appendChild(el('div', { class: 'kpi' }, [el('div', { class: 'eyebrow', text: 'Negocio ' + anio + ' · comprometido' }), el('div', { class: 'cifra' }, [eur(comprometido)]),
+    el('div', { class: 'sub' }, [el('span', { text: 'facturado ' + eur(facturado) }), el('span', { text: 'cobrado ' + eur(cobrado) }), el('span', { text: 'pendiente de cobrar ' + eur(comprometido - cobrado) }), propuesto ? el('span', { text: 'en propuesta ' + eur(propuesto) }) : null])]));
+  var porLinea = {}; firmes.forEach(function(i){ porLinea[i.linea] = porLinea[i.linea] || { n: 0, eur: 0 }; porLinea[i.linea].n++; porLinea[i.linea].eur += Number(i.importe); });
+  var g = el('div', { class: 'grid2' }); Object.keys(porLinea).sort(function(a, b){ return porLinea[b].eur - porLinea[a].eur; }).forEach(function(l){ g.appendChild(mini(eur(porLinea[l].eur), (LINEA[l] || l) + ' · ' + porLinea[l].n)); });
+  if (g.children.length) app.appendChild(g);
+  if (kpi('lic.detectadas.n') != null){
+    app.appendChild(el('h2', { class: 'sec-t' }, ['Licitaciones ', el('small', { text: 'Sheet de Guillem · ' + (kpi('lic.actualizado') ? rel(kpi('lic.actualizado')) : '') })]));
+    var f = el('div', { class: 'grid2' });
+    [['detectadas', 'Detectadas'], ['aprobadas', 'Aprobadas por ti'], ['presentadas', 'Presentadas'], ['en_juego', 'En juego'], ['contratadas', 'Contratadas'], ['perdidas', 'Perdidas']].forEach(function(p){
+      var n = kpi('lic.' + p[0] + '.n'), e = kpi('lic.' + p[0] + '.eur'); if (n == null) return;
+      f.appendChild(el('div', { class: 'mini' + (p[0] === 'contratadas' ? ' plan' : '') }, [el('div', { class: 'v' }, [String(n), el('small', { text: ' · ' + eur(e) })]), el('div', { class: 'l', text: p[1] })])); });
+    app.appendChild(f);
+    var tags = el('div', { class: 'tags' });
+    if (kpi('lic.tasa_exito') != null) tags.appendChild(el('span', { class: 'dato oro', text: 'tasa de éxito ' + kpi('lic.tasa_exito') + ' %' }));
+    if (kpi('lic.proximo_cierre')) tags.appendChild(el('span', { class: 'dato', text: 'próximo cierre ' + kpi('lic.proximo_cierre') }));
+    if (kpi('lic.analisis.n') != null) tags.appendChild(el('span', { class: 'dato', text: kpi('lic.analisis.n') + ' en análisis' }));
+    app.appendChild(tags);
+  }
+  var cup = ing.filter(function(i){ return i.linea === 'cupones'; });
+  if (cup.length){ app.appendChild(el('h2', { class: 'sec-t' }, ['Cupones ACCIÓ ', el('small', { text: cup.length + ' · ' + eur(suma(cup)) })])); cup.forEach(function(i){ app.appendChild(filaIngreso(i)); }); }
+  var resto = ing.filter(function(i){ return i.linea !== 'cupones'; });
+  app.appendChild(el('h2', { class: 'sec-t' }, ['Libro de ingresos ', el('small', { text: 'lo lleva Teresa (Books)' })]));
+  if (!resto.length && !cup.length) app.appendChild(el('p', { class: 'peq', text: 'Sin ingresos registrados. Books los añade con: hq ingreso --cliente ... --linea ... --importe ... --estado ...' }));
+  resto.forEach(function(i){ app.appendChild(filaIngreso(i)); });
+  app.appendChild(el('p', { class: 'peq', text: 'Comprometido = concedido + contratado + facturado + cobrado. Las licitaciones se leen cada hora del Sheet de control de Sales; los ingresos los mantiene Books en HQ (fuente futura: FacturaScripts en books.77delta.com).' }));
+}
+function filaIngreso(i){ return el('div', { class: 'fila', onclick: function(){ hojaIngreso(i); } }, [
+  el('div', { class: 'txt' }, [el('div', { class: 't', text: i.cliente + (i.concepto ? ' · ' + i.concepto : '') }), el('div', { class: 'm', text: (LINEA[i.linea] || i.linea) + ' · ' + eur(i.importe) + (i.periodicidad !== 'unico' ? ' / ' + (i.periodicidad === 'mensual' ? 'mes' : 'año') : '') + (i.fecha ? ' · ' + i.fecha : '') })]),
+  el('span', { class: 'estado ' + (i.estado === 'cobrado' ? 'ejecutada' : i.estado === 'perdido' ? 'rechazada' : i.estado === 'propuesto' ? '' : 'aprobada'), text: EST_ING[i.estado] || i.estado })]); }
+function hojaIngreso(i){ var dl = el('dl'); [['Cliente', i.cliente], ['Línea', LINEA[i.linea] || i.linea], ['Concepto', i.concepto], ['Importe', eur(i.importe) + (i.periodicidad !== 'unico' ? ' ' + i.periodicidad : '')], ['Estado', EST_ING[i.estado] || i.estado], ['Fecha', i.fecha], ['Notas', i.notas], ['Lo lleva', i.agente], ['Actualizado', i.updated_at ? new Date(i.updated_at).toLocaleString('es-ES') : '']]
+    .forEach(function(p){ if (p[1]) { dl.appendChild(el('dt', { text: p[0] })); dl.appendChild(el('dd', { text: p[1] })); } });
+  var acc = el('div', { class: 'acciones' }), sig = { propuesto: 'concedido', concedido: 'contratado', contratado: 'facturado', facturado: 'cobrado' }[i.estado];
+  if (sig) acc.appendChild(el('button', { class: 'btn si', text: 'Marcar ' + EST_ING[sig].toLowerCase(), onclick: function(){ cerrarHoja(); rpc('omc_ingreso_set', { p_token: TOKEN, p: { id: i.id, estado: sig } }).then(cargar).then(function(){ toast(i.cliente + ' · ' + EST_ING[sig]); }).catch(function(e){ toast(e.message); }); } }));
+  hoja([el('div', { class: 'eyebrow', text: 'ingreso #' + i.id }), el('h2', { text: i.cliente }), dl, acc]); }
 
 /* ---- costes ---- */
 function renderCostes(){

@@ -101,6 +101,33 @@ create table if not exists public.omc_actividad (
 );
 create index if not exists omc_actividad_agente on public.omc_actividad (empresa, agente, ts desc);
 
+-- KPIs de negocio (clave/valor) que suben los scripts (embudo de licitaciones desde el Sheet de Sales) o los agentes.
+create table if not exists public.omc_kpis (
+  empresa text not null references public.omc_empresas(id) on delete cascade,
+  clave text not null,
+  valor numeric,
+  texto text not null default '',
+  fuente text not null default '',
+  updated_at timestamptz not null default now(),
+  primary key (empresa, clave)
+);
+
+-- Libro de ingresos (lo lleva admin-books): concedido, contratado, facturado, cobrado.
+create table if not exists public.omc_ingresos (
+  id bigserial primary key,
+  empresa text not null references public.omc_empresas(id) on delete cascade,
+  cliente text not null,
+  linea text not null default 'otro' check (linea in ('cupones','licitaciones','consultoria','producto','formacion','otro')),
+  concepto text not null default '',
+  importe numeric not null default 0,
+  estado text not null default 'concedido' check (estado in ('propuesto','concedido','contratado','facturado','cobrado','perdido')),
+  periodicidad text not null default 'unico' check (periodicidad in ('unico','mensual','anual')),
+  fecha date,
+  notas text not null default '',
+  agente text not null default 'admin-books',
+  updated_at timestamptz not null default now()
+);
+
 create table if not exists public.omc_push (
   id bigserial primary key,
   empresa text not null references public.omc_empresas(id) on delete cascade,
@@ -117,8 +144,10 @@ alter table public.omc_uso enable row level security;
 alter table public.omc_push enable row level security;
 alter table public.omc_plan enable row level security;
 alter table public.omc_actividad enable row level security;
-revoke all on public.omc_empresas, public.omc_tokens, public.omc_agentes, public.omc_solicitudes, public.omc_uso, public.omc_push, public.omc_plan, public.omc_actividad from anon, authenticated;
-revoke all on sequence public.omc_solicitudes_id_seq, public.omc_push_id_seq from anon, authenticated;
+alter table public.omc_kpis enable row level security;
+alter table public.omc_ingresos enable row level security;
+revoke all on public.omc_empresas, public.omc_tokens, public.omc_agentes, public.omc_solicitudes, public.omc_uso, public.omc_push, public.omc_plan, public.omc_actividad, public.omc_kpis, public.omc_ingresos from anon, authenticated;
+revoke all on sequence public.omc_solicitudes_id_seq, public.omc_push_id_seq, public.omc_ingresos_id_seq from anon, authenticated;
 
 -- Helper interno: no se concede a anon.
 create or replace function public.omc_tok(p_token text)
@@ -166,8 +195,61 @@ begin
     'actividad', (select coalesce(jsonb_agg(jsonb_build_object('agente', y.agente, 'items', y.items)), '[]'::jsonb)
                   from (select agente, jsonb_agg(jsonb_build_object('ts', ts, 'titulo', titulo, 'tipo', tipo, 'proyecto', proyecto) order by ts desc) items
                         from (select *, row_number() over (partition by agente order by ts desc) rn from public.omc_actividad where empresa = e.id) z
-                        where rn <= 6 group by agente) y)
+                        where rn <= 6 group by agente) y),
+    'kpis', (select coalesce(jsonb_object_agg(k.clave, jsonb_build_object('valor', k.valor, 'texto', k.texto, 'fuente', k.fuente, 'updated_at', k.updated_at)), '{}'::jsonb)
+             from public.omc_kpis k where k.empresa = e.id),
+    'ingresos', (select coalesce(jsonb_agg(to_jsonb(i) order by i.fecha desc nulls last, i.id desc), '[]'::jsonb) from public.omc_ingresos i where i.empresa = e.id)
   );
+end $$;
+
+-- KPIs: upsert de {clave, valor, texto, fuente}.
+create or replace function public.omc_kpi_set(p_token text, p_filas jsonb)
+returns jsonb language plpgsql security definer set search_path = public as $$
+declare t public.omc_tokens; n int := 0; f jsonb;
+begin
+  t := public.omc_tok(p_token);
+  for f in select * from jsonb_array_elements(p_filas) loop
+    insert into public.omc_kpis (empresa, clave, valor, texto, fuente, updated_at)
+      values (t.empresa, f->>'clave', nullif(f->>'valor','')::numeric, coalesce(f->>'texto',''), coalesce(f->>'fuente', t.nombre), now())
+      on conflict (empresa, clave) do update set valor = excluded.valor, texto = excluded.texto, fuente = excluded.fuente, updated_at = now();
+    n := n + 1;
+  end loop;
+  return jsonb_build_object('filas', n);
+end $$;
+
+-- Libro de ingresos: crear, editar o borrar una fila (agente o owner).
+create or replace function public.omc_ingreso_set(p_token text, p jsonb)
+returns jsonb language plpgsql security definer set search_path = public as $$
+declare t public.omc_tokens; i public.omc_ingresos; v_id bigint;
+begin
+  t := public.omc_tok(p_token);
+  v_id := nullif(p->>'id','')::bigint;
+  if coalesce((p->>'borrar')::boolean, false) then
+    delete from public.omc_ingresos where empresa = t.empresa and id = v_id;
+    return jsonb_build_object('borrado', v_id);
+  end if;
+  if v_id is null then
+    if coalesce(p->>'cliente','') = '' then raise exception 'falta cliente'; end if;
+    insert into public.omc_ingresos (empresa, cliente, linea, concepto, importe, estado, periodicidad, fecha, notas, agente)
+      values (t.empresa, p->>'cliente', coalesce(nullif(p->>'linea',''),'otro'), coalesce(p->>'concepto',''), coalesce((p->>'importe')::numeric,0),
+              coalesce(nullif(p->>'estado',''),'concedido'), coalesce(nullif(p->>'periodicidad',''),'unico'), nullif(p->>'fecha','')::date, coalesce(p->>'notas',''), coalesce(nullif(p->>'agente',''), 'admin-books'))
+      returning * into i;
+  else
+    update public.omc_ingresos set cliente = coalesce(p->>'cliente', cliente), linea = coalesce(nullif(p->>'linea',''), linea), concepto = coalesce(p->>'concepto', concepto),
+      importe = coalesce((p->>'importe')::numeric, importe), estado = coalesce(nullif(p->>'estado',''), estado), periodicidad = coalesce(nullif(p->>'periodicidad',''), periodicidad),
+      fecha = coalesce(nullif(p->>'fecha','')::date, fecha), notas = coalesce(p->>'notas', notas), updated_at = now()
+      where empresa = t.empresa and id = v_id returning * into i;
+    if not found then raise exception 'ingreso no encontrado' using errcode = 'P0001'; end if;
+  end if;
+  return to_jsonb(i);
+end $$;
+
+create or replace function public.omc_ingresos(p_token text)
+returns jsonb language plpgsql security definer set search_path = public as $$
+declare t public.omc_tokens;
+begin
+  t := public.omc_tok(p_token);
+  return (select coalesce(jsonb_agg(to_jsonb(i) order by i.fecha desc nulls last, i.id desc), '[]'::jsonb) from public.omc_ingresos i where i.empresa = t.empresa);
 end $$;
 
 -- Actividad de agentes (upsert por observación).
@@ -374,9 +456,11 @@ end $$;
 
 revoke all on function public.omc_token_info(text), public.omc_hq(text), public.omc_hq_uso(text), public.omc_resolver(text, bigint, text, text),
   public.omc_agente_set(text, text, jsonb), public.omc_pedir(text, jsonb), public.omc_estado(text, bigint), public.omc_reportar(text, bigint, boolean, text),
-  public.omc_latido(text, text), public.omc_mis_solicitudes(text, text), public.omc_subir_uso(text, jsonb), public.omc_guardar_push(text, jsonb), public.omc_subir_plan(text, jsonb), public.omc_subir_actividad(text, jsonb) from public;
+  public.omc_latido(text, text), public.omc_mis_solicitudes(text, text), public.omc_subir_uso(text, jsonb), public.omc_guardar_push(text, jsonb), public.omc_subir_plan(text, jsonb), public.omc_subir_actividad(text, jsonb),
+  public.omc_kpi_set(text, jsonb), public.omc_ingreso_set(text, jsonb), public.omc_ingresos(text) from public;
 grant execute on function public.omc_token_info(text), public.omc_hq(text), public.omc_hq_uso(text), public.omc_resolver(text, bigint, text, text),
   public.omc_agente_set(text, text, jsonb), public.omc_pedir(text, jsonb), public.omc_estado(text, bigint), public.omc_reportar(text, bigint, boolean, text),
-  public.omc_latido(text, text), public.omc_mis_solicitudes(text, text), public.omc_subir_uso(text, jsonb), public.omc_guardar_push(text, jsonb), public.omc_subir_plan(text, jsonb), public.omc_subir_actividad(text, jsonb)
+  public.omc_latido(text, text), public.omc_mis_solicitudes(text, text), public.omc_subir_uso(text, jsonb), public.omc_guardar_push(text, jsonb), public.omc_subir_plan(text, jsonb), public.omc_subir_actividad(text, jsonb),
+  public.omc_kpi_set(text, jsonb), public.omc_ingreso_set(text, jsonb), public.omc_ingresos(text)
   to anon, authenticated, service_role;
 notify pgrst, 'reload schema';

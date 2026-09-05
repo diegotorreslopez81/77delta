@@ -146,6 +146,12 @@ def main():
     p = sub.add_parser('fallo'); p.add_argument('id', type=int); p.add_argument('--nota', default='')
     p = sub.add_parser('activo'); p.add_argument('agente', nargs='?')
     p = sub.add_parser('pendientes'); p.add_argument('agente', nargs='?')
+    p = sub.add_parser('ingreso', help='libro de ingresos (admin-books): crear, editar o borrar una fila')
+    p.add_argument('--id', type=int); p.add_argument('--cliente'); p.add_argument('--linea', choices=('cupones', 'licitaciones', 'consultoria', 'producto', 'formacion', 'otro'))
+    p.add_argument('--concepto'); p.add_argument('--importe', type=float); p.add_argument('--estado', choices=('propuesto', 'concedido', 'contratado', 'facturado', 'cobrado', 'perdido'))
+    p.add_argument('--periodicidad', choices=('unico', 'mensual', 'anual')); p.add_argument('--fecha'); p.add_argument('--nota'); p.add_argument('--borrar', action='store_true'); p.add_argument('--agente')
+    p = sub.add_parser('ingresos', help='listar el libro de ingresos')
+    p = sub.add_parser('kpi', help='fijar un KPI de negocio'); p.add_argument('--clave', required=True); p.add_argument('--valor', type=float); p.add_argument('--texto', default=''); p.add_argument('--fuente')
     a = ap.parse_args()
 
     if a.cmd in ('pedir', 'duda'):
@@ -177,6 +183,19 @@ def main():
         sys.exit(0 if not r['existe'] and False else (3 if not r['existe'] else (0 if r['activo'] else 2)))
     elif a.cmd == 'pendientes':
         salida(rpc('omc_mis_solicitudes', p_token=E['HQ_TOKEN'], p_agente=agente_actual(a.agente)), a.json)
+    elif a.cmd == 'ingreso':
+        p = {k: v for k, v in {'id': a.id, 'cliente': a.cliente, 'linea': a.linea, 'concepto': a.concepto, 'importe': a.importe, 'estado': a.estado,
+                               'periodicidad': a.periodicidad, 'fecha': a.fecha, 'notas': a.nota, 'agente': a.agente, 'borrar': a.borrar or None}.items() if v is not None}
+        r = rpc('omc_ingreso_set', p_token=E['HQ_TOKEN'], p=p)
+        print(json.dumps(r, ensure_ascii=False) if a.json or 'borrado' in r else f"#{r['id']} {r['cliente']} · {r['linea']} · {r['importe']} € · {r['estado']} · {r.get('fecha') or ''}")
+    elif a.cmd == 'ingresos':
+        rs = rpc('omc_ingresos', p_token=E['HQ_TOKEN'])
+        if a.json: print(json.dumps(rs, ensure_ascii=False))
+        else:
+            for r in rs: print(f"#{r['id']} {r['cliente']} · {r['linea']} · {r['importe']} € · {r['estado']} · {r.get('periodicidad')} · {r.get('fecha') or ''}{' · ' + r['notas'] if r.get('notas') else ''}")
+            print(f"total comprometido: {sum(float(r['importe']) for r in rs if r['estado'] in ('concedido','contratado','facturado','cobrado')):.2f} €")
+    elif a.cmd == 'kpi':
+        print(json.dumps(rpc('omc_kpi_set', p_token=E['HQ_TOKEN'], p_filas=[{'clave': a.clave, 'valor': a.valor, 'texto': a.texto, 'fuente': a.fuente or agente_actual(None)}]), ensure_ascii=False))
 
 
 if __name__ == '__main__':
