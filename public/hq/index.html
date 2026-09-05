@@ -36,7 +36,7 @@
     --error:#E08678; --error-suave:#2E1D1A; --exito:#8CB897; --exito-suave:#1D2A20; }
 }
 *{box-sizing:border-box}
-html,body{margin:0;background:var(--papel);color:var(--tinta);font-family:var(--body);font-size:16px;line-height:1.5;-webkit-font-smoothing:antialiased;overscroll-behavior-y:contain}
+html,body{margin:0;background:var(--papel);color:var(--tinta);font-family:var(--body);font-size:16px;line-height:1.5;-webkit-font-smoothing:antialiased;overscroll-behavior-y:contain;overflow-x:hidden;max-width:100vw}
 body{padding-bottom:calc(24px + env(safe-area-inset-bottom))}
 h1,h2,h3{font-family:var(--display);font-weight:600;letter-spacing:-.02em;line-height:1.15;margin:0}
 button{font:inherit;color:inherit;background:none;border:0;cursor:pointer;-webkit-tap-highlight-color:transparent}
@@ -55,12 +55,12 @@ header .esp{flex:1}
 .pill.cero{background:transparent;border:1px solid #2C3B52;color:var(--pizarra-clara)}
 .icono{width:36px;height:36px;border-radius:10px;display:grid;place-items:center;color:var(--marfil);font-size:18px}
 .icono:active{background:#122238}
-nav.tabs{display:flex;background:var(--marino);position:sticky;top:calc(56px + env(safe-area-inset-top));z-index:19;border-bottom:1px solid #1E2B3B}
-nav.tabs button{flex:1;padding:12px 2px 11px;color:var(--pizarra-clara);font:500 13px var(--body);border-bottom:2px solid transparent;white-space:nowrap}
+nav.tabs{display:flex;background:var(--marino);position:sticky;top:calc(56px + env(safe-area-inset-top));z-index:19;border-bottom:1px solid #1E2B3B;overflow:hidden}
+nav.tabs button{flex:1 1 0;min-width:0;padding:12px 0 11px;color:var(--pizarra-clara);font:500 12.5px var(--body);border-bottom:2px solid transparent;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 nav.tabs button.on{color:#EDEAE3;border-bottom-color:#A7781B}
-nav.tabs button small{font-family:var(--mono);font-size:11px;color:#D4A03A;margin-left:4px}
+nav.tabs button small{font-family:var(--mono);font-size:10px;color:#D4A03A;margin-left:3px}
 
-main{padding:14px 14px 0;max-width:720px;margin:0 auto}
+main{padding:14px 14px 0;max-width:720px;margin:0 auto;overflow-x:hidden}
 .chips{display:flex;gap:8px;overflow-x:auto;padding:2px 0 12px;scrollbar-width:none}
 .chips::-webkit-scrollbar{display:none}
 .chip{white-space:nowrap;padding:6px 12px;border-radius:99px;border:1px solid var(--linea-fuerte);font-size:13px;color:var(--pizarra)}
@@ -379,15 +379,16 @@ function resolver(s, estado, respuesta){
 function toggleAgente(a, activo){ rpc('omc_agente_set', { p_token: TOKEN, p_id: a.id, p_patch: { activo: activo } }).then(cargar).then(function(){ toast(persona(a) + (activo ? ' activado' : ' desactivado')); }).catch(function(e){ toast(e.message); cargar(); }); }
 
 function deslizar(card, si, no){
-  var x0 = null, y0 = null, dx = 0, pista = el('div', { class: 'pista' }); card.appendChild(pista);
-  card.addEventListener('pointerdown', function(e){ if (e.target.closest('button,textarea,a')) return; x0 = e.clientX; y0 = e.clientY; dx = 0; card.style.transition = 'none'; });
-  card.addEventListener('pointermove', function(e){ if (x0 == null) return; dx = e.clientX - x0; var dy = e.clientY - y0;
-    if (Math.abs(dy) > Math.abs(dx) && Math.abs(dx) < 12) return; if (Math.abs(dx) > 12) card.setPointerCapture(e.pointerId);
-    card.style.transform = 'translateX(' + dx + 'px) rotate(' + dx / 40 + 'deg)';
-    pista.className = 'pista ' + (dx > 0 ? 'si' : 'no'); pista.textContent = dx > 0 ? 'APROBAR' : 'RECHAZAR'; pista.style.opacity = Math.min(1, Math.abs(dx) / 90); });
-  function fin(){ if (x0 == null) return; x0 = null; card.style.transition = ''; pista.style.opacity = 0;
-    if (dx > 90) si(); else if (dx < -90) no(); else card.style.transform = ''; }
-  card.addEventListener('pointerup', fin); card.addEventListener('pointercancel', fin);
+  /* Solo es un deslizamiento si el gesto es claramente horizontal (más de 28 px y el doble que el vertical). Si empieza vertical, es scroll y se ignora hasta soltar. */
+  var x0 = null, y0 = null, dx = 0, modo = null, pista = el('div', { class: 'pista' }); card.appendChild(pista);
+  card.addEventListener('pointerdown', function(e){ if (e.target.closest('button,textarea,a,input')) return; x0 = e.clientX; y0 = e.clientY; dx = 0; modo = null; });
+  card.addEventListener('pointermove', function(e){ if (x0 == null || modo === 'v') return; var mx = e.clientX - x0, my = e.clientY - y0;
+    if (!modo){ if (Math.abs(my) > 10 && Math.abs(my) >= Math.abs(mx)) { modo = 'v'; return; } if (Math.abs(mx) > 28 && Math.abs(mx) > 2 * Math.abs(my)) { modo = 'h'; card.style.transition = 'none'; try { card.setPointerCapture(e.pointerId); } catch (x) {} } else return; }
+    dx = mx; card.style.transform = 'translateX(' + dx + 'px) rotate(' + dx / 40 + 'deg)';
+    pista.className = 'pista ' + (dx > 0 ? 'si' : 'no'); pista.textContent = dx > 0 ? 'APROBAR' : 'RECHAZAR'; pista.style.opacity = Math.min(1, Math.abs(dx) / 110); });
+  function fin(){ if (x0 == null) return; var h = modo === 'h'; x0 = null; modo = null; card.style.transition = ''; pista.style.opacity = 0;
+    if (h && dx > 110) si(); else if (h && dx < -110) no(); else card.style.transform = ''; dx = 0; }
+  card.addEventListener('pointerup', fin); card.addEventListener('pointercancel', fin); card.addEventListener('lostpointercapture', fin);
 }
 /* Dictado: el micrófono del teclado del móvil (dictado nativo de iOS/Android) funciona en cualquier casilla y en la app instalada.
    El botón graba (un toque empieza, otro para) y transcribe en api.77delta.com con Mistral; si falla, la casilla lo dice y queda el micrófono del teclado. */
