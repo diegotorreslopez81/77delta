@@ -91,12 +91,16 @@ def main():
         desc = filas(hoja(tok, 'Descartadas!A1:Z'))
     except urllib.error.HTTPError:
         desc = []
+    # Detectada = fila que el bot ya ha analizado (tiene estado o importe); el resto es barrido en bruto y se cuenta aparte.
+    brutas = [f for f in vivas if not f['estado'] and not f['importe']]
+    vivas = [f for f in vivas if f['estado'] or f['importe']]
     todas = vivas + desc
     def grupo(nombre, base=vivas):
         sel = [f for f in base if f['estado'] in ESTADOS[nombre]]
         return len(sel), round(sum(f['importe'] for f in sel), 2)
     k = {}
     k['lic.detectadas.n'], k['lic.detectadas.eur'] = len(todas), round(sum(f['importe'] for f in todas), 2)
+    k['lic.brutas.n'] = len(brutas)
     k['lic.vivas.n'], k['lic.vivas.eur'] = len(vivas), round(sum(f['importe'] for f in vivas), 2)
     for g in ('analisis', 'aprobadas', 'presentadas', 'en_juego', 'contratadas', 'perdidas', 'sin_presentar'):
         k[f'lic.{g}.n'], k[f'lic.{g}.eur'] = grupo(g)

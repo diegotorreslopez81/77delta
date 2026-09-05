@@ -6,6 +6,7 @@ HQ es el panel de mando de la One Man Corporation: `https://77delta.com/hq/`. Es
 
 - **Bandeja**: cada tarjeta es algo que espera tu decisión. Deslizar a la derecha aprueba, a la izquierda rechaza. El botón ✎ añade una nota para el agente (escrita o dictada con el micrófono). Las **dudas** se contestan con texto. Las tarjetas van ordenadas por prioridad (Comercial primero), vencimiento y antigüedad; las que vencen en menos de 24 h llevan borde rojo.
 - **En ejecución**: lo aprobado que el agente aún no ha cerrado. **Historial**: lo cerrado. Tocar una fila abre el detalle y permite devolverla a pendiente.
+- **Negocio**: los KPIs financieros. Arriba, el comprometido del año (concedido + contratado + facturado + cobrado), lo facturado, lo cobrado y lo pendiente de cobrar; después, ingresos por línea (cupones, licitaciones, consultoría...), el embudo de licitaciones (detectadas, aprobadas, presentadas, en juego, contratadas, perdidas, con número y euros, tasa de éxito y próximo cierre), los cupones ACCIÓ y el libro de ingresos completo. Tocar un ingreso permite pasarlo al siguiente estado (concedido → contratado → facturado → cobrado). Quién alimenta qué: **Teresa (Books)** el libro de ingresos con `hq ingreso`; **Guillem (Sales)** el embudo, que HQ lee cada hora de su Sheet "Licitaciones · NGA · control".
 - **Equipo**: el organigrama numerado. Cada tarjeta es un agente con su nombre, su rol, su modelo (con versión), su coste del mes y su latido (punto verde = activo en las últimas 36 h, ámbar = esta semana, gris = sin actividad). El interruptor lo activa o desactiva: un agente desactivado no trabaja. Tocar la tarjeta abre su ficha: contrato, qué está haciendo (últimas observaciones de Engram), sus solicitudes abiertas y el enlace a su sesión en claude.ai.
 - **Costes**: consumo real del plan Max (ventana de 5 h y semana, con hora de reinicio), coste nocional a precio de API por equipo, agente y sesión, y dinero real aprobado por departamento. Las etiquetas rojas marcan un agente que usa un modelo distinto al asignado.
 - **Menú ⋯**: activar avisos push en el móvil (en iPhone, antes añadir HQ a la pantalla de inicio), recargar, cerrar sesión.
@@ -20,6 +21,8 @@ hq duda  --agente <id> --titulo "..." --detalle "..."
 hq estado <id>        hq esperar <id> [--timeout seg]        hq pendientes [agente]
 hq hecho <id> [--nota "..."]        hq fallo <id> --nota "..."
 hq activo [agente]    (código 0 activo, 2 desactivado por Diego, 3 sin alta)
+hq ingresos           hq ingreso --cliente "..." --linea cupones|licitaciones|consultoria|producto|formacion|otro --importe N --estado concedido|contratado|facturado|cobrado [--id N] [--fecha] [--nota] [--borrar]
+hq kpi --clave <clave> --valor N [--texto "..."]
 ```
 
 Reglas: todo lo irreversible (gasto, contacto con terceros, publicar, decisiones de estrategia) pasa por `hq pedir` y se espera el veredicto; lo reversible se hace sin preguntar. Al ejecutar lo aprobado, `hq hecho`; si falla, `hq fallo`. El vencimiento (`--vence`) es obligatorio cuando existe un plazo real. En el título, lo esencial en una línea; en el detalle, lo que Diego necesita para decidir, sin relleno.

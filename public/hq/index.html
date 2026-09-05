@@ -429,7 +429,7 @@ function hojaSolicitud(s){ var ag = agente(s.agente), dl = el('dl'); [['Agente',
 /* ---- negocio ---- */
 var LINEA = { cupones: 'Cupones ACCIÓ', licitaciones: 'Licitaciones', consultoria: 'Consultoría', producto: 'Producto', formacion: 'Formación', otro: 'Otros' };
 var EST_ING = { propuesto: 'Propuesto', concedido: 'Concedido', contratado: 'Contratado', facturado: 'Facturado', cobrado: 'Cobrado', perdido: 'Perdido' };
-function kpi(c){ var k = (S.hq.kpis || {})[c]; return k ? (k.valor != null ? Number(k.valor) : k.texto) : null; }
+function kpi(c){ var k = (S.hq.kpis || {})[c]; return k ? (k.valor != null ? Number(k.valor) : (k.texto || null)) : null; }
 function renderNegocio(){
   var ing = S.hq.ingresos || [], firmes = ing.filter(function(i){ return ['concedido','contratado','facturado','cobrado'].indexOf(i.estado) >= 0; });
   var suma = function(l){ var s = 0; l.forEach(function(i){ s += Number(i.importe); }); return s; };
@@ -451,6 +451,7 @@ function renderNegocio(){
     if (kpi('lic.tasa_exito') != null) tags.appendChild(el('span', { class: 'dato oro', text: 'tasa de éxito ' + kpi('lic.tasa_exito') + ' %' }));
     if (kpi('lic.proximo_cierre')) tags.appendChild(el('span', { class: 'dato', text: 'próximo cierre ' + kpi('lic.proximo_cierre') }));
     if (kpi('lic.analisis.n') != null) tags.appendChild(el('span', { class: 'dato', text: kpi('lic.analisis.n') + ' en análisis' }));
+    if (kpi('lic.brutas.n')) tags.appendChild(el('span', { class: 'dato', text: kpi('lic.brutas.n') + ' del barrido sin analizar' }));
     app.appendChild(tags);
   }
   var cup = ing.filter(function(i){ return i.linea === 'cupones'; });

@@ -139,7 +139,8 @@ Los agentes viven en la máquina. Cuando una tarea exige un humano, **el agente 
 
 **`https://77delta.com/hq/`** (PWA para el móvil; se abre con el enlace con token de Diego y se añade a la pantalla de inicio). Datos en el Supabase propio (`omc_*`), acceso solo por RPC con token. Código: `~/dev/77delta/public/hq/` (app), `~/dev/77delta/scripts/hq/` (esquema, semilla, CLI, agregador de uso), `~/dev/77delta/api/` (config pública y avisos push).
 
-Tres pestañas:
+Cuatro pestañas:
+- **Negocio** (añadida el 2026-09-05 por la tarde): KPIs financieros. Comprometido, facturado, cobrado y pendiente de cobrar; ingresos por línea; embudo de licitaciones (número y euros por estado, tasa de éxito, próximo cierre) leído cada hora del Sheet de control de Sales; cupones ACCIÓ y libro de ingresos. **Quién lo alimenta:** el libro de ingresos es de Teresa (admin-books) con `hq ingreso`; el embudo es de Guillem (sales-licita) manteniendo la columna Estado y el Importe € de su Sheet. Fuente futura de facturado/cobrado: FacturaScripts (books.77delta.com).
 - **Bandeja**: una tarjeta por petición, ordenadas por prioridad (Comercial primero), vencimiento y antigüedad. Deslizar derecha aprueba, izquierda rechaza; nota escrita o dictada. Las **dudas** se responden con texto. Debajo, "En ejecución" (aprobadas que el agente aún no ha cerrado) e historial. Deshacer en 6 s.
 - **Equipo**: organigrama por niveles y departamentos con interruptor on/off por agente, latido (última actividad), coste del mes y % del total; al tocar, el contrato del puesto y sus solicitudes.
 - **Costes**: coste nocional a precio de API del mes, veces el precio del plan Max, proyección, por equipo, por agente, por sesión, y dinero real aprobado por departamento.
@@ -158,6 +159,12 @@ El agente se identifica por el fichero `.claude/hq-agente` en la raíz del repo 
 **Avisos push**: `api.77delta.com/hq/notificar` (lo llama `hq pedir`) envía Web Push a los móviles suscritos desde el menú de la app. Claves VAPID en `~/.config/77delta/vapid.json` y en las variables de Coolify de `api-77delta`.
 
 **Pendiente de v2**: reglas de auto-aprobación aprendidas, informe semanal del lunes, tarjetas "acción humana" a Google Tasks, PIN para aprobar dinero, ROI por equipo, alta de agente desde la app (kit de instalación para Irene), contratos completos de 7 campos por puesto.
+
+**Equipo con nombre y cara (2026-09-05):** cada agente tiene nombre de persona y avatar (`public/hq/avatares/<id>.svg`, generados con DiceBear) para reconocerlo de un vistazo: Marc (chief), Nuria (control), Alex, Laia, Carla, Pau, Julia, Ramon (directores), Guillem (licitaciones), Sergi (ventas), Aina (outreach), Martí (cupones), Ona (LeakAI), Berta (formación), Oriol (proyectos), Clàudia (RRHH), Biel (producto), Roc (devops), Mireia (web), Arnau (contenido), Teresa (contabilidad), Jordi (fiscal), Helena (grants), Ferran (estructura). La lista numerada completa está en `docs/empresa/02-equipo.md`. En HQ, la ficha de cada agente muestra su modelo con versión, su coste, qué está haciendo (Engram) y el enlace a su sesión en claude.ai.
+
+**Documentación de empresa:** `~/dev/77delta/docs/empresa/` (Markdown, fuente de verdad) con copia en la carpeta de Drive "77 Delta · Empresa" (cuenta de Next Gen Academy). Se regenera con `scripts/hq/docs-empresa.py` y la sube el chief.
+
+**Memoria de empresa:** Engram, no Obsidian. Lo que afecta a más de un agente se guarda en el proyecto `77delta` con título `[CORE] ...`; el hook de arranque lo inyecta en toda sesión. Detalle en `docs/empresa/04-comunicacion-interna.md`.
 
 ## 9a. Modelos y ventanas del plan Max (decidido 2026-09-05)
 
