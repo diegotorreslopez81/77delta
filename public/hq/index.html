@@ -277,7 +277,7 @@ function nombreModelo(m){ var s = String(m || '').toLowerCase(), mil = s.indexOf
   if (/sonnet-5/.test(s) || /^sonnet(\[|$)/.test(s)) return 'Sonnet 5' + mil; if (/sonnet-4-6/.test(s)) return 'Sonnet 4.6'; if (/sonnet-4-5/.test(s)) return 'Sonnet 4.5'; if (/sonnet/.test(s)) return 'Sonnet';
   if (/haiku-4-5/.test(s) || /^haiku(\[|$)/.test(s)) return 'Haiku 4.5'; if (/haiku/.test(s)) return 'Haiku'; return m; }
 function costePorAgente(){ var m = {}; (S.uso.por_agente || []).forEach(function(x){ m[x.agente] = x.coste; }); return m; }
-function ultimo(a){ var d = a.ultima_actividad ? new Date(a.ultima_actividad) : null; (S.uso.por_agente || []).forEach(function(x){ if (x.agente === a.id && x.ultimo){ var u = new Date(x.ultimo + 'T23:59:59'); if (!d || u > d) d = u; } }); return d; }
+function ultimo(a){ var d = a.ultima_actividad ? new Date(a.ultima_actividad) : null; (S.uso.por_agente || []).forEach(function(x){ if (x.agente === a.id && x.ultimo){ var u = new Date(Math.min(Date.now(), new Date(x.ultimo + 'T12:00:00').getTime())); if (!d || u > d) d = u; } }); if (d && d > Date.now()) d = new Date(); return d; }
 function estadoAg(a){ var u = ultimo(a), h = u ? (Date.now() - u) / 36e5 : null; return !a.activo ? 'off' : h == null ? 'nada' : h < 36 ? 'vivo' : h < 24 * 7 ? 'tibio' : 'nada'; }
 function prioDepto(d){ var m = 9; S.hq.agentes.forEach(function(a){ if (a.depto === d && a.prioridad < m) m = a.prioridad; }); return m; }
 function ordenados(){ var ags = S.hq.agentes.slice(), deptos = []; ags.forEach(function(a){ if (a.nivel > 1 && deptos.indexOf(a.depto) < 0) deptos.push(a.depto); });
