@@ -61,6 +61,44 @@ const etiqueta = 'block font-mono text-[11px] uppercase tracking-[0.18em] text-p
     </p>
   </section>
 
+  <!-- Calendario -->
+  <section class="hairline bg-panel">
+    <div class="wrap py-20 md:py-24">
+      <div class="max-w-[62ch]" data-reveal>
+        <p class="eyebrow">Reserva directa</p>
+        <h2 class="mt-5 font-display text-[clamp(28px,3.6vw,44px)] font-extralight leading-[1.1] tracking-[-0.03em]">
+          Coge hueco en el calendario y nos vemos.
+        </h2>
+        <p class="mt-6 text-[17px] text-pizarra">
+          Treinta minutos por videoconferencia, sin coste y sin compromiso. Si prefieres escribir primero, tienes
+          el formulario debajo.
+        </p>
+      </div>
+      <div class="mt-10 overflow-hidden rounded-[8px] border border-linea bg-panel" data-reveal>
+        <iframe
+          src={site.calendarioIncrustado}
+          title="Calendario de reserva de 77 Delta"
+          loading="lazy"
+          class="h-[620px] w-full border-0"
+        ></iframe>
+      </div>
+      <p class="mt-5 max-w-[62ch] text-[13px] text-pizarra">
+        El calendario lo sirve Google. Al cargarlo, Google puede instalar sus propias cookies. Puedes evitarlo
+        usando el <a
+          href="#form-contacto"
+          class="text-tinta underline decoration-linea underline-offset-4 transition-colors hover:decoration-oro"
+          >formulario</a
+        > o el <a
+          href={site.calendario}
+          target="_blank"
+          rel="noopener"
+          class="text-tinta underline decoration-linea underline-offset-4 transition-colors hover:decoration-oro"
+          >enlace directo</a
+        >.
+      </p>
+    </div>
+  </section>
+
   <!-- Formulario y otras vías -->
   <section class="hairline">
     <div class="wrap grid gap-16 py-24 md:grid-cols-12 md:gap-12 md:py-32">

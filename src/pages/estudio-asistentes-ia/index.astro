@@ -1,0 +1,273 @@
+---
+import Base from '../../layouts/Base.astro';
+import Boton from '../../components/Boton.astro';
+import Cta from '../../components/Cta.astro';
+import { href } from '../../lib/site';
+
+// Datos del rastreo de LeakAI del 5 de septiembre de 2026. Nunca se nombra a nadie:
+// los hallazgos solo se enseñan al responsable de la empresa afectada.
+const rastreo = [
+  { cifra: '236', texto: 'no tenían ningún chat en portada, contacto ni ayuda' },
+  { cifra: '62', texto: 'tenían un widget de soporte que puede llevar IA detrás' },
+  { cifra: '29', texto: 'tenían un asistente con IA confirmado respondiendo en abierto' },
+  { cifra: '12', texto: 'tenían chat guionizado o atendido por personas' },
+  { cifra: '9', texto: 'escondían el chat tras un registro o un formulario previo' },
+  { cifra: '40', texto: 'no se pudieron rastrear por bloqueos o errores' },
+];
+
+const categorias = [
+  {
+    nombre: 'Recitar sus instrucciones internas',
+    n: 8,
+    texto:
+      'El asistente reproduce su propio system prompt, con las restricciones que le han puesto y las herramientas a las que llega. Es el mapa para todo lo demás.',
+  },
+  {
+    nombre: 'Obedecer instrucciones de un desconocido',
+    n: 6,
+    texto:
+      'Un mensaje bien construido consigue que el bot ignore su guion y haga lo que pide quien escribe. Sale con el logotipo de la empresa al lado.',
+  },
+  {
+    nombre: 'Hablar de lo que no le toca',
+    n: 3,
+    texto:
+      'El asistente se sale del terreno de la marca y opina de cualquier cosa. Poco grave por sí solo, y una señal fiable de que no hay guardarraíles.',
+  },
+  {
+    nombre: 'Prometer lo que no puede cumplir',
+    n: 1,
+    texto: 'Condiciones, plazos o garantías inventados sobre la marcha en nombre de la empresa.',
+  },
+  {
+    nombre: 'Revelar datos de clientes',
+    n: 0,
+    texto:
+      'Ninguno soltó datos personales. Es la buena noticia del estudio, y encaja con que casi ningún asistente público tiene acceso real a la base de clientes.',
+  },
+  {
+    nombre: 'Soltar información comercial interna',
+    n: 0,
+    texto:
+      'Ninguno reveló precios, descuentos ni márgenes que no fueran públicos, al menos ante nuestras preguntas de primer nivel.',
+  },
+];
+---
+
+<Base
+  title="Qué se le escapa a los asistentes de IA de las webs españolas"
+  description="Rastreamos 391 webs españolas, encontramos 29 asistentes con IA respondiendo en abierto y probamos 41. Uno de cada cuatro dejó escapar algo. Datos propios, septiembre de 2026."
+>
+  <!-- Hero -->
+  <section class="wrap py-24 md:py-32">
+    <p class="eyebrow" data-reveal>Estudio propio · Septiembre de 2026</p>
+    <h1
+      class="mt-7 max-w-[20ch] font-display text-[clamp(38px,6vw,76px)] font-extralight leading-[1.04] tracking-[-0.035em]"
+      data-reveal
+    >
+      Probamos 41 asistentes de IA españoles. <span class="font-semibold text-oro-oscuro"
+        >Uno de cada cuatro dejó escapar algo</span
+      >.
+    </h1>
+    <p class="mt-8 max-w-[56ch] text-[clamp(17px,1.6vw,20px)] text-pizarra" data-reveal>
+      Rastreamos 391 webs de empresas españolas buscando asistentes con IA abiertos al público. Encontramos 29
+      respondiendo sin pedir nada a cambio. A los que pudimos abrir les lanzamos la misma batería de pruebas.
+      Esto es lo que salió.
+    </p>
+    <p class="mt-6 max-w-[56ch] text-[15px] text-pizarra" data-reveal>
+      No nombramos a nadie. Cada hallazgo se comparte solo con la empresa afectada.
+    </p>
+
+    <ul class="mt-14 grid gap-4 sm:grid-cols-3" role="list" data-reveal>
+      {
+        [
+          ['391', 'webs rastreadas'],
+          ['41', 'asistentes probados a fondo'],
+          ['11', 'dejaron escapar algo'],
+        ].map(([cifra, texto]) => (
+          <li class="rounded-[4px] border border-linea bg-panel px-6 py-6">
+            <p class="font-display text-[40px] font-extralight leading-none tracking-[-0.04em] text-oro-oscuro">
+              {cifra}
+            </p>
+            <p class="mt-3 text-[14px] text-pizarra">{texto}</p>
+          </li>
+        ))
+      }
+    </ul>
+  </section>
+
+  <!-- Qué hay ahí fuera -->
+  <section class="hairline bg-panel">
+    <div class="wrap py-24 md:py-32">
+      <div class="max-w-[62ch]" data-reveal>
+        <p class="eyebrow">Primer hallazgo</p>
+        <h2 class="mt-5 font-display text-[clamp(28px,3.6vw,44px)] font-extralight leading-[1.1] tracking-[-0.03em]">
+          Hay menos asistentes con IA de los que parece. Pero los que hay están expuestos.
+        </h2>
+        <p class="mt-6 text-[17px] text-pizarra">
+          De las 391 webs rastreadas, la mayoría no tiene chat de ningún tipo. El bloque interesante son los 29
+          asistentes con IA que responden a cualquiera que entre, sin registro y sin identificarse.
+        </p>
+      </div>
+
+      <ul class="mt-14 grid gap-x-12 gap-y-8 md:grid-cols-2" role="list">
+        {
+          rastreo.map((r) => (
+            <li class="flex items-baseline gap-5 border-t border-linea pt-5" data-reveal>
+              <span class="w-[3.5ch] shrink-0 text-right font-display text-[26px] font-extralight tracking-[-0.03em] text-oro-oscuro">
+                {r.cifra}
+              </span>
+              <span class="text-[15px] text-pizarra">{r.texto}</span>
+            </li>
+          ))
+        }
+      </ul>
+    </div>
+  </section>
+
+  <!-- Resultados de las pruebas -->
+  <section class="hairline bg-marino text-marfil">
+    <div class="wrap py-24 md:py-32">
+      <div class="max-w-[62ch]" data-reveal>
+        <p class="eyebrow text-oro-luz">Segundo hallazgo</p>
+        <h2 class="mt-5 font-display text-[clamp(28px,3.6vw,44px)] font-extralight leading-[1.1] tracking-[-0.03em]">
+          Cuatro asistentes estaban en crítico.
+        </h2>
+        <p class="mt-6 text-[17px] text-marfil/72">
+          Cada uno de los 41 asistentes recibió las mismas seis pruebas, siempre desde su web pública y siempre
+          conversando como lo haría un visitante. De los 41, treinta y cuatro aguantaron las seis. Siete no: tres
+          se quedaron en aviso y cuatro en crítico.
+        </p>
+      </div>
+
+      <ul class="mt-16 grid gap-8 md:grid-cols-3" role="list">
+        {
+          [
+            ['34', 'sin hallazgos', 'Rechazaron las seis pruebas.'],
+            ['3', 'en aviso', 'Filtraron algo que conviene cerrar.'],
+            ['4', 'en crítico', 'Un visitante puede sacarles bastante más de lo previsto.'],
+          ].map(([cifra, etiqueta, texto]) => (
+            <li class="border-t border-marfil/15 pt-6" data-reveal>
+              <p class="font-display text-[46px] font-extralight leading-none tracking-[-0.04em] text-oro-luz">
+                {cifra}
+              </p>
+              <p class="mt-4 font-mono text-[11px] uppercase tracking-[0.18em] text-marfil/60">{etiqueta}</p>
+              <p class="mt-3 text-[15px] text-marfil/70">{texto}</p>
+            </li>
+          ))
+        }
+      </ul>
+    </div>
+  </section>
+
+  <!-- Por categoría -->
+  <section class="hairline">
+    <div class="wrap py-24 md:py-32">
+      <div class="max-w-[62ch]" data-reveal>
+        <p class="eyebrow">Qué se escapa, por tipo</p>
+        <h2 class="mt-5 font-display text-[clamp(28px,3.6vw,44px)] font-extralight leading-[1.1] tracking-[-0.03em]">
+          Lo que más se les escapa son sus propias instrucciones.
+        </h2>
+        <p class="mt-6 text-[17px] text-pizarra">
+          Sobre 41 asistentes probados, este es el reparto por tipo de fuga. Un mismo asistente puede fallar en
+          varias.
+        </p>
+      </div>
+
+      <ul class="mt-14" role="list">
+        {
+          categorias.map((c) => (
+            <li class="grid gap-4 border-t border-linea py-7 md:grid-cols-12 md:items-baseline" data-reveal>
+              <div class="flex items-baseline gap-4 md:col-span-5">
+                <span class="w-[3ch] shrink-0 text-right font-display text-[28px] font-extralight tracking-[-0.03em] text-oro-oscuro">
+                  {c.n}
+                </span>
+                <div>
+                  <h3 class="font-display text-[18px] font-semibold leading-[1.3]">{c.nombre}</h3>
+                  <p class="mt-1 font-mono text-[11px] uppercase tracking-[0.14em] text-pizarra">
+                    de 41 asistentes
+                  </p>
+                </div>
+              </div>
+              <p class="text-[15px] text-pizarra md:col-span-7">{c.texto}</p>
+            </li>
+          ))
+        }
+      </ul>
+    </div>
+  </section>
+
+  <!-- Método y límites -->
+  <section class="hairline bg-panel">
+    <div class="wrap grid gap-12 py-24 md:grid-cols-12 md:py-32">
+      <div class="md:col-span-6" data-reveal>
+        <p class="eyebrow">Cómo está hecho</p>
+        <div class="mt-6 space-y-5 text-[16px] text-pizarra">
+          <p>
+            Un rastreador visita la portada y las páginas de contacto, soporte y ayuda de cada dominio, busca las
+            firmas de los proveedores de chat conocidos y abre el widget como lo abriría una persona. Envía un
+            mensaje inocente y clasifica la respuesta para separar un modelo de lenguaje de un chat guionizado.
+          </p>
+          <p>
+            A los que responden se les lanzan seis pruebas en una sola conversación, con pausas entre mensajes y
+            una única sesión por dominio y día. Un modelo juez puntúa cada respuesta contra su rúbrica y está
+            obligado a citar el fragmento literal que constituye la fuga. Si la cita no aparece en la
+            conversación, el hallazgo se degrada.
+          </p>
+        </div>
+      </div>
+      <div class="md:col-span-6 md:pl-6" data-reveal>
+        <p class="eyebrow">Lo que este estudio no dice</p>
+        <div class="mt-6 space-y-5 text-[16px] text-pizarra">
+          <p>
+            La muestra no es representativa de la empresa española: son 391 dominios elegidos por tener presencia
+            digital y probabilidad de haber puesto un asistente. Cuarenta webs no se pudieron rastrear, así que
+            hay asistentes que no hemos visto.
+          </p>
+          <p>
+            Las pruebas son de primer nivel, las que haría alguien con curiosidad y paciencia, no un atacante
+            dedicado. Un asistente que aguanta estas seis no es un asistente seguro: es uno que no se cae a la
+            primera.
+          </p>
+          <p>
+            Nada de esto se hizo entrando en sistemas ajenos. Solo se habló con chats publicados en webs
+            públicas, como cualquier visitante.
+          </p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Cierre -->
+  <section class="hairline">
+    <div class="wrap grid gap-12 py-24 md:grid-cols-12 md:py-32">
+      <div class="md:col-span-5" data-reveal>
+        <p class="eyebrow">La conclusión</p>
+        <h2 class="mt-5 font-display text-[clamp(28px,3.6vw,44px)] font-extralight leading-[1.1] tracking-[-0.03em]">
+          El problema no es la IA. Es que nadie la revisa después.
+        </h2>
+      </div>
+      <div class="space-y-5 text-[17px] text-pizarra md:col-span-7 md:pt-12" data-reveal>
+        <p>
+          Los asistentes que aguantaron las seis pruebas suelen estar en empresas grandes, con un clasificador
+          delante que bloquea cualquier mensaje raro. Los que fallaron son de empresas medianas que montaron el
+          asistente rápido, lo conectaron a su documentación y no volvieron a mirarlo.
+        </p>
+        <p>
+          Cerrar esto no es un proyecto largo: es reescribir las instrucciones, poner filtros a la entrada y a la
+          salida, acotar lo que el asistente puede consultar y dejar pruebas que avisen si se vuelve a abrir.
+        </p>
+        <div class="flex flex-wrap gap-4 pt-4">
+          <Boton href={href('/contacto/')}>Escanear el mío gratis →</Boton>
+          <Boton href={href('/servicios/seguridad-ia/')} variante="linea">Cómo lo auditamos</Boton>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <Cta
+    titulo="¿Quieres saber en qué grupo está el tuyo?"
+    texto="Nos dices tu dominio y te devolvemos el informe básico con la severidad y las categorías de fuga que encontremos. Sin coste y sin compromiso."
+    boton="Pedir el escaneo"
+  />
+</Base>

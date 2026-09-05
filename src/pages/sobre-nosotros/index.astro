@@ -4,6 +4,7 @@ import Base from '../../layouts/Base.astro';
 import Cta from '../../components/Cta.astro';
 import { site, href } from '../../lib/site';
 import diego from '../../assets/diego.png';
+import irene from '../../assets/irene.jpg';
 
 const historia = [
   '77 Delta nace de la experiencia acumulada por su fundador, Diego Torres, a lo largo de más de dos décadas en el ecosistema empresarial: como ingeniero, como emprendedor, como mentor de más de 500 startups y como responsable de iniciativas en Web3, Datos e Identidad Digital.',
@@ -295,6 +296,44 @@ const descripcion =
             class="mt-6 inline-block font-mono text-[12px] text-oro-oscuro hover:text-tinta"
           >
             LinkedIn →
+          </a>
+        </div>
+      </article>
+
+      <article class="mt-16 grid gap-10 border-t border-linea pt-12 md:grid-cols-12" data-reveal>
+        <div class="md:col-span-5">
+          <Image
+            src={irene}
+            width={720}
+            format="webp"
+            alt="Irene Martínez"
+            loading="lazy"
+            class="w-full max-w-[360px] rounded-[12px] border border-linea object-cover"
+          />
+        </div>
+        <div class="md:col-span-7">
+          <h3 class="font-display text-[24px] font-semibold">Irene Martínez</h3>
+          <p class="mt-2 font-mono text-[12px] uppercase tracking-[0.14em] text-oro-oscuro">
+            Formación y desarrollo de equipos
+          </p>
+          <div class="mt-6 space-y-5 text-[16px] text-pizarra">
+            <p>
+              Fisioterapeuta y profesora asociada en la Universidad de Vic, donde imparte emprendimiento,
+              innovación y gestión sanitaria en el grado de Fisioterapia.
+            </p>
+            <p>
+              Dirige Corpora, nuestra línea de formación en salud para empresas, y aporta al equipo lo que más
+              cuesta en cualquier transformación: traducir contenido técnico en algo que una plantilla pueda
+              aplicar el lunes siguiente.
+            </p>
+          </div>
+          <a
+            href="https://corpora.cat"
+            target="_blank"
+            rel="noopener"
+            class="mt-6 inline-block font-mono text-[12px] text-oro-oscuro hover:text-tinta"
+          >
+            Ver Corpora →
           </a>
         </div>
       </article>

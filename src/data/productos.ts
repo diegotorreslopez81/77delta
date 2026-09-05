@@ -64,18 +64,6 @@ export const productos: Producto[] = [
     stack: 'React 19, Express 5, MongoDB, OpenAI',
   },
   {
-    slug: 'canto',
-    nombre: 'Canto',
-    estado: 'En producción',
-    categoria: 'DevTool',
-    descripcion: 'Editor markdown para Claude Code.',
-    url: 'https://marketplace.visualstudio.com/items?itemName=infinitelabs.canto-claude',
-    logo: 'canto.png',
-    queHace:
-      'Editor visual de markdown dentro del IDE para las notas, los planes y la configuración con los que trabaja Claude Code. Código abierto y publicado en el marketplace de VS Code.',
-    stack: 'TypeScript, API de extensiones de VS Code',
-  },
-  {
     slug: 'scoreflow',
     nombre: 'ScoreFlow',
     estado: 'Pre-MVP',

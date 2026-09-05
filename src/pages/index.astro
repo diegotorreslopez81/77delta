@@ -33,6 +33,24 @@ import { casos, familias } from '../data/casos-de-uso';
 </section>
 
 <!-- PROBLEMA -->
+<!-- PRUEBA SOCIAL -->
+<section class="proof">
+  <div class="cont">
+    <p class="proof-txt">Más de siete años aplicando IA con criterio, con instituciones y corporaciones de primer nivel</p>
+    <div class="proof-logos">
+      <a href="https://www.accio.gencat.cat" target="_blank" rel="noopener"><img src="/img/logos/accio.png" alt="ACCIÓ" loading="lazy"></a>
+      <a href="https://www.gencat.cat" target="_blank" rel="noopener"><img src="/img/logos/gencat.svg" alt="Generalitat de Catalunya" loading="lazy"></a>
+      <a href="https://www.bancsabadell.com" target="_blank" rel="noopener"><img src="/img/logos/sabadell.png" alt="Banc Sabadell" loading="lazy"></a>
+      <a href="https://futurium.ec.europa.eu" target="_blank" rel="noopener"><img src="/img/logos/futurium.svg" alt="Comisión Europea" loading="lazy"></a>
+      <a href="https://i2cat.net" target="_blank" rel="noopener"><img src="/img/logos/i2cat.svg" alt="i2CAT" loading="lazy"></a>
+      <a href="https://barcelonactiva.cat" target="_blank" rel="noopener"><img src="/img/logos/barcelona-activa.png" alt="Barcelona Activa" loading="lazy"></a>
+      <a href="https://www.anthropic.com" target="_blank" rel="noopener"><img src="/img/logos/anthropic.svg" alt="Anthropic" loading="lazy"></a>
+      <a href="https://aws.amazon.com" target="_blank" rel="noopener"><img src="/img/logos/aws.svg" alt="Amazon Web Services" loading="lazy"></a>
+    </div>
+    <a href="#confianza" class="proof-mas">Ver todas las organizaciones <span>&#8594;</span></a>
+  </div>
+</section>
+
 <section class="problem">
   <div class="cont">
     <div class="grid">
@@ -95,7 +113,8 @@ import { casos, familias } from '../data/casos-de-uso';
         <span class="section-tag">Seguridad de IA</span>
         <h2>Tu chatbot <em>cuenta más de lo que crees.</em></h2>
         <p>Poner un asistente con IA en la web lleva una tarde. Auditarlo no lo hace casi nadie. Lo probamos como lo probaría alguien con malas intenciones y te enseñamos qué se le escapa: las instrucciones internas, los precios que no debería dar, los datos de clientes a los que llega y lo que dice cuando alguien lo saca de guion.</p>
-        <p class="aisec-nota">Lo hacemos con LeakAI, la herramienta que hemos construido para esto. El diagnóstico es gratuito. Lo que se paga es dejarlo cerrado.</p>
+        <p class="aisec-nota">Lo hacemos con LeakAI, la herramienta que hemos construido para esto. Con ella rastreamos 391 webs españolas en septiembre de 2026: de los 41 asistentes que pudimos probar, uno de cada cuatro dejó escapar algo. El diagnóstico es gratuito. Lo que se paga es dejarlo cerrado.</p>
+        <p class="aisec-nota"><a href="/estudio-asistentes-ia/" class="aisec-enlace">Ver el estudio con los datos &#8594;</a></p>
         <div class="ctas">
           <a href="/seguridad-ia/" class="btn-primary">Pedir el escaneo gratuito <span>&#8594;</span></a>
           <a href="/productos/#leakai" class="btn-ghost">Conocer LeakAI</a>
@@ -393,7 +412,7 @@ import { casos, familias } from '../data/casos-de-uso';
 </section>
 
 <!-- TRUST BAND (al final, antes del footer) -->
-<section class="trust">
+<section class="trust" id="confianza">
   <div class="cont">
     <div class="header">
       <span class="section-tag">Confianza demostrada</span>
@@ -479,6 +498,8 @@ import { casos, familias } from '../data/casos-de-uso';
   .aisec h2 em{font-style:normal;font-weight:600;color:var(--accent-luz)}
   .aisec p{font-size:17px;line-height:1.6;color:rgba(237,234,227,.72);margin-bottom:18px;max-width:56ch}
   .aisec .aisec-nota{font-size:15px;color:rgba(237,234,227,.55)}
+  .aisec-enlace{color:var(--accent-luz);font-family:'IBM Plex Mono',ui-monospace,monospace;font-size:12px;letter-spacing:.04em}
+  .aisec-enlace:hover{color:#EDEAE3}
   .aisec .ctas{display:flex;gap:12px;flex-wrap:wrap;margin-top:32px}
   .aisec .btn-primary:hover{background:#EDEAE3;color:var(--ink);box-shadow:0 12px 32px rgba(0,0,0,.35)}
   .aisec-informe{border:1px solid rgba(237,234,227,.14);background:rgba(237,234,227,.04);border-radius:14px;padding:26px 24px}
@@ -506,6 +527,16 @@ import { casos, familias } from '../data/casos-de-uso';
   .caps-grid .cuenta{margin-top:18px;font-family:'IBM Plex Mono',ui-monospace,monospace;font-size:11px;letter-spacing:.12em;text-transform:uppercase;color:var(--ink-4)}
   .caps-link{display:inline-flex;align-items:center;gap:10px;margin-top:36px;font-family:'Sora',system-ui,sans-serif;font-size:15px;font-weight:600;color:var(--accent-2)}
   .caps-link:hover{color:var(--ink)}
+
+
+  /* Prueba social bajo el hero */
+  .proof{padding:40px 0 44px;background:var(--dark);border-top:1px solid rgba(237,234,227,.08)}
+  .proof-txt{font-family:'IBM Plex Mono',ui-monospace,monospace;font-size:11px;letter-spacing:.14em;text-transform:uppercase;color:rgba(237,234,227,.45);text-align:center;margin-bottom:26px}
+  .proof-logos{display:flex;flex-wrap:wrap;align-items:center;justify-content:center;gap:22px 44px}
+  .proof-logos img{height:26px;width:auto;max-width:130px;object-fit:contain;filter:brightness(0) invert(1);opacity:.5;transition:opacity .2s}
+  .proof-logos a:hover img{opacity:.95}
+  .proof-mas{display:block;text-align:center;margin-top:26px;font-family:'IBM Plex Mono',ui-monospace,monospace;font-size:11px;letter-spacing:.1em;color:rgba(237,234,227,.4)}
+  .proof-mas:hover{color:var(--accent-luz)}
 
   .trust{padding:80px 0 100px;background:var(--paper);border-top:1px solid var(--line)}
   .trust .header{text-align:center;margin-bottom:48px}
@@ -678,6 +709,8 @@ import { casos, familias } from '../data/casos-de-uso';
     .problem .lead,.problem .questions{font-size:16px}
     .aisec{padding:80px 0}
     .caps{padding:80px 0}
+    .proof-logos{gap:18px 26px}
+    .proof-logos img{height:20px;max-width:96px}
     .caps-grid{grid-template-columns:1fr}
     .aisec-grid{grid-template-columns:1fr;gap:40px}
     .services{padding:80px 0}

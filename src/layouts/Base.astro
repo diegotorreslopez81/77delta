@@ -3,7 +3,7 @@ import '../styles/global.css';
 import Nav from '../components/Nav.astro';
 import Footer from '../components/Footer.astro';
 import WhatsApp from '../components/WhatsApp.astro';
-import { site, umami, href } from '../lib/site';
+import { site, umami, searchConsole, href } from '../lib/site';
 
 interface Props {
   /** Título de la página, sin el nombre de la marca. */
@@ -33,6 +33,7 @@ const og = new URL(href(ogImage), Astro.site).href;
     <link rel="alternate icon" href={href('/favicon.ico')} sizes="16x16 32x32 48x48" />
     <meta name="theme-color" content="#06101F" />
     {noindex && <meta name="robots" content="noindex, nofollow" />}
+    {searchConsole && <meta name="google-site-verification" content={searchConsole} />}
     {umami.script && <script defer src={umami.script} data-website-id={umami.websiteId} is:inline />}
 
     <meta property="og:type" content="website" />
