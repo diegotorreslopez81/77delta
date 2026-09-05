@@ -613,7 +613,10 @@ var LIC_GANADA = ['adjudicada', 'contratada'];
 var MOTIVOS_NO = ['Fuera de sector', 'Exige solvencia', 'Presencial', 'Importe bajo', 'Plazo imposible', 'Atada al proveedor', 'Sin margen', 'Otro'];
 var MOTIVOS_OK = ['Encaja perfil', '159.6 sin solvencia', 'Importe interesante', 'Cliente estratégico', 'Repetible', 'Otro'];
 function licTodas(){ return S.hq.licitaciones || []; }
-function licPorDecidir(){ return licTodas().filter(function(l){ return l.pestana === 'Licitaciones' && l.decision === 'Pendiente' && LIC_TERMINAL.indexOf((l.estado || '').toLowerCase()) < 0 && ['presentada', 'en juego'].indexOf((l.estado || '').toLowerCase()) < 0; }); }
+/* Por decidir solo lo analizado de verdad (con resumen); lo demás cuenta como "en análisis" y no molesta a Diego. */
+function licAnalizada(l){ return !!((l.resumen_corto || '').trim() || (l.resumen || '').trim()); }
+function licPorDecidir(){ return licTodas().filter(function(l){ return l.pestana === 'Licitaciones' && l.decision === 'Pendiente' && licAnalizada(l) && LIC_TERMINAL.indexOf((l.estado || '').toLowerCase()) < 0 && ['presentada', 'en juego'].indexOf((l.estado || '').toLowerCase()) < 0; }); }
+function licEnAnalisis(){ return licTodas().filter(function(l){ return l.pestana === 'Licitaciones' && l.decision === 'Pendiente' && !licAnalizada(l) && LIC_TERMINAL.indexOf((l.estado || '').toLowerCase()) < 0; }); }
 function licEnCurso(){ return licTodas().filter(function(l){ var e = (l.estado || '').toLowerCase(); return l.pestana === 'Licitaciones' && LIC_TERMINAL.indexOf(e) < 0 && (l.decision === 'OK' || ['presentada', 'en juego', 'aprobada', 'en preparación', 'en preparacion'].indexOf(e) >= 0); }); }
 function licGanadas(){ return licTodas().filter(function(l){ return LIC_GANADA.indexOf((l.estado || '').toLowerCase()) >= 0; }); }
 function licCerradas(){ return licTodas().filter(function(l){ var e = (l.estado || '').toLowerCase(); return LIC_TERMINAL.indexOf(e) >= 0 && LIC_GANADA.indexOf(e) < 0; }); }
@@ -623,7 +626,7 @@ function urgLic(l){ if (!l.cierre) return ''; var h = (new Date(l.cierre + 'T14:
 function renderLicita(){
   var pd = licPorDecidir(), ec = licEnCurso(), g = licGanadas(), c = licCerradas();
   var f = el('div', { class: 'grid2' });
-  [[pd.length, 'por decidir'], [ec.length, 'en curso'], [g.length, 'contratadas'], [licTodas().filter(function(l){ return l.pestana === 'Licitaciones'; }).length, 'analizadas vivas']].forEach(function(p){ f.appendChild(mini(String(p[0]), p[1])); });
+  [[pd.length, 'por decidir'], [ec.length, 'en curso'], [g.length, 'contratadas'], [licEnAnalisis().length, 'en análisis (Guillem)']].forEach(function(p){ f.appendChild(mini(String(p[0]), p[1])); });
   app.appendChild(f);
   var motor = el('div', { class: 'tags', style: 'margin:-4px 0 6px' });
   if (kpi('lic.detectadas_hoy.n') != null) motor.appendChild(el('span', { class: 'dato ' + (kpi('lic.detectadas_hoy.n') ? 'verde' : ''), text: 'motor: ' + kpi('lic.detectadas_hoy.n') + ' nuevas hoy · ' + (kpi('lic.detectadas_7d.n') || 0) + ' esta semana' }));
