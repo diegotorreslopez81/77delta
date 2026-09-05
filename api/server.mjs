@@ -134,7 +134,17 @@ async function notificar(token, id, texto = '') {
   const info = await rpc('omc_token_info', { p_token: token });
   const s = await rpc('omc_estado', { p_token: token, p_id: id });
   const subs = await supa(`/rest/v1/omc_push?empresa=eq.${encodeURIComponent(info.empresa)}&select=id,endpoint,sub`, {}, HQ.service);
-  const extra = [s.importe != null ? `${s.importe} €` : '', s.vence ? `vence ${new Date(s.vence).toLocaleString('es-ES', { timeZone: 'Europe/Madrid', day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })}` : ''].filter(Boolean).join(' · ');
+  let importe = s.importe;
+  if (importe == null) {
+    // Sin importe explícito: se busca la licitación citada por expediente en el título o el detalle.
+    try {
+      const lics = await supa(`/rest/v1/omc_licitaciones?empresa=eq.${encodeURIComponent(info.empresa)}&select=expediente,importe`, {}, HQ.service);
+      const txt = `${s.titulo} ${s.detalle}`.toLowerCase();
+      const l = (lics || []).find((x) => x.expediente && x.expediente.length > 4 && txt.includes(String(x.expediente).toLowerCase()));
+      if (l && l.importe != null) importe = l.importe;
+    } catch {}
+  }
+  const extra = [importe != null ? `${Number(importe).toLocaleString('es-ES')} €` : '', s.vence ? `vence ${new Date(s.vence).toLocaleString('es-ES', { timeZone: 'Europe/Madrid', day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })}` : ''].filter(Boolean).join(' · ');
   const carga = JSON.stringify({
     title: texto ? `${s.agente} responde · #${s.id}` : `${TIPO[s.tipo] || 'HQ'} · ${s.agente}`,
     body: texto ? String(texto).slice(0, 300) : s.titulo + (extra ? `\n${extra}` : ''),

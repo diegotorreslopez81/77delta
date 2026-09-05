@@ -85,6 +85,7 @@ main{padding:calc(114px + env(safe-area-inset-top)) 14px 0;max-width:720px;margi
 .dato.tinta{background:var(--tinta);color:var(--papel)}
 .dato a{text-decoration:none;font-weight:500}
 .tipo-ic{width:38px;height:38px;border-radius:11px;display:grid;place-items:center;background:var(--oro-suave);font-size:18px;flex:0 0 auto}
+.tipo-ic.eur{width:auto;padding:0 10px;font:600 14px var(--mono);color:var(--oro-oscuro);white-space:nowrap}
 
 /* Tarjetas de la bandeja */
 .card{background:var(--panel);border:1px solid var(--linea);border-radius:var(--radio);padding:16px;margin-bottom:12px;position:relative;touch-action:pan-y;transition:transform .25s var(--ease),opacity .25s;will-change:transform}
@@ -353,17 +354,19 @@ function renderBandeja(){
   if (marcar){ var c = document.getElementById('s-' + marcar); if (c){ c.classList.add('marcada'); c.scrollIntoView({ block: 'center' }); } else { var s = S.hq.seguimiento.concat(S.hq.historial).filter(function(x){ return x.id === marcar; })[0]; if (s) hojaSolicitud(s); } marcar = null; }
 }
 
+function licDe(s){ var txt = (s.titulo + ' ' + s.detalle).toLowerCase(); return licTodas().filter(function(l){ return l.expediente && l.expediente.length > 4 && txt.indexOf(l.expediente.toLowerCase()) >= 0; })[0]; }
 function tarjeta(s){
-  var esDuda = s.tipo === 'duda', u = urgencia(s), ag = agente(s.agente);
+  var esDuda = s.tipo === 'duda', u = urgencia(s), ag = agente(s.agente), lic = s.importe == null ? licDe(s) : null;
   var card = el('div', { class: 'card ' + u, id: 's-' + s.id });
   card.appendChild(el('div', { class: 'cab' }, [el('div', { class: 'avw' }, [avatar(ag, 'peq')]),
     el('div', { class: 'quien' }, [el('b', { text: ag ? persona(ag) + ' · ' + rolDe(ag) : s.agente }), el('span', { text: (s.depto || '') + ' · ' + (TIPO[s.tipo] || s.tipo) + ' · #' + s.id + ' · ' + rel(s.created_at) })]),
-    el('div', { class: 'tipo-ic', text: TIPO_IC[s.tipo] || '✓', title: TIPO[s.tipo] || s.tipo })]));
+    (s.importe != null || (lic && lic.importe != null)) ? el('div', { class: 'tipo-ic eur', text: eur(s.importe != null ? s.importe : lic.importe) }) : el('div', { class: 'tipo-ic', text: TIPO_IC[s.tipo] || '✓', title: TIPO[s.tipo] || s.tipo })]));
   card.appendChild(el('h3', { text: s.titulo }));
   if (s.detalle){ var largo = s.detalle.length > 700, det = el('div', { class: 'det' + (largo ? ' largo' : '') + (S.abiertos[s.id] ? ' abierto' : ''), text: s.detalle });
     if (largo) det.addEventListener('click', function(){ S.abiertos[s.id] = !S.abiertos[s.id]; det.classList.toggle('abierto'); }); card.appendChild(det); }
   var datos = el('div', { class: 'datos' });
   if (s.importe != null) datos.appendChild(el('span', { class: 'dato oro', text: eur(s.importe) }));
+  else if (lic && lic.importe != null) datos.appendChild(el('span', { class: 'dato oro', text: 'licitación ' + eur(lic.importe) + (lic.organo ? ' · ' + lic.organo.slice(0, 40) : '') }));
   if (s.vence) datos.appendChild(el('span', { class: 'dato ' + (u === 'urgente' ? 'rojo' : u === 'pronto' ? 'oro' : ''), text: (new Date(s.vence) < Date.now() ? 'vencida ' : 'vence ') + rel(s.vence) + ' · ' + new Date(s.vence).toLocaleString('es-ES', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' }) }));
   if (s.riesgo) datos.appendChild(el('span', { class: 'dato', text: s.riesgo }));
   if (s.prioridad === 1) datos.appendChild(el('span', { class: 'dato oro', text: 'ingresos' }));
@@ -638,12 +641,11 @@ function renderLicita(){
 }
 function tarjetaLic(l){
   var u = urgLic(l), card = el('div', { class: 'card ' + u, id: 'l-' + l.expediente.replace(/[^a-z0-9]/gi, '_') });
-  card.appendChild(el('div', { class: 'cab' }, [el('div', { class: 'tipo-ic', text: '§' }), el('div', { class: 'quien' }, [el('b', { text: l.organo || l.expediente }), el('span', { text: [l.tipo, l.procedimiento, l.provincia].filter(Boolean).join(' · ') })])]));
+  card.appendChild(el('div', { class: 'cab' }, [el('div', { class: 'quien' }, [el('b', { text: l.organo || l.expediente }), el('span', { text: [l.tipo, l.procedimiento, l.provincia].filter(Boolean).join(' · ') })]), el('div', { class: 'tipo-ic eur' + (l.importe == null ? '' : ''), text: l.importe != null ? eur(l.importe) : '§' })]));
   card.appendChild(el('h3', { text: l.resumen_corto || l.organo || l.expediente }));
   var cuerpo = [l.resumen && l.resumen !== l.resumen_corto ? l.resumen : '', l.objeto].filter(Boolean).join('\n\n');
   if (cuerpo){ var det = el('div', { class: 'det' + (cuerpo.length > 500 ? ' largo' : '') + (S.abiertos[l.expediente] ? ' abierto' : ''), text: cuerpo }); det.addEventListener('click', function(){ S.abiertos[l.expediente] = !S.abiertos[l.expediente]; det.classList.toggle('abierto'); }); card.appendChild(det); }
   var datos = el('div', { class: 'datos' });
-  if (l.importe != null) datos.appendChild(el('span', { class: 'dato oro', text: eur(l.importe) }));
   if (l.cierre) datos.appendChild(el('span', { class: 'dato ' + (u === 'urgente' ? 'rojo' : u === 'pronto' ? 'oro' : ''), text: 'cierra ' + l.cierre.slice(5).split('-').reverse().join('/') + ' · ' + rel(l.cierre + 'T14:00:00') }));
   var eg = elegibleChip(l); if (eg) datos.appendChild(eg);
   var sv = solvenciaCorta(l); if (sv) datos.appendChild(el('span', { class: 'dato ' + sv[1], text: sv[0] }));
