@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" role="img" aria-label="LeakAI">
+  <rect width="256" height="256" rx="52" fill="#06101F"/>
+  <path d="M64 76h128v78a14 14 0 0 1-14 14H108l-34 30v-30h-10a14 14 0 0 1-14-14V76Z" fill="none" stroke="#A7781B" stroke-width="11" stroke-linejoin="round"/>
+  <circle cx="104" cy="118" r="8" fill="#A7781B"/>
+  <circle cx="134" cy="118" r="8" fill="#A7781B"/>
+  <path d="M176 176c9 12 14 20 14 27a14 14 0 0 1-28 0c0-7 5-15 14-27Z" fill="#EDEAE3"/>
+</svg>

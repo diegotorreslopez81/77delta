@@ -86,6 +86,39 @@ import { site } from '../lib/site';
   </div>
 </section>
 
+<!-- SEGURIDAD DE IA -->
+<section class="aisec" id="seguridad">
+  <div class="cont">
+    <div class="aisec-grid">
+      <div>
+        <span class="section-tag">Seguridad de IA</span>
+        <h2>Tu chatbot <em>cuenta más de lo que crees.</em></h2>
+        <p>Poner un asistente con IA en la web lleva una tarde. Auditarlo no lo hace casi nadie. Lo probamos como lo probaría alguien con malas intenciones y te enseñamos qué se le escapa: las instrucciones internas, los precios que no debería dar, los datos de clientes a los que llega y lo que dice cuando alguien lo saca de guion.</p>
+        <p class="aisec-nota">Lo hacemos con LeakAI, la herramienta que hemos construido para esto. El diagnóstico es gratuito. Lo que se paga es dejarlo cerrado.</p>
+        <div class="ctas">
+          <a href="/seguridad-ia/" class="btn-primary">Pedir el escaneo gratuito <span>&#8594;</span></a>
+          <a href="/productos/#leakai" class="btn-ghost">Conocer LeakAI</a>
+        </div>
+      </div>
+
+      <aside class="aisec-informe" aria-label="Ejemplo de informe básico">
+        <div class="aisec-informe-cab">
+          <span>Informe básico</span>
+          <span class="aisec-ejemplo">Ejemplo</span>
+        </div>
+        <ul>
+          <li><span class="q">Extracción de instrucciones</span><span class="s s3">Crítico</span></li>
+          <li><span class="q">Precios y condiciones</span><span class="s s2">Alto</span></li>
+          <li><span class="q">Datos de clientes</span><span class="s s1">Medio</span></li>
+          <li><span class="q">Inyección de instrucciones</span><span class="s s2">Alto</span></li>
+          <li><span class="q">Salida de guion</span><span class="s s1">Medio</span></li>
+        </ul>
+        <p class="aisec-pie">Cada hallazgo se acompaña del fragmento exacto de la conversación que lo demuestra.</p>
+      </aside>
+    </div>
+  </div>
+</section>
+
 <!-- SECTORES -->
 <section class="sectors" id="sectores">
   <div class="cont">
@@ -408,6 +441,31 @@ import { site } from '../lib/site';
   .hero .photo img{width:100%;height:100%;object-fit:cover}
   .hero .photo .tag{position:absolute;bottom:24px;left:24px;background:rgba(10,22,40,.78);backdrop-filter:blur(20px);color:#EDEAE3;padding:10px 16px;border-radius:100px;font-size:12px;font-weight:600;letter-spacing:.05em;text-transform:uppercase}
 
+
+  /* Seguridad de IA */
+  .aisec{padding:140px 0;background:var(--dark);color:#EDEAE3}
+  .aisec::before{content:"";position:absolute;top:-20%;left:-8%;width:620px;height:620px;background:radial-gradient(circle,rgba(167,120,27,.14),transparent 62%);filter:blur(70px);pointer-events:none}
+  .aisec .cont{position:relative;z-index:1}
+  .aisec-grid{display:grid;grid-template-columns:7fr 5fr;gap:72px;align-items:center}
+  .aisec .section-tag{color:var(--accent-luz)}
+  .aisec h2{font-size:clamp(30px,3.6vw,46px);font-weight:200;letter-spacing:-.03em;margin-bottom:24px;color:#EDEAE3}
+  .aisec h2 em{font-style:normal;font-weight:600;color:var(--accent-luz)}
+  .aisec p{font-size:17px;line-height:1.6;color:rgba(237,234,227,.72);margin-bottom:18px;max-width:56ch}
+  .aisec .aisec-nota{font-size:15px;color:rgba(237,234,227,.55)}
+  .aisec .ctas{display:flex;gap:12px;flex-wrap:wrap;margin-top:32px}
+  .aisec .btn-primary:hover{background:#EDEAE3;color:var(--ink);box-shadow:0 12px 32px rgba(0,0,0,.35)}
+  .aisec-informe{border:1px solid rgba(237,234,227,.14);background:rgba(237,234,227,.04);border-radius:14px;padding:26px 24px}
+  .aisec-informe-cab{display:flex;align-items:center;justify-content:space-between;gap:12px;padding-bottom:16px;border-bottom:1px solid rgba(237,234,227,.12);font-family:'IBM Plex Mono',ui-monospace,monospace;font-size:11px;letter-spacing:.14em;text-transform:uppercase;color:rgba(237,234,227,.8)}
+  .aisec-ejemplo{color:rgba(237,234,227,.45)}
+  .aisec-informe ul{list-style:none;margin:6px 0 0}
+  .aisec-informe li{display:flex;align-items:center;justify-content:space-between;gap:16px;padding:14px 0;border-bottom:1px solid rgba(237,234,227,.08)}
+  .aisec-informe li .q{font-size:14px;color:rgba(237,234,227,.86)}
+  .aisec-informe li .s{flex-shrink:0;font-family:'IBM Plex Mono',ui-monospace,monospace;font-size:10px;letter-spacing:.12em;text-transform:uppercase;padding:5px 10px;border-radius:100px;border:1px solid}
+  .aisec-informe li .s1{color:rgba(237,234,227,.6);border-color:rgba(237,234,227,.22)}
+  .aisec-informe li .s2{color:var(--accent-luz);border-color:rgba(212,160,58,.4)}
+  .aisec-informe li .s3{color:#06101F;background:var(--accent-luz);border-color:var(--accent-luz);font-weight:700}
+  .aisec-pie{font-size:12px;line-height:1.6;color:rgba(237,234,227,.45);margin:18px 0 0}
+
   .trust{padding:80px 0 100px;background:var(--paper);border-top:1px solid var(--line)}
   .trust .header{text-align:center;margin-bottom:48px}
   .trust .header .section-tag{display:inline-block;font-size:12px;color:var(--accent);font-weight:700;letter-spacing:.14em;text-transform:uppercase;margin-bottom:14px}
@@ -553,6 +611,7 @@ import { site } from '../lib/site';
   @media(max-width:1024px){
     .cont{padding:0 24px}
     .hero .grid,.problem .grid,.case .slide .grid,.about .grid{grid-template-columns:1fr;gap:48px}
+    .aisec-grid{grid-template-columns:1fr;gap:44px}
     .sec-grid{grid-template-columns:repeat(2,1fr)}
     .svc-grid{grid-template-columns:1fr}
     .trust .logos{grid-template-columns:repeat(3,1fr);gap:24px 16px}
@@ -575,6 +634,8 @@ import { site } from '../lib/site';
     .problem{padding:80px 0;min-height:auto}
     .problem h2{font-size:30px;line-height:1.15}
     .problem .lead,.problem .questions{font-size:16px}
+    .aisec{padding:80px 0}
+    .aisec-grid{grid-template-columns:1fr;gap:40px}
     .services{padding:80px 0}
     .section-head h2{font-size:28px;line-height:1.15}
     .section-head p{font-size:16px}

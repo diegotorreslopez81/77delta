@@ -6,7 +6,7 @@ export const site = {
   nombre: '77 Delta',
   claim: 'Aplicamos la IA para ahorrar costes a tu empresa',
   descripcion:
-    'Consultora tecnológica especializada en pymes. Diagnóstico gratuito, transformación operativa con IA y partner tecnológico. Barcelona.',
+    'Consultora tecnológica especializada en pymes. Diagnóstico gratuito, transformación operativa con IA, auditoría de seguridad de asistentes y partner tecnológico. Barcelona.',
   ciudad: 'Barcelona',
   // Pendiente: activar el buzón cuando se compre el dominio.
   email: 'hola@77delta.com',
@@ -32,6 +32,7 @@ export function href(path: string): string {
 export const nav = [
   { texto: 'Sectores', ruta: '/sectores/' },
   { texto: 'Servicios', ruta: '/servicios/' },
+  { texto: 'Seguridad IA', ruta: '/seguridad-ia/' },
   { texto: 'Historias de éxito', ruta: '/historias-de-exito/' },
   { texto: 'Productos', ruta: '/productos/' },
   { texto: 'Sobre nosotros', ruta: '/sobre-nosotros/' },

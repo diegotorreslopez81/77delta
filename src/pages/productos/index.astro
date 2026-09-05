@@ -4,11 +4,15 @@ import Boton from '../../components/Boton.astro';
 import Cta from '../../components/Cta.astro';
 import { href } from '../../lib/site';
 import { productos, corpora } from '../../data/productos';
+
+// El titular cuenta los productos solo, para que no se quede desfasado al añadir uno.
+const enLetras: Record<number, string> = { 5: 'Cinco', 6: 'Seis', 7: 'Siete', 8: 'Ocho', 9: 'Nueve', 10: 'Diez' };
+const cuantos = enLetras[productos.length] ?? String(productos.length);
 ---
 
 <Base
   title="Productos"
-  description="Siete SaaS propios en producción y desarrollo. Construimos lo que implantamos: productos validados con empresas activas."
+  description="Productos propios en producción y desarrollo, de la ciberseguridad de IA al compliance europeo. Construimos lo que implantamos: soluciones validadas con empresas activas."
 >
   <!-- Hero -->
   <section class="wrap py-24 md:py-32">
@@ -17,7 +21,7 @@ import { productos, corpora } from '../../data/productos';
       class="mt-7 max-w-[20ch] font-display text-[clamp(38px,6vw,76px)] font-extralight leading-[1.04] tracking-[-0.035em]"
       data-reveal
     >
-      Siete SaaS construidos por nosotros. En producción con clientes reales.
+      {cuantos} productos construidos por nosotros. En producción con clientes reales.
     </h1>
     <p class="mt-8 max-w-[56ch] text-[clamp(17px,1.6vw,20px)] text-pizarra" data-reveal>
       Construimos lo que implantamos. Nuestros productos están validados con empresas activas y son el
@@ -25,7 +29,7 @@ import { productos, corpora } from '../../data/productos';
     </p>
   </section>
 
-  <!-- Los siete productos -->
+  <!-- Los productos -->
   <section class="hairline">
     <div class="wrap py-20 md:py-24">
       <ul class="grid gap-px overflow-hidden rounded-[4px] border border-linea bg-linea sm:grid-cols-2 lg:grid-cols-3" role="list">

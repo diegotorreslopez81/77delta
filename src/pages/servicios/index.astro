@@ -23,6 +23,12 @@ const resumen = [
     pie: 'Criterio cualificado cada mes',
     ruta: '/servicios/#partner',
   },
+  {
+    etiqueta: 'Seguridad',
+    titulo: 'Auditoría de IA',
+    pie: 'Escaneo gratuito de tus asistentes',
+    ruta: '/servicios/#seguridad',
+  },
 ];
 
 const queObtienes = [
@@ -204,7 +210,7 @@ const faq = [
 
 <Base
   title="Servicios"
-  description="Diagnóstico gratuito, transformación operativa con IA y partner tecnológico. Tres formas de trabajar con 77 Delta para reducir costes y aumentar la producción de tu empresa."
+  description="Diagnóstico gratuito, transformación operativa con IA, partner tecnológico y auditoría de seguridad de asistentes. Cuatro formas de trabajar con 77 Delta para reducir costes y aumentar la producción de tu empresa."
 >
   <!-- Hero -->
   <section class="wrap py-24 md:py-32">
@@ -213,16 +219,16 @@ const faq = [
       class="mt-7 max-w-[20ch] font-display text-[clamp(38px,6vw,76px)] font-extralight leading-[1.04] tracking-[-0.035em]"
       data-reveal
     >
-      Tres formas de trabajar contigo. Un mismo objetivo: <span class="font-semibold text-oro-oscuro"
+      Cuatro formas de trabajar contigo. Un mismo objetivo: <span class="font-semibold text-oro-oscuro"
         >reducir costes</span
-      > y aumentar tu producción con IA aplicada.
+      > y aumentar tu producción con IA aplicada, sin abrir riesgos por el camino.
     </h1>
     <p class="mt-8 max-w-[52ch] text-[clamp(17px,1.6vw,20px)] text-pizarra" data-reveal>
       Cada empresa es distinta. Por eso empezamos siempre por el diagnóstico. A partir de ahí, tú decides el
       recorrido: proyecto puntual, acompañamiento continuo o ambos. Sin tarifas cerradas. Sin compromiso inicial.
     </p>
 
-    <div class="mt-16 grid gap-px overflow-hidden rounded-[4px] border border-linea bg-linea md:grid-cols-3">
+    <div class="mt-16 grid gap-px overflow-hidden rounded-[4px] border border-linea bg-linea sm:grid-cols-2 lg:grid-cols-4">
       {
         resumen.map((r) => (
           <a
@@ -480,6 +486,46 @@ const faq = [
   </section>
 
   <!-- Cupó IA -->
+  <!-- 04 · Seguridad de IA -->
+  <section id="seguridad" class="hairline scroll-mt-[68px] bg-marino text-marfil">
+    <div class="wrap py-24 md:py-32">
+      <div class="grid gap-10 md:grid-cols-12">
+        <div class="md:col-span-7" data-reveal>
+          <p class="eyebrow text-oro-luz">04 · Seguridad</p>
+          <p class="eyebrow mt-6 text-marfil/50">Escaneo gratuito · remediación cotizada</p>
+          <h2
+            class="mt-5 font-display text-[clamp(28px,3.6vw,44px)] font-extralight leading-[1.1] tracking-[-0.03em]"
+          >
+            Auditoría de los asistentes con IA que ya tienes publicados.
+          </h2>
+          <p class="mt-6 max-w-[56ch] text-[17px] text-marfil/72">
+            Un chatbot con IA en tu web habla en tu nombre y suele saber más de lo que le conviene contar.
+            Probamos el tuyo como lo haría alguien con malas intenciones, te enseñamos qué se le escapa y, si
+            quieres, lo dejamos cerrado. El diagnóstico no cuesta nada.
+          </p>
+          <a href={href('/seguridad-ia/')} class="mt-8 inline-flex items-center gap-2 font-display text-[15px] text-oro-luz">
+            Ver cómo lo auditamos →
+          </a>
+        </div>
+        <ul class="grid gap-4 self-center md:col-span-5" role="list" data-reveal>
+          {
+            [
+              ['Instrucciones', 'el system prompt y lo que el bot tiene prohibido decir'],
+              ['Condiciones', 'precios, descuentos y márgenes que salen si se insiste'],
+              ['Datos', 'información de clientes a la que el asistente llega'],
+              ['Guion', 'inyección de instrucciones y respuestas fuera de control'],
+            ].map(([campo, texto]) => (
+              <li class="flex items-baseline gap-4 rounded-[4px] border border-marfil/12 bg-marfil/[0.04] px-5 py-4">
+                <span class="shrink-0 whitespace-nowrap font-mono text-[11px] uppercase tracking-[0.14em] text-oro-luz">{campo}</span>
+                <span class="text-[14px] text-marfil/70">{texto}</span>
+              </li>
+            ))
+          }
+        </ul>
+      </div>
+    </div>
+  </section>
+
   <section id="cupo" class="hairline scroll-mt-[68px] bg-oro/[0.06]">
     <div class="wrap grid gap-10 py-24 md:grid-cols-12 md:py-28">
       <div class="md:col-span-7" data-reveal>

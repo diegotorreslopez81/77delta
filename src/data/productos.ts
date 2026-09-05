@@ -1,4 +1,4 @@
-/** Los siete SaaS propios. Se listan en /productos/; el footer enlaza a /productos/#<slug>. */
+/** Los productos propios. Se listan en /productos/; el footer enlaza a /productos/#<slug>. */
 export interface Producto {
   slug: string;
   nombre: string;
@@ -12,6 +12,15 @@ export interface Producto {
 }
 
 export const productos: Producto[] = [
+  {
+    slug: 'leakai',
+    nombre: 'LeakAI',
+    estado: 'En producción',
+    categoria: 'Ciberseguridad',
+    descripcion: 'Auditoría de seguridad para los chatbots con IA de tu web.',
+    url: 'https://leakai.77delta.com',
+    logo: 'leakai.svg',
+  },
   {
     slug: 'regulia',
     nombre: 'Regulia',
