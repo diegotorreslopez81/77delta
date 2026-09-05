@@ -249,10 +249,10 @@ begin
     'kpis', (select coalesce(jsonb_object_agg(k.clave, jsonb_build_object('valor', k.valor, 'texto', k.texto, 'fuente', k.fuente, 'updated_at', k.updated_at)), '{}'::jsonb)
              from public.omc_kpis k where k.empresa = e.id),
     'licitaciones', (select coalesce(jsonb_agg(jsonb_build_object('expediente', l.expediente, 'pestana', l.pestana, 'detectada', l.detectada, 'organo', l.organo, 'provincia', l.provincia,
-                        'objeto', left(l.objeto, 700), 'resumen', left(l.resumen, 1500), 'resumen_corto', l.resumen_corto, 'importe', l.importe, 'tipo', l.tipo, 'procedimiento', l.procedimiento,
-                        'elegible', l.elegible, 'motivo_auto', left(l.motivo_auto, 700), 'solvencia', left(l.solvencia, 400), 'cierre', l.cierre, 'enlace', l.enlace, 'pcap', l.pcap, 'ppt', l.ppt, 'carpeta', l.carpeta,
+                        'objeto', l.objeto, 'resumen', l.resumen, 'resumen_corto', l.resumen_corto, 'importe', l.importe, 'tipo', l.tipo, 'procedimiento', l.procedimiento,
+                        'elegible', l.elegible, 'motivo_auto', l.motivo_auto, 'solvencia', l.solvencia, 'cierre', l.cierre, 'enlace', l.enlace, 'pcap', l.pcap, 'ppt', l.ppt, 'carpeta', l.carpeta,
                         'estado', l.estado, 'decision', l.decision, 'fecha_decision', l.fecha_decision, 'decidido_por', l.decidido_por, 'motivos', to_jsonb(l.motivos), 'motivo_texto', l.motivo_texto,
-                        'comentarios', left(l.comentarios, 600), 'sincronizado', l.sincronizado) order by l.cierre asc nulls last, l.detectada desc), '[]'::jsonb)
+                        'comentarios', l.comentarios, 'sincronizado', l.sincronizado) order by l.cierre asc nulls last, l.detectada desc), '[]'::jsonb)
                      from public.omc_licitaciones l where l.empresa = e.id and (l.pestana = 'Licitaciones' or l.updated_at > now() - interval '30 days')),
     'hilos', (select coalesce(jsonb_object_agg(h.sid, h.items), '{}'::jsonb)
               from (select m.solicitud_id sid, jsonb_agg(jsonb_build_object('id', m.id, 'autor', m.autor, 'texto', m.texto, 'ts', m.ts) order by m.ts) items

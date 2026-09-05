@@ -542,8 +542,9 @@ function renderLicita(){
 function tarjetaLic(l){
   var u = urgLic(l), card = el('div', { class: 'card ' + u, id: 'l-' + l.expediente.replace(/[^a-z0-9]/gi, '_') });
   card.appendChild(el('div', { class: 'cab' }, [el('div', { class: 'tipo-ic', text: '§' }), el('div', { class: 'quien' }, [el('b', { text: l.organo || l.expediente }), el('span', { text: [l.tipo, l.procedimiento, l.provincia].filter(Boolean).join(' · ') })])]));
-  card.appendChild(el('h3', { text: l.resumen_corto || (l.objeto || '').slice(0, 160) + ((l.objeto || '').length > 160 ? '…' : '') }));
-  if (l.resumen_corto && l.objeto){ var det = el('div', { class: 'det largo' + (S.abiertos[l.expediente] ? ' abierto' : ''), text: l.objeto }); det.addEventListener('click', function(){ S.abiertos[l.expediente] = !S.abiertos[l.expediente]; det.classList.toggle('abierto'); }); card.appendChild(det); }
+  card.appendChild(el('h3', { text: l.resumen_corto || l.organo || l.expediente }));
+  var cuerpo = [l.resumen && l.resumen !== l.resumen_corto ? l.resumen : '', l.objeto].filter(Boolean).join('\n\n');
+  if (cuerpo){ var det = el('div', { class: 'det' + (cuerpo.length > 500 ? ' largo' : '') + (S.abiertos[l.expediente] ? ' abierto' : ''), text: cuerpo }); det.addEventListener('click', function(){ S.abiertos[l.expediente] = !S.abiertos[l.expediente]; det.classList.toggle('abierto'); }); card.appendChild(det); }
   var datos = el('div', { class: 'datos' });
   if (l.importe != null) datos.appendChild(el('span', { class: 'dato oro', text: eur(l.importe) }));
   if (l.cierre) datos.appendChild(el('span', { class: 'dato ' + (u === 'urgente' ? 'rojo' : u === 'pronto' ? 'oro' : ''), text: 'cierra ' + l.cierre.slice(5).split('-').reverse().join('/') + ' · ' + rel(l.cierre + 'T14:00:00') }));
