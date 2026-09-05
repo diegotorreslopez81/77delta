@@ -157,6 +157,7 @@ def main():
     p = sub.add_parser('esperar'); p.add_argument('id', type=int); p.add_argument('--timeout', type=int, default=21600); p.add_argument('--intervalo', type=int, default=30); p.add_argument('--vistos', type=int, help='comentarios de Diego ya leídos')
     p = sub.add_parser('comentar', help='responder en el hilo de una solicitud sin cerrarla'); p.add_argument('id', type=int); p.add_argument('--texto', required=True)
     p = sub.add_parser('hilo', help='ver el hilo de una solicitud'); p.add_argument('id', type=int)
+    p = sub.add_parser('retirar', help='retirar tu propia solicitud cuando el hilo cambia el plan'); p.add_argument('id', type=int); p.add_argument('--nota', default='')
     p = sub.add_parser('hecho'); p.add_argument('id', type=int); p.add_argument('--nota', default='')
     p = sub.add_parser('fallo'); p.add_argument('id', type=int); p.add_argument('--nota', default='')
     p = sub.add_parser('activo'); p.add_argument('agente', nargs='?')
@@ -188,6 +189,8 @@ def main():
         m = rpc('omc_comentar', p_token=E['HQ_TOKEN'], p_id=a.id, p_texto=a.texto)
         avisar({'id': a.id, 'texto': a.texto})
         print(json.dumps(m, ensure_ascii=False) if a.json else f"#{a.id} comentario enviado a Diego ({m['autor']})")
+    elif a.cmd == 'retirar':
+        salida(rpc('omc_retirar', p_token=E['HQ_TOKEN'], p_id=a.id, p_nota=a.nota), a.json)
     elif a.cmd == 'hilo':
         s = rpc('omc_estado', p_token=E['HQ_TOKEN'], p_id=a.id)
         if a.json: print(json.dumps(s.get('hilo') or [], ensure_ascii=False))

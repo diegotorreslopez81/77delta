@@ -47,7 +47,7 @@ create table if not exists public.omc_solicitudes (
   enlace text not null default '',
   vence timestamptz,
   prioridad int not null default 5,
-  estado text not null default 'pendiente' check (estado in ('pendiente','aprobada','rechazada','respondida','ejecutada','fallida','caducada')),
+  estado text not null default 'pendiente' check (estado in ('pendiente','aprobada','rechazada','respondida','ejecutada','fallida','caducada','retirada')),
   respuesta text not null default '',
   resultado text not null default '',
   created_at timestamptz not null default now(),
@@ -198,7 +198,7 @@ begin
     'seguimiento', (select coalesce(jsonb_agg(to_jsonb(s) order by s.resolved_at desc), '[]'::jsonb)
                     from public.omc_solicitudes s where s.empresa = e.id and s.estado in ('aprobada','respondida')),
     'historial', (select coalesce(jsonb_agg(to_jsonb(s) order by coalesce(s.done_at, s.resolved_at) desc), '[]'::jsonb)
-                  from (select * from public.omc_solicitudes s where s.empresa = e.id and s.estado in ('rechazada','ejecutada','fallida','caducada')
+                  from (select * from public.omc_solicitudes s where s.empresa = e.id and s.estado in ('rechazada','ejecutada','fallida','caducada','retirada')
                         order by coalesce(s.done_at, s.resolved_at) desc limit 100) s),
     'gasto_mes', (select coalesce(jsonb_agg(jsonb_build_object('depto', g.depto, 'total', g.total)), '[]'::jsonb)
                   from (select depto, sum(importe) total from public.omc_solicitudes
@@ -431,6 +431,18 @@ begin
   return to_jsonb(s);
 end $$;
 
+-- El agente retira su propia solicitud (cuando el hilo cambia el plan). Solo si sigue pendiente.
+create or replace function public.omc_retirar(p_token text, p_id bigint, p_nota text default '')
+returns jsonb language plpgsql security definer set search_path = public as $$
+declare t public.omc_tokens; s public.omc_solicitudes;
+begin
+  t := public.omc_tok(p_token);
+  update public.omc_solicitudes set estado = 'retirada', resultado = coalesce(p_nota, ''), resolved_at = now(), done_at = now()
+    where id = p_id and empresa = t.empresa and estado = 'pendiente' returning * into s;
+  if not found then raise exception 'solicitud no encontrada o ya resuelta' using errcode = 'P0001'; end if;
+  return to_jsonb(s);
+end $$;
+
 -- Latido: el agente pregunta si está activo (hook de arranque) y deja constancia de actividad.
 create or replace function public.omc_latido(p_token text, p_agente text)
 returns jsonb language plpgsql security definer set search_path = public as $$
@@ -491,10 +503,10 @@ end $$;
 revoke all on function public.omc_token_info(text), public.omc_hq(text), public.omc_hq_uso(text), public.omc_resolver(text, bigint, text, text),
   public.omc_agente_set(text, text, jsonb), public.omc_pedir(text, jsonb), public.omc_estado(text, bigint), public.omc_reportar(text, bigint, boolean, text),
   public.omc_latido(text, text), public.omc_mis_solicitudes(text, text), public.omc_subir_uso(text, jsonb), public.omc_guardar_push(text, jsonb), public.omc_subir_plan(text, jsonb), public.omc_subir_actividad(text, jsonb),
-  public.omc_kpi_set(text, jsonb), public.omc_ingreso_set(text, jsonb), public.omc_ingresos(text), public.omc_comentar(text, bigint, text) from public;
+  public.omc_kpi_set(text, jsonb), public.omc_ingreso_set(text, jsonb), public.omc_ingresos(text), public.omc_comentar(text, bigint, text), public.omc_retirar(text, bigint, text) from public;
 grant execute on function public.omc_token_info(text), public.omc_hq(text), public.omc_hq_uso(text), public.omc_resolver(text, bigint, text, text),
   public.omc_agente_set(text, text, jsonb), public.omc_pedir(text, jsonb), public.omc_estado(text, bigint), public.omc_reportar(text, bigint, boolean, text),
   public.omc_latido(text, text), public.omc_mis_solicitudes(text, text), public.omc_subir_uso(text, jsonb), public.omc_guardar_push(text, jsonb), public.omc_subir_plan(text, jsonb), public.omc_subir_actividad(text, jsonb),
-  public.omc_kpi_set(text, jsonb), public.omc_ingreso_set(text, jsonb), public.omc_ingresos(text), public.omc_comentar(text, bigint, text)
+  public.omc_kpi_set(text, jsonb), public.omc_ingreso_set(text, jsonb), public.omc_ingresos(text), public.omc_comentar(text, bigint, text), public.omc_retirar(text, bigint, text)
   to anon, authenticated, service_role;
 notify pgrst, 'reload schema';

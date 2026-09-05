@@ -127,7 +127,7 @@ h2.sec-t small{color:var(--oro-oscuro)}
 .estado{font-family:var(--mono);font-size:11px;padding:3px 8px;border-radius:6px;background:var(--panel-2);color:var(--pizarra);white-space:nowrap}
 .estado.aprobada,.estado.respondida{background:var(--oro-suave);color:var(--oro-oscuro)}
 .estado.ejecutada{background:var(--exito-suave);color:var(--exito)}
-.estado.rechazada,.estado.fallida,.estado.caducada{background:var(--error-suave);color:var(--error)}
+.estado.rechazada,.estado.fallida,.estado.caducada,.estado.retirada{background:var(--error-suave);color:var(--error)}
 
 /* Equipo */
 .ag{background:var(--panel);border:1px solid var(--linea);border-radius:var(--radio);padding:12px 14px;margin-bottom:10px;display:flex;gap:12px;align-items:flex-start}
@@ -248,7 +248,7 @@ var sb = null;
 var S = { hq: null, uso: null, tab: 'bandeja', filtro: 'todo', abiertos: {}, hist: false };
 var TIPO = { gasto: 'Gasto', contacto: 'Contacto', publicacion: 'Publicación', estrategia: 'Estrategia', duda: 'Duda', accion: 'Acción humana', otro: 'Aprobación' };
 var TIPO_IC = { gasto: '€', contacto: '✉', publicacion: '📣', estrategia: '♟', duda: '?', accion: '🙋', otro: '✓' };
-var ESTADO = { pendiente: 'Pendiente', aprobada: 'Aprobada', rechazada: 'Rechazada', respondida: 'Respondida', ejecutada: 'Ejecutada', fallida: 'Fallida', caducada: 'Caducada' };
+var ESTADO = { pendiente: 'Pendiente', aprobada: 'Aprobada', rechazada: 'Rechazada', respondida: 'Respondida', ejecutada: 'Ejecutada', fallida: 'Fallida', caducada: 'Caducada', retirada: 'Retirada por el agente' };
 var OWNER_AV = '/hq/icon-192.png';
 
 /* ---- utilidades ---- */
@@ -467,7 +467,7 @@ function hojaSolicitud(s){ var ag = agente(s.agente), dl = el('dl'); [['Agente',
   var kids = [el('div', { class: 'eyebrow', text: '#' + s.id }), el('h2', { text: s.titulo }), dl];
   if (/^https?:\/\//.test(s.enlace)) kids.push(el('p', {}, [el('a', { href: s.enlace, target: '_blank', rel: 'noopener', text: 'Abrir enlace ↗' })]));
   var hilo = (S.hq.hilos || {})[s.id] || []; if (hilo.length) kids.push(burbujas(hilo, ag));
-  if (s.estado !== 'ejecutada' && s.estado !== 'fallida' && s.estado !== 'rechazada'){
+  if (['ejecutada','fallida','rechazada','retirada'].indexOf(s.estado) < 0){
     var ta = el('textarea', { placeholder: 'Mensaje para ' + (ag ? persona(ag) : s.agente), rows: '1' }), mic = el('button', { class: 'mic', text: '🎤', onclick: function(){ dictar(ta, mic); } });
     kids.push(el('div', { class: 'nota' }, [ta, mic, el('button', { class: 'enviar', text: '➤', onclick: function(){ cerrarHoja(); comentar(s, ta, ag); } })]));
     kids.push(el('div', { class: 'acciones' }, [el('button', { class: 'btn no', text: 'Devolver a pendiente', onclick: function(){ cerrarHoja(); rpc('omc_resolver', { p_token: TOKEN, p_id: s.id, p_estado: 'pendiente', p_respuesta: '' }).then(cargar).catch(function(e){ toast(e.message); }); } })])); }
