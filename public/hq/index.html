@@ -160,6 +160,13 @@ h2.sec-t small{color:var(--oro-oscuro)}
 .dias i{flex:1;background:var(--oro);opacity:.85;border-radius:3px 3px 0 0;min-height:2px}
 .dias i.hoy{background:var(--tinta)}
 
+.modelos{display:flex;flex-wrap:wrap;gap:6px;margin:-4px 0 10px}
+.modelos .dato{font-size:11px;padding:3px 7px}
+.plan{margin-bottom:12px}
+.plan .cab{display:flex;justify-content:space-between;font-size:13px;color:var(--pizarra);margin-bottom:8px}
+.plan .cab b{color:var(--tinta);font-weight:600}
+.plan .aviso{font-size:13px;color:var(--oro-oscuro);margin-top:4px}
+.barra .m i.alerta{background:var(--error)}
 #toast{position:fixed;left:50%;bottom:calc(20px + env(safe-area-inset-bottom));transform:translateX(-50%) translateY(20px);background:var(--tinta);color:var(--papel);padding:12px 16px;border-radius:12px;font-size:14px;display:flex;gap:14px;align-items:center;opacity:0;pointer-events:none;transition:all .25s var(--ease);z-index:50;max-width:92vw;box-shadow:0 10px 30px rgba(0,0,0,.25)}
 #toast.on{opacity:1;transform:translateX(-50%);pointer-events:auto}
 #toast button{color:var(--oro-luz);font-weight:600}
@@ -340,13 +347,15 @@ function ultimo(a){ var d = a.ultima_actividad ? new Date(a.ultima_actividad) : 
 function nodo(a, coste, total){ var u = ultimo(a), h = u ? (Date.now() - u) / 36e5 : null, cls = !a.activo ? 'off' : h == null ? '' : h < 36 ? 'vivo' : h < 24 * 7 ? 'tibio' : '';
   var c = coste[a.id] || 0, sw = el('label', { class: 'sw', onclick: function(e){ e.stopPropagation(); } }, [el('input', { type: 'checkbox', onchange: function(e){ toggleAgente(a, e.target.checked); } }), el('span')]); sw.firstChild.checked = a.activo;
   return el('div', { class: 'nodo' + (a.activo ? '' : ' off'), onclick: function(){ hojaAgente(a, c, total); } }, [el('span', { class: 'punto ' + cls }),
-    el('div', { class: 'txt' }, [el('div', { class: 'n', text: a.nombre }), el('div', { class: 'm', text: a.id + (a.activo ? (u ? ' · ' + rel(u.toISOString()) : ' · sin actividad') : ' · por contratar') })]),
+    el('div', { class: 'txt' }, [el('div', { class: 'n', text: a.nombre }), el('div', { class: 'm', text: a.id + ((a.contrato || {}).modelo ? ' · ' + familia(a.contrato.modelo) : '') + (a.activo ? (u ? ' · ' + rel(u.toISOString()) : ' · sin actividad') : ' · por contratar') })]),
     el('div', { class: 'coste' }, [c ? el('b', { text: usd(c) }) : null, el('span', { text: c && total ? Math.round(c / total * 100) + ' %' : '' })]), sw]); }
 
 function hoja(kids){ var h = document.getElementById('hoja'), b = document.getElementById('hoja-cuerpo'); b.textContent = ''; b.appendChild(el('div', { class: 'asa' })); kids.forEach(function(k){ b.appendChild(k); }); h.classList.add('on'); }
 document.getElementById('hoja').addEventListener('click', function(e){ if (e.target.id === 'hoja') e.target.classList.remove('on'); });
 function hojaAgente(a, c, total){ var ct = a.contrato || {}, mias = S.hq.pendientes.concat(S.hq.seguimiento).filter(function(s){ return s.agente === a.id; });
-  var dl = el('dl'); [['Departamento', a.depto + ' · nivel ' + a.nivel + (a.jefe ? ' · reporta a ' + a.jefe : '')], ['Job', ct.job], ['Prohibido', ct.forbidden], ['Fuentes', ct.sources], ['KPIs', ct.kpis], ['Sesiones', (a.sesiones || []).join(', ')], ['Rutas', (a.rutas || []).join('\n')], ['Coste mes', c ? usd(c) + (total ? ' · ' + Math.round(c / total * 100) + ' % del total' : '') : 'sin uso este mes'], ['Prioridad', a.prioridad === 1 ? '1 · ingresos' : String(a.prioridad)]]
+  var usados = (S.uso.por_agente_modelo || []).filter(function(x){ return x.agente === a.id; }).map(function(x){ return familia(x.modelo) + ' ' + usd(x.coste); }).join(', ');
+  var dl = el('dl'); [['Departamento', a.depto + ' · nivel ' + a.nivel + (a.jefe ? ' · reporta a ' + a.jefe : '')],
+    ['Modelo', ct.modelo ? ct.modelo + (ct.subagentes ? ' · subagentes ' + ct.subagentes : '') + (usados ? '\nusado este mes: ' + usados : '') : (usados || '')], ['Por qué', ct.modelo_por_que], ['Ventana', ct.ventana], ['Job', ct.job], ['Prohibido', ct.forbidden], ['Fuentes', ct.sources], ['KPIs', ct.kpis], ['Sesiones', (a.sesiones || []).join(', ')], ['Rutas', (a.rutas || []).join('\n')], ['Coste mes', c ? usd(c) + (total ? ' · ' + Math.round(c / total * 100) + ' % del total' : '') : 'sin uso este mes'], ['Prioridad', a.prioridad === 1 ? '1 · ingresos' : String(a.prioridad)]]
     .forEach(function(p){ if (p[1]) { dl.appendChild(el('dt', { text: p[0] })); dl.appendChild(el('dd', { text: p[1] })); } });
   var kids = [el('div', { class: 'eyebrow', text: a.id }), el('h2', { text: a.nombre }), dl];
   if (mias.length){ kids.push(el('h2', { class: 'sec-t', text: 'Sus solicitudes abiertas' })); mias.forEach(function(s){ kids.push(filaHist(s)); }); }
@@ -366,6 +375,7 @@ function renderCostes(){
   app.appendChild(el('div', { class: 'kpi' }, [el('div', { class: 'eyebrow', text: 'Consumo de tokens · ' + hoy.toLocaleString('es-ES', { month: 'long', year: 'numeric' }) }),
     el('div', { class: 'cifra' }, [usd(mes), el('small', { text: 'valor a precio de API' })]),
     el('div', { class: 'sub' }, [el('span', { text: 'Plan Max ' + usd(plan) + '/mes · consumido ' + veces.toLocaleString('es-ES', { maximumFractionDigits: 1 }) + '× su precio' }), el('span', { text: 'proyección fin de mes ' + usd(proy) }), el('span', { text: 'mes anterior ' + usd(u.mes_anterior) })])]));
+  renderPlan(u);
   app.appendChild(el('div', { class: 'grid2' }, [mini(num(u.mes.mensajes), 'respuestas'), mini(num(Math.round((u.mes.output || 0) / 1000)) + 'k', 'tokens generados'), mini(num(Math.round((u.mes.cache_read || 0) / 1e6)) + 'M', 'contexto leído de caché'), mini(num(Math.round((u.mes.cache_write || 0) / 1e6)) + 'M', 'contexto escrito en caché')]));
   var dias = el('div', { class: 'dias' }), max = 0; (u.dias || []).forEach(function(d){ if (d.coste > max) max = d.coste; });
   (u.dias || []).forEach(function(d){ dias.appendChild(el('i', { style: 'height:' + Math.max(2, d.coste / (max || 1) * 100) + '%', class: d.fecha === hoy.toISOString().slice(0, 10) ? 'hoy' : '', title: d.fecha + ' · ' + usd(d.coste) })); });
@@ -375,7 +385,14 @@ function renderCostes(){
   app.appendChild(el('h2', { class: 'sec-t', text: 'Por equipo' }));
   Object.keys(porDepto).sort(function(a, b){ return porDepto[b] - porDepto[a]; }).forEach(function(d){ app.appendChild(barra(d, porDepto[d], total, prioDepto(d) === 1 ? 'prio' : d === 'Personal' ? 'personal' : '')); });
   app.appendChild(el('h2', { class: 'sec-t', text: 'Por agente' }));
-  (u.por_agente || []).forEach(function(x){ var a = agente(x.agente); app.appendChild(barra(a ? a.nombre : (x.agente || 'Sin asignar'), x.coste, total, a && a.prioridad === 1 ? 'prio' : a && a.depto === 'Personal' ? 'personal' : '')); });
+  var semana = (u.plan || []).filter(function(p){ return p.cuenta === 'principal'; }).map(function(p){ return Number(p.semana); })[0];
+  (u.por_agente || []).forEach(function(x){ var a = agente(x.agente), ct = (a && a.contrato) || {};
+    app.appendChild(barra(a ? a.nombre : (x.agente || 'Sin asignar'), x.coste, total, a && a.prioridad === 1 ? 'prio' : a && a.depto === 'Personal' ? 'personal' : ''));
+    var chips = el('div', { class: 'modelos' }), usados = (u.por_agente_modelo || []).filter(function(m){ return m.agente === x.agente; });
+    usados.forEach(function(m){ chips.appendChild(el('span', { class: 'dato', text: familia(m.modelo) + ' ' + usd(m.coste) })); });
+    if (semana != null && total) chips.appendChild(el('span', { class: 'dato oro', text: '≈ ' + Math.round(semana * x.coste / total) + ' % de la semana del plan' }));
+    if (ct.modelo && usados.length && familia(usados[0].modelo) !== familia(ct.modelo)) chips.appendChild(el('span', { class: 'dato rojo', text: '⚠ asignado ' + familia(ct.modelo) }));
+    if (chips.children.length) app.appendChild(chips); });
   app.appendChild(el('h2', { class: 'sec-t', text: 'Por sesión (top 15)' }));
   (u.por_sesion || []).slice(0, 15).forEach(function(x){ app.appendChild(barra((x.titulo || x.ruta.split('/').pop() || x.sesion_id.slice(0, 8)) + (x.agente ? '' : ' · sin asignar'), x.coste, total, '')); });
   if (S.hq.gasto_mes.length){ app.appendChild(el('h2', { class: 'sec-t', text: 'Dinero real aprobado este mes' })); var g = 0; S.hq.gasto_mes.forEach(function(x){ g += Number(x.total); });
@@ -383,6 +400,16 @@ function renderCostes(){
   app.appendChild(el('p', { class: 'peq', text: 'Coste nocional: lo que costarían estos tokens a precio de API. Con el plan Max no se paga por token; sirve para repartir el consumo entre equipos y saber a quién pasar a tokens aparte si crece.' }));
 }
 function mini(v, l){ return el('div', { class: 'mini' }, [el('div', { class: 'v', text: v }), el('div', { class: 'l', text: l })]); }
+function familia(m){ m = String(m || '').toLowerCase(); return m.indexOf('fable') >= 0 ? 'fable' : m.indexOf('mythos') >= 0 ? 'mythos' : m.indexOf('opus') >= 0 ? 'opus' : m.indexOf('sonnet') >= 0 ? 'sonnet' : m.indexOf('haiku') >= 0 ? 'haiku' : (m || '?'); }
+function renderPlan(u){ (u.plan || []).forEach(function(p){
+  var c5 = Number(p.cinco_h), cs = Number(p.semana), caja = el('div', { class: 'mini plan' });
+  caja.appendChild(el('div', { class: 'cab' }, [el('b', { text: 'Cuenta ' + p.cuenta + (p.tipo ? ' · ' + p.tipo.replace('default_claude_', '').replace('_', ' ') : '') }), el('span', { text: 'muestra ' + rel(p.ts) })]));
+  [['Ventana de 5 h', c5, p.cinco_h_reset], ['Semana', cs, p.semana_reset]].forEach(function(f){
+    var b = barra(f[0], f[1], 100, '', function(v){ return Math.round(v) + ' %'; }); b.querySelector('.l span').textContent = Math.round(f[1]) + ' %' + (f[2] ? ' · reinicia ' + rel(f[2]) : '');
+    if (f[1] >= 85) b.querySelector('.m i').classList.add('alerta'); caja.appendChild(b); });
+  if (p.semana_opus != null) caja.appendChild(el('div', { class: 'peq', text: 'Opus esta semana: ' + Math.round(Number(p.semana_opus)) + ' %' }));
+  caja.appendChild(el('div', { class: 'aviso', text: c5 < 40 ? 'Ventana con margen: buen momento para lanzar trabajo pesado.' : c5 >= 85 ? 'Ventana casi agotada: los agentes programan su continuación al reinicio.' : cs >= 80 ? 'Semana por encima del 80 %: candidata a segunda cuenta de ejecución.' : 'Consumo normal.' }));
+  app.appendChild(caja); }); }
 function barra(nombre, v, total, cls, fmt){ fmt = fmt || usd; return el('div', { class: 'barra ' + cls }, [el('div', { class: 'l' }, [el('b', { text: nombre }), el('span', { text: fmt(v) + ' · ' + Math.round(v / (total || 1) * 100) + ' %' })]), el('div', { class: 'm' }, [el('i', { style: 'width:' + Math.min(100, v / (total || 1) * 100) + '%' })])]); }
 
 /* ---- tiempo real, avisos, menú ---- */

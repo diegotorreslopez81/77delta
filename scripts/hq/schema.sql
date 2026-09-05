@@ -74,6 +74,20 @@ create table if not exists public.omc_uso (
   primary key (empresa, fecha, sesion_id, modelo)
 );
 
+-- Consumo real del plan Max (ventanas de 5 h y semanal) por cuenta, muestreado por hq-plan.py.
+create table if not exists public.omc_plan (
+  empresa text not null references public.omc_empresas(id) on delete cascade,
+  cuenta text not null default 'principal',
+  ts timestamptz not null,
+  tipo text not null default '',
+  cinco_h numeric not null default 0,
+  cinco_h_reset timestamptz,
+  semana numeric not null default 0,
+  semana_reset timestamptz,
+  semana_opus numeric,
+  primary key (empresa, cuenta, ts)
+);
+
 create table if not exists public.omc_push (
   id bigserial primary key,
   empresa text not null references public.omc_empresas(id) on delete cascade,
@@ -88,7 +102,8 @@ alter table public.omc_agentes enable row level security;
 alter table public.omc_solicitudes enable row level security;
 alter table public.omc_uso enable row level security;
 alter table public.omc_push enable row level security;
-revoke all on public.omc_empresas, public.omc_tokens, public.omc_agentes, public.omc_solicitudes, public.omc_uso, public.omc_push from anon, authenticated;
+alter table public.omc_plan enable row level security;
+revoke all on public.omc_empresas, public.omc_tokens, public.omc_agentes, public.omc_solicitudes, public.omc_uso, public.omc_push, public.omc_plan from anon, authenticated;
 revoke all on sequence public.omc_solicitudes_id_seq, public.omc_push_id_seq from anon, authenticated;
 
 -- Helper interno: no se concede a anon.
@@ -159,9 +174,30 @@ begin
     'por_sesion', (select coalesce(jsonb_agg(jsonb_build_object('sesion_id', x.sesion_id, 'titulo', x.titulo, 'ruta', x.ruta, 'agente', x.agente, 'coste', x.c, 'ultimo', x.ul) order by x.c desc), '[]'::jsonb)
                    from (select sesion_id, max(titulo) titulo, max(ruta) ruta, max(agente) agente, sum(coste_usd) c, max(fecha) ul from mes group by sesion_id order by c desc limit 40) x),
     'dias', (select coalesce(jsonb_agg(jsonb_build_object('fecha', d.fecha, 'coste', d.c) order by d.fecha), '[]'::jsonb)
-             from (select fecha, sum(coste_usd) c from u where fecha >= current_date - 30 group by fecha) d)
+             from (select fecha, sum(coste_usd) c from u where fecha >= current_date - 30 group by fecha) d),
+    'por_agente_modelo', (select coalesce(jsonb_agg(jsonb_build_object('agente', x.agente, 'modelo', x.modelo, 'coste', x.c, 'mensajes', x.m) order by x.agente, x.c desc), '[]'::jsonb)
+                          from (select agente, modelo, sum(coste_usd) c, sum(mensajes) m from mes group by agente, modelo) x),
+    'plan', (select coalesce(jsonb_agg(jsonb_build_object('cuenta', p.cuenta, 'tipo', p.tipo, 'ts', p.ts, 'cinco_h', p.cinco_h, 'cinco_h_reset', p.cinco_h_reset,
+                                                          'semana', p.semana, 'semana_reset', p.semana_reset, 'semana_opus', p.semana_opus)), '[]'::jsonb)
+             from (select distinct on (cuenta) * from public.omc_plan where empresa = t.empresa order by cuenta, ts desc) p),
+    'plan_serie', (select coalesce(jsonb_agg(jsonb_build_object('cuenta', p.cuenta, 'ts', p.ts, 'cinco_h', p.cinco_h, 'semana', p.semana) order by p.ts), '[]'::jsonb)
+                   from public.omc_plan p where p.empresa = t.empresa and p.ts >= now() - interval '7 days')
   ) into r;
   return r;
+end $$;
+
+-- Muestra del consumo real del plan (la sube hq-plan.py cada 15 minutos).
+create or replace function public.omc_subir_plan(p_token text, p jsonb)
+returns jsonb language plpgsql security definer set search_path = public as $$
+declare t public.omc_tokens;
+begin
+  t := public.omc_tok(p_token);
+  insert into public.omc_plan (empresa, cuenta, ts, tipo, cinco_h, cinco_h_reset, semana, semana_reset, semana_opus)
+    values (t.empresa, coalesce(p->>'cuenta','principal'), (p->>'ts')::timestamptz, coalesce(p->>'tipo',''), coalesce((p->>'cinco_h')::numeric,0),
+            nullif(p->>'cinco_h_reset','')::timestamptz, coalesce((p->>'semana')::numeric,0), nullif(p->>'semana_reset','')::timestamptz, nullif(p->>'semana_opus','')::numeric)
+    on conflict (empresa, cuenta, ts) do update set cinco_h = excluded.cinco_h, cinco_h_reset = excluded.cinco_h_reset, semana = excluded.semana,
+      semana_reset = excluded.semana_reset, semana_opus = excluded.semana_opus, tipo = excluded.tipo;
+  return jsonb_build_object('ok', true);
 end $$;
 
 -- Owner resuelve una solicitud: aprobada | rechazada | respondida | pendiente (deshacer) | caducada.
@@ -258,6 +294,7 @@ begin
   if not found then return jsonb_build_object('existe', false, 'activo', true, 'agente', p_agente); end if;
   update public.omc_agentes set ultima_actividad = now() where empresa = t.empresa and id = a.id;
   return jsonb_build_object('existe', true, 'activo', a.activo, 'agente', a.id, 'nombre', a.nombre, 'depto', a.depto, 'nivel', a.nivel,
+                            'modelo', a.contrato->>'modelo', 'subagentes', a.contrato->>'subagentes',
                             'pendientes', (select count(*) from public.omc_solicitudes s where s.empresa = t.empresa and s.agente = a.id and s.estado in ('aprobada','respondida')));
 end $$;
 
@@ -303,9 +340,9 @@ end $$;
 
 revoke all on function public.omc_token_info(text), public.omc_hq(text), public.omc_hq_uso(text), public.omc_resolver(text, bigint, text, text),
   public.omc_agente_set(text, text, jsonb), public.omc_pedir(text, jsonb), public.omc_estado(text, bigint), public.omc_reportar(text, bigint, boolean, text),
-  public.omc_latido(text, text), public.omc_mis_solicitudes(text, text), public.omc_subir_uso(text, jsonb), public.omc_guardar_push(text, jsonb) from public;
+  public.omc_latido(text, text), public.omc_mis_solicitudes(text, text), public.omc_subir_uso(text, jsonb), public.omc_guardar_push(text, jsonb), public.omc_subir_plan(text, jsonb) from public;
 grant execute on function public.omc_token_info(text), public.omc_hq(text), public.omc_hq_uso(text), public.omc_resolver(text, bigint, text, text),
   public.omc_agente_set(text, text, jsonb), public.omc_pedir(text, jsonb), public.omc_estado(text, bigint), public.omc_reportar(text, bigint, boolean, text),
-  public.omc_latido(text, text), public.omc_mis_solicitudes(text, text), public.omc_subir_uso(text, jsonb), public.omc_guardar_push(text, jsonb)
+  public.omc_latido(text, text), public.omc_mis_solicitudes(text, text), public.omc_subir_uso(text, jsonb), public.omc_guardar_push(text, jsonb), public.omc_subir_plan(text, jsonb)
   to anon, authenticated, service_role;
 notify pgrst, 'reload schema';
