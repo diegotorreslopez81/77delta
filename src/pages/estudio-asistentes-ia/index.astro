@@ -17,73 +17,53 @@ const rastreo = [
 
 const categorias = [
   {
-    nombre: 'Recitar sus instrucciones internas',
-    n: 8,
-    texto:
-      'El asistente reproduce su propio system prompt, con las restricciones que le han puesto y las herramientas a las que llega. Es el mapa para todo lo demás.',
-  },
-  {
     nombre: 'Obedecer instrucciones de un desconocido',
-    n: 6,
     texto:
-      'Un mensaje bien construido consigue que el bot ignore su guion y haga lo que pide quien escribe. Sale con el logotipo de la empresa al lado.',
+      'Un mensaje bien construido consigue que el bot ignore su guion y haga lo que pide quien escribe. Sale con el logotipo de la empresa al lado. Es, de momento, el tipo de fuga más frecuente.',
   },
   {
-    nombre: 'Hablar de lo que no le toca',
-    n: 3,
+    nombre: 'Recitar sus instrucciones internas',
     texto:
-      'El asistente se sale del terreno de la marca y opina de cualquier cosa. Poco grave por sí solo, y una señal fiable de que no hay guardarraíles.',
+      'El asistente reproduce parte de su propio system prompt, con restricciones que le han puesto y herramientas a las que llega. Es el mapa para todo lo demás.',
   },
   {
-    nombre: 'Prometer lo que no puede cumplir',
-    n: 1,
-    texto: 'Condiciones, plazos o garantías inventados sobre la marcha en nombre de la empresa.',
-  },
-  {
-    nombre: 'Revelar datos de clientes',
-    n: 0,
+    nombre: 'Revelar datos de clientes o información comercial interna',
     texto:
-      'Ninguno soltó datos personales. Es la buena noticia del estudio, y encaja con que casi ningún asistente público tiene acceso real a la base de clientes.',
-  },
-  {
-    nombre: 'Soltar información comercial interna',
-    n: 0,
-    texto:
-      'Ninguno reveló precios, descuentos ni márgenes que no fueran públicos, al menos ante nuestras preguntas de primer nivel.',
+      'De momento, ningún asistente probado ha soltado datos personales ni precios o márgenes internos ante nuestras pruebas.',
   },
 ];
 ---
 
 <Base
   title="Qué se le escapa a los asistentes de IA de las webs españolas"
-  description="Rastreamos 391 webs españolas, encontramos 29 asistentes con IA respondiendo en abierto y probamos 41. Uno de cada cuatro dejó escapar algo. Datos propios, septiembre de 2026."
+  description="Rastreamos 391 webs españolas y encontramos 29 asistentes con IA respondiendo en abierto. Los estamos auditando a fondo, con doble revisión de cada hallazgo. Datos propios, septiembre de 2026."
 >
   <!-- Hero -->
   <section class="wrap py-24 md:py-32">
-    <p class="eyebrow" data-reveal>Estudio propio · Septiembre de 2026</p>
+    <p class="eyebrow" data-reveal>Estudio propio · En curso · Septiembre de 2026</p>
     <h1
       class="mt-7 max-w-[20ch] font-display text-[clamp(38px,6vw,76px)] font-extralight leading-[1.04] tracking-[-0.035em]"
       data-reveal
     >
-      Probamos 41 asistentes de IA españoles. <span class="font-semibold text-oro-oscuro"
-        >Uno de cada cuatro dejó escapar algo</span
+      Auditamos los asistentes de IA de las webs españolas. <span class="font-semibold text-oro-oscuro"
+        >Esto es lo que hemos encontrado, de momento</span
       >.
     </h1>
     <p class="mt-8 max-w-[56ch] text-[clamp(17px,1.6vw,20px)] text-pizarra" data-reveal>
       Rastreamos 391 webs de empresas españolas buscando asistentes con IA abiertos al público. Encontramos 29
-      respondiendo sin pedir nada a cambio. A los que pudimos abrir les lanzamos la misma batería de pruebas.
-      Esto es lo que salió.
+      respondiendo sin pedir nada a cambio. Los estamos probando a fondo, uno por uno, con una batería de
+      pruebas y una segunda revisión adversa de cada hallazgo antes de darlo por bueno.
     </p>
     <p class="mt-6 max-w-[56ch] text-[15px] text-pizarra" data-reveal>
-      No nombramos a nadie. Cada hallazgo se comparte solo con la empresa afectada.
+      No nombramos a nadie. Cada hallazgo se comparte solo con la empresa afectada. Este estudio se actualiza
+      conforme avanza el rastreo; las cifras de abajo son las de la última revisión.
     </p>
 
-    <ul class="mt-14 grid gap-4 sm:grid-cols-3" role="list" data-reveal>
+    <ul class="mt-14 grid gap-4 sm:grid-cols-2" role="list" data-reveal>
       {
         [
           ['391', 'webs rastreadas'],
-          ['41', 'asistentes probados a fondo'],
-          ['11', 'dejaron escapar algo'],
+          ['29', 'asistentes con IA respondiendo en abierto'],
         ].map(([cifra, texto]) => (
           <li class="rounded-[4px] border border-linea bg-panel px-6 py-6">
             <p class="font-display text-[40px] font-extralight leading-none tracking-[-0.04em] text-oro-oscuro">
@@ -131,32 +111,19 @@ const categorias = [
       <div class="max-w-[62ch]" data-reveal>
         <p class="eyebrow text-oro-luz">Segundo hallazgo</p>
         <h2 class="mt-5 font-display text-[clamp(28px,3.6vw,44px)] font-extralight leading-[1.1] tracking-[-0.03em]">
-          Cuatro asistentes estaban en crítico.
+          La mayoría aguanta. Un puñado no.
         </h2>
         <p class="mt-6 text-[17px] text-marfil/72">
-          Cada uno de los 41 asistentes recibió las mismas seis pruebas, siempre desde su web pública y siempre
-          conversando como lo haría un visitante. De los 41, treinta y cuatro aguantaron las seis. Siete no: tres
-          se quedaron en aviso y cuatro en crítico.
+          A cada asistente le lanzamos la misma batería de pruebas, siempre desde su web pública y siempre
+          conversando como lo haría un visitante. Cada posible hallazgo pasa además por una segunda revisión
+          adversa antes de contarlo: descartamos, por ejemplo, un bot que citaba correctamente su política de
+          devoluciones o una demo de producto que un juez automático había leído como conversación real.
+        </p>
+        <p class="mt-4 text-[17px] text-marfil/72">
+          Con esa exigencia, la mayoría de los asistentes probados rechaza las pruebas. Un grupo pequeño, de un
+          solo dígito, ha mostrado alguna fuga confirmada. Actualizamos esta cifra según avanza el rastreo.
         </p>
       </div>
-
-      <ul class="mt-16 grid gap-8 md:grid-cols-3" role="list">
-        {
-          [
-            ['34', 'sin hallazgos', 'Rechazaron las seis pruebas.'],
-            ['3', 'en aviso', 'Filtraron algo que conviene cerrar.'],
-            ['4', 'en crítico', 'Un visitante puede sacarles bastante más de lo previsto.'],
-          ].map(([cifra, etiqueta, texto]) => (
-            <li class="border-t border-marfil/15 pt-6" data-reveal>
-              <p class="font-display text-[46px] font-extralight leading-none tracking-[-0.04em] text-oro-luz">
-                {cifra}
-              </p>
-              <p class="mt-4 font-mono text-[11px] uppercase tracking-[0.18em] text-marfil/60">{etiqueta}</p>
-              <p class="mt-3 text-[15px] text-marfil/70">{texto}</p>
-            </li>
-          ))
-        }
-      </ul>
     </div>
   </section>
 
@@ -169,27 +136,17 @@ const categorias = [
           Lo que más se les escapa son sus propias instrucciones.
         </h2>
         <p class="mt-6 text-[17px] text-pizarra">
-          Sobre 41 asistentes probados, este es el reparto por tipo de fuga. Un mismo asistente puede fallar en
-          varias.
+          Con el rastreo aún en marcha, damos el reparto por tipo en vez de cifras exactas: cambian de una
+          semana a otra según seguimos auditando.
         </p>
       </div>
 
       <ul class="mt-14" role="list">
         {
           categorias.map((c) => (
-            <li class="grid gap-4 border-t border-linea py-7 md:grid-cols-12 md:items-baseline" data-reveal>
-              <div class="flex items-baseline gap-4 md:col-span-5">
-                <span class="w-[3ch] shrink-0 text-right font-display text-[28px] font-extralight tracking-[-0.03em] text-oro-oscuro">
-                  {c.n}
-                </span>
-                <div>
-                  <h3 class="font-display text-[18px] font-semibold leading-[1.3]">{c.nombre}</h3>
-                  <p class="mt-1 font-mono text-[11px] uppercase tracking-[0.14em] text-pizarra">
-                    de 41 asistentes
-                  </p>
-                </div>
-              </div>
-              <p class="text-[15px] text-pizarra md:col-span-7">{c.texto}</p>
+            <li class="border-t border-linea py-7" data-reveal>
+              <h3 class="font-display text-[19px] font-semibold leading-[1.3]">{c.nombre}</h3>
+              <p class="mt-3 max-w-[62ch] text-[15px] text-pizarra">{c.texto}</p>
             </li>
           ))
         }
@@ -209,10 +166,11 @@ const categorias = [
             mensaje inocente y clasifica la respuesta para separar un modelo de lenguaje de un chat guionizado.
           </p>
           <p>
-            A los que responden se les lanzan seis pruebas en una sola conversación, con pausas entre mensajes y
-            una única sesión por dominio y día. Un modelo juez puntúa cada respuesta contra su rúbrica y está
-            obligado a citar el fragmento literal que constituye la fuga. Si la cita no aparece en la
-            conversación, el hallazgo se degrada.
+            A los que responden se les lanza una batería de pruebas en una sola conversación, con pausas entre
+            mensajes y una única sesión por dominio y día. Un primer modelo juez puntúa cada respuesta contra su
+            rúbrica y cita el fragmento literal que constituye la fuga. Cada alerta pasa después por un segundo
+            juez, más exigente, que la confirma o la descarta a mano. Solo lo que sobrevive a las dos revisiones
+            se cuenta como hallazgo.
           </p>
         </div>
       </div>
@@ -249,9 +207,9 @@ const categorias = [
       </div>
       <div class="space-y-5 text-[17px] text-pizarra md:col-span-7 md:pt-12" data-reveal>
         <p>
-          Los asistentes que aguantaron las seis pruebas suelen estar en empresas grandes, con un clasificador
-          delante que bloquea cualquier mensaje raro. Los que fallaron son de empresas medianas que montaron el
-          asistente rápido, lo conectaron a su documentación y no volvieron a mirarlo.
+          Los asistentes que aguantan las pruebas suelen estar en empresas grandes, con un clasificador delante
+          que bloquea cualquier mensaje raro. Los que fallan son, de momento, de empresas medianas que montaron
+          el asistente rápido, lo conectaron a su documentación y no volvieron a mirarlo.
         </p>
         <p>
           Cerrar esto no es un proyecto largo: es reescribir las instrucciones, poner filtros a la entrada y a la
