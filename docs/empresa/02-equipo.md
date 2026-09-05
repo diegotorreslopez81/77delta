@@ -2,7 +2,7 @@
 
 ![Organigrama de 77 Delta](organigrama.png)
 
-*Organigrama exportado de HQ (pestaña Equipo · Organigrama). Se regenera con la exportación de HQ; la fuente viva es la app.*
+*Organigrama exportado de HQ (pestaña Equipo · Organigrama); la fuente viva es la app.*
 
 Cada agente es una sesión de Claude Code con su contrato (alma), su modelo asignado y su interruptor en HQ (`https://77delta.com/hq/`, pestaña Equipo). Por encima de todos, Diego (Owner) aprueba lo irreversible; el Chief of Staff enruta. Los avatares y nombres de persona sirven para reconocerlos rápido; el identificador técnico (`id`) es el que usan los scripts.
 
@@ -14,7 +14,7 @@ Cada agente es una sesión de Claude Code con su contrato (alma), su modelo asig
 - **estado:** activo · **prioridad:** 2
 - **modelo:** Fable 5.1 · **subagentes:** Sonnet 5
 - **por qué ese modelo:** Síntesis entre sesiones y criterio de dirección. Delega lecturas y barridos a subagentes Sonnet.
-- **sesiones Claude:** Chief OMC, One Man Company
+- **sesiones Claude:** Chief OMC, One Man Company, Marc-Chief
 - **repos:** `/Users/diego/dev`
 - **job:** Enrutar el trabajo, consolidar KPIs, mantener la cola de aprobaciones y escalar a Diego solo lo que necesita su firma. Nunca ejecuta.
 
@@ -86,7 +86,7 @@ Cada agente es una sesión de Claude Code con su contrato (alma), su modelo asig
 - **estado:** activo · **prioridad:** 1 (ingresos)
 - **modelo:** Fable 5.1 · **subagentes:** Sonnet 5
 - **por qué ese modelo:** Redactar memorias y ofertas al máximo nivel: cada punto es contrato. El barrido CPV, el triaje y la extracción de requisitos van SIEMPRE por subagentes Sonnet o por rutina; Fable solo lee el pliego final y escribe.
-- **sesiones Claude:** sales
+- **sesiones Claude:** sales, Guillem-Licitaciones
 - **repos:** `~/dev/nga-ops`, `~/dev/grants/.claude/worktrees/licitaciones-bot`
 - **job:** Detectar licitaciones por CPV, leer pliegos, preparar y firmar ofertas. Si el pliego exige perfiles, pasa los requisitos a RRHH.
 - **prohibido:** Enviar la oferta, fijar precio o % de baja, y decidir presentarse con dudas de encaje: siempre Diego.
@@ -107,34 +107,45 @@ Cada agente es una sesión de Claude Code con su contrato (alma), su modelo asig
 - **estado:** activo · **prioridad:** 1 (ingresos)
 - **modelo:** Sonnet 5 · **subagentes:** Haiku 4.5
 - **por qué ese modelo:** Volumen: sourcing, enriquecimiento, clasificación de respuestas. Copy de una plantilla nueva: subagente Opus.
-- **sesiones Claude:** swarmixapp
+- **sesiones Claude:** swarmixapp, Aina-Outreach
 - **repos:** `~/dev/swarmixapp`, `~/dev/agentsIA`
 - **job:** Llenar el embudo: sourcing, enriquecimiento, borradores, clasificar respuestas.
 - **prohibido:** Enviar a una persona real y aprobar qué perfil se contacta: siempre Diego. Descartar perfiles conectados con Peninsula.
 
-### 12. Marti · Cupones ACCIÓ
+### 12. Ariadna · Motor de licitaciones
+
+- **id:** `sales-motor` · **departamento:** Comercial · **nivel:** 3 · **reporta a:** `dir-comercial`
+- **estado:** activo · **prioridad:** 1 (ingresos)
+- **modelo:** Sonnet 5 · **subagentes:** Haiku 4.5
+- **por qué ese modelo:** Volumen y datos: barrido, análisis, higiene del Sheet. Sonnet basta y no gasta ventana.
+- **sesiones Claude:** Ariadna-Motor
+- **repos:** `~/dev/grants/licitaciones-nga`
+- **job:** Que el embudo llegue limpio y a tiempo a Guillem: barrido diario PLACSP y TED (cron en VPS1), análisis y elegibilidad justificada con los criterios de Diego, resumen corto, importe y cierre de cada fila, higiene del Sheet (estados, progreso, textos completos), altas y credenciales en plataformas (VORTAL, ROLECE, contractació pública), aprender de los motivos de Diego para proponer reglas de auto-decisión, KPIs del embudo.
+- **prohibido:** Redactar memorias u ofertas, decidir el encaje final, precios, enviar nada. Eso es de Guillem (redacción) y de Diego (decisión).
+
+### 13. Marti · Cupones ACCIÓ
 
 - **id:** `delivery-cupones` · **departamento:** Delivery · **nivel:** 3 · **reporta a:** `dir-delivery`
 - **estado:** activo · **prioridad:** 2
 - **modelo:** Sonnet 5 · **subagentes:** Haiku 4.5
 - **por qué ese modelo:** Actas, fichas, horas y borradores por plantilla. Propuestas comerciales al cliente: subagente Opus.
-- **sesiones Claude:** cuponsIA, cuponIA
+- **sesiones Claude:** cuponsIA, cuponIA, Marti-Cupones
 - **repos:** `~/dev/cuponsIA`, `~/dev/infinitelabs-portal-cupons`
 - **job:** Ejecutar los cupones concedidos: fichas, actas, horas, bitácora, borradores.
 - **prohibido:** Enviar correo o tocar el calendario del cliente, precios, facturación, cambios de alcance (nunca implantación en docs de ACCIÓ), deploys en horario laboral.
 
-### 13. Ona · Auditorías LeakAI
+### 14. Ona · Auditorías LeakAI
 
 - **id:** `delivery-leakai` · **departamento:** Delivery · **nivel:** 3 · **reporta a:** `dir-delivery`
 - **estado:** activo · **prioridad:** 2
 - **modelo:** Sonnet 5 · **subagentes:** Sonnet 5
 - **por qué ese modelo:** Escaneo, ataques y pipeline: volumen. El juez de hallazgos (falsos positivos = difamación) SIEMPRE subagente Opus.
-- **sesiones Claude:** leakai
+- **sesiones Claude:** leakai, Ona-LeakAI
 - **repos:** `~/dev/leakai`
 - **job:** Escanear, atacar, verificar y generar informes de asistentes IA.
 - **prohibido:** Cualquier contacto con un tercero sin verificación humana previa; publicar un caso con nombre; comprar dominios.
 
-### 14. Berta · Formación en salud
+### 15. Berta · Formación en salud
 
 - **id:** `delivery-formacion` · **departamento:** Delivery · **nivel:** 3 · **reporta a:** `dir-delivery`
 - **estado:** por contratar (desactivado) · **prioridad:** 3
@@ -142,7 +153,7 @@ Cada agente es una sesión de Claude Code con su contrato (alma), su modelo asig
 - **por qué ese modelo:** Contenido formativo para cliente: calidad.
 - **job:** Servicios formativos en salud (ASICRE, cuidadores, menopausia) con Irene y Lidia.
 
-### 15. Oriol · Ejecución de proyectos
+### 16. Oriol · Ejecución de proyectos
 
 - **id:** `delivery-proyectos` · **departamento:** Delivery · **nivel:** 3 · **reporta a:** `dir-delivery`
 - **estado:** por contratar (desactivado) · **prioridad:** 2
@@ -150,7 +161,7 @@ Cada agente es una sesión de Claude Code con su contrato (alma), su modelo asig
 - **por qué ese modelo:** Coordinar arranque de proyecto ganado: criterio. Ejecución técnica por Sonnet.
 - **job:** Al firmar un contrato, coordinar a Tech y a los subcontratados para arrancar. Diego es el PM y habla con el cliente.
 
-### 16. Claudia · Búsqueda de perfiles
+### 17. Claudia · Búsqueda de perfiles
 
 - **id:** `rrhh-sourcing` · **departamento:** RRHH · **nivel:** 3 · **reporta a:** `dir-talent`
 - **estado:** por contratar (desactivado) · **prioridad:** 3
@@ -158,7 +169,7 @@ Cada agente es una sesión de Claude Code con su contrato (alma), su modelo asig
 - **por qué ese modelo:** Búsqueda y pool de perfiles: volumen.
 - **job:** Buscar en LinkedIn los perfiles que piden los pliegos y mantener el pool de subcontratables.
 
-### 17. Biel · Producto y herramientas
+### 18. Biel · Producto y herramientas
 
 - **id:** `tech-producto` · **departamento:** Producto · **nivel:** 3 · **reporta a:** `dir-producto`
 - **estado:** activo · **prioridad:** 4
@@ -168,7 +179,7 @@ Cada agente es una sesión de Claude Code con su contrato (alma), su modelo asig
 - **repos:** `~/dev/canto-plugin`, `~/dev/scoreflow`, `~/dev/diagnostia`, `~/dev/swarmix-web`, `~/dev/il-agent-core`, `~/dev/atlas`
 - **job:** Swarmix, Canto, ScoreFlow, Diagnostia y herramientas internas.
 
-### 18. Roc · DevOps e infraestructura
+### 19. Roc · DevOps e infraestructura
 
 - **id:** `tech-devops` · **departamento:** Producto · **nivel:** 3 · **reporta a:** `dir-producto`
 - **estado:** por contratar (desactivado) · **prioridad:** 4
@@ -177,18 +188,29 @@ Cada agente es una sesión de Claude Code con su contrato (alma), su modelo asig
 - **job:** Levantar servidores y entornos de los proyectos ganados.
 - **prohibido:** Gastar dinero sin OK de Diego.
 
-### 19. Mireia · Web y captación
+### 20. Quim · Product Owner del Radar
+
+- **id:** `producto-radar` · **departamento:** Producto · **nivel:** 3 · **reporta a:** `chief`
+- **estado:** activo · **prioridad:** 2
+- **modelo:** Opus 5 · **subagentes:** Sonnet 5
+- **por qué ese modelo:** Decisiones de producto, precios y trato con cliente: criterio.
+- **sesiones Claude:** Quim-Radar
+- **repos:** `~/dev/radar`
+- **job:** Convertir el Radar de licitaciones en un producto que se vende y se opera solo: propuesta de valor, pricing (Lite gratis / Pro 690 €/mes), web app propia en 77delta.com sustituyendo la de Apps Script, onboarding y perfiles CPV/territorio por cliente, alertas e informes, motor por cliente consumiendo el de Sales (Ariadna). Primer cliente: Nora Real Food.
+- **prohibido:** Fijar precios definitivos, contactar clientes y gastar sin OK de Diego; tocar el motor de Sales.
+
+### 21. Mireia · Web y captación
 
 - **id:** `mkt-web` · **departamento:** Marketing · **nivel:** 3 · **reporta a:** `dir-marketing`
 - **estado:** activo · **prioridad:** 3
 - **modelo:** Sonnet 5 · **subagentes:** Haiku 4.5
 - **por qué ese modelo:** Build, deploy, verificación y datos: rutina. Copy nuevo: subagente Opus.
-- **sesiones Claude:** web77d, infinitelabs
+- **sesiones Claude:** web77d, infinitelabs, Mireia-Web
 - **repos:** `~/dev/77delta`, `~/dev/website`
 - **job:** 77delta.com, formulario, analítica, marca y plantillas.
 - **prohibido:** Copy nuevo, precios, DNS, gasto, publicar hallazgos con nombre de empresa, y nunca Infinite Labs hacia el mercado español.
 
-### 20. Arnau · Contenido y LinkedIn
+### 22. Arnau · Contenido y LinkedIn
 
 - **id:** `mkt-contenido` · **departamento:** Marketing · **nivel:** 3 · **reporta a:** `dir-marketing`
 - **estado:** por contratar (desactivado) · **prioridad:** 3
@@ -196,18 +218,18 @@ Cada agente es una sesión de Claude Code con su contrato (alma), su modelo asig
 - **por qué ese modelo:** Escribir bien: LinkedIn, artículos, casos.
 - **job:** Contenido, LinkedIn y build in public.
 
-### 21. Teresa · Contabilidad y tesorería
+### 23. Teresa · Contabilidad y tesorería
 
 - **id:** `admin-books` · **departamento:** Admin · **nivel:** 3 · **reporta a:** `dir-admin`
 - **estado:** activo · **prioridad:** 4
 - **modelo:** Sonnet 5 · **subagentes:** Haiku 4.5
 - **por qué ese modelo:** Conciliación, facturas, tesorería: rutina.
-- **sesiones Claude:** books
+- **sesiones Claude:** books, Teresa-Contabilidad
 - **repos:** `~/dev/finanzas-casa`, `~/dev/contablia`, `~/dev/books`
 - **job:** Facturas, cobros, tesorería y contabilidad.
 - **prohibido:** Pagar: siempre Diego.
 
-### 22. Jordi · Fiscal y legal
+### 24. Jordi · Fiscal y legal
 
 - **id:** `admin-fiscal` · **departamento:** Admin · **nivel:** 3 · **reporta a:** `dir-admin`
 - **estado:** por contratar (desactivado) · **prioridad:** 4
@@ -215,7 +237,7 @@ Cada agente es una sesión de Claude Code con su contrato (alma), su modelo asig
 - **por qué ese modelo:** Modelos AEAT y contratos: criterio.
 - **job:** Modelos AEAT, contratos y compliance.
 
-### 23. Helena · Financiación y grants
+### 25. Helena · Financiación y grants
 
 - **id:** `estrategia-grants` · **departamento:** Estrategia · **nivel:** 3 · **reporta a:** `chief`
 - **estado:** activo · **prioridad:** 3
@@ -225,24 +247,24 @@ Cada agente es una sesión de Claude Code con su contrato (alma), su modelo asig
 - **repos:** `~/dev/grants`, `~/dev/accesspay-fellowship`
 - **job:** Convocatorias, solicitudes y seguimiento de financiación.
 
-### 24. Ferran · Estructura y transición
+### 26. Ferran · Estructura y transición
 
 - **id:** `estrategia-estructura` · **departamento:** Estrategia · **nivel:** 3 · **reporta a:** `chief`
 - **estado:** activo · **prioridad:** 3
 - **modelo:** Opus 5 · **subagentes:** Sonnet 5
 - **por qué ese modelo:** Decisiones de estructura y transición: criterio, confidencial.
-- **sesiones Claude:** professional
+- **sesiones Claude:** professional, Ferran-Estructura
 - **repos:** `~/dev/job-templates`, `~/dev/professional`
 - **job:** Estructura de negocio propio y transición profesional (confidencial).
 - **prohibido:** Cualquier envío a un tercero o cifra que salga de casa.
 
-### 25. Diego · Personal (no negocio)
+### 27. Diego · Personal (no negocio)
 
 - **id:** `personal` · **departamento:** Personal · **nivel:** 3
 - **estado:** activo · **prioridad:** 9
 - **modelo:** Sonnet 5 · **subagentes:** Haiku 4.5
 - **por qué ese modelo:** Uso personal: no gastar ventana en Opus.
-- **sesiones Claude:** random, health, plex, spotify-download-plex-setup, conscious, Main
+- **sesiones Claude:** random, health, plex, spotify-download-plex-setup, conscious, Main, Diego-Salud, Diego-Personal
 - **repos:** `~/dev/health`, `~/dev/conscious`, `~/dev/spooty`, `~/dev/basistrading`, `~/dev/personal`
 - **job:** Sesiones personales. Se cuentan aparte para ver cuánto del plan va a negocio.
 

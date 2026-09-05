@@ -187,6 +187,12 @@ Excepciones dentro de un agente Sonnet: el juez de hallazgos de LeakAI, las prop
 
 **Sesiones de la raíz `~/dev`:** `books`, `professional` y `personal` tienen carpeta propia desde el 2026-09-05 (con su `CLAUDE.md`, modelo y `hq-agente`); se retoman abriendo Claude desde ahí. La raíz queda para el chief (Fable).
 
+## 9c. Fichajes y escalados (definido el 2026-09-05 tras la prueba del radar)
+
+**Escalado:** cuando Diego responde a una tarjeta con "escala", "fichad", "producto" o "@chief", o la petición se sale del ámbito del agente, el agente reenvía la petición al chief por mensaje entre sesiones (sesión Chief OMC) y cierra su tarjeta con `hq hecho <id> --nota "escalado al chief"`. El chief además revisa `hq escaladas`.
+
+**Fichaje:** necesidad → el chief define el contrato del puesto (7 campos, organigrama, nombre, carga estimada) → UNA tarjeta a Diego (`hq pedir --agente chief --tipo estrategia --titulo "Fichaje: ..."`) → con el OK, alta el mismo día (HQ, avatar, carpeta con CLAUDE.md, settings de modelo, hq-agente, lanzador `equipo`, sesión, primer encargo, docs) → activación cuando el hook responde y ha escrito su primer parte y cerrado su primera tarjeta. Detalle en `docs/empresa/08-fichajes-y-escalados.md`.
+
 ## 9b. Otras piezas pendientes
 
 1. **Control Financiero / Guardrails** — el puesto de contrapoder del gasto (definido en HQ como `ctrl-finanzas`, por activar).
