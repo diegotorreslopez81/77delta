@@ -1,0 +1,225 @@
+---
+import Base from '../../layouts/Base.astro';
+import Boton from '../../components/Boton.astro';
+import Cta from '../../components/Cta.astro';
+import { href, site } from '../../lib/site';
+
+const requisitos = [
+  'Sede social en Catalunya',
+  'Constitución anterior al 30 de abril de 2024',
+  'Un mínimo de 10 trabajadores en el periodo que fije la convocatoria',
+  'Código IAE dentro de los sectores elegibles de la Sección Primera',
+  'No haber superado los 300.000 € de ayudas de minimis en los últimos tres años',
+];
+
+const pasos = [
+  {
+    titulo: 'Verificación en 24 horas',
+    texto: 'Conversación inicial gratuita y comprobación de elegibilidad en menos de un día hábil.',
+  },
+  {
+    titulo: 'Solicitud',
+    texto: 'Si encajas, presentamos la solicitud completa ante ACCIÓ. Cero burocracia para ti.',
+  },
+  {
+    titulo: 'Resolución',
+    texto: 'De dos a cuatro meses de espera hasta la resolución. Te contamos en qué punto está cada mes.',
+  },
+  {
+    titulo: 'Ejecución',
+    texto: 'Ejecutamos el proyecto según el alcance acordado, normalmente entre cuatro y doce semanas.',
+  },
+  {
+    titulo: 'Justificación',
+    texto: 'Cerramos el expediente ante ACCIÓ. La administración abona su parte directamente.',
+  },
+];
+
+const preguntas = [
+  {
+    p: '¿Y si mi empresa no cumple los requisitos?',
+    r: 'Te lo decimos en 24 horas y planteamos alternativas: ayudas estatales como Kit Consulting o Kit Digital, programas europeos, o el proyecto directo sin subvención. Nunca te dejamos sin opciones sobre la mesa.',
+  },
+  {
+    p: '¿Cuánto cuesta la gestión del cupón?',
+    r: 'La verificación inicial es siempre gratuita. La tramitación, la solicitud y la justificación van incluidas en el coste del proyecto si finalmente se ejecuta. Facturamos el proyecto, no el papeleo.',
+  },
+  {
+    p: '¿Cuánto dura todo el proceso?',
+    r: 'De la solicitud a la resolución, entre dos y cuatro meses. El ciclo completo, desde la primera conversación hasta el cierre del expediente, suele ir de seis a ocho meses.',
+  },
+  {
+    p: '¿Qué pasa si no la aprueban?',
+    r: 'No asumes ningún coste por nuestra parte. Si el proyecto sigue teniendo sentido, lo planteamos sin subvención o esperamos a la siguiente convocatoria.',
+  },
+  {
+    p: '¿Se pueden combinar varias ayudas?',
+    r: 'Depende de la compatibilidad entre programas. Lo revisamos caso a caso en la conversación inicial, repasando qué ayudas has usado ya y cuáles te quedan disponibles.',
+  },
+  {
+    p: '¿Sois solo proveedores o ejecutáis vosotros?',
+    r: 'Las dos cosas. Somos proveedor acreditado y ejecutamos el proyecto, sin subcontratar a terceros. La responsabilidad técnica y la administrativa son nuestras de principio a fin.',
+  },
+];
+---
+
+<Base
+  title="Cupó IA d'ACCIÓ"
+  description="Proveedor acreditado de ACCIÓ. Gestionamos el Cupó IA de la Generalitat para pymes catalanas: la administración asume parte del coste del proyecto. Verificamos la elegibilidad en 24 horas."
+>
+  <!-- Hero -->
+  <section class="wrap py-24 md:py-32">
+    <p class="eyebrow" data-reveal>Cupó IA d'ACCIÓ · Proveedor acreditado</p>
+    <h1
+      class="mt-7 max-w-[20ch] font-display text-[clamp(38px,6vw,76px)] font-extralight leading-[1.04] tracking-[-0.035em]"
+      data-reveal
+    >
+      Aplica IA con <span class="font-semibold text-oro-oscuro">financiación de la Generalitat</span>.
+    </h1>
+    <p class="mt-8 max-w-[54ch] text-[clamp(17px,1.6vw,20px)] text-pizarra" data-reveal>
+      Como proveedor acreditado por ACCIÓ, gestionamos los cupons de la Generalitat de Catalunya para pymes.
+      Parte del coste del proyecto lo asume la administración. Comprobamos si encajas en 24 horas.
+    </p>
+    <div class="mt-12 flex flex-wrap gap-4" data-reveal>
+      <Boton href={href('/contacto/')}>Verificar mi elegibilidad →</Boton>
+      <Boton href={href('/servicios/')} variante="linea">Ver los servicios</Boton>
+    </div>
+  </section>
+
+  <!-- Qué son -->
+  <section class="hairline bg-panel">
+    <div class="wrap grid gap-12 py-24 md:grid-cols-12 md:py-32">
+      <div class="md:col-span-5" data-reveal>
+        <p class="eyebrow">Cómo funcionan</p>
+        <h2 class="mt-5 font-display text-[clamp(28px,3.6vw,44px)] font-extralight leading-[1.1] tracking-[-0.03em]">
+          Qué es un cupó de ACCIÓ.
+        </h2>
+      </div>
+      <div class="space-y-5 text-[17px] text-pizarra md:col-span-7 md:pt-12" data-reveal>
+        <p>
+          ACCIÓ es la agencia de la Generalitat para la competitividad empresarial. Mantiene un registro oficial
+          de proveedores tecnológicos acreditados, y {site.sociedad} está en él.
+        </p>
+        <p>
+          Los cupons funcionan como bonos: la Generalitat abre un programa con un importe definido, tu empresa
+          elige a un proveedor acreditado, ejecuta el proyecto y la administración asume una parte sustancial
+          del coste.
+        </p>
+        <p>
+          El resultado es que entras en un proyecto de transformación con IA que de otro modo se te iría de
+          presupuesto. El rigor del trabajo es el mismo que con cualquier cliente. Solo cambia quién paga una
+          parte.
+        </p>
+      </div>
+    </div>
+  </section>
+
+  <!-- Programas -->
+  <section class="hairline">
+    <div class="wrap py-24 md:py-32">
+      <div class="max-w-[62ch]" data-reveal>
+        <p class="eyebrow">Programas</p>
+        <h2 class="mt-5 font-display text-[clamp(28px,3.6vw,44px)] font-extralight leading-[1.1] tracking-[-0.03em]">
+          En cuáles somos proveedor acreditado.
+        </h2>
+      </div>
+
+      <div class="mt-16 grid gap-px overflow-hidden rounded-[4px] border border-linea bg-linea md:grid-cols-2">
+        <div class="bg-panel p-8 md:p-10" data-reveal>
+          <span class="eyebrow">Acreditados</span>
+          <h3 class="mt-4 font-display text-[24px] font-semibold">Cupó IA</h3>
+          <p class="mt-4 text-[15px] text-pizarra">
+            Ayuda de la Generalitat para aplicar inteligencia artificial a procesos de empresa. Cubre el
+            diagnóstico, el plan y parte de la implantación. Es la vía habitual para que una pyme catalana
+            empiece con apoyo público.
+          </p>
+          <p class="mt-8 eyebrow text-pizarra">Requisitos principales</p>
+          <ul class="mt-4 space-y-3" role="list">
+            {
+              requisitos.map((r) => (
+                <li class="flex gap-3 text-[15px] text-pizarra">
+                  <span class="mt-[7px] h-[5px] w-[5px] shrink-0 rounded-full bg-oro" />
+                  {r}
+                </li>
+              ))
+            }
+          </ul>
+          <p class="mt-8 border-t border-linea pt-6 text-[14px] text-pizarra">
+            Los importes y los plazos cambian en cada convocatoria. Te decimos en qué punto está la actual y
+            cuánto cubre en tu caso concreto.
+          </p>
+        </div>
+
+        <div class="bg-panel p-8 md:p-10" data-reveal>
+          <span class="eyebrow text-pizarra">Acreditación en trámite</span>
+          <h3 class="mt-4 font-display text-[24px] font-semibold">Cupó Estratègia Digital</h3>
+          <p class="mt-4 text-[15px] text-pizarra">
+            Programa de ACCIÓ para empresas que necesitan definir o rehacer su estrategia digital. Cubre
+            auditoría, plan estratégico y priorización de inversiones tecnológicas a medio plazo.
+          </p>
+          <p class="mt-6 text-[15px] text-pizarra">
+            Estamos en proceso de acreditación como proveedor. Si tu proyecto encaja mejor aquí que en el Cupó
+            IA, te lo decimos aunque todavía no podamos tramitarlo nosotros.
+          </p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Proceso -->
+  <section class="hairline bg-marino text-marfil">
+    <div class="wrap py-24 md:py-32">
+      <div class="max-w-[62ch]" data-reveal>
+        <p class="eyebrow text-oro-luz">El proceso, paso a paso</p>
+        <h2 class="mt-5 font-display text-[clamp(28px,3.6vw,44px)] font-extralight leading-[1.1] tracking-[-0.03em]">
+          Toda la gestión administrativa la hacemos nosotros.
+        </h2>
+        <p class="mt-6 text-[17px] text-marfil/70">
+          Tu único compromiso es ejecutar el proyecto cuando llegue la resolución favorable.
+        </p>
+      </div>
+
+      <ol class="mt-16 grid gap-10 md:grid-cols-5" role="list">
+        {
+          pasos.map((p, i) => (
+            <li class="border-t border-marfil/15 pt-6" data-reveal>
+              <span class="font-mono text-[11px] tracking-[0.14em] text-oro-luz">
+                {String(i + 1).padStart(2, '0')}
+              </span>
+              <h3 class="mt-3 font-display text-[17px] font-semibold leading-[1.3]">{p.titulo}</h3>
+              <p class="mt-3 text-[14px] text-marfil/65">{p.texto}</p>
+            </li>
+          ))
+        }
+      </ol>
+    </div>
+  </section>
+
+  <!-- Preguntas -->
+  <section class="hairline">
+    <div class="wrap py-24 md:py-32">
+      <div class="max-w-[62ch]" data-reveal>
+        <p class="eyebrow">Preguntas frecuentes</p>
+        <h2 class="mt-5 font-display text-[clamp(28px,3.6vw,44px)] font-extralight leading-[1.1] tracking-[-0.03em]">
+          Lo que más nos preguntan sobre los cupons.
+        </h2>
+      </div>
+      <ul class="mt-14 grid gap-x-12 gap-y-10 md:grid-cols-2" role="list">
+        {
+          preguntas.map((q) => (
+            <li data-reveal>
+              <h3 class="font-display text-[18px] font-semibold leading-[1.35]">{q.p}</h3>
+              <p class="mt-3 text-[15px] text-pizarra">{q.r}</p>
+            </li>
+          ))
+        }
+      </ul>
+    </div>
+  </section>
+
+  <Cta
+    titulo="¿Tu empresa encaja? Lo verificamos en 24 horas."
+    texto="Conversación inicial gratuita. Te confirmamos la elegibilidad y te orientamos sobre el siguiente paso, con cupón o sin él."
+    boton="Verificar elegibilidad"
+  />
+</Base>

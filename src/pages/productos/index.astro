@@ -53,11 +53,21 @@ const cuantos = enLetras[productos.length] ?? String(productos.length);
               <h2 class="mt-3 font-display text-[22px] font-semibold leading-[1.2]">{p.nombre}</h2>
               <p class="mt-2 font-mono text-[11px] uppercase tracking-[0.14em] text-pizarra">{p.categoria}</p>
               <p class="mt-4 flex-1 text-[15px] text-pizarra">{p.descripcion}</p>
-              {p.url && (
-                <Boton href={p.url} variante="linea" externo class="mt-8 self-start">
-                  Visitar →
+              <div class="mt-8 flex flex-wrap items-center gap-5">
+                <Boton href={href(`/productos/${p.slug}/`)} variante="linea" class="self-start">
+                  Ver la ficha →
                 </Boton>
-              )}
+                {p.url && (
+                  <a
+                    href={p.url}
+                    target="_blank"
+                    rel="noopener"
+                    class="font-mono text-[12px] text-oro-oscuro transition-colors hover:text-tinta"
+                  >
+                    Visitar →
+                  </a>
+                )}
+              </div>
             </li>
           ))
         }

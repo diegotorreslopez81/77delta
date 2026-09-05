@@ -7,6 +7,7 @@
  */
 import Base from '../layouts/Base.astro';
 import { site } from '../lib/site';
+import { casos, familias } from '../data/casos-de-uso';
 ---
 
 <Base title="" description={site.descripcion}>
@@ -187,6 +188,32 @@ import { site } from '../lib/site';
 </section>
 
 <!-- CASO DESTACADO · CARRUSEL ROTATIVO 5 CASOS -->
+<!-- CAPACIDADES -->
+<section class="caps" id="capacidades">
+  <div class="cont">
+    <div class="section-head">
+      <span class="section-tag">Qué sabemos hacer</span>
+      <h2>{casos.length} capacidades catalogadas, en ocho familias.</h2>
+      <p>De los asistentes conversacionales a la seguridad de IA, pasando por agentes, búsqueda sobre tu documentación, automatización de procesos, cumplimiento europeo y modelos propios. Todas están en producción en algún sitio. Los ejemplos son representativos y están anonimizados.</p>
+    </div>
+    <ul class="caps-grid">
+      {
+        familias.map((f) => (
+          <li>
+            <a href={`/casos-de-uso/?familia=${f.slug}`}>
+              <span class="num">{f.num}</span>
+              <h3>{f.titulo}</h3>
+              <p>{f.texto}</p>
+              <span class="cuenta">{casos.filter((c) => c.familia === f.slug).length} capacidades</span>
+            </a>
+          </li>
+        ))
+      }
+    </ul>
+    <a href="/casos-de-uso/" class="caps-link">Ver el catálogo completo y filtrarlo <span>&#8594;</span></a>
+  </div>
+</section>
+
 <section class="case" id="casos">
   <div class="slides">
 
@@ -466,6 +493,20 @@ import { site } from '../lib/site';
   .aisec-informe li .s3{color:#06101F;background:var(--accent-luz);border-color:var(--accent-luz);font-weight:700}
   .aisec-pie{font-size:12px;line-height:1.6;color:rgba(237,234,227,.45);margin:18px 0 0}
 
+
+  /* Capacidades */
+  .caps{padding:140px 0;background:var(--white);border-top:1px solid var(--line)}
+  .caps-grid{list-style:none;display:grid;grid-template-columns:repeat(4,1fr);gap:1px;background:var(--line);border:1px solid var(--line);border-radius:4px;overflow:hidden;margin-top:56px}
+  .caps-grid li{background:var(--paper)}
+  .caps-grid a{display:flex;flex-direction:column;height:100%;padding:28px 24px;transition:background .2s}
+  .caps-grid a:hover{background:rgba(167,120,27,.06)}
+  .caps-grid .num{font-family:'IBM Plex Mono',ui-monospace,monospace;font-size:11px;letter-spacing:.14em;color:var(--accent-2)}
+  .caps-grid h3{font-size:17px;font-weight:600;margin:12px 0 10px;line-height:1.25;color:var(--ink)}
+  .caps-grid p{font-size:14px;line-height:1.55;color:var(--ink-3);flex:1;margin:0}
+  .caps-grid .cuenta{margin-top:18px;font-family:'IBM Plex Mono',ui-monospace,monospace;font-size:11px;letter-spacing:.12em;text-transform:uppercase;color:var(--ink-4)}
+  .caps-link{display:inline-flex;align-items:center;gap:10px;margin-top:36px;font-family:'Sora',system-ui,sans-serif;font-size:15px;font-weight:600;color:var(--accent-2)}
+  .caps-link:hover{color:var(--ink)}
+
   .trust{padding:80px 0 100px;background:var(--paper);border-top:1px solid var(--line)}
   .trust .header{text-align:center;margin-bottom:48px}
   .trust .header .section-tag{display:inline-block;font-size:12px;color:var(--accent);font-weight:700;letter-spacing:.14em;text-transform:uppercase;margin-bottom:14px}
@@ -612,6 +653,7 @@ import { site } from '../lib/site';
     .cont{padding:0 24px}
     .hero .grid,.problem .grid,.case .slide .grid,.about .grid{grid-template-columns:1fr;gap:48px}
     .aisec-grid{grid-template-columns:1fr;gap:44px}
+    .caps-grid{grid-template-columns:repeat(2,1fr)}
     .sec-grid{grid-template-columns:repeat(2,1fr)}
     .svc-grid{grid-template-columns:1fr}
     .trust .logos{grid-template-columns:repeat(3,1fr);gap:24px 16px}
@@ -635,6 +677,8 @@ import { site } from '../lib/site';
     .problem h2{font-size:30px;line-height:1.15}
     .problem .lead,.problem .questions{font-size:16px}
     .aisec{padding:80px 0}
+    .caps{padding:80px 0}
+    .caps-grid{grid-template-columns:1fr}
     .aisec-grid{grid-template-columns:1fr;gap:40px}
     .services{padding:80px 0}
     .section-head h2{font-size:28px;line-height:1.15}

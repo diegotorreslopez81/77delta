@@ -1,0 +1,226 @@
+---
+import Base from '../../layouts/Base.astro';
+import Cta from '../../components/Cta.astro';
+import { href } from '../../lib/site';
+import { casos, familias, sectores, tecnologias } from '../../data/casos-de-uso';
+
+const porFamilia = (slug: string) => casos.filter((c) => c.familia === slug).length;
+const nombreFamilia = Object.fromEntries(familias.map((f) => [f.slug, f.titulo]));
+const numFamilia = Object.fromEntries(familias.map((f) => [f.slug, f.num]));
+
+const campo =
+  'mt-3 w-full appearance-none rounded-[8px] border border-tinta/15 bg-panel px-4 py-3 font-sans text-[15px] text-tinta transition-colors focus:border-oro [&_option]:bg-panel [&_option]:text-tinta';
+const etiqueta = 'block font-mono text-[11px] uppercase tracking-[0.18em] text-pizarra';
+---
+
+<Base
+  title="Casos de uso"
+  description={`${casos.length} capacidades de IA aplicada que hemos diseñado, construido y puesto en producción, de los asistentes conversacionales a la seguridad de IA. Filtra por familia, sector y tecnología.`}
+>
+  <!-- Hero -->
+  <section class="wrap py-24 md:py-32">
+    <p class="eyebrow" data-reveal>Casos de uso</p>
+    <h1
+      class="mt-7 max-w-[20ch] font-display text-[clamp(38px,6vw,76px)] font-extralight leading-[1.04] tracking-[-0.035em]"
+      data-reveal
+    >
+      <span class="font-semibold text-oro-oscuro">{casos.length} capacidades</span> de IA aplicada. Diseñadas, construidas
+      y en producción.
+    </h1>
+    <p class="mt-8 max-w-[56ch] text-[clamp(17px,1.6vw,20px)] text-pizarra" data-reveal>
+      Esto es lo que sabemos hacer, agrupado por familia técnica para que encuentres lo tuyo sin tener que
+      conocer la tecnología de debajo. Los ejemplos son representativos y están anonimizados por
+      confidencialidad con los clientes.
+    </p>
+
+    <ul class="mt-14 grid gap-4 sm:grid-cols-3" role="list" data-reveal>
+      {
+        [
+          [String(casos.length), 'capacidades catalogadas'],
+          [String(familias.length), 'familias técnicas'],
+          [String(Object.keys(sectores).length), 'sectores cubiertos'],
+        ].map(([cifra, texto]) => (
+          <li class="flex items-baseline gap-4 rounded-[4px] border border-linea bg-panel px-5 py-4">
+            <span class="shrink-0 font-display text-[26px] font-extralight tracking-[-0.03em] text-oro-oscuro">
+              {cifra}
+            </span>
+            <span class="text-[14px] text-pizarra">{texto}</span>
+          </li>
+        ))
+      }
+    </ul>
+  </section>
+
+  <!-- Catálogo filtrable -->
+  <section class="hairline bg-panel">
+    <div class="wrap py-20 md:py-24">
+      <div class="max-w-[62ch]" data-reveal>
+        <p class="eyebrow">El catálogo</p>
+        <h2 class="mt-5 font-display text-[clamp(28px,3.6vw,44px)] font-extralight leading-[1.1] tracking-[-0.03em]">
+          Filtra por familia, sector o tecnología.
+        </h2>
+      </div>
+
+      <form id="filtros" class="mt-12 grid gap-6 sm:grid-cols-3" data-reveal>
+        <div>
+          <label class={etiqueta} for="f-familia">Familia</label>
+          <select class={campo} id="f-familia" name="familia">
+            <option value="">Todas</option>
+            {familias.map((f) => <option value={f.slug}>{`${f.num} · ${f.titulo}`}</option>)}
+          </select>
+        </div>
+        <div>
+          <label class={etiqueta} for="f-sector">Sector</label>
+          <select class={campo} id="f-sector" name="sector">
+            <option value="">Todos</option>
+            {Object.entries(sectores).map(([k, v]) => <option value={k}>{v}</option>)}
+          </select>
+        </div>
+        <div>
+          <label class={etiqueta} for="f-tecnologia">Tecnología</label>
+          <select class={campo} id="f-tecnologia" name="tecnologia">
+            <option value="">Todas</option>
+            {Object.entries(tecnologias).map(([k, v]) => <option value={k}>{v}</option>)}
+          </select>
+        </div>
+      </form>
+
+      <div class="mt-8 flex flex-wrap items-center gap-4" data-reveal>
+        <p class="font-mono text-[12px] uppercase tracking-[0.14em] text-pizarra">
+          <span id="contador">{casos.length}</span> de {casos.length} capacidades
+        </p>
+        <button
+          id="limpiar"
+          type="button"
+          class="hidden font-mono text-[12px] text-oro-oscuro underline decoration-linea underline-offset-4 transition-colors hover:decoration-oro"
+        >
+          Quitar filtros
+        </button>
+      </div>
+
+      <ul
+        id="rejilla"
+        class="mt-10 grid gap-px overflow-hidden rounded-[4px] border border-linea bg-linea sm:grid-cols-2 lg:grid-cols-3"
+        role="list"
+      >
+        {
+          casos.map((c) => (
+            <li
+              id={c.id}
+              class="flex scroll-mt-24 flex-col bg-panel p-7 md:p-8"
+              data-familia={c.familia}
+              data-sectores={c.sectores.join(' ')}
+              data-tecnologias={c.tecnologias.join(' ')}
+            >
+              <p class="font-mono text-[11px] uppercase tracking-[0.14em] text-oro-oscuro">
+                {numFamilia[c.familia]} · {nombreFamilia[c.familia]}
+              </p>
+              <h3 class="mt-4 font-display text-[19px] font-semibold leading-[1.3]">{c.titulo}</h3>
+              <p class="mt-3 flex-1 text-[15px] text-pizarra">{c.texto}</p>
+              <p class="mt-6 flex flex-wrap gap-2">
+                {c.tecnologias.map((t) => (
+                  <span class="rounded-full border border-linea px-3 py-1 font-mono text-[10px] uppercase tracking-[0.12em] text-pizarra">
+                    {tecnologias[t] ?? t}
+                  </span>
+                ))}
+              </p>
+            </li>
+          ))
+        }
+      </ul>
+
+      <p id="vacio" class="mt-12 hidden max-w-[52ch] text-[17px] text-pizarra">
+        Ninguna capacidad encaja con esos filtros. Prueba con una combinación más amplia, o cuéntanos tu caso y
+        te decimos si lo hemos hecho antes.
+      </p>
+    </div>
+  </section>
+
+  <!-- Las familias -->
+  <section class="hairline">
+    <div class="wrap py-24 md:py-32">
+      <div class="max-w-[62ch]" data-reveal>
+        <p class="eyebrow">Cómo lo organizamos</p>
+        <h2 class="mt-5 font-display text-[clamp(28px,3.6vw,44px)] font-extralight leading-[1.1] tracking-[-0.03em]">
+          Ocho familias técnicas. Empieza por la que más se parezca a tu problema.
+        </h2>
+        <p class="mt-6 text-[17px] text-pizarra">
+          Cada familia agrupa entre tres y siete capacidades. No hace falta que sepas cuál es la tuya: el
+          diagnóstico la identifica.
+        </p>
+      </div>
+
+      <ul class="mt-16 grid gap-x-12 gap-y-12 md:grid-cols-2" role="list">
+        {
+          familias.map((f) => (
+            <li data-reveal>
+              <div class="flex items-baseline gap-4">
+                <span class="font-mono text-[11px] tracking-[0.14em] text-oro-oscuro">{f.num}</span>
+                <h3 class="font-display text-[20px] font-semibold leading-[1.3]">{f.titulo}</h3>
+              </div>
+              <p class="mt-3 text-[15px] text-pizarra">{f.texto}</p>
+              <p class="mt-4 font-mono text-[11px] uppercase tracking-[0.14em] text-pizarra">
+                {porFamilia(f.slug)} capacidades
+              </p>
+            </li>
+          ))
+        }
+      </ul>
+    </div>
+  </section>
+
+  <Cta
+    titulo="¿Se parece algo de esto a lo que necesitas?"
+    texto="Treinta minutos para evaluar si es viable, en cuánto tiempo y por cuánto. Si no encaja con lo que hacemos, te lo decimos y te orientamos hacia quien sí."
+    boton="Reservar diagnóstico gratuito"
+  />
+
+  <script>
+    // Filtrado en el propio navegador: las tarjetas ya están en el HTML.
+    const form = document.querySelector<HTMLFormElement>('#filtros');
+    const tarjetas = Array.from(document.querySelectorAll<HTMLLIElement>('#rejilla > li'));
+    const contador = document.querySelector<HTMLElement>('#contador');
+    const vacio = document.querySelector<HTMLElement>('#vacio');
+    const rejilla = document.querySelector<HTMLElement>('#rejilla');
+    const limpiar = document.querySelector<HTMLButtonElement>('#limpiar');
+
+    const aplicar = () => {
+      if (!form) return;
+      const datos = new FormData(form);
+      const familia = String(datos.get('familia') ?? '');
+      const sector = String(datos.get('sector') ?? '');
+      const tecnologia = String(datos.get('tecnologia') ?? '');
+
+      let visibles = 0;
+      for (const t of tarjetas) {
+        const encaja =
+          (!familia || t.dataset.familia === familia) &&
+          (!sector || (t.dataset.sectores ?? '').split(' ').includes(sector)) &&
+          (!tecnologia || (t.dataset.tecnologias ?? '').split(' ').includes(tecnologia));
+        t.hidden = !encaja;
+        if (encaja) visibles += 1;
+      }
+
+      if (contador) contador.textContent = String(visibles);
+      if (vacio) vacio.classList.toggle('hidden', visibles > 0);
+      if (rejilla) rejilla.classList.toggle('hidden', visibles === 0);
+      limpiar?.classList.toggle('hidden', !familia && !sector && !tecnologia);
+    };
+
+    form?.addEventListener('change', aplicar);
+    limpiar?.addEventListener('click', () => {
+      form?.reset();
+      aplicar();
+    });
+
+    // Una familia se puede enlazar directamente: /casos-de-uso/?familia=seguridad
+    const pedida = new URLSearchParams(location.search).get('familia');
+    if (pedida && form) {
+      const select = form.querySelector<HTMLSelectElement>('#f-familia');
+      if (select && Array.from(select.options).some((o) => o.value === pedida)) {
+        select.value = pedida;
+        aplicar();
+      }
+    }
+  </script>
+</Base>

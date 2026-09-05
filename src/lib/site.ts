@@ -32,7 +32,8 @@ export function href(path: string): string {
 export const nav = [
   { texto: 'Sectores', ruta: '/sectores/' },
   { texto: 'Servicios', ruta: '/servicios/' },
-  { texto: 'Seguridad IA', ruta: '/seguridad-ia/' },
+  { texto: 'Seguridad IA', ruta: '/servicios/seguridad-ia/' },
+  { texto: 'Casos de uso', ruta: '/casos-de-uso/' },
   { texto: 'Historias de éxito', ruta: '/historias-de-exito/' },
   { texto: 'Productos', ruta: '/productos/' },
   { texto: 'Sobre nosotros', ruta: '/sobre-nosotros/' },

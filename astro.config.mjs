@@ -11,6 +11,8 @@ export default defineConfig({
   site,
   base,
   trailingSlash: 'always',
+  // La seguridad de IA vivió unas horas en la raíz antes de pasar a ser un servicio más.
+  redirects: { '/seguridad-ia': '/servicios/seguridad-ia/' },
   build: { format: 'directory' },
   integrations: [sitemap()],
   vite: { plugins: [tailwindcss()] },
