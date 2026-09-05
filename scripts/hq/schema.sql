@@ -88,6 +88,19 @@ create table if not exists public.omc_plan (
   primary key (empresa, cuenta, ts)
 );
 
+-- Actividad reciente de cada agente (observaciones de Engram por proyecto), la sube hq-actividad.py.
+create table if not exists public.omc_actividad (
+  empresa text not null references public.omc_empresas(id) on delete cascade,
+  agente text not null,
+  obs_id bigint not null,
+  ts timestamptz not null,
+  proyecto text not null default '',
+  tipo text not null default '',
+  titulo text not null,
+  primary key (empresa, obs_id)
+);
+create index if not exists omc_actividad_agente on public.omc_actividad (empresa, agente, ts desc);
+
 create table if not exists public.omc_push (
   id bigserial primary key,
   empresa text not null references public.omc_empresas(id) on delete cascade,
@@ -103,7 +116,8 @@ alter table public.omc_solicitudes enable row level security;
 alter table public.omc_uso enable row level security;
 alter table public.omc_push enable row level security;
 alter table public.omc_plan enable row level security;
-revoke all on public.omc_empresas, public.omc_tokens, public.omc_agentes, public.omc_solicitudes, public.omc_uso, public.omc_push, public.omc_plan from anon, authenticated;
+alter table public.omc_actividad enable row level security;
+revoke all on public.omc_empresas, public.omc_tokens, public.omc_agentes, public.omc_solicitudes, public.omc_uso, public.omc_push, public.omc_plan, public.omc_actividad from anon, authenticated;
 revoke all on sequence public.omc_solicitudes_id_seq, public.omc_push_id_seq from anon, authenticated;
 
 -- Helper interno: no se concede a anon.
@@ -148,8 +162,27 @@ begin
     'gasto_mes', (select coalesce(jsonb_agg(jsonb_build_object('depto', g.depto, 'total', g.total)), '[]'::jsonb)
                   from (select depto, sum(importe) total from public.omc_solicitudes
                         where empresa = e.id and tipo = 'gasto' and estado in ('aprobada','ejecutada')
-                          and resolved_at >= date_trunc('month', now()) group by depto) g)
+                          and resolved_at >= date_trunc('month', now()) group by depto) g),
+    'actividad', (select coalesce(jsonb_agg(jsonb_build_object('agente', y.agente, 'items', y.items)), '[]'::jsonb)
+                  from (select agente, jsonb_agg(jsonb_build_object('ts', ts, 'titulo', titulo, 'tipo', tipo, 'proyecto', proyecto) order by ts desc) items
+                        from (select *, row_number() over (partition by agente order by ts desc) rn from public.omc_actividad where empresa = e.id) z
+                        where rn <= 6 group by agente) y)
   );
+end $$;
+
+-- Actividad de agentes (upsert por observación).
+create or replace function public.omc_subir_actividad(p_token text, p_filas jsonb)
+returns jsonb language plpgsql security definer set search_path = public as $$
+declare t public.omc_tokens; n int := 0; f jsonb;
+begin
+  t := public.omc_tok(p_token);
+  for f in select * from jsonb_array_elements(p_filas) loop
+    insert into public.omc_actividad (empresa, agente, obs_id, ts, proyecto, tipo, titulo)
+      values (t.empresa, f->>'agente', (f->>'obs_id')::bigint, (f->>'ts')::timestamptz, coalesce(f->>'proyecto',''), coalesce(f->>'tipo',''), left(coalesce(f->>'titulo',''), 300))
+      on conflict (empresa, obs_id) do update set agente = excluded.agente, ts = excluded.ts, tipo = excluded.tipo, titulo = excluded.titulo, proyecto = excluded.proyecto;
+    n := n + 1;
+  end loop;
+  return jsonb_build_object('filas', n);
 end $$;
 
 -- Uso de tokens (solo owner). Cada fila de uso se atribuye a un agente por nombre de sesión o por ruta.
@@ -235,6 +268,7 @@ begin
     activo = coalesce((p_patch->>'activo')::boolean, activo),
     prioridad = coalesce((p_patch->>'prioridad')::int, prioridad),
     contrato = case when p_patch ? 'contrato' then contrato || (p_patch->'contrato') else contrato end,
+    ultima_actividad = greatest(ultima_actividad, nullif(p_patch->>'ultima_actividad','')::timestamptz),
     orden = coalesce((p_patch->>'orden')::int, orden)
     where empresa = t.empresa and id = p_id returning * into a;
   return to_jsonb(a);
@@ -340,9 +374,9 @@ end $$;
 
 revoke all on function public.omc_token_info(text), public.omc_hq(text), public.omc_hq_uso(text), public.omc_resolver(text, bigint, text, text),
   public.omc_agente_set(text, text, jsonb), public.omc_pedir(text, jsonb), public.omc_estado(text, bigint), public.omc_reportar(text, bigint, boolean, text),
-  public.omc_latido(text, text), public.omc_mis_solicitudes(text, text), public.omc_subir_uso(text, jsonb), public.omc_guardar_push(text, jsonb), public.omc_subir_plan(text, jsonb) from public;
+  public.omc_latido(text, text), public.omc_mis_solicitudes(text, text), public.omc_subir_uso(text, jsonb), public.omc_guardar_push(text, jsonb), public.omc_subir_plan(text, jsonb), public.omc_subir_actividad(text, jsonb) from public;
 grant execute on function public.omc_token_info(text), public.omc_hq(text), public.omc_hq_uso(text), public.omc_resolver(text, bigint, text, text),
   public.omc_agente_set(text, text, jsonb), public.omc_pedir(text, jsonb), public.omc_estado(text, bigint), public.omc_reportar(text, bigint, boolean, text),
-  public.omc_latido(text, text), public.omc_mis_solicitudes(text, text), public.omc_subir_uso(text, jsonb), public.omc_guardar_push(text, jsonb), public.omc_subir_plan(text, jsonb)
+  public.omc_latido(text, text), public.omc_mis_solicitudes(text, text), public.omc_subir_uso(text, jsonb), public.omc_guardar_push(text, jsonb), public.omc_subir_plan(text, jsonb), public.omc_subir_actividad(text, jsonb)
   to anon, authenticated, service_role;
 notify pgrst, 'reload schema';
