@@ -168,6 +168,7 @@ def main():
     p.add_argument('--periodicidad', choices=('unico', 'mensual', 'anual')); p.add_argument('--fecha'); p.add_argument('--nota'); p.add_argument('--borrar', action='store_true'); p.add_argument('--agente')
     p = sub.add_parser('ingresos', help='listar el libro de ingresos')
     p = sub.add_parser('kpi', help='fijar un KPI de negocio'); p.add_argument('--clave', required=True); p.add_argument('--valor', type=float); p.add_argument('--texto', default=''); p.add_argument('--fuente')
+    p = sub.add_parser('licitaciones', help='licitaciones con la decisión y los motivos de Diego (para Sales)'); p.add_argument('--todas', action='store_true'); p.add_argument('--decididas', action='store_true')
     a = ap.parse_args()
 
     if a.cmd in ('pedir', 'duda'):
@@ -224,6 +225,15 @@ def main():
         else:
             for r in rs: print(f"#{r['id']} {r['cliente']} · {r['linea']} · {r['importe']} € · {r['estado']} · {r.get('periodicidad')} · {r.get('fecha') or ''}{' · ' + r['notas'] if r.get('notas') else ''}")
             print(f"total comprometido: {sum(float(r['importe']) for r in rs if r['estado'] in ('concedido','contratado','facturado','cobrado')):.2f} €")
+    elif a.cmd == 'licitaciones':
+        ls = rpc('omc_licitaciones_lista', p_token=E['HQ_TOKEN'], p_todas=a.todas)
+        if a.decididas: ls = [l for l in ls if l['decidido_por'] == 'diego']
+        if a.json: print(json.dumps(ls, ensure_ascii=False))
+        else:
+            for l in ls:
+                quien = {'diego': 'DIEGO', 'sales': 'sales/auto'}.get(l['decidido_por'], '')
+                mot = (', '.join(l.get('motivos') or []) + (' · ' + l['motivo_texto'] if l.get('motivo_texto') else '')).strip(' ·')
+                print(f"{l['expediente']} · {l['organo'][:40]} · {l['importe'] or '?'} € · cierre {l['cierre'] or '?'} · {l['estado'] or '-'} · {l['decision']}{' (' + quien + ')' if quien else ''}{' · ' + mot if mot else ''}")
     elif a.cmd == 'kpi':
         print(json.dumps(rpc('omc_kpi_set', p_token=E['HQ_TOKEN'], p_filas=[{'clave': a.clave, 'valor': a.valor, 'texto': a.texto, 'fuente': a.fuente or agente_actual(None)}]), ensure_ascii=False))
 

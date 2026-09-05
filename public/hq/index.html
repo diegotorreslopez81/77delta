@@ -56,7 +56,7 @@ header .esp{flex:1}
 .icono{width:36px;height:36px;border-radius:10px;display:grid;place-items:center;color:var(--marfil);font-size:18px}
 .icono:active{background:#122238}
 nav.tabs{display:flex;background:var(--marino);position:sticky;top:calc(56px + env(safe-area-inset-top));z-index:19;border-bottom:1px solid #1E2B3B}
-nav.tabs button{flex:1;padding:12px 6px 11px;color:var(--pizarra-clara);font:500 14px var(--body);border-bottom:2px solid transparent}
+nav.tabs button{flex:1;padding:12px 2px 11px;color:var(--pizarra-clara);font:500 13px var(--body);border-bottom:2px solid transparent;white-space:nowrap}
 nav.tabs button.on{color:#EDEAE3;border-bottom-color:#A7781B}
 nav.tabs button small{font-family:var(--mono);font-size:11px;color:#D4A03A;margin-left:4px}
 
@@ -215,6 +215,7 @@ h2.sec-t small{color:var(--oro-oscuro)}
 <nav class="tabs" id="tabs">
   <button data-t="bandeja" class="on">Bandeja<small id="n-bandeja"></small></button>
   <button data-t="negocio">Negocio</button>
+  <button data-t="licita">Licita<small id="n-licita"></small></button>
   <button data-t="equipo">Equipo</button>
   <button data-t="costes">Costes</button>
 </nav>
@@ -295,9 +296,10 @@ function cargar(){ if (cargando) return Promise.resolve(); cargando = true;
 /* ---- render ---- */
 function render(){ var p = S.hq.pendientes.length, pill = document.getElementById('pend'); pill.textContent = p; pill.className = 'pill' + (p ? '' : ' cero');
   document.getElementById('n-bandeja').textContent = p ? p : '';
+  var nl = licPorDecidir().length; document.getElementById('n-licita').textContent = nl ? nl : '';
   document.querySelectorAll('#tabs button').forEach(function(b){ b.classList.toggle('on', b.dataset.t === S.tab); });
   app.textContent = '';
-  if (S.tab === 'bandeja') renderBandeja(); else if (S.tab === 'negocio') renderNegocio(); else if (S.tab === 'equipo') renderEquipo(); else renderCostes(); }
+  if (S.tab === 'bandeja') renderBandeja(); else if (S.tab === 'negocio') renderNegocio(); else if (S.tab === 'licita') renderLicita(); else if (S.tab === 'equipo') renderEquipo(); else renderCostes(); }
 
 /* ---- bandeja ---- */
 function renderBandeja(){
@@ -471,6 +473,83 @@ function hojaSolicitud(s){ var ag = agente(s.agente), dl = el('dl'); [['Agente',
     var ta = el('textarea', { placeholder: 'Mensaje para ' + (ag ? persona(ag) : s.agente), rows: '1' }), mic = el('button', { class: 'mic', text: '🎤', onclick: function(){ dictar(ta, mic); } });
     kids.push(el('div', { class: 'nota' }, [ta, mic, el('button', { class: 'enviar', text: '➤', onclick: function(){ cerrarHoja(); comentar(s, ta, ag); } })]));
     kids.push(el('div', { class: 'acciones' }, [el('button', { class: 'btn no', text: 'Devolver a pendiente', onclick: function(){ cerrarHoja(); rpc('omc_resolver', { p_token: TOKEN, p_id: s.id, p_estado: 'pendiente', p_respuesta: '' }).then(cargar).catch(function(e){ toast(e.message); }); } })])); }
+  hoja(kids); }
+
+/* ---- licitaciones ---- */
+var LIC_TERMINAL = ['adjudicada', 'contratada', 'perdida', 'no adjudicada', 'desierta', 'cerrada sin presentar', 'descartada', 'excluida'];
+var LIC_GANADA = ['adjudicada', 'contratada'];
+var MOTIVOS_NO = ['Fuera de sector', 'Exige solvencia', 'Presencial', 'Importe bajo', 'Plazo imposible', 'Atada al proveedor', 'Sin margen', 'Otro'];
+var MOTIVOS_OK = ['Encaja perfil', '159.6 sin solvencia', 'Importe interesante', 'Cliente estratégico', 'Repetible', 'Otro'];
+function licTodas(){ return S.hq.licitaciones || []; }
+function licPorDecidir(){ return licTodas().filter(function(l){ return l.pestana === 'Licitaciones' && l.decision === 'Pendiente' && LIC_TERMINAL.indexOf((l.estado || '').toLowerCase()) < 0 && ['presentada', 'en juego'].indexOf((l.estado || '').toLowerCase()) < 0; }); }
+function licEnCurso(){ return licTodas().filter(function(l){ var e = (l.estado || '').toLowerCase(); return l.pestana === 'Licitaciones' && LIC_TERMINAL.indexOf(e) < 0 && (l.decision === 'OK' || ['presentada', 'en juego', 'aprobada', 'en preparación', 'en preparacion'].indexOf(e) >= 0); }); }
+function licGanadas(){ return licTodas().filter(function(l){ return LIC_GANADA.indexOf((l.estado || '').toLowerCase()) >= 0; }); }
+function licCerradas(){ return licTodas().filter(function(l){ var e = (l.estado || '').toLowerCase(); return LIC_TERMINAL.indexOf(e) >= 0 && LIC_GANADA.indexOf(e) < 0; }); }
+function solvenciaCorta(l){ var s = (l.solvencia || '').toLowerCase(); if (!s) return null; if (/no exige|exime|159\.6/.test(s) && !/^exige/.test(s)) return ['sin solvencia (159.6)', 'verde']; if (/exige/.test(s)) return ['exige solvencia', 'rojo']; return ['solvencia: ver pliego', '']; }
+function elegibleChip(l){ var e = (l.elegible || '').toLowerCase(); if (!e) return null; return el('span', { class: 'dato ' + (e.indexOf('probable') >= 0 ? 'verde' : e.indexOf('dudosa') >= 0 || e === 'no' ? 'rojo' : 'oro'), text: 'motor: ' + l.elegible }); }
+function urgLic(l){ if (!l.cierre) return ''; var h = (new Date(l.cierre + 'T14:00:00') - Date.now()) / 36e5; return h < 48 ? 'urgente' : h < 120 ? 'pronto' : ''; }
+function renderLicita(){
+  var pd = licPorDecidir(), ec = licEnCurso(), g = licGanadas(), c = licCerradas();
+  var f = el('div', { class: 'grid2' });
+  [[pd.length, 'por decidir'], [ec.length, 'en curso'], [g.length, 'contratadas'], [licTodas().filter(function(l){ return l.pestana === 'Licitaciones'; }).length, 'analizadas vivas']].forEach(function(p){ f.appendChild(mini(String(p[0]), p[1])); });
+  app.appendChild(f);
+  app.appendChild(el('h2', { class: 'sec-t' }, ['Por decidir ', el('small', { text: pd.length + ' · Sheet de Guillem, cada 10 min' })]));
+  if (!pd.length) app.appendChild(el('div', { class: 'vacio' }, [el('div', { class: 'delta', text: 'Δ' }), el('p', { text: 'Nada por decidir.' })]));
+  pd.forEach(function(l){ app.appendChild(tarjetaLic(l)); });
+  if (ec.length){ app.appendChild(el('h2', { class: 'sec-t' }, ['En curso ', el('small', { text: ec.length })])); ec.forEach(function(l){ app.appendChild(filaLic(l)); }); }
+  if (g.length){ app.appendChild(el('h2', { class: 'sec-t' }, ['Contratadas ', el('small', { text: g.length })])); g.forEach(function(l){ app.appendChild(filaLic(l)); }); }
+  var h = el('h2', { class: 'sec-t', onclick: function(){ S.licCerr = !S.licCerr; render(); } }, [(S.licCerr ? '▾ ' : '▸ ') + 'Cerradas y descartadas ', el('small', { text: c.length })]);
+  app.appendChild(h); if (S.licCerr) c.forEach(function(l){ app.appendChild(filaLic(l)); });
+  app.appendChild(el('p', { class: 'peq', text: 'Aprobar o rechazar aquí escribe la decisión, la fecha y tus motivos en el Sheet de Guillem en menos de 10 minutos. Los motivos alimentan las reglas del motor: lo que apruebas o rechazas siempre por la misma razón acabará decidiéndose solo, marcado como "auto".' }));
+}
+function tarjetaLic(l){
+  var u = urgLic(l), card = el('div', { class: 'card ' + u, id: 'l-' + l.expediente.replace(/[^a-z0-9]/gi, '_') });
+  card.appendChild(el('div', { class: 'cab' }, [el('div', { class: 'tipo-ic', text: '§' }), el('div', { class: 'quien' }, [el('b', { text: l.organo || l.expediente }), el('span', { text: [l.tipo, l.procedimiento, l.provincia].filter(Boolean).join(' · ') })])]));
+  card.appendChild(el('h3', { text: l.resumen_corto || (l.objeto || '').slice(0, 160) + ((l.objeto || '').length > 160 ? '…' : '') }));
+  if (l.resumen_corto && l.objeto){ var det = el('div', { class: 'det largo' + (S.abiertos[l.expediente] ? ' abierto' : ''), text: l.objeto }); det.addEventListener('click', function(){ S.abiertos[l.expediente] = !S.abiertos[l.expediente]; det.classList.toggle('abierto'); }); card.appendChild(det); }
+  var datos = el('div', { class: 'datos' });
+  if (l.importe != null) datos.appendChild(el('span', { class: 'dato oro', text: eur(l.importe) }));
+  if (l.cierre) datos.appendChild(el('span', { class: 'dato ' + (u === 'urgente' ? 'rojo' : u === 'pronto' ? 'oro' : ''), text: 'cierra ' + l.cierre.slice(5).split('-').reverse().join('/') + ' · ' + rel(l.cierre + 'T14:00:00') }));
+  var eg = elegibleChip(l); if (eg) datos.appendChild(eg);
+  var sv = solvenciaCorta(l); if (sv) datos.appendChild(el('span', { class: 'dato ' + sv[1], text: sv[0] }));
+  datos.appendChild(el('span', { class: 'dato', text: l.expediente }));
+  if (/^https?:\/\//.test(l.enlace)) datos.appendChild(el('span', { class: 'dato tinta' }, [el('a', { href: l.enlace, target: '_blank', rel: 'noopener', text: 'Anuncio ↗' })]));
+  if (/^https?:\/\//.test(l.pcap)) datos.appendChild(el('span', { class: 'dato' }, [el('a', { href: l.pcap, target: '_blank', rel: 'noopener', text: 'PCAP ↗' })]));
+  if (/^https?:\/\//.test(l.carpeta)) datos.appendChild(el('span', { class: 'dato' }, [el('a', { href: l.carpeta, target: '_blank', rel: 'noopener', text: 'Drive ↗' })]));
+  card.appendChild(datos);
+  if (l.motivo_auto) card.appendChild(el('p', { class: 'peq', style: 'margin:10px 0 0', text: 'Motor: ' + l.motivo_auto }));
+  if (l.comentarios) card.appendChild(el('p', { class: 'peq', style: 'margin:6px 0 0', text: 'Guillem: ' + l.comentarios }));
+  card.appendChild(el('div', { class: 'acciones' }, [el('button', { class: 'btn no', text: 'Rechazar', onclick: function(){ hojaDecision(l, 'No'); } }), el('button', { class: 'btn si', text: 'Aprobar', onclick: function(){ hojaDecision(l, 'OK'); } })]));
+  deslizar(card, function(){ hojaDecision(l, 'OK'); }, function(){ hojaDecision(l, 'No'); });
+  return card;
+}
+function hojaDecision(l, decision){
+  var ok = decision === 'OK', elegidos = {}, chips = el('div', { class: 'tags' });
+  (ok ? MOTIVOS_OK : MOTIVOS_NO).forEach(function(m){ var b = el('button', { class: 'chip', text: m, onclick: function(){ elegidos[m] = !elegidos[m]; b.classList.toggle('on', elegidos[m]); } }); chips.appendChild(b); });
+  var ta = el('textarea', { placeholder: ok ? 'Por qué sí (opcional, ayuda al motor)' : 'Por qué no (obligatorio si no marcas ningún motivo)', rows: '2' }), mic = el('button', { class: 'mic', text: '🎤', onclick: function(){ dictar(ta, mic); } });
+  hoja([el('div', { class: 'eyebrow', text: (ok ? 'Aprobar' : 'Rechazar') + ' · ' + l.expediente }), el('h2', { text: l.organo || l.expediente }), el('p', { class: 'peq', text: (l.resumen_corto || l.objeto || '').slice(0, 200) }),
+    el('h2', { class: 'sec-t', text: ok ? 'Por qué la apruebas' : 'Por qué la rechazas' }), chips, el('div', { class: 'nota' }, [ta, mic]),
+    el('div', { class: 'acciones' }, [el('button', { class: 'btn no', text: 'Cancelar', onclick: cerrarHoja }), el('button', { class: 'btn si', text: ok ? 'Confirmar aprobación' : 'Confirmar rechazo', onclick: function(){
+      var motivos = Object.keys(elegidos).filter(function(k){ return elegidos[k]; }), txt = ta.value.trim();
+      if (!ok && !motivos.length && !txt){ toast('Marca un motivo o escríbelo: el motor aprende de tus rechazos.'); ta.focus(); return; }
+      cerrarHoja(); decidirLic(l, decision, motivos, txt); } })])]);
+}
+function decidirLic(l, decision, motivos, txt){
+  var card = document.getElementById('l-' + l.expediente.replace(/[^a-z0-9]/gi, '_')); if (card){ card.style.opacity = '0'; card.style.transform = 'translateX(' + (decision === 'No' ? '-' : '') + '110%)'; }
+  rpc('omc_licitacion_decidir', { p_token: TOKEN, p_expediente: l.expediente, p_decision: decision, p_motivos: motivos, p_texto: txt || '' }).then(cargar).then(function(){
+    toast((decision === 'OK' ? 'Aprobada ' : 'Rechazada ') + l.expediente, 'Deshacer', function(){ rpc('omc_licitacion_decidir', { p_token: TOKEN, p_expediente: l.expediente, p_decision: 'Pendiente', p_motivos: [], p_texto: '' }).then(cargar).catch(function(e){ toast(e.message); }); }); })
+  .catch(function(e){ toast('No se pudo: ' + e.message); cargar(); });
+}
+function filaLic(l){ var quien = l.decidido_por === 'diego' ? 'Diego' : l.decidido_por === 'sales' ? 'auto' : '', e = (l.estado || '').toLowerCase();
+  return el('div', { class: 'fila', onclick: function(){ hojaLic(l); } }, [el('div', { class: 'tipo-ic', text: '§' }),
+    el('div', { class: 'txt' }, [el('div', { class: 't', text: (l.organo || l.expediente) + (l.resumen_corto ? ' · ' + l.resumen_corto : '') }), el('div', { class: 'm', text: [l.importe != null ? eur(l.importe) : '', l.cierre ? 'cierra ' + l.cierre.slice(5).split('-').reverse().join('/') : '', l.expediente, quien ? l.decision + ' · ' + quien : ''].filter(Boolean).join(' · ') })]),
+    el('span', { class: 'estado ' + (LIC_GANADA.indexOf(e) >= 0 ? 'ejecutada' : LIC_TERMINAL.indexOf(e) >= 0 ? 'rechazada' : 'aprobada'), text: l.estado || l.decision })]); }
+function hojaLic(l){ var dl = el('dl'); [['Expediente', l.expediente], ['Órgano', l.organo], ['Objeto', l.objeto], ['Resumen', l.resumen], ['Importe', l.importe != null ? eur(l.importe) : ''], ['Cierre', l.cierre], ['Tipo', [l.tipo, l.procedimiento].filter(Boolean).join(' · ')], ['Motor', (l.elegible ? l.elegible + ' · ' : '') + (l.motivo_auto || '')], ['Solvencia', l.solvencia], ['Estado', l.estado], ['Decisión', l.decision + (l.decidido_por ? ' · ' + (l.decidido_por === 'diego' ? 'Diego' : 'auto') : '') + (l.fecha_decision ? ' · ' + l.fecha_decision : '') + (l.sincronizado ? '' : ' · pendiente de volcar al Sheet')], ['Motivos', ((l.motivos || []).join(', ') + (l.motivo_texto ? ' · ' + l.motivo_texto : '')).replace(/^ · /, '')], ['Comentarios', l.comentarios]]
+    .forEach(function(p){ if (p[1]) { dl.appendChild(el('dt', { text: p[0] })); dl.appendChild(el('dd', { text: p[1] })); } });
+  var kids = [el('div', { class: 'eyebrow', text: 'licitación' }), el('h2', { text: l.organo || l.expediente }), dl];
+  var links = el('div', { class: 'tags' }); [['Anuncio', l.enlace], ['PCAP', l.pcap], ['PPT', l.ppt], ['Drive', l.carpeta]].forEach(function(x){ if (/^https?:\/\//.test(x[1])) links.appendChild(el('span', { class: 'dato tinta' }, [el('a', { href: x[1], target: '_blank', rel: 'noopener', text: x[0] + ' ↗' })])); }); kids.push(links);
+  if (l.decidido_por === 'diego' && LIC_TERMINAL.indexOf((l.estado || '').toLowerCase()) < 0 || (l.estado || '').toLowerCase() === 'descartada' && l.decidido_por === 'diego')
+    kids.push(el('div', { class: 'acciones' }, [el('button', { class: 'btn no', text: 'Devolver a pendiente', onclick: function(){ cerrarHoja(); rpc('omc_licitacion_decidir', { p_token: TOKEN, p_expediente: l.expediente, p_decision: 'Pendiente', p_motivos: [], p_texto: '' }).then(cargar).catch(function(e){ toast(e.message); }); } })]));
   hoja(kids); }
 
 /* ---- negocio ---- */

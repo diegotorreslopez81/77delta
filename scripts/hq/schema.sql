@@ -128,6 +128,43 @@ create table if not exists public.omc_ingresos (
   updated_at timestamptz not null default now()
 );
 
+-- Licitaciones: espejo del Sheet de control de Sales con la decisión de Diego, sus motivos y quién decidió.
+-- hq-licitaciones.py trae las filas analizadas cada 10 minutos y devuelve al Sheet las decisiones tomadas en HQ.
+create table if not exists public.omc_licitaciones (
+  empresa text not null references public.omc_empresas(id) on delete cascade,
+  expediente text not null,
+  fila int,
+  pestana text not null default 'Licitaciones',
+  detectada date,
+  organo text not null default '',
+  provincia text not null default '',
+  objeto text not null default '',
+  resumen text not null default '',
+  resumen_corto text not null default '',
+  importe numeric,
+  tipo text not null default '',
+  procedimiento text not null default '',
+  elegible text not null default '',
+  motivo_auto text not null default '',
+  solvencia text not null default '',
+  cierre date,
+  enlace text not null default '',
+  pcap text not null default '',
+  ppt text not null default '',
+  carpeta text not null default '',
+  estado text not null default '',
+  decision text not null default 'Pendiente',
+  fecha_decision date,
+  decidido_por text not null default '',
+  motivos text[] not null default '{}',
+  motivo_texto text not null default '',
+  comentarios text not null default '',
+  excepcion text not null default '',
+  sincronizado boolean not null default true,
+  updated_at timestamptz not null default now(),
+  primary key (empresa, expediente)
+);
+
 -- Hilo de conversación de cada solicitud (Diego y el agente se cruzan mensajes hasta resolver).
 create table if not exists public.omc_mensajes (
   id bigserial primary key,
@@ -158,7 +195,8 @@ alter table public.omc_actividad enable row level security;
 alter table public.omc_kpis enable row level security;
 alter table public.omc_ingresos enable row level security;
 alter table public.omc_mensajes enable row level security;
-revoke all on public.omc_empresas, public.omc_tokens, public.omc_agentes, public.omc_solicitudes, public.omc_uso, public.omc_push, public.omc_plan, public.omc_actividad, public.omc_kpis, public.omc_ingresos, public.omc_mensajes from anon, authenticated;
+alter table public.omc_licitaciones enable row level security;
+revoke all on public.omc_empresas, public.omc_tokens, public.omc_agentes, public.omc_solicitudes, public.omc_uso, public.omc_push, public.omc_plan, public.omc_actividad, public.omc_kpis, public.omc_ingresos, public.omc_mensajes, public.omc_licitaciones from anon, authenticated;
 revoke all on sequence public.omc_solicitudes_id_seq, public.omc_push_id_seq, public.omc_ingresos_id_seq, public.omc_mensajes_id_seq from anon, authenticated;
 
 -- Helper interno: no se concede a anon.
@@ -210,6 +248,12 @@ begin
                         where rn <= 6 group by agente) y),
     'kpis', (select coalesce(jsonb_object_agg(k.clave, jsonb_build_object('valor', k.valor, 'texto', k.texto, 'fuente', k.fuente, 'updated_at', k.updated_at)), '{}'::jsonb)
              from public.omc_kpis k where k.empresa = e.id),
+    'licitaciones', (select coalesce(jsonb_agg(jsonb_build_object('expediente', l.expediente, 'pestana', l.pestana, 'detectada', l.detectada, 'organo', l.organo, 'provincia', l.provincia,
+                        'objeto', left(l.objeto, 700), 'resumen', left(l.resumen, 1500), 'resumen_corto', l.resumen_corto, 'importe', l.importe, 'tipo', l.tipo, 'procedimiento', l.procedimiento,
+                        'elegible', l.elegible, 'motivo_auto', left(l.motivo_auto, 700), 'solvencia', left(l.solvencia, 400), 'cierre', l.cierre, 'enlace', l.enlace, 'pcap', l.pcap, 'ppt', l.ppt, 'carpeta', l.carpeta,
+                        'estado', l.estado, 'decision', l.decision, 'fecha_decision', l.fecha_decision, 'decidido_por', l.decidido_por, 'motivos', to_jsonb(l.motivos), 'motivo_texto', l.motivo_texto,
+                        'comentarios', left(l.comentarios, 600), 'sincronizado', l.sincronizado) order by l.cierre asc nulls last, l.detectada desc), '[]'::jsonb)
+                     from public.omc_licitaciones l where l.empresa = e.id and (l.pestana = 'Licitaciones' or l.updated_at > now() - interval '30 days')),
     'hilos', (select coalesce(jsonb_object_agg(h.sid, h.items), '{}'::jsonb)
               from (select m.solicitud_id sid, jsonb_agg(jsonb_build_object('id', m.id, 'autor', m.autor, 'texto', m.texto, 'ts', m.ts) order by m.ts) items
                     from public.omc_mensajes m join public.omc_solicitudes s on s.id = m.solicitud_id
@@ -443,6 +487,86 @@ begin
   return to_jsonb(s);
 end $$;
 
+-- Licitaciones: carga desde el Sheet. La decisión del Sheet manda salvo que HQ tenga una decisión aún no devuelta (sincronizado = false).
+create or replace function public.omc_licitaciones_subir(p_token text, p_filas jsonb)
+returns jsonb language plpgsql security definer set search_path = public as $$
+declare t public.omc_tokens; f jsonb; n int := 0;
+begin
+  t := public.omc_tok(p_token);
+  for f in select * from jsonb_array_elements(p_filas) loop
+    insert into public.omc_licitaciones (empresa, expediente, fila, pestana, detectada, organo, provincia, objeto, resumen, resumen_corto, importe, tipo, procedimiento, elegible, motivo_auto, solvencia,
+                                         cierre, enlace, pcap, ppt, carpeta, estado, decision, fecha_decision, decidido_por, comentarios, excepcion, updated_at)
+      values (t.empresa, f->>'expediente', nullif(f->>'fila','')::int, coalesce(f->>'pestana','Licitaciones'), nullif(f->>'detectada','')::date, coalesce(f->>'organo',''), coalesce(f->>'provincia',''),
+              coalesce(f->>'objeto',''), coalesce(f->>'resumen',''), coalesce(f->>'resumen_corto',''), nullif(f->>'importe','')::numeric, coalesce(f->>'tipo',''), coalesce(f->>'procedimiento',''),
+              coalesce(f->>'elegible',''), coalesce(f->>'motivo_auto',''), coalesce(f->>'solvencia',''), nullif(f->>'cierre','')::date, coalesce(f->>'enlace',''), coalesce(f->>'pcap',''), coalesce(f->>'ppt',''),
+              coalesce(f->>'carpeta',''), coalesce(f->>'estado',''), coalesce(nullif(f->>'decision',''),'Pendiente'), nullif(f->>'fecha_decision','')::date,
+              case when coalesce(f->>'decision','') in ('OK','No') then 'sales' else '' end, coalesce(f->>'comentarios',''), coalesce(f->>'excepcion',''), now())
+      on conflict (empresa, expediente) do update set
+        fila = excluded.fila, pestana = excluded.pestana, detectada = excluded.detectada, organo = excluded.organo, provincia = excluded.provincia, objeto = excluded.objeto,
+        resumen = excluded.resumen, resumen_corto = excluded.resumen_corto, importe = excluded.importe, tipo = excluded.tipo, procedimiento = excluded.procedimiento, elegible = excluded.elegible,
+        motivo_auto = excluded.motivo_auto, solvencia = excluded.solvencia, cierre = excluded.cierre, enlace = excluded.enlace, pcap = excluded.pcap, ppt = excluded.ppt, carpeta = excluded.carpeta,
+        comentarios = excluded.comentarios, excepcion = excluded.excepcion, updated_at = now(),
+        estado = case when public.omc_licitaciones.sincronizado then excluded.estado else public.omc_licitaciones.estado end,
+        decision = case when public.omc_licitaciones.sincronizado then excluded.decision else public.omc_licitaciones.decision end,
+        fecha_decision = case when public.omc_licitaciones.sincronizado then excluded.fecha_decision else public.omc_licitaciones.fecha_decision end,
+        decidido_por = case when public.omc_licitaciones.sincronizado
+                            then (case when excluded.decision in ('OK','No') then coalesce(nullif(public.omc_licitaciones.decidido_por,''), 'sales') else '' end)
+                            else public.omc_licitaciones.decidido_por end;
+    n := n + 1;
+  end loop;
+  return jsonb_build_object('filas', n);
+end $$;
+
+-- Diego decide una licitación desde HQ: OK o No con motivos (o Pendiente para deshacer). Vuelve al Sheet con hq-licitaciones.py.
+create or replace function public.omc_licitacion_decidir(p_token text, p_expediente text, p_decision text, p_motivos jsonb default '[]'::jsonb, p_texto text default '')
+returns jsonb language plpgsql security definer set search_path = public as $$
+declare t public.omc_tokens; l public.omc_licitaciones;
+begin
+  t := public.omc_tok(p_token);
+  if t.rol <> 'owner' then raise exception 'solo owner' using errcode = '42501'; end if;
+  if p_decision not in ('OK','No','Pendiente') then raise exception 'decisión no válida' using errcode = 'P0001'; end if;
+  update public.omc_licitaciones set decision = p_decision, fecha_decision = case when p_decision = 'Pendiente' then null else current_date end,
+    decidido_por = case when p_decision = 'Pendiente' then '' else 'diego' end,
+    motivos = coalesce((select array_agg(x) from jsonb_array_elements_text(coalesce(p_motivos, '[]'::jsonb)) x), '{}'),
+    motivo_texto = coalesce(p_texto, ''),
+    estado = case when p_decision = 'OK' then 'Aprobada' when p_decision = 'No' then 'Descartada' else 'Analizada' end,
+    sincronizado = false, updated_at = now()
+    where empresa = t.empresa and expediente = p_expediente returning * into l;
+  if not found then raise exception 'licitación no encontrada' using errcode = 'P0001'; end if;
+  return to_jsonb(l);
+end $$;
+
+create or replace function public.omc_licitaciones_pendientes_sync(p_token text)
+returns jsonb language plpgsql security definer set search_path = public as $$
+declare t public.omc_tokens;
+begin
+  t := public.omc_tok(p_token);
+  return (select coalesce(jsonb_agg(jsonb_build_object('expediente', expediente, 'decision', decision, 'fecha_decision', fecha_decision, 'estado', estado, 'motivos', to_jsonb(motivos), 'motivo_texto', motivo_texto)), '[]'::jsonb)
+          from public.omc_licitaciones where empresa = t.empresa and not sincronizado);
+end $$;
+
+create or replace function public.omc_licitaciones_sincronizadas(p_token text, p_expedientes jsonb)
+returns jsonb language plpgsql security definer set search_path = public as $$
+declare t public.omc_tokens; n int;
+begin
+  t := public.omc_tok(p_token);
+  update public.omc_licitaciones set sincronizado = true where empresa = t.empresa and expediente in (select jsonb_array_elements_text(p_expedientes));
+  get diagnostics n = row_count;
+  return jsonb_build_object('filas', n);
+end $$;
+
+-- Lista para la CLI (Sales lee las decisiones y los motivos de Diego para aprender).
+create or replace function public.omc_licitaciones_lista(p_token text, p_todas boolean default false)
+returns jsonb language plpgsql security definer set search_path = public as $$
+declare t public.omc_tokens;
+begin
+  t := public.omc_tok(p_token);
+  return (select coalesce(jsonb_agg(jsonb_build_object('expediente', expediente, 'organo', organo, 'importe', importe, 'cierre', cierre, 'tipo', tipo, 'procedimiento', procedimiento, 'elegible', elegible,
+                                                       'estado', estado, 'decision', decision, 'fecha_decision', fecha_decision, 'decidido_por', decidido_por, 'motivos', to_jsonb(motivos), 'motivo_texto', motivo_texto, 'sincronizado', sincronizado)
+                                    order by cierre asc nulls last), '[]'::jsonb)
+          from public.omc_licitaciones where empresa = t.empresa and (p_todas or pestana = 'Licitaciones'));
+end $$;
+
 -- Latido: el agente pregunta si está activo (hook de arranque) y deja constancia de actividad.
 create or replace function public.omc_latido(p_token text, p_agente text)
 returns jsonb language plpgsql security definer set search_path = public as $$
@@ -503,10 +627,12 @@ end $$;
 revoke all on function public.omc_token_info(text), public.omc_hq(text), public.omc_hq_uso(text), public.omc_resolver(text, bigint, text, text),
   public.omc_agente_set(text, text, jsonb), public.omc_pedir(text, jsonb), public.omc_estado(text, bigint), public.omc_reportar(text, bigint, boolean, text),
   public.omc_latido(text, text), public.omc_mis_solicitudes(text, text), public.omc_subir_uso(text, jsonb), public.omc_guardar_push(text, jsonb), public.omc_subir_plan(text, jsonb), public.omc_subir_actividad(text, jsonb),
-  public.omc_kpi_set(text, jsonb), public.omc_ingreso_set(text, jsonb), public.omc_ingresos(text), public.omc_comentar(text, bigint, text), public.omc_retirar(text, bigint, text) from public;
+  public.omc_kpi_set(text, jsonb), public.omc_ingreso_set(text, jsonb), public.omc_ingresos(text), public.omc_comentar(text, bigint, text), public.omc_retirar(text, bigint, text),
+  public.omc_licitaciones_subir(text, jsonb), public.omc_licitacion_decidir(text, text, text, jsonb, text), public.omc_licitaciones_pendientes_sync(text), public.omc_licitaciones_sincronizadas(text, jsonb), public.omc_licitaciones_lista(text, boolean) from public;
 grant execute on function public.omc_token_info(text), public.omc_hq(text), public.omc_hq_uso(text), public.omc_resolver(text, bigint, text, text),
   public.omc_agente_set(text, text, jsonb), public.omc_pedir(text, jsonb), public.omc_estado(text, bigint), public.omc_reportar(text, bigint, boolean, text),
   public.omc_latido(text, text), public.omc_mis_solicitudes(text, text), public.omc_subir_uso(text, jsonb), public.omc_guardar_push(text, jsonb), public.omc_subir_plan(text, jsonb), public.omc_subir_actividad(text, jsonb),
-  public.omc_kpi_set(text, jsonb), public.omc_ingreso_set(text, jsonb), public.omc_ingresos(text), public.omc_comentar(text, bigint, text), public.omc_retirar(text, bigint, text)
+  public.omc_kpi_set(text, jsonb), public.omc_ingreso_set(text, jsonb), public.omc_ingresos(text), public.omc_comentar(text, bigint, text), public.omc_retirar(text, bigint, text),
+  public.omc_licitaciones_subir(text, jsonb), public.omc_licitacion_decidir(text, text, text, jsonb, text), public.omc_licitaciones_pendientes_sync(text), public.omc_licitaciones_sincronizadas(text, jsonb), public.omc_licitaciones_lista(text, boolean)
   to anon, authenticated, service_role;
 notify pgrst, 'reload schema';
