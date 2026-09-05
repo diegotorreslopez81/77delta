@@ -1,0 +1,310 @@
+-- HQ · One Man Corporation (77 Delta). Acceso solo por token vía RPC; ninguna tabla expuesta a anon.
+-- Aplicar con: python3 ~/dev/cuponsIA/scripts/plataforma/pgq.py scripts/hq/schema.sql
+create extension if not exists pgcrypto;
+
+create table if not exists public.omc_empresas (
+  id text primary key,
+  nombre text not null,
+  plan_usd numeric not null default 200,
+  created_at timestamptz not null default now()
+);
+
+create table if not exists public.omc_tokens (
+  token text primary key default encode(gen_random_bytes(24),'hex'),
+  empresa text not null references public.omc_empresas(id) on delete cascade,
+  rol text not null check (rol in ('owner','agente')),
+  nombre text not null default '',
+  created_at timestamptz not null default now()
+);
+
+create table if not exists public.omc_agentes (
+  empresa text not null references public.omc_empresas(id) on delete cascade,
+  id text not null,
+  nombre text not null,
+  depto text not null,
+  nivel int not null default 3 check (nivel between 1 and 3),
+  jefe text,
+  sesiones text[] not null default '{}',
+  rutas text[] not null default '{}',
+  activo boolean not null default true,
+  prioridad int not null default 5,
+  contrato jsonb not null default '{}'::jsonb,
+  ultima_actividad timestamptz,
+  orden int not null default 100,
+  primary key (empresa, id)
+);
+
+create table if not exists public.omc_solicitudes (
+  id bigserial primary key,
+  empresa text not null references public.omc_empresas(id) on delete cascade,
+  agente text not null,
+  depto text not null default '',
+  tipo text not null default 'otro' check (tipo in ('gasto','contacto','publicacion','estrategia','duda','accion','otro')),
+  titulo text not null,
+  detalle text not null default '',
+  importe numeric,
+  riesgo text not null default '',
+  enlace text not null default '',
+  vence timestamptz,
+  prioridad int not null default 5,
+  estado text not null default 'pendiente' check (estado in ('pendiente','aprobada','rechazada','respondida','ejecutada','fallida','caducada')),
+  respuesta text not null default '',
+  resultado text not null default '',
+  created_at timestamptz not null default now(),
+  resolved_at timestamptz,
+  done_at timestamptz
+);
+create index if not exists omc_solicitudes_estado on public.omc_solicitudes (empresa, estado, created_at desc);
+
+create table if not exists public.omc_uso (
+  empresa text not null references public.omc_empresas(id) on delete cascade,
+  fecha date not null,
+  sesion_id text not null,
+  modelo text not null,
+  titulo text not null default '',
+  ruta text not null default '',
+  maquina text not null default '',
+  input bigint not null default 0,
+  output bigint not null default 0,
+  cache_write bigint not null default 0,
+  cache_read bigint not null default 0,
+  mensajes int not null default 0,
+  coste_usd numeric(12,6) not null default 0,
+  updated_at timestamptz not null default now(),
+  primary key (empresa, fecha, sesion_id, modelo)
+);
+
+create table if not exists public.omc_push (
+  id bigserial primary key,
+  empresa text not null references public.omc_empresas(id) on delete cascade,
+  endpoint text not null unique,
+  sub jsonb not null,
+  created_at timestamptz not null default now()
+);
+
+alter table public.omc_empresas enable row level security;
+alter table public.omc_tokens enable row level security;
+alter table public.omc_agentes enable row level security;
+alter table public.omc_solicitudes enable row level security;
+alter table public.omc_uso enable row level security;
+alter table public.omc_push enable row level security;
+revoke all on public.omc_empresas, public.omc_tokens, public.omc_agentes, public.omc_solicitudes, public.omc_uso, public.omc_push from anon, authenticated;
+revoke all on sequence public.omc_solicitudes_id_seq, public.omc_push_id_seq from anon, authenticated;
+
+-- Helper interno: no se concede a anon.
+create or replace function public.omc_tok(p_token text)
+returns public.omc_tokens language plpgsql security definer set search_path = public as $$
+declare t public.omc_tokens;
+begin
+  select * into t from public.omc_tokens where token = p_token;
+  if not found then raise exception 'token no válido' using errcode = 'P0002'; end if;
+  return t;
+end $$;
+revoke all on function public.omc_tok(text) from public;
+
+create or replace function public.omc_token_info(p_token text)
+returns jsonb language plpgsql security definer set search_path = public as $$
+declare t public.omc_tokens;
+begin
+  t := public.omc_tok(p_token);
+  return jsonb_build_object('empresa', t.empresa, 'rol', t.rol, 'nombre', t.nombre);
+end $$;
+
+-- Vista completa para la app (solo owner).
+create or replace function public.omc_hq(p_token text)
+returns jsonb language plpgsql security definer set search_path = public as $$
+declare t public.omc_tokens; e public.omc_empresas;
+begin
+  t := public.omc_tok(p_token);
+  if t.rol <> 'owner' then raise exception 'solo owner' using errcode = '42501'; end if;
+  select * into e from public.omc_empresas where id = t.empresa;
+  return jsonb_build_object(
+    'empresa', jsonb_build_object('id', e.id, 'nombre', e.nombre, 'plan_usd', e.plan_usd),
+    'ahora', now(),
+    'agentes', (select coalesce(jsonb_agg(to_jsonb(a) order by a.nivel, a.orden, a.id), '[]'::jsonb)
+                from public.omc_agentes a where a.empresa = e.id),
+    'pendientes', (select coalesce(jsonb_agg(to_jsonb(s) order by s.prioridad, s.vence asc nulls last, s.created_at), '[]'::jsonb)
+                   from public.omc_solicitudes s where s.empresa = e.id and s.estado = 'pendiente'),
+    'seguimiento', (select coalesce(jsonb_agg(to_jsonb(s) order by s.resolved_at desc), '[]'::jsonb)
+                    from public.omc_solicitudes s where s.empresa = e.id and s.estado in ('aprobada','respondida')),
+    'historial', (select coalesce(jsonb_agg(to_jsonb(s) order by coalesce(s.done_at, s.resolved_at) desc), '[]'::jsonb)
+                  from (select * from public.omc_solicitudes s where s.empresa = e.id and s.estado in ('rechazada','ejecutada','fallida','caducada')
+                        order by coalesce(s.done_at, s.resolved_at) desc limit 100) s),
+    'gasto_mes', (select coalesce(jsonb_agg(jsonb_build_object('depto', g.depto, 'total', g.total)), '[]'::jsonb)
+                  from (select depto, sum(importe) total from public.omc_solicitudes
+                        where empresa = e.id and tipo = 'gasto' and estado in ('aprobada','ejecutada')
+                          and resolved_at >= date_trunc('month', now()) group by depto) g)
+  );
+end $$;
+
+-- Uso de tokens (solo owner). Cada fila de uso se atribuye a un agente por nombre de sesión o por ruta.
+create or replace function public.omc_hq_uso(p_token text)
+returns jsonb language plpgsql security definer set search_path = public as $$
+declare t public.omc_tokens; r jsonb;
+begin
+  t := public.omc_tok(p_token);
+  if t.rol <> 'owner' then raise exception 'solo owner' using errcode = '42501'; end if;
+  with u as (
+    select u.*, coalesce((select a.id from public.omc_agentes a
+                          where a.empresa = u.empresa and ((u.titulo <> '' and u.titulo = any(a.sesiones)) or u.ruta = any(a.rutas))
+                          order by (u.titulo = any(a.sesiones)) desc, a.nivel desc limit 1), '') as agente
+    from public.omc_uso u where u.empresa = t.empresa and u.fecha >= current_date - 62
+  ), mes as (select * from u where fecha >= date_trunc('month', current_date))
+  select jsonb_build_object(
+    'mes', (select jsonb_build_object('coste', coalesce(sum(coste_usd),0), 'input', coalesce(sum(input),0), 'output', coalesce(sum(output),0),
+                                      'cache_write', coalesce(sum(cache_write),0), 'cache_read', coalesce(sum(cache_read),0), 'mensajes', coalesce(sum(mensajes),0)) from mes),
+    'mes_anterior', (select coalesce(sum(coste_usd),0) from u where fecha >= date_trunc('month', current_date) - interval '1 month' and fecha < date_trunc('month', current_date)),
+    'por_agente', (select coalesce(jsonb_agg(jsonb_build_object('agente', x.agente, 'coste', x.c, 'tokens', x.tk, 'ultimo', x.ul) order by x.c desc), '[]'::jsonb)
+                   from (select agente, sum(coste_usd) c, sum(input+output+cache_write+cache_read) tk, max(fecha) ul from mes group by agente) x),
+    'por_sesion', (select coalesce(jsonb_agg(jsonb_build_object('sesion_id', x.sesion_id, 'titulo', x.titulo, 'ruta', x.ruta, 'agente', x.agente, 'coste', x.c, 'ultimo', x.ul) order by x.c desc), '[]'::jsonb)
+                   from (select sesion_id, max(titulo) titulo, max(ruta) ruta, max(agente) agente, sum(coste_usd) c, max(fecha) ul from mes group by sesion_id order by c desc limit 40) x),
+    'dias', (select coalesce(jsonb_agg(jsonb_build_object('fecha', d.fecha, 'coste', d.c) order by d.fecha), '[]'::jsonb)
+             from (select fecha, sum(coste_usd) c from u where fecha >= current_date - 30 group by fecha) d)
+  ) into r;
+  return r;
+end $$;
+
+-- Owner resuelve una solicitud: aprobada | rechazada | respondida | pendiente (deshacer) | caducada.
+create or replace function public.omc_resolver(p_token text, p_id bigint, p_estado text, p_respuesta text default '')
+returns jsonb language plpgsql security definer set search_path = public as $$
+declare t public.omc_tokens; s public.omc_solicitudes;
+begin
+  t := public.omc_tok(p_token);
+  if t.rol <> 'owner' then raise exception 'solo owner' using errcode = '42501'; end if;
+  if p_estado not in ('aprobada','rechazada','respondida','pendiente','caducada') then raise exception 'estado no válido'; end if;
+  update public.omc_solicitudes set estado = p_estado, respuesta = coalesce(p_respuesta, ''),
+    resolved_at = case when p_estado = 'pendiente' then null else now() end
+    where id = p_id and empresa = t.empresa returning * into s;
+  if not found then raise exception 'solicitud no encontrada' using errcode = 'P0002'; end if;
+  return to_jsonb(s);
+end $$;
+
+-- Owner edita o crea un agente (activo, contrato, rutas...).
+create or replace function public.omc_agente_set(p_token text, p_id text, p_patch jsonb)
+returns jsonb language plpgsql security definer set search_path = public as $$
+declare t public.omc_tokens; a public.omc_agentes;
+begin
+  t := public.omc_tok(p_token);
+  if t.rol <> 'owner' then raise exception 'solo owner' using errcode = '42501'; end if;
+  insert into public.omc_agentes (empresa, id, nombre, depto)
+    values (t.empresa, p_id, coalesce(p_patch->>'nombre', p_id), coalesce(p_patch->>'depto', ''))
+    on conflict (empresa, id) do nothing;
+  update public.omc_agentes set
+    nombre = coalesce(p_patch->>'nombre', nombre),
+    depto = coalesce(p_patch->>'depto', depto),
+    nivel = coalesce((p_patch->>'nivel')::int, nivel),
+    jefe = case when p_patch ? 'jefe' then p_patch->>'jefe' else jefe end,
+    sesiones = case when p_patch ? 'sesiones' then (select coalesce(array_agg(x), '{}') from jsonb_array_elements_text(p_patch->'sesiones') x) else sesiones end,
+    rutas = case when p_patch ? 'rutas' then (select coalesce(array_agg(x), '{}') from jsonb_array_elements_text(p_patch->'rutas') x) else rutas end,
+    activo = coalesce((p_patch->>'activo')::boolean, activo),
+    prioridad = coalesce((p_patch->>'prioridad')::int, prioridad),
+    contrato = case when p_patch ? 'contrato' then contrato || (p_patch->'contrato') else contrato end,
+    orden = coalesce((p_patch->>'orden')::int, orden)
+    where empresa = t.empresa and id = p_id returning * into a;
+  return to_jsonb(a);
+end $$;
+
+-- Un agente pide algo (aprobación, duda, acción humana).
+create or replace function public.omc_pedir(p_token text, p jsonb)
+returns jsonb language plpgsql security definer set search_path = public as $$
+declare t public.omc_tokens; a public.omc_agentes; s public.omc_solicitudes; v_agente text; v_depto text; v_prio int;
+begin
+  t := public.omc_tok(p_token);
+  v_agente := coalesce(nullif(p->>'agente',''), t.nombre);
+  if v_agente is null or v_agente = '' then raise exception 'falta agente'; end if;
+  if coalesce(p->>'titulo','') = '' then raise exception 'falta titulo'; end if;
+  select * into a from public.omc_agentes where empresa = t.empresa and id = v_agente;
+  v_depto := coalesce(nullif(p->>'depto',''), a.depto, '');
+  v_prio := coalesce((p->>'prioridad')::int, a.prioridad, 5);
+  insert into public.omc_solicitudes (empresa, agente, depto, tipo, titulo, detalle, importe, riesgo, enlace, vence, prioridad)
+    values (t.empresa, v_agente, v_depto, coalesce(nullif(p->>'tipo',''), 'otro'), p->>'titulo', coalesce(p->>'detalle',''),
+            nullif(p->>'importe','')::numeric, coalesce(p->>'riesgo',''), coalesce(p->>'enlace',''), nullif(p->>'vence','')::timestamptz, v_prio)
+    returning * into s;
+  update public.omc_agentes set ultima_actividad = now() where empresa = t.empresa and id = v_agente;
+  return to_jsonb(s);
+end $$;
+
+create or replace function public.omc_estado(p_token text, p_id bigint)
+returns jsonb language plpgsql security definer set search_path = public as $$
+declare t public.omc_tokens; s public.omc_solicitudes;
+begin
+  t := public.omc_tok(p_token);
+  select * into s from public.omc_solicitudes where id = p_id and empresa = t.empresa;
+  if not found then raise exception 'solicitud no encontrada' using errcode = 'P0002'; end if;
+  return to_jsonb(s);
+end $$;
+
+-- El agente cierra el bucle: ejecutada o fallida.
+create or replace function public.omc_reportar(p_token text, p_id bigint, p_ok boolean, p_nota text default '')
+returns jsonb language plpgsql security definer set search_path = public as $$
+declare t public.omc_tokens; s public.omc_solicitudes;
+begin
+  t := public.omc_tok(p_token);
+  update public.omc_solicitudes set estado = case when p_ok then 'ejecutada' else 'fallida' end,
+    resultado = coalesce(p_nota, ''), done_at = now()
+    where id = p_id and empresa = t.empresa and estado in ('aprobada','respondida','pendiente') returning * into s;
+  if not found then raise exception 'solicitud no encontrada o ya cerrada' using errcode = 'P0002'; end if;
+  update public.omc_agentes set ultima_actividad = now() where empresa = t.empresa and id = s.agente;
+  return to_jsonb(s);
+end $$;
+
+-- Latido: el agente pregunta si está activo (hook de arranque) y deja constancia de actividad.
+create or replace function public.omc_latido(p_token text, p_agente text)
+returns jsonb language plpgsql security definer set search_path = public as $$
+declare t public.omc_tokens; a public.omc_agentes;
+begin
+  t := public.omc_tok(p_token);
+  update public.omc_agentes set ultima_actividad = now() where empresa = t.empresa and id = p_agente returning * into a;
+  if not found then return jsonb_build_object('existe', false, 'activo', true, 'agente', p_agente); end if;
+  return jsonb_build_object('existe', true, 'activo', a.activo, 'agente', a.id, 'nombre', a.nombre, 'depto', a.depto, 'nivel', a.nivel,
+                            'pendientes', (select count(*) from public.omc_solicitudes s where s.empresa = t.empresa and s.agente = a.id and s.estado in ('aprobada','respondida')));
+end $$;
+
+create or replace function public.omc_mis_solicitudes(p_token text, p_agente text)
+returns jsonb language plpgsql security definer set search_path = public as $$
+declare t public.omc_tokens;
+begin
+  t := public.omc_tok(p_token);
+  return (select coalesce(jsonb_agg(to_jsonb(s) order by s.created_at desc), '[]'::jsonb) from public.omc_solicitudes s
+          where s.empresa = t.empresa and s.agente = p_agente and s.estado in ('pendiente','aprobada','respondida'));
+end $$;
+
+-- Carga de uso de tokens (upsert por sesión, día y modelo).
+create or replace function public.omc_subir_uso(p_token text, p_filas jsonb)
+returns jsonb language plpgsql security definer set search_path = public as $$
+declare t public.omc_tokens; n int := 0; f jsonb;
+begin
+  t := public.omc_tok(p_token);
+  for f in select * from jsonb_array_elements(p_filas) loop
+    insert into public.omc_uso (empresa, fecha, sesion_id, modelo, titulo, ruta, maquina, input, output, cache_write, cache_read, mensajes, coste_usd, updated_at)
+      values (t.empresa, (f->>'fecha')::date, f->>'sesion_id', f->>'modelo', coalesce(f->>'titulo',''), coalesce(f->>'ruta',''), coalesce(f->>'maquina',''),
+              coalesce((f->>'input')::bigint,0), coalesce((f->>'output')::bigint,0), coalesce((f->>'cache_write')::bigint,0), coalesce((f->>'cache_read')::bigint,0),
+              coalesce((f->>'mensajes')::int,0), coalesce((f->>'coste_usd')::numeric,0), now())
+      on conflict (empresa, fecha, sesion_id, modelo) do update set
+        titulo = case when excluded.titulo <> '' then excluded.titulo else public.omc_uso.titulo end,
+        ruta = excluded.ruta, maquina = excluded.maquina, input = excluded.input, output = excluded.output,
+        cache_write = excluded.cache_write, cache_read = excluded.cache_read, mensajes = excluded.mensajes, coste_usd = excluded.coste_usd, updated_at = now();
+    n := n + 1;
+  end loop;
+  return jsonb_build_object('filas', n);
+end $$;
+
+create or replace function public.omc_guardar_push(p_token text, p_sub jsonb)
+returns jsonb language plpgsql security definer set search_path = public as $$
+declare t public.omc_tokens;
+begin
+  t := public.omc_tok(p_token);
+  if t.rol <> 'owner' then raise exception 'solo owner' using errcode = '42501'; end if;
+  insert into public.omc_push (empresa, endpoint, sub) values (t.empresa, p_sub->>'endpoint', p_sub)
+    on conflict (endpoint) do update set sub = excluded.sub, empresa = excluded.empresa;
+  return jsonb_build_object('ok', true);
+end $$;
+
+revoke all on function public.omc_token_info(text), public.omc_hq(text), public.omc_hq_uso(text), public.omc_resolver(text, bigint, text, text),
+  public.omc_agente_set(text, text, jsonb), public.omc_pedir(text, jsonb), public.omc_estado(text, bigint), public.omc_reportar(text, bigint, boolean, text),
+  public.omc_latido(text, text), public.omc_mis_solicitudes(text, text), public.omc_subir_uso(text, jsonb), public.omc_guardar_push(text, jsonb) from public;
+grant execute on function public.omc_token_info(text), public.omc_hq(text), public.omc_hq_uso(text), public.omc_resolver(text, bigint, text, text),
+  public.omc_agente_set(text, text, jsonb), public.omc_pedir(text, jsonb), public.omc_estado(text, bigint), public.omc_reportar(text, bigint, boolean, text),
+  public.omc_latido(text, text), public.omc_mis_solicitudes(text, text), public.omc_subir_uso(text, jsonb), public.omc_guardar_push(text, jsonb)
+  to anon, authenticated, service_role;
+notify pgrst, 'reload schema';

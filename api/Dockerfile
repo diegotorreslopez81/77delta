@@ -1,6 +1,6 @@
 FROM node:22-alpine
 WORKDIR /app
-RUN npm init -y >/dev/null && npm install --omit=dev nodemailer@7 && mkdir -p /data
+RUN npm init -y >/dev/null && npm install --omit=dev nodemailer@7 web-push@3 && mkdir -p /data
 COPY server.mjs /app/server.mjs
 ENV NODE_ENV=production PORT=3000 LEADS_FILE=/data/leads.jsonl
 EXPOSE 3000
