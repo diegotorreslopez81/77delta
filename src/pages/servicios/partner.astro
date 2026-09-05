@@ -1,0 +1,147 @@
+---
+import Base from '../../layouts/Base.astro';
+import Boton from '../../components/Boton.astro';
+import Cta from '../../components/Cta.astro';
+import { href } from '../../lib/site';
+import { paquetes, ritmo, cadaMes, resumen } from '../../data/servicios';
+
+const otros = resumen.filter((r) => r.titulo !== 'Partner tecnológico');
+---
+
+<Base
+  title="Partner tecnológico"
+  description="Criterio cualificado cada mes: revisión de propuestas de proveedores, interlocución técnica, hoja de ruta trimestral y auditoría de software. Tres paquetes desde 1.000 € al mes."
+>
+  <!-- Hero -->
+  <section class="wrap py-24 md:py-32">
+    <p class="eyebrow" data-reveal>
+      <a href={href('/servicios/')} class="transition-colors hover:text-tinta">Servicios</a> · 03 · Acompañamiento continuo
+    </p>
+    <h1
+      class="mt-7 max-w-[19ch] font-display text-[clamp(38px,6vw,76px)] font-extralight leading-[1.04] tracking-[-0.035em]"
+      data-reveal
+    >
+      El criterio técnico que necesitas, <span class="font-semibold text-oro-oscuro">sin ficharlo en plantilla</span>.
+    </h1>
+    <p class="mt-8 max-w-[54ch] text-[clamp(17px,1.6vw,20px)] text-pizarra" data-reveal>
+      Revisamos propuestas tecnológicas, participamos en las decisiones estratégicas e identificamos nuevas
+      oportunidades cada mes. Estamos de tu lado de la mesa cuando llega un proveedor.
+    </p>
+
+    <div class="mt-14 flex flex-wrap items-center gap-8" data-reveal>
+      <div class="rounded-[4px] border border-linea bg-panel px-8 py-6">
+        <p class="font-display text-[30px] font-extralight leading-none tracking-[-0.03em] text-oro-oscuro">
+          Desde 1.000 €/mes
+        </p>
+        <p class="mt-3 max-w-[34ch] font-mono text-[12px] leading-[1.6] text-pizarra">
+          Tres paquetes con descuento por volumen · revisión trimestral
+        </p>
+      </div>
+      <Boton href={href('/contacto/')}>Solicitar propuesta →</Boton>
+    </div>
+  </section>
+
+  <!-- Para quién -->
+  <section class="hairline bg-panel">
+    <div class="wrap grid gap-12 py-24 md:grid-cols-12 md:py-32">
+      <div class="md:col-span-5" data-reveal>
+        <p class="eyebrow">Para quién es</p>
+        <h2 class="mt-5 font-display text-[clamp(26px,3.2vw,38px)] font-extralight leading-[1.15] tracking-[-0.03em]">
+          Para quien no necesita un director de IA en nómina.
+        </h2>
+      </div>
+      <div class="md:col-span-7 md:pl-6" data-reveal>
+        <p class="text-[17px] text-pizarra">
+          Para empresas que sí necesitan criterio cualificado en las decisiones técnicas: evaluar propuestas,
+          hablar de tú a tú con consultoras externas y decidir dónde va la inversión tecnológica. Un director de
+          IA en plantilla cuesta bastante más que cualquiera de estos paquetes.
+        </p>
+      </div>
+    </div>
+  </section>
+
+  <!-- Paquetes -->
+  <section class="hairline">
+    <div class="wrap py-24 md:py-32">
+      <div class="max-w-[62ch]" data-reveal>
+        <p class="eyebrow">Tres paquetes</p>
+        <h2 class="mt-5 font-display text-[clamp(28px,3.6vw,44px)] font-extralight leading-[1.1] tracking-[-0.03em]">
+          Con descuento por volumen. Sin permanencia larga.
+        </h2>
+      </div>
+      <ul class="mt-14 grid gap-px overflow-hidden rounded-[4px] border border-linea bg-linea md:grid-cols-3" role="list">
+        {
+          paquetes.map((p) => (
+            <li class="bg-panel p-8 md:p-10" data-reveal>
+              <p class="eyebrow text-pizarra">{p.nombre}</p>
+              <p class="mt-5 font-display text-[30px] font-extralight tracking-[-0.03em] text-oro-oscuro">
+                {p.precio}
+              </p>
+              <p class="mt-3 text-[15px] text-tinta/85">{p.horas}</p>
+              <p class="mt-2 font-mono text-[12px] text-pizarra">{p.pie}</p>
+            </li>
+          ))
+        }
+      </ul>
+      <p class="mt-8 font-mono text-[12px] text-pizarra" data-reveal>
+        Canal directo por Slack o WhatsApp · siempre activo · seis meses mínimo
+      </p>
+    </div>
+  </section>
+
+  <!-- El ritmo mensual -->
+  <section class="hairline bg-marino text-marfil">
+    <div class="wrap py-24 md:py-32">
+      <div class="max-w-[62ch]" data-reveal>
+        <p class="eyebrow text-oro-luz">El ritmo mensual</p>
+        <h2 class="mt-5 font-display text-[clamp(28px,3.6vw,44px)] font-extralight leading-[1.1] tracking-[-0.03em]">
+          Qué pasa cada mes, sin que tengas que pedirlo.
+        </h2>
+      </div>
+      <ol class="mt-14 grid gap-8 md:grid-cols-4" role="list">
+        {
+          ritmo.map((r) => (
+            <li class="border-t border-marfil/15 pt-6" data-reveal>
+              <span class="font-mono text-[11px] tracking-[0.14em] text-oro-luz">{r.n}</span>
+              <h3 class="mt-3 font-display text-[18px] font-semibold leading-[1.3]">{r.titulo}</h3>
+              <p class="mt-2 text-[14px] text-marfil/65">{r.texto}</p>
+            </li>
+          ))
+        }
+      </ol>
+      <ul class="mt-16 grid gap-x-12 gap-y-8 md:grid-cols-2" role="list">
+        {
+          cadaMes.map((c) => (
+            <li class="border-t border-marfil/12 pt-6" data-reveal>
+              <h3 class="font-display text-[18px] font-semibold leading-[1.3]">{c.titulo}</h3>
+              <p class="mt-2 text-[15px] text-marfil/65">{c.texto}</p>
+            </li>
+          ))
+        }
+      </ul>
+    </div>
+  </section>
+
+  <!-- Otros servicios -->
+  <section class="hairline bg-panel">
+    <div class="wrap py-20 md:py-24">
+      <p class="eyebrow" data-reveal>Otras formas de trabajar</p>
+      <ul class="mt-10 grid gap-px overflow-hidden rounded-[4px] border border-linea bg-linea sm:grid-cols-3" role="list">
+        {
+          otros.map((o) => (
+            <li class="bg-panel" data-reveal>
+              <a href={href(o.ruta)} class="group flex h-full flex-col p-8 transition-colors hover:bg-oro/5">
+                <span class="eyebrow text-pizarra">{o.etiqueta}</span>
+                <h3 class="mt-3 font-display text-[20px] font-semibold">{o.titulo}</h3>
+                <p class="mt-2 flex-1 text-[15px] text-pizarra">{o.pie}</p>
+                <span class="mt-6 font-mono text-[12px] text-tinta/80 group-hover:text-oro-oscuro">Ver el detalle →</span>
+              </a>
+            </li>
+          ))
+        }
+      </ul>
+    </div>
+  </section>
+
+  <Cta />
+</Base>
