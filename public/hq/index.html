@@ -145,6 +145,18 @@ h2.sec-t small{color:var(--oro-oscuro)}
 .sw span::after{content:'';position:absolute;width:20px;height:20px;left:3px;top:3px;background:#fff;border-radius:99px;transition:transform .2s var(--ease)}
 .sw input:checked + span{background:var(--oro)}
 .sw input:checked + span::after{transform:translateX(18px)}
+.org{overflow-x:auto;overflow-y:hidden;-webkit-overflow-scrolling:touch;margin:0 -14px;padding:0 14px;scrollbar-width:thin}
+.org-lienzo{position:relative}
+.org-lineas{position:absolute;left:0;top:0}
+.org-lineas line{stroke:var(--linea-fuerte);stroke-width:2}
+.org-nodo{position:absolute;width:148px;height:96px;background:var(--panel);border:1px solid var(--linea);border-radius:12px;padding:8px 10px;display:flex;flex-direction:column;align-items:flex-start;gap:1px;box-sizing:border-box;cursor:pointer}
+.org-nodo .avw{margin-bottom:2px} .org-nodo .av.peq{width:30px;height:30px} .org-nodo .punto{width:10px;height:10px}
+.org-nodo b{font-size:13px;font-weight:600;line-height:1.15;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100%}
+.org-nodo span{font-size:10.5px;color:var(--pizarra);line-height:1.2;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100%}
+.org-nodo em{font-style:normal;font-family:var(--mono);font-size:9.5px;color:var(--oro-oscuro);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100%}
+.org-nodo.owner{background:var(--marino);color:var(--marfil);border-color:var(--marino)} .org-nodo.owner span{color:var(--pizarra-clara)}
+.org-nodo.etiqueta{justify-content:center;border-style:dashed;background:transparent} .org-nodo.etiqueta b{font-family:var(--mono);font-size:11px;letter-spacing:.12em;text-transform:uppercase;color:var(--pizarra)}
+.org-nodo.off{opacity:.5;border-style:dashed}
 .depto{margin:6px 0 4px}
 .depto .sang{margin-left:14px;border-left:2px solid var(--linea);padding-left:10px}
 .hoja{position:fixed;inset:0;background:rgba(6,16,31,.55);z-index:40;display:none;align-items:flex-end}
@@ -423,6 +435,8 @@ function renderEquipo(){
     el('div', { class: 'txt' }, [el('div', { class: 'n', text: 'Diego Torres' }), el('div', { class: 'rol', text: 'Owner · ' + S.hq.empresa.nombre + ' · decide lo irreversible' }),
       el('div', { class: 'tags' }, [el('span', { class: 'dato oro', text: S.hq.pendientes.length + ' esperando tu firma' }), el('span', { class: 'dato', text: o.lista.filter(function(a){ return a.activo; }).length + ' agentes activos de ' + o.lista.length })])])]));
   renderCapacidad(coste);
+  var vista = el('div', { class: 'chips' }); [['org', 'Organigrama'], ['lista', 'Lista']].forEach(function(v){ vista.appendChild(el('button', { class: 'chip' + ((S.orgVista || 'org') === v[0] ? ' on' : ''), text: v[1], onclick: function(){ S.orgVista = v[0]; render(); } })); }); app.appendChild(vista);
+  if ((S.orgVista || 'org') === 'org'){ renderOrganigrama(coste, total); return; }
   app.appendChild(el('h2', { class: 'sec-t', text: 'Dirección y control' }));
   ags.filter(function(a){ return a.nivel === 1; }).forEach(function(a){ app.appendChild(tarjetaAgente(a, coste, total)); });
   o.deptos.forEach(function(d){ var mios = ags.filter(function(a){ return a.depto === d && a.nivel > 1; }), dir = mios.filter(function(a){ return a.nivel === 2; }), ej = mios.filter(function(a){ return a.nivel === 3; });
@@ -431,6 +445,40 @@ function renderEquipo(){
     dir.forEach(function(a){ box.appendChild(tarjetaAgente(a, coste, total)); });
     var sang = el('div', { class: dir.length ? 'sang' : '' }); ej.forEach(function(a){ sang.appendChild(tarjetaAgente(a, coste, total)); }); box.appendChild(sang); app.appendChild(box); });
   var sin = coste[''] || 0; if (sin) app.appendChild(el('p', { class: 'peq', text: 'Sin asignar a ningún agente este mes: ' + usd(sin) }));
+}
+/* Organigrama: Diego arriba; chief y control; una columna por departamento con su director y sus ejecutores apilados; Estrategia cuelga del chief. Nodos en HTML posicionados y conectores en SVG. */
+function renderOrganigrama(coste, total){
+  var W = 148, H = 96, GX = 14, GY = 34, PAD = 12, ags = S.hq.agentes.filter(function(a){ return a.depto !== 'Personal'; }), o = ordenados();
+  var deptos = o.deptos.filter(function(d){ return d !== 'Personal'; });
+  var cols = deptos.map(function(d){ var mios = ags.filter(function(a){ return a.depto === d && a.nivel > 1; }); return { depto: d, dir: mios.filter(function(a){ return a.nivel === 2; })[0] || null, ej: mios.filter(function(a){ return a.nivel === 3; }) }; });
+  var chief = ags.filter(function(a){ return a.id === 'chief'; })[0], staff = ags.filter(function(a){ return a.nivel === 1 && a.id !== 'chief'; });
+  var ancho = Math.max(cols.length * (W + GX) - GX + 2 * PAD, 3 * (W + GX)), cx = ancho / 2;
+  var y0 = PAD, y1 = y0 + H + GY, y2 = y1 + H + GY, nodos = [], lineas = [];
+  function pon(a, x, y, extra){ nodos.push({ a: a, x: x, y: y, extra: extra }); return { x: x, y: y }; }
+  var pDiego = pon({ owner: true }, cx - W / 2, y0);
+  var pChief = chief ? pon(chief, cx - W / 2, y1) : null;
+  if (pChief) lineas.push([cx, y0 + H, cx, y1]);
+  staff.forEach(function(a, i){ var x = cx + W / 2 + GX + i * (W + GX); pon(a, x, y1); lineas.push([cx + W / 2, y1 + H / 2, x, y1 + H / 2]); });
+  var busY = y2 - GY / 2; if (pChief) lineas.push([cx, y1 + H, cx, busY]);
+  var alto = y2 + H;
+  cols.forEach(function(c, i){ var x = PAD + i * (W + GX), xc = x + W / 2; lineas.push([xc, busY, xc, y2]);
+    var y = y2; if (c.dir) { pon(c.dir, x, y); } else { pon({ etiqueta: c.depto }, x, y); }
+    var top = y + H; c.ej.forEach(function(a, j){ var yy = y2 + (j + 1) * (H + GY / 2); pon(a, x, yy); top = yy + H; }); if (c.ej.length) lineas.push([xc, y2 + H, xc, top - H]);
+    alto = Math.max(alto, top); });
+  if (cols.length > 1) lineas.push([PAD + W / 2, busY, PAD + (cols.length - 1) * (W + GX) + W / 2, busY]);
+  alto += PAD;
+  var svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg'); svg.setAttribute('width', ancho); svg.setAttribute('height', alto); svg.setAttribute('class', 'org-lineas');
+  lineas.forEach(function(l){ var ln = document.createElementNS('http://www.w3.org/2000/svg', 'line'); ln.setAttribute('x1', l[0]); ln.setAttribute('y1', l[1]); ln.setAttribute('x2', l[2]); ln.setAttribute('y2', l[3]); svg.appendChild(ln); });
+  var lienzo = el('div', { class: 'org-lienzo', style: 'width:' + ancho + 'px;height:' + alto + 'px' }); lienzo.appendChild(svg);
+  nodos.forEach(function(n){ var a = n.a, box;
+    if (a.owner) box = el('div', { class: 'org-nodo owner' }, [el('img', { class: 'av peq', src: OWNER_AV, alt: '' }), el('b', { text: 'Diego Torres' }), el('span', { text: 'Owner · decide lo irreversible' })]);
+    else if (a.etiqueta) box = el('div', { class: 'org-nodo etiqueta' }, [el('b', { text: a.etiqueta }), el('span', { text: 'sin director · reporta al chief' })]);
+    else { var ct = a.contrato || {}, c = coste[a.id] || 0; box = el('div', { class: 'org-nodo' + (a.activo ? '' : ' off'), onclick: function(){ hojaAgente(a, c, total); } }, [
+      el('div', { class: 'avw' }, [avatar(a, 'peq'), el('span', { class: 'punto ' + estadoAg(a) })]), el('b', { text: persona(a) }), el('span', { text: rolDe(a) }),
+      el('em', { text: (ct.modelo ? nombreModelo(ct.modelo) : '') + (c ? ' · ' + usd(c) : '') + (a.activo ? '' : ' · por contratar') })]); }
+    box.style.left = n.x + 'px'; box.style.top = n.y + 'px'; lienzo.appendChild(box); });
+  var marco = el('div', { class: 'org' }); marco.appendChild(lienzo); app.appendChild(marco);
+  app.appendChild(el('p', { class: 'peq', text: 'Desliza para ver todos los departamentos. Toca una persona para abrir su ficha. Los puestos atenuados están por contratar.' }));
 }
 /* Capacidad de la cuenta Max: carga = % de la semana consumido y su proyección a ritmo actual; aprovechamiento = media del máximo alcanzado en cada ventana de 5 h ya cerrada. */
 function capacidad(){
