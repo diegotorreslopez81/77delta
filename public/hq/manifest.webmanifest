@@ -1,8 +1,7 @@
 {
   "name": "HQ · 77 Delta",
   "short_name": "HQ",
-  "description": "Panel de mando de la One Man Corporation: aprobaciones, equipo de agentes y costes.",
-  "start_url": "/hq/",
+  "description": "Panel de mando de la One Man Corporation: aprobaciones, negocio, equipo de agentes y costes.",
   "scope": "/hq/",
   "display": "standalone",
   "orientation": "portrait",

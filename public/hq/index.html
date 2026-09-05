@@ -225,10 +225,18 @@ function conf(){ var c = localStorage.getItem('hq_cfg'); var p = fetch(API + '/h
   return c ? Promise.resolve(JSON.parse(c)).then(function(j){ p.catch(function(){}); return j; }) : p; }
 var app = document.getElementById('app');
 var params = new URLSearchParams(location.search);
-if (params.get('t')) { localStorage.setItem('hq_t', params.get('t')); params.delete('t'); history.replaceState(null, '', location.pathname + (params.toString() ? '?' + params : '')); }
+/* El token se queda en la URL a propósito: en iOS "Añadir a pantalla de inicio" captura la URL visible y la app instalada tiene su propio almacenamiento. */
+if (params.get('t')) localStorage.setItem('hq_t', params.get('t'));
 var TOKEN = localStorage.getItem('hq_t');
+if (TOKEN && !params.get('t')) { params.set('t', TOKEN); history.replaceState(null, '', location.pathname + '?' + params); }
 var marcar = params.get('id') ? Number(params.get('id')) : null;
-if (!TOKEN) { app.innerHTML = '<div class="msg">Este enlace está incompleto. Abre HQ con tu enlace completo.</div>'; return; }
+if (!TOKEN) {
+  var campo = el('input', { type: 'text', placeholder: 'Pega aquí tu enlace de HQ', style: 'width:100%;font:15px var(--body);padding:12px;border:1px solid var(--linea-fuerte);border-radius:10px;background:var(--panel);color:var(--tinta)' });
+  app.textContent = '';
+  app.appendChild(el('div', { class: 'msg' }, [el('p', { text: 'Este acceso no lleva tu token.' }), campo,
+    el('button', { class: 'btn si', style: 'margin-top:10px;width:100%', text: 'Entrar', onclick: function(){ var m = campo.value.match(/[?&]t=([0-9a-f]{20,})/i) || campo.value.match(/^([0-9a-f]{20,})$/i); if (!m) { campo.focus(); return; } localStorage.setItem('hq_t', m[1]); location.replace(location.pathname + '?t=' + m[1]); } })]));
+  return;
+}
 if (!window.supabase) { app.innerHTML = '<div class="msg">No se ha podido cargar la librería de datos. Recarga.</div>'; return; }
 var sb = null;
 var S = { hq: null, uso: null, tab: 'bandeja', filtro: 'todo', abiertos: {}, hist: false };
