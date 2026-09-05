@@ -52,8 +52,10 @@ create table if not exists public.omc_solicitudes (
   resultado text not null default '',
   created_at timestamptz not null default now(),
   resolved_at timestamptz,
-  done_at timestamptz
+  done_at timestamptz,
+  pospuesta_hasta timestamptz
 );
+alter table public.omc_solicitudes add column if not exists pospuesta_hasta timestamptz;
 create index if not exists omc_solicitudes_estado on public.omc_solicitudes (empresa, estado, created_at desc);
 
 create table if not exists public.omc_uso (
@@ -236,7 +238,9 @@ begin
     'agentes', (select coalesce(jsonb_agg(to_jsonb(a) order by a.nivel, a.orden, a.id), '[]'::jsonb)
                 from public.omc_agentes a where a.empresa = e.id),
     'pendientes', (select coalesce(jsonb_agg(to_jsonb(s) order by s.prioridad, s.vence asc nulls last, s.created_at), '[]'::jsonb)
-                   from public.omc_solicitudes s where s.empresa = e.id and s.estado = 'pendiente'),
+                   from public.omc_solicitudes s where s.empresa = e.id and s.estado = 'pendiente' and (s.pospuesta_hasta is null or s.pospuesta_hasta <= now())),
+    'pospuestas', (select coalesce(jsonb_agg(to_jsonb(s) order by s.pospuesta_hasta), '[]'::jsonb)
+                   from public.omc_solicitudes s where s.empresa = e.id and s.estado = 'pendiente' and s.pospuesta_hasta > now()),
     'seguimiento', (select coalesce(jsonb_agg(to_jsonb(s) order by s.resolved_at desc), '[]'::jsonb)
                     from public.omc_solicitudes s where s.empresa = e.id and s.estado in ('aprobada','respondida')),
     'historial', (select coalesce(jsonb_agg(to_jsonb(s) order by coalesce(s.done_at, s.resolved_at) desc), '[]'::jsonb)
@@ -392,6 +396,29 @@ begin
     where id = p_id and empresa = t.empresa returning * into s;
   if not found then raise exception 'solicitud no encontrada' using errcode = 'P0002'; end if;
   return to_jsonb(s);
+end $$;
+
+-- Owner pospone una solicitud pendiente hasta una fecha (vuelve sola a la bandeja y avisa por push). null = traer ahora.
+create or replace function public.omc_posponer(p_token text, p_id bigint, p_hasta timestamptz)
+returns jsonb language plpgsql security definer set search_path = public as $$
+declare t public.omc_tokens; s public.omc_solicitudes;
+begin
+  t := public.omc_tok(p_token);
+  if t.rol <> 'owner' then raise exception 'solo owner' using errcode = '42501'; end if;
+  update public.omc_solicitudes set pospuesta_hasta = p_hasta where id = p_id and empresa = t.empresa and estado = 'pendiente' returning * into s;
+  if not found then raise exception 'solicitud no encontrada o ya resuelta' using errcode = 'P0001'; end if;
+  return to_jsonb(s);
+end $$;
+
+-- Pospuestas que ya han vencido: las devuelve (y limpia la marca) para que el recordatorio avise una sola vez.
+create or replace function public.omc_pospuestas_vencidas(p_token text)
+returns jsonb language plpgsql security definer set search_path = public as $$
+declare t public.omc_tokens; r jsonb;
+begin
+  t := public.omc_tok(p_token);
+  with v as (update public.omc_solicitudes set pospuesta_hasta = null where empresa = t.empresa and estado = 'pendiente' and pospuesta_hasta is not null and pospuesta_hasta <= now() returning id, titulo, agente)
+  select coalesce(jsonb_agg(to_jsonb(v)), '[]'::jsonb) into r from v;
+  return r;
 end $$;
 
 -- Owner edita o crea un agente (activo, contrato, rutas...).
@@ -632,11 +659,11 @@ revoke all on function public.omc_token_info(text), public.omc_hq(text), public.
   public.omc_agente_set(text, text, jsonb), public.omc_pedir(text, jsonb), public.omc_estado(text, bigint), public.omc_reportar(text, bigint, boolean, text),
   public.omc_latido(text, text), public.omc_mis_solicitudes(text, text), public.omc_subir_uso(text, jsonb), public.omc_guardar_push(text, jsonb), public.omc_subir_plan(text, jsonb), public.omc_subir_actividad(text, jsonb),
   public.omc_kpi_set(text, jsonb), public.omc_ingreso_set(text, jsonb), public.omc_ingresos(text), public.omc_comentar(text, bigint, text), public.omc_retirar(text, bigint, text),
-  public.omc_licitaciones_subir(text, jsonb), public.omc_licitacion_decidir(text, text, text, jsonb, text), public.omc_licitaciones_pendientes_sync(text), public.omc_licitaciones_sincronizadas(text, jsonb), public.omc_licitaciones_lista(text, boolean) from public;
+  public.omc_licitaciones_subir(text, jsonb), public.omc_licitacion_decidir(text, text, text, jsonb, text), public.omc_licitaciones_pendientes_sync(text), public.omc_licitaciones_sincronizadas(text, jsonb), public.omc_licitaciones_lista(text, boolean), public.omc_posponer(text, bigint, timestamptz), public.omc_pospuestas_vencidas(text) from public;
 grant execute on function public.omc_token_info(text), public.omc_hq(text), public.omc_hq_uso(text), public.omc_resolver(text, bigint, text, text),
   public.omc_agente_set(text, text, jsonb), public.omc_pedir(text, jsonb), public.omc_estado(text, bigint), public.omc_reportar(text, bigint, boolean, text),
   public.omc_latido(text, text), public.omc_mis_solicitudes(text, text), public.omc_subir_uso(text, jsonb), public.omc_guardar_push(text, jsonb), public.omc_subir_plan(text, jsonb), public.omc_subir_actividad(text, jsonb),
   public.omc_kpi_set(text, jsonb), public.omc_ingreso_set(text, jsonb), public.omc_ingresos(text), public.omc_comentar(text, bigint, text), public.omc_retirar(text, bigint, text),
-  public.omc_licitaciones_subir(text, jsonb), public.omc_licitacion_decidir(text, text, text, jsonb, text), public.omc_licitaciones_pendientes_sync(text), public.omc_licitaciones_sincronizadas(text, jsonb), public.omc_licitaciones_lista(text, boolean)
+  public.omc_licitaciones_subir(text, jsonb), public.omc_licitacion_decidir(text, text, text, jsonb, text), public.omc_licitaciones_pendientes_sync(text), public.omc_licitaciones_sincronizadas(text, jsonb), public.omc_licitaciones_lista(text, boolean), public.omc_posponer(text, bigint, timestamptz), public.omc_pospuestas_vencidas(text)
   to anon, authenticated, service_role;
 notify pgrst, 'reload schema';
