@@ -171,6 +171,7 @@ def main():
     p = sub.add_parser('licitaciones', help='licitaciones con la decisión y los motivos de Diego (para Sales)'); p.add_argument('--todas', action='store_true'); p.add_argument('--decididas', action='store_true')
     p = sub.add_parser('parte', help='parte de jornada del agente (Engram, proyecto 77delta): lo leen los demás al arrancar'); p.add_argument('texto', nargs='?'); p.add_argument('--agente')
     p = sub.add_parser('partes', help='partes de las últimas 48 h de todos los agentes'); p.add_argument('--horas', type=int, default=48)
+    p = sub.add_parser('escaladas', help='(chief) tarjetas respondidas por Diego con orden de escalar que nadie ha cerrado')
     a = ap.parse_args()
 
     if a.cmd in ('pedir', 'duda'):
@@ -254,6 +255,20 @@ def main():
         for x in sorted(rs, key=lambda x: x.get('created_at') or ''):
             print(f"{(x.get('created_at') or '')[:16]} {x.get('title')}\n  {(x.get('content') or '').strip()[:600]}")
         if not rs: print('(sin partes en ese periodo)')
+    elif a.cmd == 'escaladas':
+        import re as _re
+        pat = _re.compile(r'escala|@chief|ficha[rd]|product owner|producto nuevo|nuevo puesto', _re.I)
+        hq = rpc('omc_hq', p_token=E.get('HQ_OWNER_TOKEN') or E['HQ_TOKEN'])
+        hilos = hq.get('hilos') or {}
+        out = []
+        for s in hq['seguimiento'] + hq['pendientes']:
+            textos = [s.get('respuesta') or ''] + [m['texto'] for m in hilos.get(str(s['id']), []) if m['autor'] == 'diego']
+            if any(pat.search(t) for t in textos):
+                out.append(s)
+        if a.json: print(json.dumps(out, ensure_ascii=False))
+        else:
+            for s in out: print(linea(s))
+            if not out: print('(nada escalado pendiente)')
     elif a.cmd == 'kpi':
         print(json.dumps(rpc('omc_kpi_set', p_token=E['HQ_TOKEN'], p_filas=[{'clave': a.clave, 'valor': a.valor, 'texto': a.texto, 'fuente': a.fuente or agente_actual(None)}]), ensure_ascii=False))
 
