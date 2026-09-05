@@ -42,7 +42,7 @@ def seccion(md, titulo_regex, hasta_regex):
 
 def equipo_md(agentes):
     niveles = {1: 'Dirección y control', 2: 'Directores de departamento', 3: 'Ejecutores'}
-    out = ['# Equipo de agentes de 77 Delta', '', 'Cada agente es una sesión de Claude Code con su contrato (alma), su modelo asignado y su interruptor en HQ (`https://77delta.com/hq/`, pestaña Equipo). Por encima de todos, Diego (Owner) aprueba lo irreversible; el Chief of Staff enruta. Los avatares y nombres de persona sirven para reconocerlos rápido; el identificador técnico (`id`) es el que usan los scripts.', '']
+    out = ['# Equipo de agentes de 77 Delta', '', '![Organigrama de 77 Delta](organigrama.png)', '', '*Organigrama exportado de HQ (pestaña Equipo · Organigrama); la fuente viva es la app.*', '', 'Cada agente es una sesión de Claude Code con su contrato (alma), su modelo asignado y su interruptor en HQ (`https://77delta.com/hq/`, pestaña Equipo). Por encima de todos, Diego (Owner) aprueba lo irreversible; el Chief of Staff enruta. Los avatares y nombres de persona sirven para reconocerlos rápido; el identificador técnico (`id`) es el que usan los scripts.', '']
     n = 0
     for nivel in (1, 2, 3):
         out += [f'## {niveles[nivel]}', '']
