@@ -510,6 +510,21 @@ function renderOrganigrama(coste, total){
   app.appendChild(zoom);
   app.appendChild(el('p', { class: 'peq', text: (escala < 1 ? 'Vista general. Pulsa "Tamaño real" para leer y deslizar de lado. ' : 'Desliza para ver todos los departamentos. ') + 'Toca una persona para abrir su ficha. Los puestos atenuados están por contratar.' }));
 }
+/* Carga de trabajo por agente (0-100): tarjetas abiertas, comentarios de Diego sin responder, licitaciones por preparar (solo Sales) con sus cierres, y consumo de tokens muy por encima de la media. Sirve para ver cuellos de botella. */
+function cargaAgente(a){
+  var abiertas = S.hq.pendientes.concat(S.hq.seguimiento).filter(function(s){ return s.agente === a.id; });
+  var hilos = S.hq.hilos || {}, sinResp = abiertas.filter(function(s){ var h = hilos[s.id] || []; return h.length && h[h.length - 1].autor === 'diego'; }).length;
+  var pts = abiertas.length * 12 + sinResp * 10, det = [];
+  if (abiertas.length) det.push(abiertas.length + ' tarjetas abiertas');
+  if (sinResp) det.push(sinResp + ' hilos sin responder');
+  if (/^sales-licita$/.test(a.id)){ var prep = licTodas().filter(function(l){ return ['aprobada', 'en preparación', 'en preparacion'].indexOf((l.estado || '').toLowerCase()) >= 0; }), urg = prep.filter(function(l){ return l.cierre && (new Date(l.cierre) - Date.now()) < 7 * 864e5; });
+    pts += prep.length * 6 + urg.length * 10; if (prep.length) det.push(prep.length + ' ofertas por preparar' + (urg.length ? ' (' + urg.length + ' cierran en 7 días)' : '')); }
+  var total = S.uso.mes.coste || 0, activos = (S.uso.por_agente || []).filter(function(x){ return x.agente && x.coste > 0; }).length || 1, c = costePorAgente()[a.id] || 0;
+  if (total && c / total > 3 / activos) { pts += 35; det.push('consume ' + Math.round(c / total * 100) + ' % de los tokens (media ' + Math.round(100 / activos) + ' %)'); }
+  else if (total && c / total > 2 / activos) { pts += 20; det.push('consume ' + Math.round(c / total * 100) + ' % de los tokens'); }
+  return { pts: Math.min(100, pts), det: det };
+}
+function cuellos(){ var out = []; ordenados().lista.filter(function(a){ return a.activo && a.nivel === 3 && a.depto !== 'Personal'; }).forEach(function(a){ var c = cargaAgente(a); if (c.pts >= 80) out.push({ a: a, c: c, libres: S.hq.agentes.filter(function(b){ return b.activo && b.id !== a.id && b.depto === a.depto && b.nivel === 3 && cargaAgente(b).pts < 30; }) }); }); return out; }
 /* Capacidad de la cuenta Max: carga = % de la semana consumido y su proyección a ritmo actual; aprovechamiento = media del máximo alcanzado en cada ventana de 5 h ya cerrada. */
 function capacidad(){
   var p = (S.uso.plan || []).filter(function(x){ return x.cuenta === 'principal'; })[0]; if (!p) return null;
@@ -540,6 +555,7 @@ function renderCapacidad(){
   var m = el('div', { class: 'medidor' }); m.appendChild(el('i', { class: cls, style: 'width:' + carga + '%' })); caja.appendChild(m);
   caja.appendChild(el('div', { class: 'sub' }, [el('span', { text: 'consumido ' + Math.round(c.sem) + ' %' + (c.semReset ? ' · reinicia ' + rel(c.semReset) : '') }), el('span', { text: 'ventana 5 h ' + Math.round(c.cinco) + ' %' + (c.cincoReset ? ' · reinicia ' + rel(c.cincoReset) : '') }), c.aprov != null ? el('span', { text: 'aprovechamiento de ventanas ' + Math.round(c.aprov) + ' %' }) : null, el('span', { text: c.activos + ' agentes consumiendo' })]));
   caja.appendChild(el('p', { class: 'frase', text: c.frase }));
+  var cb = cuellos(); if (cb.length) caja.appendChild(el('p', { class: 'frase', style: 'color:#E08678', text: 'Cuello de botella: ' + cb.map(function(x){ return persona(x.a) + ' ' + x.c.pts + ' % (' + x.c.det.join(', ') + ')' + (x.libres.length ? ' · libres en ' + x.a.depto + ': ' + x.libres.map(persona).join(', ') : ' · nadie libre en ' + x.a.depto + ': fichar o repartir') ; }).join(' · ') }));
   var sem = Object.keys(c.semanas).sort(); if (sem.length > 1) caja.appendChild(el('div', { class: 'sub' }, [el('span', { text: 'semanas anteriores: ' + sem.slice(0, -1).slice(-4).map(function(k){ return Math.round(c.semanas[k]) + ' %'; }).join(' · ') + ' (segunda cuenta cuando dos seguidas pasen del 80 %)' })]));
   app.appendChild(caja);
 }
@@ -549,6 +565,7 @@ function tarjetaAgente(a, coste, total){ var ct = a.contrato || {}, u = ultimo(a
   if (ct.modelo) tags.appendChild(el('span', { class: 'dato tinta', text: nombreModelo(ct.modelo) }));
   if (c) tags.appendChild(el('span', { class: 'dato oro', text: usd(c) + (total ? ' · ' + Math.round(c / total * 100) + ' %' : '') }));
   tags.appendChild(el('span', { class: 'dato', text: !a.activo ? 'por contratar' : u ? 'activo ' + rel(u.toISOString()) : 'sin actividad' }));
+  if (a.activo && a.nivel === 3 && a.depto !== 'Personal'){ var cg = cargaAgente(a); tags.appendChild(el('span', { class: 'dato ' + (cg.pts >= 80 ? 'rojo' : cg.pts >= 50 ? 'oro' : 'verde'), title: cg.det.join(' · '), text: 'carga ' + cg.pts + ' %' })); }
   if (ct.sesion_url) tags.appendChild(el('span', { class: 'dato' }, [el('a', { href: ct.sesion_url, target: '_blank', rel: 'noopener', text: 'sesión ↗', onclick: function(e){ e.stopPropagation(); } })]));
   var rol = el('div', { class: 'rol' }); rol.appendChild(document.createTextNode(rolDe(a) + ' · ')); rol.appendChild(el('code', { text: a.id }));
   return el('div', { class: 'ag' + (a.activo ? '' : ' off'), onclick: function(){ hojaAgente(a, c, total); } }, [
@@ -574,6 +591,7 @@ function hojaAgente(a, c, total){ var ct = a.contrato || {}, mias = S.hq.pendien
   if (ct.subagentes) tags.appendChild(el('span', { class: 'dato', text: 'subagentes ' + nombreModelo(ct.subagentes) }));
   usados.forEach(function(x){ tags.appendChild(el('span', { class: 'dato ' + (familia(x.modelo) === familia(ct.modelo) ? 'oro' : 'rojo'), text: 'usa ' + nombreModelo(x.modelo) + ' ' + usd(x.coste) })); });
   if (c && total) tags.appendChild(el('span', { class: 'dato', text: Math.round(c / total * 100) + ' % del consumo del mes' }));
+  if (a.activo && a.nivel === 3 && a.depto !== 'Personal'){ var cg = cargaAgente(a); tags.appendChild(el('span', { class: 'dato ' + (cg.pts >= 80 ? 'rojo' : cg.pts >= 50 ? 'oro' : 'verde'), text: 'carga ' + cg.pts + ' %' + (cg.det.length ? ': ' + cg.det.join(', ') : '') })); }
   kids.push(tags);
   var dl = el('dl'); [['Job', ct.job], ['Prohibido', ct.forbidden], ['Por qué ese modelo', ct.modelo_por_que], ['Ventana', ct.ventana], ['Fuentes', ct.sources], ['KPIs', ct.kpis], ['Sesiones', (a.sesiones || []).join(', ')], ['Repos', (a.rutas || []).map(function(r){ return r.replace('/Users/diego/dev/', '~/dev/'); }).join('\n')], ['Prioridad', a.prioridad === 1 ? '1 · ingresos' : String(a.prioridad)]]
     .forEach(function(p){ if (p[1]) { dl.appendChild(el('dt', { text: p[0] })); dl.appendChild(el('dd', { text: p[1] })); } });
