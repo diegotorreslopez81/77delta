@@ -369,11 +369,31 @@ function deslizar(card, si, no){
     if (dx > 90) si(); else if (dx < -90) no(); else card.style.transform = ''; }
   card.addEventListener('pointerup', fin); card.addEventListener('pointercancel', fin);
 }
-function dictar(ta, btn){ var R = window.SpeechRecognition || window.webkitSpeechRecognition; if (!R){ toast('Este navegador no dicta. Escribe la nota.'); return; }
-  if (btn.rec){ btn.rec.stop(); return; }
-  var r = new R(); r.lang = 'es-ES'; r.interimResults = false; r.continuous = false; btn.rec = r; btn.classList.add('rec');
-  r.onresult = function(e){ var t = e.results[0][0].transcript; ta.value = (ta.value ? ta.value + ' ' : '') + t; };
-  r.onend = function(){ btn.rec = null; btn.classList.remove('rec'); }; r.onerror = r.onend; r.start(); }
+/* Dictado: se graba en el móvil (MediaRecorder, funciona en Safari instalado como app) y se transcribe en api.77delta.com con Mistral.
+   Un toque empieza, otro toque para; se corta solo a los 90 s. */
+function dictar(ta, btn){
+  if (btn.rec){ try { btn.rec.stop(); } catch (e) {} return; }
+  if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia || !window.MediaRecorder){ toast('Este navegador no graba. Usa el micrófono del teclado.'); ta.focus(); return; }
+  navigator.mediaDevices.getUserMedia({ audio: true }).then(function(stream){
+    var tipo = ['audio/mp4', 'audio/webm;codecs=opus', 'audio/webm', 'audio/ogg;codecs=opus'].filter(function(t){ return MediaRecorder.isTypeSupported && MediaRecorder.isTypeSupported(t); })[0];
+    var rec = new MediaRecorder(stream, tipo ? { mimeType: tipo } : undefined), trozos = [], t0 = Date.now(), tick;
+    btn.rec = rec; btn.classList.add('rec'); btn.textContent = '■';
+    tick = setInterval(function(){ var s = Math.round((Date.now() - t0) / 1000); btn.textContent = s + 's'; if (s >= 90) rec.stop(); }, 1000);
+    rec.ondataavailable = function(e){ if (e.data && e.data.size) trozos.push(e.data); };
+    rec.onstop = function(){
+      clearInterval(tick); stream.getTracks().forEach(function(x){ x.stop(); }); btn.rec = null; btn.classList.remove('rec'); btn.textContent = '…';
+      var blob = new Blob(trozos, { type: rec.mimeType || tipo || 'audio/mp4' });
+      if (blob.size < 1000){ btn.textContent = '🎤'; toast('No se ha grabado nada.'); return; }
+      fetch(CFG.notify + '/hq/transcribir', { method: 'POST', headers: { 'Content-Type': blob.type, 'X-HQ-Token': TOKEN }, body: blob })
+        .then(function(r){ return r.json(); })
+        .then(function(j){ if (!j.ok) throw new Error(j.error || 'error'); ta.value = (ta.value ? ta.value.replace(/\s+$/, '') + ' ' : '') + j.text; ta.style.height = 'auto'; ta.style.height = ta.scrollHeight + 'px'; if (!j.text) toast('No he entendido nada. Prueba otra vez.'); })
+        .catch(function(e){ toast('No se pudo transcribir: ' + e.message + '. Usa el micrófono del teclado.'); })
+        .then(function(){ btn.textContent = '🎤'; });
+    };
+    rec.onerror = function(){ try { rec.stop(); } catch (e) {} };
+    rec.start(250);
+  }).catch(function(e){ toast('Sin permiso de micrófono (' + (e.name || e.message) + '). Usa el micrófono del teclado.'); ta.focus(); });
+}
 
 /* ---- equipo ---- */
 function renderEquipo(){
