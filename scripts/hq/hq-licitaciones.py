@@ -18,7 +18,7 @@ SHEET = '12XpybhNqVapG1esl8vcHHaew83ACeTRli0gfkhcKb9I'
 CAMPOS = {'detectada': 'detectada', 'expediente': 'expediente', 'organo': 'órgano', 'provincia': 'provincia', 'objeto': 'objeto', 'importe': 'importe', 'tipo': 'tipo',
           'procedimiento': 'procedimiento', 'elegible': 'elegible', 'motivo_auto': 'motivo', 'solvencia': 'solvencia', 'cierre': 'cierre', 'enlace': 'enlace', 'pcap': 'pcap',
           'ppt': 'ppt', 'carpeta': 'carpeta', 'resumen': 'resumen', 'comentarios': 'comentarios', 'resumen_corto': 'resumen corto', 'decision': 'decisión', 'fecha_decision': 'fecha decisión',
-          'excepcion': 'excepción'}
+          'excepcion': 'excepción', 'progreso': 'progreso', 'progreso_nota': 'nota progreso'}
 
 
 def env():
@@ -116,7 +116,8 @@ def parsear(valores, pestana):
                       'resumen': g('resumen')[:4000], 'resumen_corto': g('resumen_corto')[:1000], 'importe': imp, 'tipo': g('tipo'), 'procedimiento': g('procedimiento'), 'elegible': g('elegible'),
                       'motivo_auto': g('motivo_auto')[:2000], 'solvencia': g('solvencia')[:1500], 'cierre': fecha(g('cierre')), 'enlace': g('enlace'), 'pcap': g('pcap'), 'ppt': g('ppt'),
                       'carpeta': g('carpeta'), 'estado': estado if pestana == 'Licitaciones' else 'Descartada', 'decision': g('decision') or 'Pendiente',
-                      'fecha_decision': fecha(g('fecha_decision')), 'comentarios': g('comentarios')[:2000], 'excepcion': g('excepcion')[:500]})
+                      'fecha_decision': fecha(g('fecha_decision')), 'comentarios': g('comentarios')[:2000], 'excepcion': g('excepcion')[:500],
+                      'progreso': num(r[idx['progreso']] if 'progreso' in idx and idx['progreso'] < len(r) else None), 'progreso_nota': g('progreso_nota')[:200]})
     cols = {c: idx.get(c) for c in ('decision', 'estado', 'fecha_decision', 'comentarios')}
     return filas, cols
 

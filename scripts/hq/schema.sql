@@ -160,10 +160,14 @@ create table if not exists public.omc_licitaciones (
   motivo_texto text not null default '',
   comentarios text not null default '',
   excepcion text not null default '',
+  progreso numeric,
+  progreso_nota text not null default '',
   sincronizado boolean not null default true,
   updated_at timestamptz not null default now(),
   primary key (empresa, expediente)
 );
+alter table public.omc_licitaciones add column if not exists progreso numeric;
+alter table public.omc_licitaciones add column if not exists progreso_nota text not null default '';
 
 -- Hilo de conversación de cada solicitud (Diego y el agente se cruzan mensajes hasta resolver).
 create table if not exists public.omc_mensajes (
@@ -252,7 +256,7 @@ begin
                         'objeto', l.objeto, 'resumen', l.resumen, 'resumen_corto', l.resumen_corto, 'importe', l.importe, 'tipo', l.tipo, 'procedimiento', l.procedimiento,
                         'elegible', l.elegible, 'motivo_auto', l.motivo_auto, 'solvencia', l.solvencia, 'cierre', l.cierre, 'enlace', l.enlace, 'pcap', l.pcap, 'ppt', l.ppt, 'carpeta', l.carpeta,
                         'estado', l.estado, 'decision', l.decision, 'fecha_decision', l.fecha_decision, 'decidido_por', l.decidido_por, 'motivos', to_jsonb(l.motivos), 'motivo_texto', l.motivo_texto,
-                        'comentarios', l.comentarios, 'sincronizado', l.sincronizado) order by l.cierre asc nulls last, l.detectada desc), '[]'::jsonb)
+                        'comentarios', l.comentarios, 'sincronizado', l.sincronizado, 'progreso', l.progreso, 'progreso_nota', l.progreso_nota) order by l.cierre asc nulls last, l.detectada desc), '[]'::jsonb)
                      from public.omc_licitaciones l where l.empresa = e.id and (l.pestana = 'Licitaciones' or l.updated_at > now() - interval '30 days')),
     'hilos', (select coalesce(jsonb_object_agg(h.sid, h.items), '{}'::jsonb)
               from (select m.solicitud_id sid, jsonb_agg(jsonb_build_object('id', m.id, 'autor', m.autor, 'texto', m.texto, 'ts', m.ts) order by m.ts) items
@@ -495,17 +499,17 @@ begin
   t := public.omc_tok(p_token);
   for f in select * from jsonb_array_elements(p_filas) loop
     insert into public.omc_licitaciones (empresa, expediente, fila, pestana, detectada, organo, provincia, objeto, resumen, resumen_corto, importe, tipo, procedimiento, elegible, motivo_auto, solvencia,
-                                         cierre, enlace, pcap, ppt, carpeta, estado, decision, fecha_decision, decidido_por, comentarios, excepcion, updated_at)
+                                         cierre, enlace, pcap, ppt, carpeta, estado, decision, fecha_decision, decidido_por, comentarios, excepcion, progreso, progreso_nota, updated_at)
       values (t.empresa, f->>'expediente', nullif(f->>'fila','')::int, coalesce(f->>'pestana','Licitaciones'), nullif(f->>'detectada','')::date, coalesce(f->>'organo',''), coalesce(f->>'provincia',''),
               coalesce(f->>'objeto',''), coalesce(f->>'resumen',''), coalesce(f->>'resumen_corto',''), nullif(f->>'importe','')::numeric, coalesce(f->>'tipo',''), coalesce(f->>'procedimiento',''),
               coalesce(f->>'elegible',''), coalesce(f->>'motivo_auto',''), coalesce(f->>'solvencia',''), nullif(f->>'cierre','')::date, coalesce(f->>'enlace',''), coalesce(f->>'pcap',''), coalesce(f->>'ppt',''),
               coalesce(f->>'carpeta',''), coalesce(f->>'estado',''), coalesce(nullif(f->>'decision',''),'Pendiente'), nullif(f->>'fecha_decision','')::date,
-              case when coalesce(f->>'decision','') in ('OK','No') then 'sales' else '' end, coalesce(f->>'comentarios',''), coalesce(f->>'excepcion',''), now())
+              case when coalesce(f->>'decision','') in ('OK','No') then 'sales' else '' end, coalesce(f->>'comentarios',''), coalesce(f->>'excepcion',''), nullif(f->>'progreso','')::numeric, coalesce(f->>'progreso_nota',''), now())
       on conflict (empresa, expediente) do update set
         fila = excluded.fila, pestana = excluded.pestana, detectada = excluded.detectada, organo = excluded.organo, provincia = excluded.provincia, objeto = excluded.objeto,
         resumen = excluded.resumen, resumen_corto = excluded.resumen_corto, importe = excluded.importe, tipo = excluded.tipo, procedimiento = excluded.procedimiento, elegible = excluded.elegible,
         motivo_auto = excluded.motivo_auto, solvencia = excluded.solvencia, cierre = excluded.cierre, enlace = excluded.enlace, pcap = excluded.pcap, ppt = excluded.ppt, carpeta = excluded.carpeta,
-        comentarios = excluded.comentarios, excepcion = excluded.excepcion, updated_at = now(),
+        comentarios = excluded.comentarios, excepcion = excluded.excepcion, progreso = excluded.progreso, progreso_nota = excluded.progreso_nota, updated_at = now(),
         estado = case when public.omc_licitaciones.sincronizado then excluded.estado else public.omc_licitaciones.estado end,
         decision = case when public.omc_licitaciones.sincronizado then excluded.decision else public.omc_licitaciones.decision end,
         fecha_decision = case when public.omc_licitaciones.sincronizado then excluded.fecha_decision else public.omc_licitaciones.fecha_decision end,

@@ -46,7 +46,7 @@ a{color:inherit}
 .peq{font-size:13px;color:var(--pizarra-tenue)}
 
 /* Cabecera */
-header{background:var(--marino);color:var(--marfil);padding:calc(10px + env(safe-area-inset-top)) 16px 10px;display:flex;align-items:center;gap:12px;position:sticky;top:0;z-index:20}
+header{background:var(--marino);color:var(--marfil);padding:calc(10px + env(safe-area-inset-top)) 16px 10px;display:flex;align-items:center;gap:12px;position:fixed;left:0;right:0;top:0;z-index:20;height:calc(56px + env(safe-area-inset-top));box-sizing:border-box}
 .monograma{font-family:var(--display);font-weight:700;letter-spacing:-.055em;font-size:22px;display:inline-flex;align-items:baseline;gap:1px}
 .monograma b{color:#A7781B;font-weight:700}
 header .hq{font-family:var(--mono);font-size:12px;letter-spacing:.18em;color:var(--pizarra-clara);margin-left:2px}
@@ -55,12 +55,12 @@ header .esp{flex:1}
 .pill.cero{background:transparent;border:1px solid #2C3B52;color:var(--pizarra-clara)}
 .icono{width:36px;height:36px;border-radius:10px;display:grid;place-items:center;color:var(--marfil);font-size:18px}
 .icono:active{background:#122238}
-nav.tabs{display:flex;background:var(--marino);position:sticky;top:calc(56px + env(safe-area-inset-top));z-index:19;border-bottom:1px solid #1E2B3B;overflow:hidden}
+nav.tabs{display:flex;background:var(--marino);position:fixed;left:0;right:0;top:calc(56px + env(safe-area-inset-top));z-index:19;border-bottom:1px solid #1E2B3B;overflow:hidden;height:44px}
 nav.tabs button{flex:1 1 0;min-width:0;padding:12px 0 11px;color:var(--pizarra-clara);font:500 12.5px var(--body);border-bottom:2px solid transparent;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 nav.tabs button.on{color:#EDEAE3;border-bottom-color:#A7781B}
 nav.tabs button small{font-family:var(--mono);font-size:10px;color:#D4A03A;margin-left:3px}
 
-main{padding:14px 14px 0;max-width:720px;margin:0 auto;overflow-x:hidden}
+main{padding:calc(114px + env(safe-area-inset-top)) 14px 0;max-width:720px;margin:0 auto;overflow-x:hidden}
 .chips{display:flex;gap:8px;overflow-x:auto;padding:2px 0 12px;scrollbar-width:none}
 .chips::-webkit-scrollbar{display:none}
 .chip{white-space:nowrap;padding:6px 12px;border-radius:99px;border:1px solid var(--linea-fuerte);font-size:13px;color:var(--pizarra)}
@@ -124,6 +124,11 @@ h2.sec-t small{color:var(--oro-oscuro)}
 .fila{background:var(--panel);border:1px solid var(--linea);border-radius:12px;padding:10px 12px;margin-bottom:8px;display:flex;gap:10px;align-items:center}
 .fila .txt{flex:1;min-width:0} .fila .t{font-size:14px;font-weight:500;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .fila .m{font-size:12px;color:var(--pizarra);font-family:var(--mono);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.prog{display:flex;align-items:center;gap:8px;margin-top:6px}
+.prog .m{flex:1;height:6px;border-radius:99px;background:var(--linea);overflow:hidden}
+.prog .m i{display:block;height:100%;background:var(--oro);border-radius:99px}
+.prog .m i.ok{background:var(--exito)}
+.prog span{font-family:var(--mono);font-size:11px;color:var(--pizarra);white-space:nowrap}
 .estado{font-family:var(--mono);font-size:11px;padding:3px 8px;border-radius:6px;background:var(--panel-2);color:var(--pizarra);white-space:nowrap}
 .estado.aprobada,.estado.respondida{background:var(--oro-suave);color:var(--oro-oscuro)}
 .estado.ejecutada{background:var(--exito-suave);color:var(--exito)}
@@ -157,6 +162,9 @@ h2.sec-t small{color:var(--oro-oscuro)}
 .org-nodo.owner{background:var(--marino);color:var(--marfil);border-color:var(--marino)} .org-nodo.owner span{color:var(--pizarra-clara)}
 .org-nodo.etiqueta{justify-content:center;border-style:dashed;background:transparent} .org-nodo.etiqueta b{font-family:var(--mono);font-size:11px;letter-spacing:.12em;text-transform:uppercase;color:var(--pizarra)}
 .org-nodo.off{opacity:.5;border-style:dashed}
+.subtabs{display:flex;margin:-4px -14px 12px;border-bottom:1px solid var(--linea);background:var(--papel)}
+.subtabs button{flex:1;padding:11px 0;font:500 14px var(--body);color:var(--pizarra);border-bottom:2px solid transparent}
+.subtabs button.on{color:var(--tinta);border-bottom-color:var(--oro)}
 .depto{margin:6px 0 4px}
 .depto .sang{margin-left:14px;border-left:2px solid var(--linea);padding-left:10px}
 .hoja{position:fixed;inset:0;background:rgba(6,16,31,.55);z-index:40;display:none;align-items:flex-end}
@@ -209,7 +217,7 @@ h2.sec-t small{color:var(--oro-oscuro)}
 #toast{position:fixed;left:50%;bottom:calc(20px + env(safe-area-inset-bottom));transform:translateX(-50%) translateY(20px);background:var(--tinta);color:var(--papel);padding:12px 16px;border-radius:12px;font-size:14px;display:flex;gap:14px;align-items:center;opacity:0;pointer-events:none;transition:all .25s var(--ease);z-index:50;max-width:92vw;box-shadow:0 10px 30px rgba(0,0,0,.25)}
 #toast.on{opacity:1;transform:translateX(-50%);pointer-events:auto}
 #toast button{color:var(--oro-luz);font-weight:600}
-.menu{position:absolute;right:12px;top:calc(52px + env(safe-area-inset-top));background:var(--panel);color:var(--tinta);border:1px solid var(--linea);border-radius:12px;padding:6px;min-width:220px;box-shadow:0 12px 30px rgba(6,16,31,.2);display:none;z-index:30}
+.menu{position:fixed;right:12px;top:calc(52px + env(safe-area-inset-top));background:var(--panel);color:var(--tinta);border:1px solid var(--linea);border-radius:12px;padding:6px;min-width:220px;box-shadow:0 12px 30px rgba(6,16,31,.2);display:none;z-index:30}
 .menu.on{display:block}
 .menu button{display:block;width:100%;text-align:left;padding:10px 12px;border-radius:8px;font-size:14px}
 .menu button:active{background:var(--panel-2)}
@@ -429,14 +437,15 @@ function dictar(ta, btn){
 }
 
 /* ---- equipo ---- */
+function subtabs(){ var st = el('div', { class: 'subtabs' }); [['lista', 'Lista'], ['org', 'Organigrama']].forEach(function(v){ st.appendChild(el('button', { class: (S.orgVista || 'lista') === v[0] ? 'on' : '', text: v[1], onclick: function(){ S.orgVista = v[0]; render(); window.scrollTo(0, 0); } })); }); app.appendChild(st); }
 function renderEquipo(){
   var o = ordenados(), coste = costePorAgente(), total = S.uso.mes.coste || 0, ags = S.hq.agentes;
+  subtabs();
   app.appendChild(el('div', { class: 'ag owner' }, [el('div', { class: 'avw' }, [el('img', { class: 'av', src: OWNER_AV, alt: '' }), el('span', { class: 'punto vivo' })]),
     el('div', { class: 'txt' }, [el('div', { class: 'n', text: 'Diego Torres' }), el('div', { class: 'rol', text: 'Owner · ' + S.hq.empresa.nombre + ' · decide lo irreversible' }),
       el('div', { class: 'tags' }, [el('span', { class: 'dato oro', text: S.hq.pendientes.length + ' esperando tu firma' }), el('span', { class: 'dato', text: o.lista.filter(function(a){ return a.activo; }).length + ' agentes activos de ' + o.lista.length })])])]));
   renderCapacidad(coste);
-  var vista = el('div', { class: 'chips' }); [['org', 'Organigrama'], ['lista', 'Lista']].forEach(function(v){ vista.appendChild(el('button', { class: 'chip' + ((S.orgVista || 'org') === v[0] ? ' on' : ''), text: v[1], onclick: function(){ S.orgVista = v[0]; render(); } })); }); app.appendChild(vista);
-  if ((S.orgVista || 'org') === 'org'){ renderOrganigrama(coste, total); return; }
+  if (S.orgVista === 'org'){ renderOrganigrama(coste, total); return; }
   app.appendChild(el('h2', { class: 'sec-t', text: 'Dirección y control' }));
   ags.filter(function(a){ return a.nivel === 1; }).forEach(function(a){ app.appendChild(tarjetaAgente(a, coste, total)); });
   o.deptos.forEach(function(d){ var mios = ags.filter(function(a){ return a.depto === d && a.nivel > 1; }), dir = mios.filter(function(a){ return a.nivel === 2; }), ej = mios.filter(function(a){ return a.nivel === 3; });
@@ -478,7 +487,11 @@ function renderOrganigrama(coste, total){
       el('em', { text: (ct.modelo ? nombreModelo(ct.modelo) : '') + (c ? ' · ' + usd(c) : '') + (a.activo ? '' : ' · por contratar') })]); }
     box.style.left = n.x + 'px'; box.style.top = n.y + 'px'; lienzo.appendChild(box); });
   var marco = el('div', { class: 'org' }); marco.appendChild(lienzo); app.appendChild(marco);
-  app.appendChild(el('p', { class: 'peq', text: 'Desliza para ver todos los departamentos. Toca una persona para abrir su ficha. Los puestos atenuados están por contratar.' }));
+  var disp = Math.min(720, window.innerWidth) - 28, escala = S.orgZoom === 1 ? 1 : Math.min(1, disp / ancho);
+  if (escala < 1){ lienzo.style.transformOrigin = '0 0'; lienzo.style.transform = 'scale(' + escala + ')'; marco.style.height = Math.ceil(alto * escala) + 'px'; marco.style.overflow = 'hidden'; }
+  var zoom = el('div', { class: 'tags', style: 'justify-content:center;margin-top:10px' }, [el('button', { class: 'chip' + (S.orgZoom !== 1 ? ' on' : ''), text: 'Ajustar a pantalla', onclick: function(){ S.orgZoom = 0; render(); } }), el('button', { class: 'chip' + (S.orgZoom === 1 ? ' on' : ''), text: 'Tamaño real', onclick: function(){ S.orgZoom = 1; render(); } })]);
+  app.appendChild(zoom);
+  app.appendChild(el('p', { class: 'peq', text: (escala < 1 ? 'Vista general. Pulsa "Tamaño real" para leer y deslizar de lado. ' : 'Desliza para ver todos los departamentos. ') + 'Toca una persona para abrir su ficha. Los puestos atenuados están por contratar.' }));
 }
 /* Capacidad de la cuenta Max: carga = % de la semana consumido y su proyección a ritmo actual; aprovechamiento = media del máximo alcanzado en cada ventana de 5 h ya cerrada. */
 function capacidad(){
@@ -579,6 +592,11 @@ function renderLicita(){
   var f = el('div', { class: 'grid2' });
   [[pd.length, 'por decidir'], [ec.length, 'en curso'], [g.length, 'contratadas'], [licTodas().filter(function(l){ return l.pestana === 'Licitaciones'; }).length, 'analizadas vivas']].forEach(function(p){ f.appendChild(mini(String(p[0]), p[1])); });
   app.appendChild(f);
+  var motor = el('div', { class: 'tags', style: 'margin:-4px 0 6px' });
+  if (kpi('lic.detectadas_hoy.n') != null) motor.appendChild(el('span', { class: 'dato ' + (kpi('lic.detectadas_hoy.n') ? 'verde' : ''), text: 'motor: ' + kpi('lic.detectadas_hoy.n') + ' nuevas hoy · ' + (kpi('lic.detectadas_7d.n') || 0) + ' esta semana' }));
+  if (kpi('lic.ultima_deteccion')) motor.appendChild(el('span', { class: 'dato', text: 'última detección ' + kpi('lic.ultima_deteccion') }));
+  if (kpi('lic.actualizado')) motor.appendChild(el('span', { class: 'dato', text: 'Sheet leído ' + rel(kpi('lic.actualizado')) }));
+  if (motor.children.length) app.appendChild(motor);
   app.appendChild(el('h2', { class: 'sec-t' }, ['Por decidir ', el('small', { text: pd.length + ' · Sheet de Guillem, cada 10 min' })]));
   if (!pd.length) app.appendChild(el('div', { class: 'vacio' }, [el('div', { class: 'delta', text: 'Δ' }), el('p', { text: 'Nada por decidir.' })]));
   pd.forEach(function(l){ app.appendChild(tarjetaLic(l)); });
@@ -627,9 +645,12 @@ function decidirLic(l, decision, motivos, txt){
     toast((decision === 'OK' ? 'Aprobada ' : 'Rechazada ') + l.expediente, 'Deshacer', function(){ rpc('omc_licitacion_decidir', { p_token: TOKEN, p_expediente: l.expediente, p_decision: 'Pendiente', p_motivos: [], p_texto: '' }).then(cargar).catch(function(e){ toast(e.message); }); }); })
   .catch(function(e){ toast('No se pudo: ' + e.message); cargar(); });
 }
-function filaLic(l){ var quien = l.decidido_por === 'diego' ? 'Diego' : l.decidido_por === 'sales' ? 'auto' : '', e = (l.estado || '').toLowerCase();
-  return el('div', { class: 'fila', onclick: function(){ hojaLic(l); } }, [el('div', { class: 'tipo-ic', text: '§' }),
-    el('div', { class: 'txt' }, [el('div', { class: 't', text: (l.organo || l.expediente) + (l.resumen_corto ? ' · ' + l.resumen_corto : '') }), el('div', { class: 'm', text: [l.importe != null ? eur(l.importe) : '', l.cierre ? 'cierra ' + l.cierre.slice(5).split('-').reverse().join('/') : '', l.expediente, quien ? l.decision + ' · ' + quien : ''].filter(Boolean).join(' · ') })]),
+var PROGRESO_ESTADO = { aprobada: 15, 'en preparación': 45, 'en preparacion': 45, presentada: 100, 'en juego': 100, adjudicada: 100, contratada: 100 };
+function progresoLic(l){ var e = (l.estado || '').toLowerCase(); if (l.progreso != null && l.progreso !== '') return Math.max(0, Math.min(100, Number(l.progreso))); if (PROGRESO_ESTADO[e] != null) return PROGRESO_ESTADO[e]; return l.decision === 'OK' ? 15 : null; }
+function filaLic(l){ var quien = l.decidido_por === 'diego' ? 'Diego' : l.decidido_por === 'sales' ? 'auto' : '', e = (l.estado || '').toLowerCase(), pr = LIC_TERMINAL.indexOf(e) < 0 ? progresoLic(l) : null;
+  var txt = el('div', { class: 'txt' }, [el('div', { class: 't', text: (l.organo || l.expediente) + (l.resumen_corto ? ' · ' + l.resumen_corto : '') }), el('div', { class: 'm', text: [l.importe != null ? eur(l.importe) : '', l.cierre ? 'cierra ' + l.cierre.slice(5).split('-').reverse().join('/') : '', l.expediente, quien ? l.decision + ' · ' + quien : ''].filter(Boolean).join(' · ') })]);
+  if (pr != null) txt.appendChild(el('div', { class: 'prog' }, [el('div', { class: 'm' }, [el('i', { style: 'width:' + pr + '%', class: pr >= 100 ? 'ok' : '' })]), el('span', { text: pr + ' %' + (l.progreso_nota ? ' · ' + l.progreso_nota : '') })]));
+  return el('div', { class: 'fila', onclick: function(){ hojaLic(l); } }, [el('div', { class: 'tipo-ic', text: '§' }), txt,
     el('span', { class: 'estado ' + (LIC_GANADA.indexOf(e) >= 0 ? 'ejecutada' : LIC_TERMINAL.indexOf(e) >= 0 ? 'rechazada' : 'aprobada'), text: l.estado || l.decision })]); }
 function hojaLic(l){ var dl = el('dl'); [['Expediente', l.expediente], ['Órgano', l.organo], ['Objeto', l.objeto], ['Resumen', l.resumen], ['Importe', l.importe != null ? eur(l.importe) : ''], ['Cierre', l.cierre], ['Tipo', [l.tipo, l.procedimiento].filter(Boolean).join(' · ')], ['Motor', (l.elegible ? l.elegible + ' · ' : '') + (l.motivo_auto || '')], ['Solvencia', l.solvencia], ['Estado', l.estado], ['Decisión', l.decision + (l.decidido_por ? ' · ' + (l.decidido_por === 'diego' ? 'Diego' : 'auto') : '') + (l.fecha_decision ? ' · ' + l.fecha_decision : '') + (l.sincronizado ? '' : ' · pendiente de volcar al Sheet')], ['Motivos', ((l.motivos || []).join(', ') + (l.motivo_texto ? ' · ' + l.motivo_texto : '')).replace(/^ · /, '')], ['Comentarios', l.comentarios]]
     .forEach(function(p){ if (p[1]) { dl.appendChild(el('dt', { text: p[0] })); dl.appendChild(el('dd', { text: p[1] })); } });

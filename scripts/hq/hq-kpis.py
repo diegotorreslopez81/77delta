@@ -71,13 +71,13 @@ def filas(valores):
     def col(nombre, ultima=False):
         idx = [i for i, c in enumerate(cab) if c.startswith(nombre)]
         return (idx[-1] if ultima else idx[0]) if idx else None
-    ci, ce, cx, cc, cd = col('importe'), col('expediente'), col('estado', ultima=True), col('cierre'), col('decisión') or col('decision')
+    ci, ce, cx, cc, cd, cdet = col('importe'), col('expediente'), col('estado', ultima=True), col('cierre'), col('decisión') or col('decision'), col('detectada')
     out = []
     for r in valores[1:]:
         if not any(str(x).strip() for x in r):
             continue
         g = lambda i: (r[i] if i is not None and i < len(r) else '')
-        out.append({'expediente': str(g(ce)).strip(), 'importe': num(g(ci)), 'estado': str(g(cx)).strip().lower(), 'cierre': str(g(cc)).strip(), 'decision': str(g(cd)).strip()})
+        out.append({'expediente': str(g(ce)).strip(), 'importe': num(g(ci)), 'estado': str(g(cx)).strip().lower(), 'cierre': str(g(cc)).strip(), 'decision': str(g(cd)).strip(), 'detectada': str(g(cdet)).strip()[:10]})
     return out
 
 
@@ -91,6 +91,11 @@ def main():
         desc = filas(hoja(tok, 'Descartadas!A1:Z'))
     except urllib.error.HTTPError:
         desc = []
+    # Actividad del motor: filas nuevas por fecha de detección (incluye el barrido en bruto).
+    from datetime import timedelta
+    hoy_s = date.today().isoformat(); hace7 = (date.today() - timedelta(days=7)).isoformat()
+    fechas = [f['detectada'] for f in vivas + desc if f.get('detectada')]
+    k_motor = {'lic.detectadas_hoy.n': sum(1 for d in fechas if d == hoy_s), 'lic.detectadas_7d.n': sum(1 for d in fechas if d >= hace7), 'lic.ultima_deteccion': max(fechas) if fechas else ''}
     # Detectada = fila que el bot ya ha analizado (tiene estado o importe); el resto es barrido en bruto y se cuenta aparte.
     brutas = [f for f in vivas if not f['estado'] and not f['importe']]
     vivas = [f for f in vivas if f['estado'] or f['importe']]
@@ -109,6 +114,7 @@ def main():
     hoy = date.today().isoformat()
     prox = sorted([f for f in vivas if f['estado'] in ESTADOS['aprobadas'] | ESTADOS['analisis'] and f['cierre'] and f['cierre'][:10] >= hoy], key=lambda f: f['cierre'])
     filas_kpi = [{'clave': c, 'valor': v, 'fuente': 'sheet-licitaciones'} for c, v in k.items()]
+    filas_kpi += [{'clave': 'lic.detectadas_hoy.n', 'valor': k_motor['lic.detectadas_hoy.n'], 'fuente': 'sheet-licitaciones'}, {'clave': 'lic.detectadas_7d.n', 'valor': k_motor['lic.detectadas_7d.n'], 'fuente': 'sheet-licitaciones'}, {'clave': 'lic.ultima_deteccion', 'valor': None, 'texto': k_motor['lic.ultima_deteccion'], 'fuente': 'sheet-licitaciones'}]
     filas_kpi.append({'clave': 'lic.proximo_cierre', 'valor': None, 'texto': (prox[0]['expediente'] + ' · ' + prox[0]['cierre'][:10]) if prox else '', 'fuente': 'sheet-licitaciones'})
     filas_kpi.append({'clave': 'lic.actualizado', 'valor': None, 'texto': datetime.now(timezone.utc).isoformat(timespec='minutes'), 'fuente': 'sheet-licitaciones'})
     print(' · '.join(f"{c.replace('lic.', '')}={v}" for c, v in k.items() if c.endswith('.n') or c == 'lic.tasa_exito'), '| próximo cierre:', filas_kpi[-2]['texto'] or 'ninguno')
