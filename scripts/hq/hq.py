@@ -169,6 +169,8 @@ def main():
     p = sub.add_parser('ingresos', help='listar el libro de ingresos')
     p = sub.add_parser('kpi', help='fijar un KPI de negocio'); p.add_argument('--clave', required=True); p.add_argument('--valor', type=float); p.add_argument('--texto', default=''); p.add_argument('--fuente')
     p = sub.add_parser('licitaciones', help='licitaciones con la decisión y los motivos de Diego (para Sales)'); p.add_argument('--todas', action='store_true'); p.add_argument('--decididas', action='store_true')
+    p = sub.add_parser('parte', help='parte de jornada del agente (Engram, proyecto 77delta): lo leen los demás al arrancar'); p.add_argument('texto', nargs='?'); p.add_argument('--agente')
+    p = sub.add_parser('partes', help='partes de las últimas 48 h de todos los agentes'); p.add_argument('--horas', type=int, default=48)
     a = ap.parse_args()
 
     if a.cmd in ('pedir', 'duda'):
@@ -234,6 +236,24 @@ def main():
                 quien = {'diego': 'DIEGO', 'sales': 'sales/auto'}.get(l['decidido_por'], '')
                 mot = (', '.join(l.get('motivos') or []) + (' · ' + l['motivo_texto'] if l.get('motivo_texto') else '')).strip(' ·')
                 print(f"{l['expediente']} · {l['organo'][:40]} · {l['importe'] or '?'} € · cierre {l['cierre'] or '?'} · {l['estado'] or '-'} · {l['decision']}{' (' + quien + ')' if quien else ''}{' · ' + mot if mot else ''}")
+    elif a.cmd == 'parte':
+        import subprocess, datetime
+        texto = a.texto or sys.stdin.read().strip()
+        if not texto: sys.exit('parte vacío')
+        ag = agente_actual(a.agente); hoy = datetime.date.today().isoformat()
+        r = subprocess.run(['engram', 'save', f'[PARTE {ag}] {hoy}', texto, '--project', '77delta', '--type', 'context'], capture_output=True, text=True)
+        print(f"parte de {ag} guardado en Engram (77delta)" if r.returncode == 0 else f"no se pudo guardar: {r.stderr.strip()[:200]}")
+    elif a.cmd == 'partes':
+        import datetime
+        try:
+            rs = json.loads(urllib.request.urlopen('http://127.0.0.1:7437/search?q=PARTE&project=77delta&limit=40', timeout=6).read() or b'[]') or []
+        except Exception as ex:
+            sys.exit(f'Engram local no responde: {ex}')
+        desde = (datetime.datetime.now(datetime.timezone.utc) - datetime.timedelta(hours=a.horas)).isoformat()
+        rs = [x for x in rs if '[PARTE' in (x.get('title') or '') and (x.get('created_at') or '') >= desde]
+        for x in sorted(rs, key=lambda x: x.get('created_at') or ''):
+            print(f"{(x.get('created_at') or '')[:16]} {x.get('title')}\n  {(x.get('content') or '').strip()[:600]}")
+        if not rs: print('(sin partes en ese periodo)')
     elif a.cmd == 'kpi':
         print(json.dumps(rpc('omc_kpi_set', p_token=E['HQ_TOKEN'], p_filas=[{'clave': a.clave, 'valor': a.valor, 'texto': a.texto, 'fuente': a.fuente or agente_actual(None)}]), ensure_ascii=False))
 

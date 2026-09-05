@@ -27,9 +27,11 @@ Cada agente es una sesión de Claude Code con su contrato (alma), su modelo asig
 ### 3. Alex · Director comercial
 
 - **id:** `dir-comercial` · **departamento:** Comercial · **nivel:** 2 · **reporta a:** `chief`
-- **estado:** por contratar (desactivado) · **prioridad:** 1 (ingresos)
+- **estado:** activo · **prioridad:** 1 (ingresos)
 - **modelo:** Opus 5 · **subagentes:** Sonnet 5
 - **por qué ese modelo:** Estrategia de pipeline y feedback: criterio. Datos y KPIs por subagente Sonnet.
+- **sesiones Claude:** comercial
+- **repos:** `~/dev/comercial`
 - **job:** Estrategia de pipeline, KPIs de conversión, propuesta de precios, feedback a Sales Público, Sales Privado y BDR.
 
 ### 4. Laia · Directora de delivery
