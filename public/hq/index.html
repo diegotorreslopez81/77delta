@@ -48,6 +48,7 @@ a{color:inherit}
 .mono{font-family:var(--mono)}
 .eyebrow{font-family:var(--mono);font-size:11px;letter-spacing:.14em;text-transform:uppercase;color:var(--oro-oscuro)}
 .peq{font-size:13px;color:var(--pizarra-tenue)}
+.ver{font-family:var(--mono);font-size:10px;color:var(--pizarra-tenue);margin-left:8px;letter-spacing:.02em;white-space:nowrap}
 
 /* Cabecera */
 header{background:var(--marino);color:var(--marfil);padding:calc(10px + env(safe-area-inset-top)) 16px 10px;display:flex;align-items:center;gap:12px;position:fixed;left:0;right:0;top:0;z-index:20;height:calc(56px + env(safe-area-inset-top));box-sizing:border-box}
@@ -266,7 +267,7 @@ h2.sec-t small{color:var(--oro-oscuro)}
 </head>
 <body>
 <header>
-  <span class="monograma">77<b>Δ</b></span><span class="hq">HQ</span>
+  <span class="monograma">77<b>Δ</b></span><span class="hq">HQ</span><span class="ver" id="ver" title="versión de la app y fecha de la última actualización"></span>
   <span class="esp"></span>
   <span id="pend" class="pill cero">0</span>
   <button class="icono" id="btn-menu" aria-label="Menú">⋯</button>
@@ -290,6 +291,8 @@ h2.sec-t small{color:var(--oro-oscuro)}
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
 <script>
+var HQ_VERSION = { v: '0.9.1', fecha: '2026-09-06 20:56' }; // la actualiza scripts/hq/version.sh en cada publicación
+
 (function(){
 'use strict';
 var API = 'https://api.77delta.com', CFG = { notify: API };
@@ -936,6 +939,7 @@ function activarPush(){ if (!('serviceWorker' in navigator) || !('PushManager' i
     return fetch(CFG.notify + '/hq/vapid').then(function(r){ return r.json(); }).then(function(v){ return reg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: b64(v.publicKey) }); }); }); })
   .then(function(sub){ return rpc('omc_guardar_push', { p_token: TOKEN, p_sub: sub.toJSON() }); }).then(function(){ toast('Avisos activados en este dispositivo'); })
   .catch(function(e){ toast('No se pudo activar: ' + e.message); }); }
+document.getElementById('ver').textContent = 'v' + HQ_VERSION.v + ' · ' + HQ_VERSION.fecha.slice(8,10) + '/' + HQ_VERSION.fecha.slice(5,7) + ' ' + HQ_VERSION.fecha.slice(11,16);
 function recargarDuro(){ toast('Cargando la versión nueva…'); var fin = function(){ location.replace(location.pathname + '?t=' + TOKEN + '&v=' + Date.now()); };
   (window.caches ? caches.keys().then(function(ks){ return Promise.all(ks.map(function(k){ return caches.delete(k); })); }) : Promise.resolve()).then(fin, fin); }
 if ('serviceWorker' in navigator) navigator.serviceWorker.register('/hq/sw.js').then(function(reg){
