@@ -291,7 +291,7 @@ h2.sec-t small{color:var(--oro-oscuro)}
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
 <script>
-var HQ_VERSION = { v: '0.9.2', fecha: '2026-09-06 21:00' }; // la actualiza scripts/hq/version.sh en cada publicación
+var HQ_VERSION = { v: '0.9.3', fecha: '2026-09-06 21:15' }; // la actualiza scripts/hq/version.sh en cada publicación
 
 (function(){
 'use strict';
@@ -705,7 +705,7 @@ var MOTIVOS_OK = ['Encaja perfil', '159.6 sin solvencia', 'Importe interesante',
 function licTodas(){ return S.hq.licitaciones || []; }
 /* Por decidir solo lo analizado de verdad (con resumen); lo demás cuenta como "en análisis" y no molesta a Diego. */
 function licAnalizada(l){ var txt = ((l.motivo_auto || '') + ' ' + (l.resumen_corto || '') + ' ' + (l.solvencia || '')).toLowerCase();
-  return !!(l.resumen_corto || '').trim() && l.importe != null && !!l.cierre && !!(l.solvencia || '').trim() && !/revis(ar|e|ión)? (el |del )?pliego|falta por|pendiente de (leer|revisar)|sin analizar/.test(txt); }
+  return !!(l.resumen_corto || '').trim() && l.importe != null && !!l.cierre && !!(l.solvencia || '').trim() && !/revis(ar|e|ión)? (el |del )?pliego|falta por|pendiente de (leer|revisar)|sin analizar|verificar antes de ofertar|sin pcap/.test(txt); }
 function licPorDecidir(){ return licTodas().filter(function(l){ return l.pestana === 'Licitaciones' && l.decision === 'Pendiente' && licAnalizada(l) && LIC_TERMINAL.indexOf((l.estado || '').toLowerCase()) < 0 && ['presentada', 'en juego'].indexOf((l.estado || '').toLowerCase()) < 0; }); }
 function licEnAnalisis(){ return licTodas().filter(function(l){ return l.pestana === 'Licitaciones' && l.decision === 'Pendiente' && !licAnalizada(l) && LIC_TERMINAL.indexOf((l.estado || '').toLowerCase()) < 0; }); }
 function licEnCurso(){ return licTodas().filter(function(l){ var e = (l.estado || '').toLowerCase(); return l.pestana === 'Licitaciones' && LIC_TERMINAL.indexOf(e) < 0 && (l.decision === 'OK' || ['presentada', 'en juego', 'aprobada', 'en preparación', 'en preparacion'].indexOf(e) >= 0); }); }
