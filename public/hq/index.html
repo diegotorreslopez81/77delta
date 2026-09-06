@@ -666,11 +666,6 @@ function renderLicita(){
   app.appendChild(f);
   var det = kpi('lic.detectadas.n'), ana = vivas.length + c.length, apro = prep.length + pres.length;
   app.appendChild(el('p', { class: 'peq', style: 'margin:-4px 0 12px', text: 'Embudo: ' + (det != null ? det + ' detectadas → ' : '') + ana + ' analizadas → ' + apro + ' aprobadas' + (ana ? ' (' + Math.round(apro / ana * 100) + ' %)' : '') + ' → ' + pres.length + ' presentadas' + (apro ? ' (' + Math.round(pres.length / apro * 100) + ' %)' : '') + ' → ' + g.length + ' ganadas' + (kpi('lic.ultima_deteccion') ? ' · última detección ' + kpi('lic.ultima_deteccion') : '') + (kpi('lic.actualizado') ? ' · Sheet leído ' + rel(kpi('lic.actualizado')) : '') }));
-  var motor = el('div', { class: 'tags', style: 'margin:-4px 0 6px' });
-  if (kpi('lic.detectadas_hoy.n') != null) motor.appendChild(el('span', { class: 'dato ' + (kpi('lic.detectadas_hoy.n') ? 'verde' : ''), text: 'motor: ' + kpi('lic.detectadas_hoy.n') + ' nuevas hoy · ' + (kpi('lic.detectadas_7d.n') || 0) + ' esta semana' }));
-  if (kpi('lic.ultima_deteccion')) motor.appendChild(el('span', { class: 'dato', text: 'última detección ' + kpi('lic.ultima_deteccion') }));
-  if (kpi('lic.actualizado')) motor.appendChild(el('span', { class: 'dato', text: 'Sheet leído ' + rel(kpi('lic.actualizado')) }));
-  if (motor.children.length) app.appendChild(motor);
   app.appendChild(el('h2', { class: 'sec-t' }, ['Por decidir ', el('small', { text: pd.length + ' · por cierre' })]));
   if (!pd.length) app.appendChild(el('div', { class: 'vacio' }, [el('div', { class: 'delta', text: 'Δ' }), el('p', { text: 'Nada por decidir.' })]));
   pd.forEach(function(l){ app.appendChild(tarjetaLic(l)); });
