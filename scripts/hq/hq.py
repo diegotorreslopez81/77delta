@@ -11,7 +11,7 @@ El agente se resuelve por --agente, HQ_AGENTE, el fichero .claude/hq-agente del 
   hq.py activo [agente]        (código 0 activo, 2 desactivado, 3 no existe)
   hq.py pendientes [agente]
 """
-import argparse, json, os, sys, time, urllib.request, urllib.error
+import shutil, argparse, json, os, sys, time, urllib.request, urllib.error
 from pathlib import Path
 
 CONF = Path.home() / '.config' / '77delta' / 'hq.env'
@@ -242,7 +242,8 @@ def main():
         texto = a.texto or sys.stdin.read().strip()
         if not texto: sys.exit('parte vacío')
         ag = agente_actual(a.agente); hoy = datetime.date.today().isoformat()
-        r = subprocess.run(['engram', 'save', f'[PARTE {ag}] {hoy}', texto, '--project', '77delta', '--type', 'context'], capture_output=True, text=True)
+        eng = shutil.which('engram') or os.path.expanduser('~/.local/bin/engram')
+        r = subprocess.run([eng, 'save', f'[PARTE {ag}] {hoy}', texto, '--project', '77delta', '--type', 'context'], capture_output=True, text=True)
         print(f"parte de {ag} guardado en Engram (77delta)" if r.returncode == 0 else f"no se pudo guardar: {r.stderr.strip()[:200]}")
     elif a.cmd == 'partes':
         import datetime
