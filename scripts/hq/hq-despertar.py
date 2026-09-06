@@ -29,9 +29,36 @@ def ventanas():
     return set(out)
 
 
+def pane(ventana, lineas=12):
+    try:
+        return subprocess.run(['tmux', 'capture-pane', '-p', '-t', f'equipo:{ventana}', '-S', f'-{lineas}'], capture_output=True, text=True, timeout=5).stdout
+    except Exception:
+        return ''
+
+
+def caja_vacia(v):
+    """True si la caja de entrada (última línea que empieza por ❯) está vacía, es decir, el mensaje se envió."""
+    txt = pane(v, 14)
+    if 'queued messages' in txt: return True   # el agente estaba ocupado: el mensaje queda en cola y se entrega al acabar el turno
+    lineas = [l for l in txt.splitlines() if l.strip()]
+    entradas = [l for l in lineas if l.lstrip().startswith('❯')]
+    return not entradas or entradas[-1].strip() in ('❯', '>')
+
+
 def escribir(ventana, texto):
+    """Escribe en la sesión del agente. Claude Code trata texto+Enter seguidos como un pegado y se traga el Enter,
+    así que se separa con una pausa y se comprueba que la caja de entrada quedó vacía; si no, se reintenta Enter."""
+    import time
+    if 'Enter to confirm' in pane(ventana, 8):          # ventana parada en el menú de reanudar tras un relanzamiento
+        subprocess.run(['tmux', 'send-keys', '-t', f'equipo:{ventana}', 'Enter'], check=True, timeout=5); time.sleep(8)
     subprocess.run(['tmux', 'send-keys', '-t', f'equipo:{ventana}', '-l', texto], check=True, timeout=5)
-    subprocess.run(['tmux', 'send-keys', '-t', f'equipo:{ventana}', 'Enter'], check=True, timeout=5)
+    time.sleep(0.6)
+    for _ in range(3):
+        subprocess.run(['tmux', 'send-keys', '-t', f'equipo:{ventana}', 'Enter'], check=True, timeout=5)
+        time.sleep(1.5)
+        if caja_vacia(ventana):
+            return
+    print(f"aviso: {ventana} puede no haber recibido el mensaje", file=sys.stderr)
 
 
 def main():

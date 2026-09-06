@@ -1,5 +1,5 @@
 /* HQ · service worker: shell offline y avisos push. */
-var CACHE = 'hq-v5';
+var CACHE = 'hq-v6';
 var SHELL = ['/hq/', '/hq/manifest.webmanifest', '/hq/icon-192.png', '/hq/icon-512.png'];
 
 self.addEventListener('install', function (e) {
@@ -24,8 +24,18 @@ self.addEventListener('notificationclick', function (e) {
   e.notification.close();
   var d = e.notification.data || {}, url = d.url || '/hq/';
   e.waitUntil(clients.matchAll({ type: 'window', includeUncontrolled: true }).then(function (ws) {
-    // Si la app ya está abierta, se le pide que abra la tarjeta (navigate no funciona en la app instalada de iOS).
-    for (var i = 0; i < ws.length; i++) { if (ws[i].url.indexOf('/hq/') >= 0) { if (d.id) ws[i].postMessage({ tipo: 'abrir', id: d.id }); return ws[i].focus ? ws[i].focus() : null; } }
-    return clients.openWindow(url);
+    var abierta = false;
+    for (var i = 0; i < ws.length; i++) {
+      if (ws[i].url.indexOf('/hq/') >= 0) {
+        abierta = true;
+        // postMessage: si la app ya está abierta y procesa el mensaje, abre la tarjeta sin recargar.
+        if (d.id) { try { ws[i].postMessage({ tipo: 'abrir', id: d.id }); } catch (err) {} }
+        // navigate: en la app instalada de iOS el postMessage a veces no llega a tiempo (la vista está en segundo plano);
+        // forzar la navegación a la URL con ?id= asegura que arranque en la tarjeta aunque el mensaje se pierda.
+        if (ws[i].navigate) { try { ws[i].navigate(url); } catch (err) {} }
+        if (ws[i].focus) { try { ws[i].focus(); } catch (err) {} }
+      }
+    }
+    if (!abierta) return clients.openWindow(url);
   }));
 });
