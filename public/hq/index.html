@@ -100,6 +100,11 @@ main{padding:calc(114px + env(safe-area-inset-top)) 14px 0;max-width:720px;margi
 .card .det{color:var(--tinta-2);font-size:15px;white-space:pre-wrap;line-height:1.5}
 .card .det.largo{overflow:hidden;display:-webkit-box;-webkit-line-clamp:8;-webkit-box-orient:vertical}
 .card .det.largo.abierto{display:block}
+.card.lic .frase{margin:2px 0 10px;font-size:15.5px;line-height:1.45;color:var(--tinta)}
+.campos{display:grid;grid-template-columns:auto 1fr;gap:5px 10px;font-size:13.5px;margin-bottom:10px}
+.campos .k{font-family:var(--mono);font-size:11px;letter-spacing:.06em;text-transform:uppercase;color:var(--pizarra);padding-top:2px}
+.campos .v{line-height:1.35} .campos .v.verde{color:var(--exito)} .campos .v.rojo{color:var(--error)} .campos .v.oro{color:var(--oro-oscuro)}
+.tipo-ic.eur{width:auto;padding:0 10px;font:600 13px var(--mono);white-space:nowrap}
 .card .datos{display:flex;flex-wrap:wrap;gap:6px;margin:10px 0 0}
 .acciones{display:flex;gap:10px;margin-top:14px}
 .btn{flex:1;display:inline-flex;align-items:center;justify-content:center;gap:8px;padding:13px 14px;border-radius:12px;font:600 15px var(--body);border:1px solid transparent;transition:transform .15s;text-decoration:none}
@@ -638,7 +643,8 @@ var MOTIVOS_NO = ['Fuera de sector', 'Exige solvencia', 'Presencial', 'Importe b
 var MOTIVOS_OK = ['Encaja perfil', '159.6 sin solvencia', 'Importe interesante', 'Cliente estratégico', 'Repetible', 'Otro'];
 function licTodas(){ return S.hq.licitaciones || []; }
 /* Por decidir solo lo analizado de verdad (con resumen); lo demás cuenta como "en análisis" y no molesta a Diego. */
-function licAnalizada(l){ return !!((l.resumen_corto || '').trim() || (l.resumen || '').trim()); }
+function licAnalizada(l){ var txt = ((l.motivo_auto || '') + ' ' + (l.resumen_corto || '') + ' ' + (l.solvencia || '')).toLowerCase();
+  return !!(l.resumen_corto || '').trim() && l.importe != null && !!l.cierre && !!(l.solvencia || '').trim() && !/revis(ar|e|ión)? (el |del )?pliego|falta por|pendiente de (leer|revisar)|sin analizar/.test(txt); }
 function licPorDecidir(){ return licTodas().filter(function(l){ return l.pestana === 'Licitaciones' && l.decision === 'Pendiente' && licAnalizada(l) && LIC_TERMINAL.indexOf((l.estado || '').toLowerCase()) < 0 && ['presentada', 'en juego'].indexOf((l.estado || '').toLowerCase()) < 0; }); }
 function licEnAnalisis(){ return licTodas().filter(function(l){ return l.pestana === 'Licitaciones' && l.decision === 'Pendiente' && !licAnalizada(l) && LIC_TERMINAL.indexOf((l.estado || '').toLowerCase()) < 0; }); }
 function licEnCurso(){ return licTodas().filter(function(l){ var e = (l.estado || '').toLowerCase(); return l.pestana === 'Licitaciones' && LIC_TERMINAL.indexOf(e) < 0 && (l.decision === 'OK' || ['presentada', 'en juego', 'aprobada', 'en preparación', 'en preparacion'].indexOf(e) >= 0); }); }
@@ -675,23 +681,30 @@ function renderLicita(){
   app.appendChild(h); if (S.licCerr) c.forEach(function(l){ app.appendChild(filaLic(l)); });
   app.appendChild(el('p', { class: 'peq', text: 'Aprobar o rechazar aquí escribe la decisión, la fecha y tus motivos en el Sheet de Guillem en menos de 10 minutos. Los motivos alimentan las reglas del motor: lo que apruebas o rechazas siempre por la misma razón acabará decidiéndose solo, marcado como "auto".' }));
 }
+function solvenciaLinea(l){ var t = (l.solvencia || '').trim(); if (!t) return ['sin analizar', 'oro']; var s = t.toLowerCase();
+  if (/no cumple|no elegible|no acredit/.test(s)) return [t.length > 90 ? t.slice(0, 88) + '…' : t, 'rojo'];
+  if (/no exige|exime|exent|159\.6|sin solvencia/.test(s)) return [t.length > 90 ? t.slice(0, 88) + '…' : t, 'verde'];
+  if (/exige|requiere|mínim|acredit/.test(s)) return [t.length > 90 ? t.slice(0, 88) + '…' : t, 'oro'];
+  return [t.length > 90 ? t.slice(0, 88) + '…' : t, '']; }
+function campo(k, v, cls){ return el('div', { class: 'campo' }, [el('span', { class: 'k', text: k }), el('span', { class: 'v ' + (cls || ''), text: v })]); }
 function tarjetaLic(l){
-  var u = urgLic(l), card = el('div', { class: 'card ' + u, id: 'l-' + l.expediente.replace(/[^a-z0-9]/gi, '_') });
-  card.appendChild(el('div', { class: 'cab' }, [el('div', { class: 'quien' }, [el('b', { text: l.organo || l.expediente }), el('span', { text: [l.tipo, l.procedimiento, l.provincia].filter(Boolean).join(' · ') })]), el('div', { class: 'tipo-ic eur' + (l.importe == null ? '' : ''), text: l.importe != null ? eur(l.importe) : '§' })]));
-  card.appendChild(el('h3', { text: l.resumen_corto || l.organo || l.expediente }));
-  var cuerpo = [l.resumen && l.resumen !== l.resumen_corto ? l.resumen : '', l.objeto].filter(Boolean).join('\n\n');
-  if (cuerpo){ var det = el('div', { class: 'det' + (cuerpo.length > 500 ? ' largo' : '') + (S.abiertos[l.expediente] ? ' abierto' : ''), text: cuerpo }); det.addEventListener('click', function(){ S.abiertos[l.expediente] = !S.abiertos[l.expediente]; det.classList.toggle('abierto'); }); card.appendChild(det); }
-  var datos = el('div', { class: 'datos' });
-  if (l.cierre) datos.appendChild(el('span', { class: 'dato ' + (u === 'urgente' ? 'rojo' : u === 'pronto' ? 'oro' : ''), text: 'cierra ' + l.cierre.slice(5).split('-').reverse().join('/') + ' · ' + rel(l.cierre + 'T14:00:00') }));
-  var eg = elegibleChip(l); if (eg) datos.appendChild(eg);
-  var sv = solvenciaCorta(l); if (sv) datos.appendChild(el('span', { class: 'dato ' + sv[1], text: sv[0] }));
-  datos.appendChild(el('span', { class: 'dato', text: l.expediente }));
-  if (/^https?:\/\//.test(l.enlace)) datos.appendChild(el('span', { class: 'dato tinta' }, [el('a', { href: l.enlace, target: '_blank', rel: 'noopener', text: 'Anuncio ↗' })]));
-  if (/^https?:\/\//.test(l.pcap)) datos.appendChild(el('span', { class: 'dato' }, [el('a', { href: l.pcap, target: '_blank', rel: 'noopener', text: 'PCAP ↗' })]));
-  if (/^https?:\/\//.test(l.carpeta)) datos.appendChild(el('span', { class: 'dato' }, [el('a', { href: l.carpeta, target: '_blank', rel: 'noopener', text: 'Drive ↗' })]));
-  card.appendChild(datos);
-  if (l.motivo_auto) card.appendChild(el('p', { class: 'peq', style: 'margin:10px 0 0', text: 'Motor: ' + l.motivo_auto }));
-  if (l.comentarios) card.appendChild(el('p', { class: 'peq', style: 'margin:6px 0 0', text: 'Guillem: ' + l.comentarios }));
+  var u = urgLic(l), card = el('div', { class: 'card lic ' + u, id: 'l-' + l.expediente.replace(/[^a-z0-9]/gi, '_') }), e = (l.elegible || '').toLowerCase();
+  card.appendChild(el('div', { class: 'cab' }, [el('div', { class: 'quien' }, [el('b', { text: l.organo || l.expediente }), el('span', { text: [l.provincia, l.expediente].filter(Boolean).join(' · ') })]),
+    el('div', { class: 'tipo-ic eur', text: l.importe != null ? eur(l.importe) : '?' })]));
+  var frase = (l.resumen_corto || '').trim(); if (frase.length > 220) frase = frase.slice(0, 217) + '…';
+  card.appendChild(el('p', { class: 'frase', text: frase }));
+  var sv = solvenciaLinea(l), dias = l.cierre ? Math.ceil((new Date(l.cierre + 'T14:00:00') - Date.now()) / 864e5) : null;
+  var campos = el('div', { class: 'campos' });
+  campos.appendChild(campo('Cierra', l.cierre ? l.cierre.split('-').reverse().join('/') + (dias != null ? ' · ' + (dias <= 0 ? 'hoy' : dias + ' d') : '') : '?', u === 'urgente' ? 'rojo' : u === 'pronto' ? 'oro' : ''));
+  campos.appendChild(campo('Tipo', [l.tipo, l.procedimiento].filter(Boolean).join(' · ') || '?'));
+  campos.appendChild(campo('Solvencia', sv[0], sv[1]));
+  campos.appendChild(campo('Motor', (l.elegible || '?') + (l.motivo_auto ? ' · ' + (l.motivo_auto.length > 120 ? l.motivo_auto.slice(0, 118) + '…' : l.motivo_auto) : ''), e.indexOf('probable') >= 0 ? 'verde' : e.indexOf('no') === 0 || e.indexOf('dudosa') >= 0 ? 'rojo' : 'oro'));
+  if (l.comentarios) campos.appendChild(campo('Guillem', l.comentarios.length > 120 ? l.comentarios.slice(0, 118) + '…' : l.comentarios));
+  card.appendChild(campos);
+  var links = el('div', { class: 'tags' });
+  [['Anuncio', l.enlace, 'tinta'], ['PCAP', l.pcap, ''], ['PPT', l.ppt, ''], ['Drive', l.carpeta, '']].forEach(function(x){ if (/^https?:\/\//.test(x[1])) links.appendChild(el('span', { class: 'dato ' + x[2] }, [el('a', { href: x[1], target: '_blank', rel: 'noopener', text: x[0] + ' ↗' })])); });
+  links.appendChild(el('span', { class: 'dato' }, [el('a', { href: '#', text: 'Detalle', onclick: function(ev){ ev.preventDefault(); hojaLic(l); } })]));
+  card.appendChild(links);
   card.appendChild(el('div', { class: 'acciones' }, [el('button', { class: 'btn no', text: 'Rechazar', onclick: function(){ hojaDecision(l, 'No'); } }), el('button', { class: 'btn si', text: 'Aprobar', onclick: function(){ hojaDecision(l, 'OK'); } })]));
   deslizar(card, function(){ hojaDecision(l, 'OK'); }, function(){ hojaDecision(l, 'No'); });
   return card;
