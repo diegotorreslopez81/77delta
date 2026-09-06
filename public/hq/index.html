@@ -290,7 +290,7 @@ h2.sec-t small{color:var(--oro-oscuro)}
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
 <script>
-var HQ_VERSION = { v: '0.9.5', fecha: '2026-09-06 21:49' }; // la actualiza scripts/hq/version.sh en cada publicación
+var HQ_VERSION = { v: '0.9.6', fecha: '2026-09-06 23:49' }; // la actualiza scripts/hq/version.sh en cada publicación
 
 (function(){
 'use strict';
@@ -362,6 +362,7 @@ function buscarSolicitud(id){ id = Number(id); var h = S.hq; if (!h) return null
 /* Si hay una hoja de solicitud abierta (S.hojaSolicitud), la reconstruye en el sitio con los datos frescos: así las respuestas nuevas del agente aparecen sin cerrarla. */
 function refrescarHojaAbierta(){
   if (!S.hojaSolicitud) return;
+  if (escribiendo()){ S.renderPendiente = true; return; }   // no reconstruir la hoja mientras Diego escribe: el teclado se cerraba
   if (!document.getElementById('hoja').classList.contains('on')) { S.hojaSolicitud = null; return; }
   var s = buscarSolicitud(S.hojaSolicitud);
   if (s) hojaSolicitud(s, true); else cerrarHoja();
@@ -376,7 +377,9 @@ function cargar(){ if (cargando) return Promise.resolve(); cargando = true;
 
 /* ---- render ---- */
 /* Conserva la posición de scroll entre renders (evita el salto al aprobar/rechazar/comentar). Solo se resetea a 0 cuando algo marca S._resetScroll = true antes de llamar (cambio de pestaña explícito). */
-function render(){ var reset = !!S._resetScroll; S._resetScroll = false; var sy = window.scrollY;
+function escribiendo(){ var a = document.activeElement; return !!(a && (a.tagName === 'TEXTAREA' || (a.tagName === 'INPUT' && a.type !== 'button' && a.type !== 'checkbox'))); }
+document.addEventListener('focusout', function(){ setTimeout(function(){ if (S.renderPendiente && !escribiendo()){ S.renderPendiente = false; render(); } }, 200); });
+function render(){ if (escribiendo()){ S.renderPendiente = true; return; } var reset = !!S._resetScroll; S._resetScroll = false; var sy = window.scrollY;
   var p = S.hq.pendientes.length, pill = document.getElementById('pend'); pill.textContent = p; pill.className = 'pill' + (p ? '' : ' cero');
   document.getElementById('n-bandeja').textContent = p ? p : '';
   var nl = licPorDecidir().length; document.getElementById('n-licita').textContent = nl ? nl : '';
