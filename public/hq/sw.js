@@ -1,5 +1,5 @@
 /* HQ · service worker: shell offline y avisos push. */
-var CACHE = 'hq-v4';
+var CACHE = 'hq-v5';
 var SHELL = ['/hq/', '/hq/manifest.webmanifest', '/hq/icon-192.png', '/hq/icon-512.png'];
 
 self.addEventListener('install', function (e) {

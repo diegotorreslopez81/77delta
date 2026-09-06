@@ -208,6 +208,12 @@ h2.sec-t small{color:var(--oro-oscuro)}
 .mini .v small{font-size:12px;color:var(--pizarra);font-weight:400;font-family:var(--mono);letter-spacing:0}
 .mini.plan .v{color:var(--oro-oscuro)}
 .mini.alerta{border-color:var(--error)} .mini.alerta .v{color:var(--error)}
+.grid3{display:grid;grid-template-columns:repeat(3,1fr);gap:6px;margin-bottom:8px}
+.grid3 .mini{padding:8px 9px;border-radius:10px;min-width:0}
+.grid3 .mini .v{font-size:19px;line-height:1.1;display:flex;flex-direction:column}
+.grid3 .mini .v small{font-size:11px;margin-top:2px;white-space:nowrap}
+.grid3 .mini .l{font-size:11px;font-family:inherit;line-height:1.2;margin-top:3px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.embudo{font-size:12px;color:var(--pizarra-tenue);margin:0 0 10px;line-height:1.4}
 .barra{margin-bottom:9px}
 .barra .l{display:flex;justify-content:space-between;font-size:13px;margin-bottom:4px;gap:8px}
 .barra .l b{font-weight:500;overflow:hidden;text-overflow:ellipsis;white-space:nowrap} .barra .l span{font-family:var(--mono);color:var(--pizarra);white-space:nowrap}
@@ -298,6 +304,7 @@ var OWNER_AV = '/hq/icon-192.png';
 function el(tag, attrs, kids){ var e = document.createElement(tag); if (attrs) for (var k in attrs){ if (k === 'class') e.className = attrs[k]; else if (k === 'text') e.textContent = attrs[k]; else if (k.slice(0,2) === 'on') e.addEventListener(k.slice(2), attrs[k]); else e.setAttribute(k, attrs[k]); }
   (kids || []).forEach(function(c){ if (c == null) return; e.appendChild(typeof c === 'string' ? document.createTextNode(c) : c); }); return e; }
 function eur(n){ return n == null ? '' : Number(n).toLocaleString('es-ES', { maximumFractionDigits: 2 }) + ' €'; }
+function eurK(n){ if (n == null) return ''; n = Number(n); var a = Math.abs(n); if (a >= 1e6) return (n / 1e6).toLocaleString('es-ES', { maximumFractionDigits: 2 }) + ' M€'; if (a >= 1e4) return Math.round(n / 1e3).toLocaleString('es-ES') + ' k€'; return n.toLocaleString('es-ES', { maximumFractionDigits: 0 }) + ' €'; }
 function usd(n){ return Number(n || 0).toLocaleString('es-ES', { maximumFractionDigits: n < 10 ? 2 : 0 }) + ' $'; }
 function num(n){ return Number(n || 0).toLocaleString('es-ES'); }
 function rel(iso){ if (!iso) return ''; var d = (new Date(iso) - Date.now()) / 1000, a = Math.abs(d), s;
@@ -661,17 +668,17 @@ function renderLicita(){
   var juego = pres.filter(function(l){ return ['presentada', 'en juego', 'en evaluación', 'en evaluacion'].indexOf(est(l)) >= 0; });
   var perd = pres.filter(function(l){ return ['perdida', 'no adjudicada', 'desierta'].indexOf(est(l)) >= 0; }), resueltas = g.length + perd.length;
   var vencen = prep.concat(pd).filter(function(l){ return l.cierre && (new Date(l.cierre + 'T14:00:00') - Date.now()) < 7 * 864e5 && new Date(l.cierre + 'T14:00:00') > Date.now(); });
-  var tile = function(n, e, l, cls){ return el('div', { class: 'mini' + (cls ? ' ' + cls : '') }, [el('div', { class: 'v' }, [String(n), e != null ? el('small', { text: ' · ' + eur(e) }) : null]), el('div', { class: 'l', text: l })]); };
-  var f = el('div', { class: 'grid2' });
-  f.appendChild(tile(pd.length, suma(pd), 'por decidir'));
-  f.appendChild(tile(prep.length, suma(prep), 'en preparación (Guillem)'));
-  f.appendChild(tile(pres.length, suma(pres), 'presentadas' + (juego.length ? ' · ' + juego.length + ' en juego' : '')));
-  f.appendChild(tile(g.length, suma(g), 'ganadas' + (resueltas ? ' · ' + Math.round(g.length / resueltas * 100) + ' % de éxito' : ''), 'plan'));
-  f.appendChild(tile(vencen.length, suma(vencen), 'vencen en 7 días', vencen.length ? 'alerta' : ''));
-  f.appendChild(tile(kpi('lic.detectadas_hoy.n') != null ? kpi('lic.detectadas_hoy.n') : '?', null, 'nuevas hoy · ' + (kpi('lic.detectadas_7d.n') != null ? kpi('lic.detectadas_7d.n') + ' esta semana' : '')));
+  var tile = function(n, e, l, cls){ return el('div', { class: 'mini' + (cls ? ' ' + cls : '') }, [el('div', { class: 'v' }, [String(n), e != null ? el('small', { text: e }) : null]), el('div', { class: 'l', text: l })]); };
+  var f = el('div', { class: 'grid3' });
+  f.appendChild(tile(pd.length, eurK(suma(pd)), 'por decidir'));
+  f.appendChild(tile(prep.length, eurK(suma(prep)), 'en preparación'));
+  f.appendChild(tile(pres.length, eurK(suma(pres)), juego.length ? juego.length + ' en juego' : 'presentadas'));
+  f.appendChild(tile(g.length, eurK(suma(g)), resueltas ? 'ganadas · ' + Math.round(g.length / resueltas * 100) + ' %' : 'ganadas', 'plan'));
+  f.appendChild(tile(vencen.length, eurK(suma(vencen)), 'vencen ≤ 7 días', vencen.length ? 'alerta' : ''));
+  f.appendChild(tile(kpi('lic.detectadas_hoy.n') != null ? kpi('lic.detectadas_hoy.n') : '?', kpi('lic.detectadas_7d.n') != null ? kpi('lic.detectadas_7d.n') + ' / semana' : null, 'nuevas hoy'));
   app.appendChild(f);
   var det = kpi('lic.detectadas.n'), ana = vivas.length + c.length, apro = prep.length + pres.length;
-  app.appendChild(el('p', { class: 'peq', style: 'margin:-4px 0 12px', text: 'Embudo: ' + (det != null ? det + ' detectadas → ' : '') + ana + ' analizadas → ' + apro + ' aprobadas' + (ana ? ' (' + Math.round(apro / ana * 100) + ' %)' : '') + ' → ' + pres.length + ' presentadas' + (apro ? ' (' + Math.round(pres.length / apro * 100) + ' %)' : '') + ' → ' + g.length + ' ganadas' + (kpi('lic.ultima_deteccion') ? ' · última detección ' + kpi('lic.ultima_deteccion') : '') + (kpi('lic.actualizado') ? ' · Sheet leído ' + rel(kpi('lic.actualizado')) : '') }));
+  app.appendChild(el('p', { class: 'embudo', text: (det != null ? det + ' detectadas → ' : '') + ana + ' analizadas → ' + apro + ' aprobadas' + (ana ? ' (' + Math.round(apro / ana * 100) + ' %)' : '') + ' → ' + pres.length + ' presentadas → ' + g.length + ' ganadas' + (kpi('lic.actualizado') ? ' · Sheet leído ' + rel(kpi('lic.actualizado')) : '') }));
   app.appendChild(el('h2', { class: 'sec-t' }, ['Por decidir ', el('small', { text: pd.length + ' · por cierre' })]));
   if (!pd.length) app.appendChild(el('div', { class: 'vacio' }, [el('div', { class: 'delta', text: 'Δ' }), el('p', { text: 'Nada por decidir.' })]));
   pd.forEach(function(l){ app.appendChild(tarjetaLic(l)); });
