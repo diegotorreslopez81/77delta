@@ -202,6 +202,7 @@ h2.sec-t small{color:var(--oro-oscuro)}
 .mini .l{font-size:12px;color:var(--pizarra);font-family:var(--mono)}
 .mini .v small{font-size:12px;color:var(--pizarra);font-weight:400;font-family:var(--mono);letter-spacing:0}
 .mini.plan .v{color:var(--oro-oscuro)}
+.mini.alerta{border-color:var(--error)} .mini.alerta .v{color:var(--error)}
 .barra{margin-bottom:9px}
 .barra .l{display:flex;justify-content:space-between;font-size:13px;margin-bottom:4px;gap:8px}
 .barra .l b{font-weight:500;overflow:hidden;text-overflow:ellipsis;white-space:nowrap} .barra .l span{font-family:var(--mono);color:var(--pizarra);white-space:nowrap}
@@ -647,16 +648,30 @@ function solvenciaCorta(l){ var s = (l.solvencia || '').toLowerCase(); if (!s) r
 function elegibleChip(l){ var e = (l.elegible || '').toLowerCase(); if (!e) return null; return el('span', { class: 'dato ' + (e.indexOf('probable') >= 0 ? 'verde' : e.indexOf('dudosa') >= 0 || e === 'no' ? 'rojo' : 'oro'), text: 'motor: ' + l.elegible }); }
 function urgLic(l){ if (!l.cierre) return ''; var h = (new Date(l.cierre + 'T14:00:00') - Date.now()) / 36e5; return h < 48 ? 'urgente' : h < 120 ? 'pronto' : ''; }
 function renderLicita(){
-  var pd = licPorDecidir(), ec = licEnCurso(), g = licGanadas(), c = licCerradas();
+  var pd = licPorDecidir(), ec = licEnCurso(), g = licGanadas(), c = licCerradas(), vivas = licTodas().filter(function(l){ return l.pestana === 'Licitaciones'; });
+  var est = function(l){ return (l.estado || '').toLowerCase(); }, suma = function(ls){ var t = 0; ls.forEach(function(l){ t += Number(l.importe) || 0; }); return t; };
+  var prep = vivas.filter(function(l){ return ['aprobada', 'en preparación', 'en preparacion'].indexOf(est(l)) >= 0; });
+  var pres = licTodas().filter(function(l){ return ['presentada', 'en juego', 'en evaluación', 'en evaluacion', 'adjudicada', 'contratada', 'perdida', 'no adjudicada', 'desierta'].indexOf(est(l)) >= 0; });
+  var juego = pres.filter(function(l){ return ['presentada', 'en juego', 'en evaluación', 'en evaluacion'].indexOf(est(l)) >= 0; });
+  var perd = pres.filter(function(l){ return ['perdida', 'no adjudicada', 'desierta'].indexOf(est(l)) >= 0; }), resueltas = g.length + perd.length;
+  var vencen = prep.concat(pd).filter(function(l){ return l.cierre && (new Date(l.cierre + 'T14:00:00') - Date.now()) < 7 * 864e5 && new Date(l.cierre + 'T14:00:00') > Date.now(); });
+  var tile = function(n, e, l, cls){ return el('div', { class: 'mini' + (cls ? ' ' + cls : '') }, [el('div', { class: 'v' }, [String(n), e != null ? el('small', { text: ' · ' + eur(e) }) : null]), el('div', { class: 'l', text: l })]); };
   var f = el('div', { class: 'grid2' });
-  [[pd.length, 'por decidir'], [ec.length, 'en curso'], [g.length, 'contratadas'], [licEnAnalisis().length, 'en análisis (Guillem)']].forEach(function(p){ f.appendChild(mini(String(p[0]), p[1])); });
+  f.appendChild(tile(pd.length, suma(pd), 'por decidir'));
+  f.appendChild(tile(prep.length, suma(prep), 'en preparación (Guillem)'));
+  f.appendChild(tile(pres.length, suma(pres), 'presentadas' + (juego.length ? ' · ' + juego.length + ' en juego' : '')));
+  f.appendChild(tile(g.length, suma(g), 'ganadas' + (resueltas ? ' · ' + Math.round(g.length / resueltas * 100) + ' % de éxito' : ''), 'plan'));
+  f.appendChild(tile(vencen.length, suma(vencen), 'vencen en 7 días', vencen.length ? 'alerta' : ''));
+  f.appendChild(tile(kpi('lic.detectadas_hoy.n') != null ? kpi('lic.detectadas_hoy.n') : '?', null, 'nuevas hoy · ' + (kpi('lic.detectadas_7d.n') != null ? kpi('lic.detectadas_7d.n') + ' esta semana' : '')));
   app.appendChild(f);
+  var det = kpi('lic.detectadas.n'), ana = vivas.length + c.length, apro = prep.length + pres.length;
+  app.appendChild(el('p', { class: 'peq', style: 'margin:-4px 0 12px', text: 'Embudo: ' + (det != null ? det + ' detectadas → ' : '') + ana + ' analizadas → ' + apro + ' aprobadas' + (ana ? ' (' + Math.round(apro / ana * 100) + ' %)' : '') + ' → ' + pres.length + ' presentadas' + (apro ? ' (' + Math.round(pres.length / apro * 100) + ' %)' : '') + ' → ' + g.length + ' ganadas' + (kpi('lic.ultima_deteccion') ? ' · última detección ' + kpi('lic.ultima_deteccion') : '') + (kpi('lic.actualizado') ? ' · Sheet leído ' + rel(kpi('lic.actualizado')) : '') }));
   var motor = el('div', { class: 'tags', style: 'margin:-4px 0 6px' });
   if (kpi('lic.detectadas_hoy.n') != null) motor.appendChild(el('span', { class: 'dato ' + (kpi('lic.detectadas_hoy.n') ? 'verde' : ''), text: 'motor: ' + kpi('lic.detectadas_hoy.n') + ' nuevas hoy · ' + (kpi('lic.detectadas_7d.n') || 0) + ' esta semana' }));
   if (kpi('lic.ultima_deteccion')) motor.appendChild(el('span', { class: 'dato', text: 'última detección ' + kpi('lic.ultima_deteccion') }));
   if (kpi('lic.actualizado')) motor.appendChild(el('span', { class: 'dato', text: 'Sheet leído ' + rel(kpi('lic.actualizado')) }));
   if (motor.children.length) app.appendChild(motor);
-  app.appendChild(el('h2', { class: 'sec-t' }, ['Por decidir ', el('small', { text: pd.length + ' · Sheet de Guillem, cada 10 min' })]));
+  app.appendChild(el('h2', { class: 'sec-t' }, ['Por decidir ', el('small', { text: pd.length + ' · por cierre' })]));
   if (!pd.length) app.appendChild(el('div', { class: 'vacio' }, [el('div', { class: 'delta', text: 'Δ' }), el('p', { text: 'Nada por decidir.' })]));
   pd.forEach(function(l){ app.appendChild(tarjetaLic(l)); });
   if (ec.length){ app.appendChild(el('h2', { class: 'sec-t' }, ['En curso ', el('small', { text: ec.length })])); ec.forEach(function(l){ app.appendChild(filaLic(l)); }); }
