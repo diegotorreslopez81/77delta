@@ -127,9 +127,9 @@ def main():
     ap.add_argument('--seco', action='store_true')
     a = ap.parse_args()
     e = env(); tok = access_token()
-    vivas, cols = parsear(leer(tok, 'Licitaciones!A1:Z'), 'Licitaciones')
+    vivas, cols = parsear(leer(tok, 'Licitaciones!A1:AZ'), 'Licitaciones')
     try:
-        desc, _ = parsear(leer(tok, 'Descartadas!A1:Z'), 'Descartadas')
+        desc, _ = parsear(leer(tok, 'Descartadas!A1:AZ'), 'Descartadas')
     except urllib.error.HTTPError:
         desc = []
     # 1) Decisiones de HQ pendientes de devolver al Sheet (antes de traer, para no pisarlas)
