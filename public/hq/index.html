@@ -291,7 +291,7 @@ h2.sec-t small{color:var(--oro-oscuro)}
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
 <script>
-var HQ_VERSION = { v: '0.9.1', fecha: '2026-09-06 20:56' }; // la actualiza scripts/hq/version.sh en cada publicación
+var HQ_VERSION = { v: '0.9.2', fecha: '2026-09-06 21:00' }; // la actualiza scripts/hq/version.sh en cada publicación
 
 (function(){
 'use strict';
@@ -729,7 +729,8 @@ function renderLicita(){
   f.appendChild(tile(pres.length, eurK(suma(pres)), juego.length ? juego.length + ' en juego' : 'presentadas'));
   f.appendChild(tile(g.length, eurK(suma(g)), resueltas ? 'ganadas · ' + Math.round(g.length / resueltas * 100) + ' %' : 'ganadas', 'plan'));
   f.appendChild(tile(vencen.length, eurK(suma(vencen)), 'vencen ≤ 7 días', vencen.length ? 'alerta' : ''));
-  f.appendChild(tile(kpi('lic.detectadas_hoy.n') != null ? kpi('lic.detectadas_hoy.n') : '?', kpi('lic.detectadas_7d.n') != null ? kpi('lic.detectadas_7d.n') + ' / semana' : null, 'nuevas hoy'));
+  var finde = [0, 6].indexOf(new Date().getDay()) >= 0 && !(kpi('lic.detectadas_hoy.n') > 0);
+  f.appendChild(tile(finde ? '·' : (kpi('lic.detectadas_hoy.n') != null ? kpi('lic.detectadas_hoy.n') : '?'), kpi('lic.detectadas_7d.n') != null ? kpi('lic.detectadas_7d.n') + ' / semana' : null, finde ? 'fin de semana: sin publicaciones' : 'nuevas hoy'));
   app.appendChild(f);
   var det = kpi('lic.detectadas.n'), ana = vivas.length + c.length, apro = prep.length + pres.length;
   app.appendChild(el('p', { class: 'embudo', text: (det != null ? det + ' detectadas → ' : '') + ana + ' analizadas → ' + apro + ' aprobadas' + (ana ? ' (' + Math.round(apro / ana * 100) + ' %)' : '') + ' → ' + pres.length + ' presentadas → ' + g.length + ' ganadas' + (kpi('lic.actualizado') ? ' · Sheet leído ' + rel(kpi('lic.actualizado')) : '') }));
