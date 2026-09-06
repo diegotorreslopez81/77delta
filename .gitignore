@@ -16,3 +16,6 @@ CLAUDE.md
 
 # Worktrees de agentes
 .claude/
+
+# Documentación interna de empresa: vive en Drive "77 Delta · Empresa" y en local, nunca en este repo público (6-sep-2026)
+docs/empresa/
