@@ -308,11 +308,17 @@ def main():
     elif a.cmd == 'partes':
         import datetime
         try:
-            rs = json.loads(urllib.request.urlopen('http://127.0.0.1:7437/search?q=PARTE&project=77delta&limit=40', timeout=6).read() or b'[]') or []
+            # /search ordena por relevancia y devuelve como mucho 20, así que en una noche con muchos partes
+            # los recientes se caían fuera y el listado salía vacío (detectado por Nil, 8-sep 00:15).
+            # /observations sí viene ordenado por fecha descendente: se pide un lote amplio y se filtra aquí.
+            rs = json.loads(urllib.request.urlopen(f'http://127.0.0.1:7437/observations?project=77delta&limit={max(200, a.horas * 12)}', timeout=10).read() or b'[]') or []
         except Exception as ex:
             sys.exit(f'Engram local no responde: {ex}')
         desde = (datetime.datetime.now(datetime.timezone.utc) - datetime.timedelta(hours=a.horas)).isoformat()
-        rs = [x for x in rs if '[PARTE' in (x.get('title') or '') and (x.get('created_at') or '') >= desde]
+        # created_at viene como "2026-09-07 22:12:33" (espacio) y desde como "...T22:12:33+00:00": comparadas
+        # como texto, el espacio siempre es menor que la T y el filtro se comía TODO. Se normaliza el separador.
+        norm = lambda v: (v or '').replace('T', ' ')[:19]
+        rs = [x for x in rs if '[PARTE' in (x.get('title') or '') and norm(x.get('created_at')) >= norm(desde)]
         for x in sorted(rs, key=lambda x: x.get('created_at') or ''):
             print(f"{(x.get('created_at') or '')[:16]} {x.get('title')}\n  {(x.get('content') or '').strip()[:600]}")
         if not rs: print('(sin partes en ese periodo)')
