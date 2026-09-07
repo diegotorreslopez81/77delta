@@ -293,7 +293,7 @@ h2.sec-t small{color:var(--oro-oscuro)}
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
 <script>
-var HQ_VERSION = { v: '0.9.11', fecha: '2026-09-07 10:42' }; // la actualiza scripts/hq/version.sh en cada publicación
+var HQ_VERSION = { v: '0.9.12', fecha: '2026-09-07 15:20' }; // la actualiza scripts/hq/version.sh en cada publicación
 
 (function(){
 'use strict';
@@ -1070,9 +1070,16 @@ function activarPush(){ if (!('serviceWorker' in navigator) || !('PushManager' i
 document.getElementById('ver').textContent = 'v' + HQ_VERSION.v + ' · ' + HQ_VERSION.fecha.slice(8,10) + '/' + HQ_VERSION.fecha.slice(5,7) + ' ' + HQ_VERSION.fecha.slice(11,16);
 function recargarDuro(){ toast('Cargando la versión nueva…'); var fin = function(){ location.replace(location.pathname + '?t=' + TOKEN + '&v=' + Date.now()); };
   (window.caches ? caches.keys().then(function(ks){ return Promise.all(ks.map(function(k){ return caches.delete(k); })); }) : Promise.resolve()).then(fin, fin); }
-if ('serviceWorker' in navigator) navigator.serviceWorker.register('/hq/sw.js').then(function(reg){
-  reg.addEventListener('updatefound', function(){ var nw = reg.installing; if (!nw) return; nw.addEventListener('statechange', function(){ if (nw.state === 'installed' && navigator.serviceWorker.controller) toast('Hay una versión nueva de HQ', 'Actualizar', recargarDuro); }); });
+if ('serviceWorker' in navigator) navigator.serviceWorker.register('/hq/sw.js', { updateViaCache: 'none' }).then(function(reg){
+  // Versión nueva: si Diego no está escribiendo ni con una hoja abierta, se aplica sola (la app vive en el móvil y
+  // el aviso "Actualizar" se perdía al cambiar de app); si está a media faena, se le ofrece y decide él.
+  reg.addEventListener('updatefound', function(){ var nw = reg.installing; if (!nw) return; nw.addEventListener('statechange', function(){
+    if (nw.state !== 'installed' || !navigator.serviceWorker.controller) return;
+    if (!escribiendo() && !document.querySelector('.hoja')) { recargarDuro(); return; }
+    toast('Hay una versión nueva de HQ', 'Actualizar', recargarDuro);
+  }); });
   document.addEventListener('visibilitychange', function(){ if (!document.hidden) reg.update().catch(function(){}); });
+  setInterval(function(){ if (!document.hidden) reg.update().catch(function(){}); }, 300000);   // y cada 5 min con la app abierta
 }).catch(function(){});
 conf().then(function(c){ CFG.url = c.url; CFG.anon = c.anon; sb = window.supabase.createClient(CFG.url, CFG.anon, { auth: { persistSession: false, autoRefreshToken: false } }); return cargar(); }).then(suscribir)
   .catch(function(e){ app.textContent = ''; app.appendChild(el('div', { class: 'msg', text: 'No se ha podido cargar la configuración: ' + e.message })); });
