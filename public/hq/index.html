@@ -290,7 +290,7 @@ h2.sec-t small{color:var(--oro-oscuro)}
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
 <script>
-var HQ_VERSION = { v: '0.9.6', fecha: '2026-09-06 23:49' }; // la actualiza scripts/hq/version.sh en cada publicación
+var HQ_VERSION = { v: '0.9.7', fecha: '2026-09-07 07:55' }; // la actualiza scripts/hq/version.sh en cada publicación
 
 (function(){
 'use strict';
@@ -641,6 +641,7 @@ function tarjetaAgente(a, coste, total){ var ct = a.contrato || {}, u = ultimo(a
   var sw = el('label', { class: 'sw', onclick: function(e){ e.stopPropagation(); } }, [el('input', { type: 'checkbox', onchange: function(e){ toggleAgente(a, e.target.checked); } }), el('span')]); sw.firstChild.checked = a.activo;
   var tags = el('div', { class: 'tags' });
   if (ct.modelo) tags.appendChild(el('span', { class: 'dato tinta', text: nombreModelo(ct.modelo) }));
+  if (ct.motor || ct.cuenta || ct.host) tags.appendChild(el('span', { class: 'dato', title: 'motor · cuenta · dónde corre', text: [ct.motor, ct.cuenta, ct.host].filter(Boolean).join(' · ') }));
   if (c) tags.appendChild(el('span', { class: 'dato oro', text: usd(c) + (total ? ' · ' + Math.round(c / total * 100) + ' %' : '') }));
   tags.appendChild(el('span', { class: 'dato', text: !a.activo ? 'por contratar' : u ? 'activo ' + rel(u.toISOString()) : 'sin actividad' }));
   if (a.activo && a.nivel === 3 && a.depto !== 'Personal'){ var cg = cargaAgente(a); tags.appendChild(el('span', { class: 'dato ' + (cg.pts >= 80 ? 'rojo' : cg.pts >= 50 ? 'oro' : 'verde'), title: cg.det.join(' · '), text: 'carga ' + cg.pts + ' %' })); }
