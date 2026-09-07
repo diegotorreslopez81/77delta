@@ -220,6 +220,12 @@ h2.sec-t small{color:var(--oro-oscuro)}
 .kpi .sub{color:var(--pizarra-clara);font-size:13px;display:flex;flex-wrap:wrap;gap:6px 14px}
 .kpi.cap .medidor{height:10px;border-radius:99px;background:#1E2B3B;overflow:hidden;margin:6px 0 10px}
 .kpi.cap .medidor i{display:block;height:100%;border-radius:99px;background:var(--oro-luz)}
+.kpi.cap .barras{display:flex;flex-direction:column;gap:7px;margin:10px 0 4px}
+.kpi.cap .barra{display:grid;grid-template-columns:minmax(96px,auto) 1fr auto auto;align-items:center;gap:8px;font-size:12px;color:var(--tinta-2)}
+.kpi.cap .barra .et{white-space:nowrap}
+.kpi.cap .barra .pc{font-variant-numeric:tabular-nums;color:var(--tinta);font-weight:600}
+.kpi.cap .barra .res{white-space:nowrap;opacity:.7}
+.kpi.cap .medidor.peq{height:7px;margin:0}
 .kpi.cap .medidor i.verde{background:#8CB897} .kpi.cap .medidor i.rojo{background:#E08678}
 .kpi.cap .frase{margin:10px 0 0;font-size:15px;line-height:1.45;color:#EDEAE3}
 .grid2{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:12px}
@@ -293,7 +299,7 @@ h2.sec-t small{color:var(--oro-oscuro)}
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
 <script>
-var HQ_VERSION = { v: '0.9.13', fecha: '2026-09-07 20:10' }; // la actualiza scripts/hq/version.sh en cada publicación
+var HQ_VERSION = { v: '0.9.14', fecha: '2026-09-07 20:45' }; // la actualiza scripts/hq/version.sh en cada publicación
 
 (function(){
 'use strict';
@@ -649,7 +655,8 @@ function capacidad(cuenta){
   var ventanas = {}; (S.uso.plan_serie || []).forEach(function(x){ if (x.cuenta !== cuenta) return; var k = x.cinco_h_reset || x.ts.slice(0, 13); ventanas[k] = Math.max(ventanas[k] || 0, Number(x.cinco_h) || 0); });
   var cerradas = Object.keys(ventanas).filter(function(k){ return new Date(k).getTime() < ahora; }), aprov = cerradas.length ? cerradas.reduce(function(s, k){ return s + ventanas[k]; }, 0) / cerradas.length : null;
   var semanas = {}; (S.uso.plan_serie || []).forEach(function(x){ if (x.cuenta === cuenta && x.semana_reset) semanas[x.semana_reset] = Math.max(semanas[x.semana_reset] || 0, Number(x.semana) || 0); });
-  var activos = (S.uso.por_agente || []).filter(function(x){ return x.agente && x.coste > 0; }).length || 1, porAgente = proy ? proy / activos : null;
+  var ids = {}; agentesDeCuenta(cuenta).forEach(function(a){ ids[a.id] = true; });
+  var activos = (S.uso.por_agente || []).filter(function(x){ return x.agente && x.coste > 0 && ids[x.agente]; }).length || 1, porAgente = proy ? proy / activos : null;
   var caben = porAgente ? Math.max(0, Math.floor((100 - Math.min(100, proy)) / porAgente)) : null;
   var frase;
   if (proy == null) frase = 'Sin datos de la cuenta todavía.';
@@ -659,7 +666,7 @@ function capacidad(cuenta){
   else frase = 'Capacidad sobrante: puedes meter el doble de carga sin tocar la cuenta' + (caben ? ' (unos ' + caben + ' agentes más como los actuales)' : '') + '.';
   if (aprov != null && aprov < 40) frase += ' Las ventanas de 5 h van medio vacías (' + Math.round(aprov) + ' %): lanza lo pesado por lotes al abrir ventana.';
   else if (aprov != null && aprov >= 85) frase += ' Las ventanas de 5 h se agotan (' + Math.round(aprov) + ' %): reparte lo pesado entre ventanas.';
-  return { sem: sem, proy: proy, agota: agota, aprov: aprov, cinco: Number(p.cinco_h) || 0, cincoReset: p.cinco_h_reset, semReset: p.semana_reset, ts: p.ts, frase: frase, activos: activos, caben: caben, semanas: semanas, tipo: p.tipo };
+  return { sem: sem, opus: (p.semana_opus == null ? null : Number(p.semana_opus)), proy: proy, agota: agota, aprov: aprov, cinco: Number(p.cinco_h) || 0, cincoReset: p.cinco_h_reset, semReset: p.semana_reset, ts: p.ts, frase: frase, activos: activos, caben: caben, semanas: semanas, tipo: p.tipo };
 }
 function renderCapacidad(){
   // Una caja por cuenta con plan: la de Diego (conectores de Gmail, Drive y Notion) y la del equipo.
@@ -682,11 +689,22 @@ function cajaCapacidad(cta, varias){
   caja.appendChild(el('div', { class: 'eyebrow', text: (varias ? (NOMBRE_CUENTA[cta] || cta) : 'Carga de la cuenta Max') + (c.tipo ? ' · ' + c.tipo.replace('default_claude_', '').replace('_', ' ') : '') + ' · muestra ' + rel(c.ts) }));
   caja.appendChild(el('div', { class: 'cifra' }, [carga + ' %', el('small', { text: 'a ritmo actual, al cierre de la semana' })]));
   var m = el('div', { class: 'medidor' }); m.appendChild(el('i', { class: cls, style: 'width:' + carga + '%' })); caja.appendChild(m);
-  caja.appendChild(el('div', { class: 'sub' }, [el('span', { text: 'consumido ' + Math.round(c.sem) + ' %' + (c.semReset ? ' · reinicia ' + rel(c.semReset) : '') }), el('span', { text: 'ventana 5 h ' + Math.round(c.cinco) + ' %' + (c.cincoReset ? ' · reinicia ' + rel(c.cincoReset) : '') }), c.aprov != null ? el('span', { text: 'aprovechamiento de ventanas ' + Math.round(c.aprov) + ' %' }) : null, el('span', { text: c.activos + ' agentes consumiendo' })]));
+  var barras = el('div', { class: 'barras' });
+  [{ k: 'Sesión de 5 h', v: c.cinco, r: c.cincoReset }, { k: 'Todos los modelos · semana', v: c.sem, r: c.semReset }, { k: 'Fable · semana', v: c.opus, r: c.semReset }].forEach(function(b){
+    if (b.v == null) return;
+    var pc = Math.min(100, Math.round(b.v)), k = pc >= 90 ? 'rojo' : pc >= 70 ? 'oro' : 'verde';
+    var fila = el('div', { class: 'barra' });
+    fila.appendChild(el('span', { class: 'et', text: b.k }));
+    var mm = el('div', { class: 'medidor peq' }); mm.appendChild(el('i', { class: k, style: 'width:' + pc + '%' })); fila.appendChild(mm);
+    fila.appendChild(el('span', { class: 'pc', text: pc + ' %' }));
+    fila.appendChild(el('span', { class: 'res', text: b.r ? 'reinicia ' + rel(b.r) : '' }));
+    barras.appendChild(fila);
+  });
+  caja.appendChild(barras);
   caja.appendChild(el('p', { class: 'frase', text: c.frase }));
   var ags = agentesDeCuenta(cta);
   if (varias) caja.appendChild(el('div', { class: 'sub' }, [el('span', { title: ags.map(function(a){ return a.nombre || a.id; }).join(', '), text: ags.length + ' agentes aquí: ' + ags.slice(0, 6).map(function(a){ return (a.nombre || a.id).split(' ')[0]; }).join(', ') + (ags.length > 6 ? ' y ' + (ags.length - 6) + ' más' : '') })]));
-  var cb = cta === 'principal' ? cuellos() : []; if (cb.length) caja.appendChild(el('p', { class: 'frase', style: 'color:#E08678', text: 'Cuello de botella: ' + cb.map(function(x){ return persona(x.a) + ' ' + x.c.pts + ' % (' + x.c.det.join(', ') + ')' + (x.libres.length ? ' · libres en ' + x.a.depto + ': ' + x.libres.map(persona).join(', ') : ' · nadie libre en ' + x.a.depto + ': fichar o repartir') ; }).join(' · ') }));
+  // Los cuellos de botella ya no se pintan aquí: hq-test/operaciones abre una tarjeta con propuesta para que Diego decida.
   var sem = Object.keys(c.semanas).sort(); if (sem.length > 1) caja.appendChild(el('div', { class: 'sub' }, [el('span', { text: 'semanas anteriores: ' + sem.slice(0, -1).slice(-4).map(function(k){ return Math.round(c.semanas[k]) + ' %'; }).join(' · ') + ' (segunda cuenta cuando dos seguidas pasen del 80 %)' })]));
   app.appendChild(caja);
 }
