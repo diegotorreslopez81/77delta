@@ -46,6 +46,7 @@ body{padding-bottom:calc(24px + env(safe-area-inset-bottom))}
 h1,h2,h3{font-family:var(--display);font-weight:600;letter-spacing:-.02em;line-height:1.15;margin:0}
 button{font:inherit;color:inherit;background:none;border:0;cursor:pointer;-webkit-tap-highlight-color:transparent}
 a{color:inherit}
+a.ref{color:var(--oro-oscuro);text-decoration:underline;text-decoration-style:dotted;font-weight:600}
 .mono{font-family:var(--mono)}
 .eyebrow{font-family:var(--mono);font-size:11px;letter-spacing:.14em;text-transform:uppercase;color:var(--oro-oscuro)}
 .peq{font-size:13px;color:var(--pizarra-tenue)}
@@ -257,10 +258,10 @@ h2.sec-t small{color:var(--oro-oscuro)}
 #toast button{color:var(--oro-luz);font-weight:600}
 .menu{position:fixed;right:12px;top:calc(52px + env(safe-area-inset-top));background:var(--panel);color:var(--tinta);border:1px solid var(--linea);border-radius:12px;padding:6px;min-width:220px;box-shadow:0 12px 30px rgba(6,16,31,.2);display:none;z-index:30}
 .menu.on{display:block}
-.menu button{display:block;width:100%;text-align:left;padding:10px 12px;border-radius:8px;font-size:14px}
-.menu button:active{background:var(--panel-2)}
+.menu button,.menu .item{display:block;width:100%;text-align:left;padding:10px 12px;border-radius:8px;font-size:14px;cursor:pointer}
+.menu button:active,.menu .item:active{background:var(--panel-2)}
 .menu.resumen{right:56px;left:12px;min-width:0;max-height:70vh;overflow:auto}
-.menu.resumen button{display:flex;gap:10px;align-items:center;text-align:left}
+.menu.resumen button,.menu.resumen .item{display:flex;gap:10px;align-items:center;text-align:left}
 .menu.resumen .txt{flex:1;min-width:0} .menu.resumen b{display:block;font-size:14px;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap} .menu.resumen span{display:block;font-family:var(--mono);font-size:11px;color:var(--pizarra);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .pill{cursor:pointer}
 .msg{padding:40px 20px;text-align:center;color:var(--pizarra)}
@@ -292,7 +293,7 @@ h2.sec-t small{color:var(--oro-oscuro)}
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
 <script>
-var HQ_VERSION = { v: '0.9.9', fecha: '2026-09-07 09:32' }; // la actualiza scripts/hq/version.sh en cada publicación
+var HQ_VERSION = { v: '0.9.10', fecha: '2026-09-07 09:49' }; // la actualiza scripts/hq/version.sh en cada publicación
 
 (function(){
 'use strict';
@@ -433,6 +434,21 @@ function bulletsDe(texto, limite, maxChars){ if (!texto) return []; maxChars = m
   return limite ? out.slice(0, limite) : out; }
 /* Párrafos completos del detalle, sin recortar (para "Detalle completo" en la hoja). */
 function parrafosDe(texto){ if (!texto) return []; return texto.trim().split(/\n\s*\n+/).map(function(p){ return p.trim(); }).filter(Boolean); }
+/* Detecta referencias "#NN" a otras solicitudes dentro de un texto y las convierte en enlaces que abren esa tarjeta (pendiente: la resalta en Bandeja; resuelta: abre su hoja). No se aplica a códigos de licitación ni a importes, que no llevan "#". Devuelve un array de nodos listo para pasar como kids a el(). */
+function conRefs(texto){
+  texto = texto == null ? '' : String(texto);
+  var out = [], re = /#(\d+)\b/g, ultimo = 0, m;
+  while ((m = re.exec(texto))){
+    if (m.index > ultimo) out.push(document.createTextNode(texto.slice(ultimo, m.index)));
+    out.push(refEnlace(m[1]));
+    ultimo = m.index + m[0].length;
+  }
+  out.push(document.createTextNode(texto.slice(ultimo)));
+  return out;
+}
+function refEnlace(id){ return el('a', { href: '#', class: 'ref', text: '#' + id, onclick: function(ev){ ev.preventDefault(); ev.stopPropagation(); irARef(id); } }); }
+/* Abre la solicitud referenciada desde un texto: si hay una hoja abierta la cierra primero (abrirSolicitud ya distingue pendiente/resuelta). */
+function irARef(id){ cerrarHoja(); abrirSolicitud(id); }
 function tarjeta(s){
   var esDuda = s.tipo === 'duda', u = urgencia(s), ag = agente(s.agente), lic = s.importe == null ? licDe(s) : null;
   var card = el('div', { class: 'card ' + u, id: 's-' + s.id });
@@ -440,7 +456,7 @@ function tarjeta(s){
   card.appendChild(el('div', { class: 'cab' }, [el('div', { class: 'avw' }, [avatar(ag, 'peq')]),
     el('div', { class: 'quien', style: 'display:flex;flex-direction:column;gap:2px' }, [el('b', { text: ag ? persona(ag) : s.agente }), ag ? el('span', { class: 'peq', text: rolDe(ag) }) : null]),
     s.importe != null ? el('div', { class: 'importe-grande', text: eur(s.importe) }) : null]));
-  var h3 = el('h3', { text: truncar(s.titulo, 90), style: 'cursor:pointer' }); h3.addEventListener('click', abrirHoja);
+  var h3 = el('h3', { style: 'cursor:pointer' }, conRefs(truncar(s.titulo, 90))); h3.addEventListener('click', abrirHoja);
   card.appendChild(h3);
   var chips = el('div', { class: 'datos' });
   chips.appendChild(el('span', { class: 'dato ' + (TIPO_TAG[s.tipo] || ''), text: TIPO[s.tipo] || s.tipo }));
@@ -452,11 +468,12 @@ function tarjeta(s){
   if (/^https?:\/\//.test(s.enlace)) chips.appendChild(el('span', { class: 'dato tinta' }, [el('a', { href: s.enlace, target: '_blank', rel: 'noopener', text: 'Abrir ↗' })]));
   card.appendChild(chips);
   var bullets = bulletsDe(s.detalle, 2, 90);
-  if (bullets.length){ var ul = el('ul', { class: 'bullets', style: 'cursor:pointer' }); ul.addEventListener('click', abrirHoja); bullets.forEach(function(b){ ul.appendChild(el('li', { text: b })); }); card.appendChild(ul); }
+  if (bullets.length){ var ul = el('ul', { class: 'bullets', style: 'cursor:pointer' }); ul.addEventListener('click', abrirHoja); bullets.forEach(function(b){ ul.appendChild(el('li', {}, conRefs(b))); }); card.appendChild(ul); }
   card.appendChild(el('button', { class: 'btn sec', style: 'width:100%;margin-top:2px', text: 'Ver detalle y hablar con ' + (ag ? persona(ag) : s.agente) + ' ›', onclick: abrirHoja }));
   var hilo = (S.hq.hilos || {})[s.id] || [];
   if (hilo.length){ var ult = hilo[hilo.length - 1], quien = ult.autor === 'diego' ? 'Tú' : (ag ? persona(ag) : ult.autor);
-    card.appendChild(el('div', { class: 'hilo-resumen', onclick: abrirHoja }, [el('span', { class: 'txt', text: quien + ': ' + ult.texto }), hilo.length > 1 ? el('span', { class: 'n', text: '💬 ' + hilo.length }) : null])); }
+    var txtHilo = el('span', { class: 'txt' }, [quien + ': '].concat(conRefs(ult.texto)));
+    card.appendChild(el('div', { class: 'hilo-resumen', onclick: abrirHoja }, [txtHilo, hilo.length > 1 ? el('span', { class: 'n', text: '💬 ' + hilo.length }) : null])); }
   var abiertaNota = S.abiertas.has(s.id);
   var ta = el('textarea', { placeholder: esDuda ? 'Tu respuesta o una pregunta' : (hilo.length ? 'Sigue la conversación' : 'Nota o pregunta para ' + (ag ? persona(ag) : 'el agente')), rows: '2', class: 'crece', oninput: function(){ this.style.height = 'auto'; this.style.height = Math.min(this.scrollHeight, 240) + 'px'; } });
   var mic = el('button', { class: 'mic', 'aria-label': 'Dictar', text: '🎤', onclick: function(){ dictar(ta, mic); } });
@@ -477,10 +494,11 @@ function tarjeta(s){
 }
 function filaHist(s){ var ag = agente(s.agente), n = ((S.hq.hilos || {})[s.id] || []).length;
   return el('div', { class: 'fila', onclick: function(){ hojaSolicitud(s); } }, [avatar(ag, 'peq'),
-    el('div', { class: 'txt' }, [el('div', { class: 't', text: s.titulo }), el('div', { class: 'm', text: (ag ? persona(ag) : s.agente) + ' · ' + (TIPO[s.tipo] || s.tipo) + (s.importe != null ? ' · ' + eur(s.importe) : '') + (n ? ' · 💬 ' + n : '') + ' · ' + rel(s.done_at || s.resolved_at || s.created_at) })]),
+    el('div', { class: 'txt' }, [el('div', { class: 't' }, conRefs(s.titulo)), el('div', { class: 'm', text: (ag ? persona(ag) : s.agente) + ' · ' + (TIPO[s.tipo] || s.tipo) + (s.importe != null ? ' · ' + eur(s.importe) : '') + (n ? ' · 💬 ' + n : '') + ' · ' + rel(s.done_at || s.resolved_at || s.created_at) })]),
+    el('span', { class: 'dato', text: '#' + s.id }),
     el('span', { class: 'estado ' + s.estado, text: ESTADO[s.estado] || s.estado })]); }
 function burbujas(hilo, ag){ var box = el('div', { class: 'hilo' });
-  hilo.forEach(function(m){ box.appendChild(el('div', { class: 'burbuja ' + (m.autor === 'diego' ? 'diego' : 'agente') }, [m.texto, el('small', { text: (m.autor === 'diego' ? 'Tú' : (ag ? persona(ag) : m.autor)) + ' · ' + rel(m.ts) })])); });
+  hilo.forEach(function(m){ box.appendChild(el('div', { class: 'burbuja ' + (m.autor === 'diego' ? 'diego' : 'agente') }, conRefs(m.texto).concat([el('small', { text: (m.autor === 'diego' ? 'Tú' : (ag ? persona(ag) : m.autor)) + ' · ' + rel(m.ts) })]))); });
   return box; }
 function comentar(s, ta, ag){ var txt = ta.value.trim(); if (!txt){ ta.focus(); return; }
   S.abiertas.add(s.id);
@@ -714,7 +732,7 @@ function hojaSolicitud(s, refrescando){
   kids.push(el('div', { class: 'cab' }, [el('div', { class: 'avw' }, [avatar(ag, 'peq')]),
     el('div', { class: 'quien', style: 'display:flex;flex-direction:column;gap:2px' }, [el('b', { text: ag ? persona(ag) : s.agente }), ag ? el('span', { class: 'peq', text: rolDe(ag) }) : null]),
     s.importe != null ? el('div', { class: 'importe-grande', text: eur(s.importe) }) : null]));
-  kids.push(el('h2', { text: s.titulo }));
+  kids.push(el('h2', {}, conRefs(s.titulo)));
   var chips = el('div', { class: 'datos' });
   chips.appendChild(el('span', { class: 'dato ' + (TIPO_TAG[s.tipo] || ''), text: TIPO[s.tipo] || s.tipo }));
   var cv = chipVence(s); if (cv) chips.appendChild(cv);
@@ -723,8 +741,8 @@ function hojaSolicitud(s, refrescando){
   chips.appendChild(el('span', { class: 'estado ' + s.estado, text: ESTADO[s.estado] || s.estado }));
   kids.push(chips);
   var bullets = bulletsDe(s.detalle);
-  if (bullets.length){ kids.push(el('h2', { class: 'sec-t', text: 'Resumen' })); var ul = el('ul', { class: 'bullets' }); bullets.forEach(function(b){ ul.appendChild(el('li', { text: b })); }); kids.push(ul); }
-  if (s.detalle){ kids.push(el('h2', { class: 'sec-t', text: 'Detalle completo' })); var box = el('div', { class: 'parrafos' }); parrafosDe(s.detalle).forEach(function(p){ box.appendChild(el('p', { text: p })); }); kids.push(box); }
+  if (bullets.length){ kids.push(el('h2', { class: 'sec-t', text: 'Resumen' })); var ul = el('ul', { class: 'bullets' }); bullets.forEach(function(b){ ul.appendChild(el('li', {}, conRefs(b))); }); kids.push(ul); }
+  if (s.detalle){ kids.push(el('h2', { class: 'sec-t', text: 'Detalle completo' })); var box = el('div', { class: 'parrafos' }); parrafosDe(s.detalle).forEach(function(p){ box.appendChild(el('p', {}, conRefs(p))); }); kids.push(box); }
   if (/^https?:\/\//.test(s.enlace)) kids.push(el('a', { class: 'btn sec', style: 'width:100%;margin-bottom:10px', href: s.enlace, target: '_blank', rel: 'noopener', text: 'Abrir enlace ↗' }));
   if (s.respuesta) kids.push(el('p', { class: 'peq', text: 'Tu respuesta: ' + s.respuesta }));
   if (s.resultado) kids.push(el('p', { class: 'peq', text: 'Resultado: ' + s.resultado }));
@@ -983,7 +1001,7 @@ document.getElementById('pend').addEventListener('click', function(e){ e.stopPro
   resumen.appendChild(el('div', { class: 'eyebrow', style: 'padding:8px 12px 4px', text: pend.length + ' esperando tu decisión' }));
   if (!pend.length) resumen.appendChild(el('div', { class: 'peq', style: 'padding:6px 12px 10px', text: 'Nada pendiente.' }));
   pend.slice(0, 8).forEach(function(s){ var ag = agente(s.agente), lc = s.importe == null ? licDe(s) : null, imp = s.importe != null ? s.importe : (lc ? lc.importe : null);
-    resumen.appendChild(el('button', { onclick: function(){ resumen.classList.remove('on'); abrirSolicitud(s.id); } }, [avatar(ag, 'peq'), el('div', { class: 'txt' }, [el('b', { text: s.titulo }), el('span', { text: (ag ? persona(ag) : s.agente) + ' · ' + (TIPO[s.tipo] || s.tipo) + (imp != null ? ' · ' + eur(imp) : '') + (s.vence ? ' · vence ' + rel(s.vence) : '') })])])); });
+    resumen.appendChild(el('div', { class: 'item', onclick: function(){ resumen.classList.remove('on'); abrirSolicitud(s.id); } }, [avatar(ag, 'peq'), el('div', { class: 'txt' }, [el('b', {}, conRefs(s.titulo)), el('span', { text: (ag ? persona(ag) : s.agente) + ' · ' + (TIPO[s.tipo] || s.tipo) + (imp != null ? ' · ' + eur(imp) : '') + (s.vence ? ' · vence ' + rel(s.vence) : '') })])])); });
   if (pend.length > 8) resumen.appendChild(el('div', { class: 'peq', style: 'padding:4px 12px', text: 'y ' + (pend.length - 8) + ' más en la bandeja' }));
   if (lic.length) resumen.appendChild(el('button', { onclick: function(){ resumen.classList.remove('on'); S.tab = 'licita'; S._resetScroll = true; render(); } }, [el('div', { class: 'tipo-ic', text: '§' }), el('div', { class: 'txt' }, [el('b', { text: lic.length + ' licitaciones por decidir' }), el('span', { text: 'ir a Licita' })])]));
   if (pos.length) resumen.appendChild(el('div', { class: 'peq', style: 'padding:6px 12px 10px', text: pos.length + ' pospuestas · la próxima vuelve ' + rel(pos[0].pospuesta_hasta) }));
