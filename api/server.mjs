@@ -167,6 +167,36 @@ async function notificar(token, id, texto = '') {
   return { enviados, fallidos, dispositivos: subs.length };
 }
 
+// Mismo patrón que notificar(), pero para el hilo de una licitación (no tiene solicitud asociada): la resuelve por expediente.
+async function notificarLic(token, expediente, texto = '') {
+  const info = await rpc('omc_token_info', { p_token: token });
+  const lics = await supa(`/rest/v1/omc_licitaciones?empresa=eq.${encodeURIComponent(info.empresa)}&expediente=eq.${encodeURIComponent(expediente)}&select=expediente,organo,importe`, {}, HQ.service);
+  const l = lics[0];
+  if (!l) throw new Error('licitación no encontrada');
+  const subs = await supa(`/rest/v1/omc_push?empresa=eq.${encodeURIComponent(info.empresa)}&select=id,endpoint,sub`, {}, HQ.service);
+  const extra = l.importe != null ? `${Number(l.importe).toLocaleString('es-ES')} €` : '';
+  const carga = JSON.stringify({
+    title: `Licitación ${l.expediente} responde`,
+    body: texto ? String(texto).slice(0, 300) : (l.organo || l.expediente) + (extra ? `\n${extra}` : ''),
+    url: `${HQ.app}?lic=${encodeURIComponent(l.expediente)}`,
+    tag: `hq-lic-${l.expediente}`,
+    lic: l.expediente,
+  });
+  let enviados = 0, fallidos = 0;
+  for (const fila of subs) {
+    try {
+      await webpush.sendNotification(fila.sub, carga, { TTL: 3600, urgency: 'high' });
+      enviados++;
+    } catch (e) {
+      fallidos++;
+      if (e.statusCode === 404 || e.statusCode === 410) {
+        await supa(`/rest/v1/omc_push?id=eq.${fila.id}`, { method: 'DELETE' }, HQ.service).catch(() => {});
+      } else console.error('push error', e.statusCode, e.message);
+    }
+  }
+  return { enviados, fallidos, dispositivos: subs.length };
+}
+
 const servidor = http.createServer(async (req, res) => {
   cors(req, res);
   const ruta = new URL(req.url, 'http://x').pathname;
@@ -212,6 +242,22 @@ const servidor = http.createServer(async (req, res) => {
       return responder(res, 200, { ok: true, ...r });
     } catch (e) {
       console.error('hq notificar', e.message);
+      return responder(res, /token|encontrada/i.test(e.message) ? 403 : 502, { ok: false, error: e.message });
+    }
+  }
+  if (ruta === '/hq/notificar-lic' && req.method === 'POST') {
+    // Avisa a Diego cuando un agente responde en el hilo de una licitación (no tiene solicitud asociada, por eso va aparte de /hq/notificar).
+    if (!VAPID_OK) return responder(res, 503, { ok: false, error: 'avisos no configurados' });
+    let cuerpo;
+    try { cuerpo = await leerJson(req); } catch { return responder(res, 400, { ok: false, error: 'Cuerpo no válido.' }); }
+    const token = limpiar(cuerpo.token, 120), expediente = limpiar(cuerpo.expediente, 120);
+    if (!token || !expediente) return responder(res, 400, { ok: false, error: 'Faltan token o expediente.' });
+    try {
+      const r = await notificarLic(token, expediente, String(cuerpo.texto ?? '').trim().slice(0, 300));
+      console.log('hq push lic', expediente, JSON.stringify(r));
+      return responder(res, 200, { ok: true, ...r });
+    } catch (e) {
+      console.error('hq notificar-lic', e.message);
       return responder(res, /token|encontrada/i.test(e.message) ? 403 : 502, { ok: false, error: e.message });
     }
   }

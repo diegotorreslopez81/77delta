@@ -172,15 +172,25 @@ alter table public.omc_licitaciones add column if not exists progreso numeric;
 alter table public.omc_licitaciones add column if not exists progreso_nota text not null default '';
 
 -- Hilo de conversación de cada solicitud (Diego y el agente se cruzan mensajes hasta resolver).
+-- También hace de hilo por licitación (licitacion_id = expediente): cada fila cuelga de solicitud_id O de licitacion_id, nunca de las dos.
 create table if not exists public.omc_mensajes (
   id bigserial primary key,
   empresa text not null references public.omc_empresas(id) on delete cascade,
-  solicitud_id bigint not null references public.omc_solicitudes(id) on delete cascade,
+  solicitud_id bigint references public.omc_solicitudes(id) on delete cascade,
   autor text not null,
   texto text not null,
   ts timestamptz not null default now()
 );
+alter table public.omc_mensajes alter column solicitud_id drop not null;
+alter table public.omc_mensajes add column if not exists licitacion_id text;
+do $$ begin
+  alter table public.omc_mensajes add constraint omc_mensajes_uno_check check (solicitud_id is not null or licitacion_id is not null);
+exception when duplicate_object then null; end $$;
+do $$ begin
+  alter table public.omc_mensajes add constraint omc_mensajes_lic_fk foreign key (empresa, licitacion_id) references public.omc_licitaciones(empresa, expediente) on delete cascade;
+exception when duplicate_object then null; end $$;
 create index if not exists omc_mensajes_sol on public.omc_mensajes (solicitud_id, ts);
+create index if not exists omc_mensajes_lic on public.omc_mensajes (empresa, licitacion_id, ts) where licitacion_id is not null;
 
 create table if not exists public.omc_push (
   id bigserial primary key,
@@ -266,6 +276,13 @@ begin
               from (select m.solicitud_id sid, jsonb_agg(jsonb_build_object('id', m.id, 'autor', m.autor, 'texto', m.texto, 'ts', m.ts) order by m.ts) items
                     from public.omc_mensajes m join public.omc_solicitudes s on s.id = m.solicitud_id
                     where m.empresa = e.id and (s.estado in ('pendiente','aprobada','respondida') or s.resolved_at > now() - interval '30 days') group by m.solicitud_id) h),
+    'hilos_lic', (select coalesce(jsonb_object_agg(h.lid, h.items), '{}'::jsonb)
+                  from (select m.licitacion_id lid, jsonb_agg(jsonb_build_object('id', m.id, 'autor', m.autor, 'texto', m.texto, 'ts', m.ts) order by m.ts) items
+                        from public.omc_mensajes m
+                        where m.empresa = e.id and m.licitacion_id is not null
+                          and exists (select 1 from public.omc_licitaciones l2 where l2.empresa = e.id and l2.expediente = m.licitacion_id
+                                        and (l2.pestana = 'Licitaciones' or l2.updated_at > now() - interval '30 days'))
+                        group by m.licitacion_id) h),
     'ingresos', (select coalesce(jsonb_agg(to_jsonb(i) order by i.fecha desc nulls last, i.id desc), '[]'::jsonb) from public.omc_ingresos i where i.empresa = e.id)
   );
 end $$;
@@ -598,7 +615,34 @@ begin
           from public.omc_licitaciones where empresa = t.empresa and (p_todas or pestana = 'Licitaciones'));
 end $$;
 
--- Eventos de Diego desde una fecha (comentarios y resoluciones) para despertar a los agentes.
+-- Conversación por licitación: mismo patrón que omc_comentar/omc_estado pero colgando de licitacion_id (expediente) en vez de solicitud_id.
+-- Diego (owner) firma como 'diego'; el agente firma con el id que pasa (no hay "dueño" fijo de la licitación: Ariadna la trabaja antes de decidir, Guillem después).
+create or replace function public.omc_lic_comentar(p_token text, p_lic_id text, p_texto text, p_agente text default null)
+returns jsonb language plpgsql security definer set search_path = public as $$
+declare t public.omc_tokens; l public.omc_licitaciones; m public.omc_mensajes; v_autor text;
+begin
+  t := public.omc_tok(p_token);
+  select * into l from public.omc_licitaciones where empresa = t.empresa and expediente = p_lic_id;
+  if not found then raise exception 'licitación no encontrada' using errcode = 'P0001'; end if;
+  if coalesce(trim(p_texto), '') = '' then raise exception 'texto vacío' using errcode = 'P0001'; end if;
+  v_autor := case when t.rol = 'owner' then 'diego' else coalesce(nullif(p_agente, ''), t.nombre, 'agente') end;
+  insert into public.omc_mensajes (empresa, licitacion_id, autor, texto) values (t.empresa, l.expediente, v_autor, trim(p_texto)) returning * into m;
+  if t.rol <> 'owner' then update public.omc_agentes set ultima_actividad = now() where empresa = t.empresa and id = v_autor; end if;
+  return to_jsonb(m);
+end $$;
+
+create or replace function public.omc_lic_hilo(p_token text, p_lic_id text)
+returns jsonb language plpgsql security definer set search_path = public as $$
+declare t public.omc_tokens; l public.omc_licitaciones;
+begin
+  t := public.omc_tok(p_token);
+  select * into l from public.omc_licitaciones where empresa = t.empresa and expediente = p_lic_id;
+  if not found then raise exception 'licitación no encontrada' using errcode = 'P0001'; end if;
+  return to_jsonb(l) || jsonb_build_object('hilo', (select coalesce(jsonb_agg(jsonb_build_object('id', m.id, 'autor', m.autor, 'texto', m.texto, 'ts', m.ts) order by m.ts), '[]'::jsonb)
+                                                     from public.omc_mensajes m where m.empresa = t.empresa and m.licitacion_id = l.expediente));
+end $$;
+
+-- Eventos de Diego desde una fecha (comentarios y resoluciones de solicitudes, comentarios de licitaciones) para despertar a los agentes.
 create or replace function public.omc_eventos(p_token text, p_desde timestamptz)
 returns jsonb language plpgsql security definer set search_path = public as $$
 declare t public.omc_tokens;
@@ -610,6 +654,12 @@ begin
     union all
     select jsonb_build_object('tipo', 'resolucion', 'ts', s.resolved_at, 'id', s.id, 'agente', s.agente, 'titulo', s.titulo, 'texto', s.respuesta, 'estado', s.estado)
       from public.omc_solicitudes s where s.empresa = t.empresa and s.resolved_at > p_desde and s.estado in ('aprobada','rechazada','respondida') and s.done_at is null
+    union all
+    -- Diego comenta en una licitación: destinatario es el motor (Ariadna) mientras no está aprobada, o quien redacta la oferta (Guillem) si ya está OK.
+    select jsonb_build_object('tipo', 'comentario_lic', 'ts', m.ts, 'id', l.expediente, 'agente', case when l.decision = 'OK' then 'sales-licita' else 'sales-motor' end,
+                              'titulo', l.expediente, 'organo', l.organo, 'importe', l.importe, 'texto', m.texto, 'estado', l.estado)
+      from public.omc_mensajes m join public.omc_licitaciones l on l.empresa = m.empresa and l.expediente = m.licitacion_id
+      where m.empresa = t.empresa and m.autor = 'diego' and m.licitacion_id is not null and m.ts > p_desde
   ) e(x));
 end $$;
 
@@ -674,11 +724,13 @@ revoke all on function public.omc_token_info(text), public.omc_hq(text), public.
   public.omc_agente_set(text, text, jsonb), public.omc_pedir(text, jsonb), public.omc_estado(text, bigint), public.omc_reportar(text, bigint, boolean, text),
   public.omc_latido(text, text), public.omc_mis_solicitudes(text, text), public.omc_subir_uso(text, jsonb), public.omc_guardar_push(text, jsonb), public.omc_subir_plan(text, jsonb), public.omc_subir_actividad(text, jsonb),
   public.omc_kpi_set(text, jsonb), public.omc_ingreso_set(text, jsonb), public.omc_ingresos(text), public.omc_comentar(text, bigint, text), public.omc_retirar(text, bigint, text),
-  public.omc_licitaciones_subir(text, jsonb), public.omc_licitacion_decidir(text, text, text, jsonb, text), public.omc_licitaciones_pendientes_sync(text), public.omc_licitaciones_sincronizadas(text, jsonb), public.omc_licitaciones_lista(text, boolean), public.omc_posponer(text, bigint, timestamptz), public.omc_pospuestas_vencidas(text), public.omc_eventos(text, timestamptz) from public;
+  public.omc_licitaciones_subir(text, jsonb), public.omc_licitacion_decidir(text, text, text, jsonb, text), public.omc_licitaciones_pendientes_sync(text), public.omc_licitaciones_sincronizadas(text, jsonb), public.omc_licitaciones_lista(text, boolean), public.omc_posponer(text, bigint, timestamptz), public.omc_pospuestas_vencidas(text), public.omc_eventos(text, timestamptz),
+  public.omc_lic_comentar(text, text, text, text), public.omc_lic_hilo(text, text) from public;
 grant execute on function public.omc_token_info(text), public.omc_hq(text), public.omc_hq_uso(text), public.omc_resolver(text, bigint, text, text),
   public.omc_agente_set(text, text, jsonb), public.omc_pedir(text, jsonb), public.omc_estado(text, bigint), public.omc_reportar(text, bigint, boolean, text),
   public.omc_latido(text, text), public.omc_mis_solicitudes(text, text), public.omc_subir_uso(text, jsonb), public.omc_guardar_push(text, jsonb), public.omc_subir_plan(text, jsonb), public.omc_subir_actividad(text, jsonb),
   public.omc_kpi_set(text, jsonb), public.omc_ingreso_set(text, jsonb), public.omc_ingresos(text), public.omc_comentar(text, bigint, text), public.omc_retirar(text, bigint, text),
-  public.omc_licitaciones_subir(text, jsonb), public.omc_licitacion_decidir(text, text, text, jsonb, text), public.omc_licitaciones_pendientes_sync(text), public.omc_licitaciones_sincronizadas(text, jsonb), public.omc_licitaciones_lista(text, boolean), public.omc_posponer(text, bigint, timestamptz), public.omc_pospuestas_vencidas(text), public.omc_eventos(text, timestamptz)
+  public.omc_licitaciones_subir(text, jsonb), public.omc_licitacion_decidir(text, text, text, jsonb, text), public.omc_licitaciones_pendientes_sync(text), public.omc_licitaciones_sincronizadas(text, jsonb), public.omc_licitaciones_lista(text, boolean), public.omc_posponer(text, bigint, timestamptz), public.omc_pospuestas_vencidas(text), public.omc_eventos(text, timestamptz),
+  public.omc_lic_comentar(text, text, text, text), public.omc_lic_hilo(text, text)
   to anon, authenticated, service_role;
 notify pgrst, 'reload schema';

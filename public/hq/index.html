@@ -293,7 +293,7 @@ h2.sec-t small{color:var(--oro-oscuro)}
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
 <script>
-var HQ_VERSION = { v: '0.9.10', fecha: '2026-09-07 09:49' }; // la actualiza scripts/hq/version.sh en cada publicación
+var HQ_VERSION = { v: '0.9.11', fecha: '2026-09-07 10:42' }; // la actualiza scripts/hq/version.sh en cada publicación
 
 (function(){
 'use strict';
@@ -308,6 +308,8 @@ var TOKEN = localStorage.getItem('hq_t');
 if (TOKEN && !params.get('t')) { params.set('t', TOKEN); history.replaceState(null, '', location.pathname + '?' + params); }
 var marcar = params.get('id') ? Number(params.get('id')) : null;
 if (marcar){ params.delete('id'); history.replaceState(null, '', location.pathname + '?' + params); try { sessionStorage.setItem('hq_pendiente_id', String(marcar)); } catch (e) {} }
+var marcarLic = params.get('lic') || null;
+if (marcarLic){ params.delete('lic'); history.replaceState(null, '', location.pathname + '?' + params); try { sessionStorage.setItem('hq_pendiente_lic', marcarLic); } catch (e) {} }
 if (!TOKEN) {
   var campo = el('input', { type: 'text', placeholder: 'Pega aquí tu enlace de HQ', style: 'width:100%;font:15px var(--body);padding:12px;border:1px solid var(--linea-fuerte);border-radius:10px;background:var(--panel);color:var(--tinta)' });
   app.textContent = '';
@@ -317,7 +319,7 @@ if (!TOKEN) {
 }
 if (!window.supabase) { app.innerHTML = '<div class="msg">No se ha podido cargar la librería de datos. Recarga.</div>'; return; }
 var sb = null;
-var S = { hq: null, uso: null, tab: 'bandeja', filtro: 'todo', abiertos: {}, abiertas: new Set(), hist: false, hojaSolicitud: null };
+var S = { hq: null, uso: null, tab: 'bandeja', filtro: 'todo', abiertos: {}, abiertas: new Set(), hist: false, hojaSolicitud: null, hojaLic: null };
 var TIPO = { gasto: 'Gasto', contacto: 'Contacto', publicacion: 'Publicación', estrategia: 'Estrategia', duda: 'Duda', accion: 'Acción humana', otro: 'Aprobación' };
 var TIPO_IC = { gasto: '€', contacto: '✉', publicacion: '📣', estrategia: '♟', duda: '?', accion: '🙋', otro: '✓' };
 var ESTADO = { pendiente: 'Pendiente', aprobada: 'Aprobada', rechazada: 'Rechazada', respondida: 'Respondida', ejecutada: 'Ejecutada', fallida: 'Fallida', caducada: 'Caducada', retirada: 'Retirada por el agente' };
@@ -362,6 +364,7 @@ function ordenados(){ var ags = S.hq.agentes.slice(), deptos = []; ags.forEach(f
 var cargando = false;
 function buscarSolicitud(id){ id = Number(id); var h = S.hq; if (!h) return null;
   return (h.pendientes || []).concat(h.seguimiento || [], h.historial || [], h.pospuestas || []).filter(function(x){ return x.id === id; })[0]; }
+function buscarLic(expediente){ var h = S.hq; if (!h) return null; return (h.licitaciones || []).filter(function(x){ return x.expediente === expediente; })[0]; }
 /* Si hay una hoja de solicitud abierta (S.hojaSolicitud), la reconstruye en el sitio con los datos frescos: así las respuestas nuevas del agente aparecen sin cerrarla. */
 function refrescarHojaAbierta(){
   if (!S.hojaSolicitud) return;
@@ -370,11 +373,20 @@ function refrescarHojaAbierta(){
   var s = buscarSolicitud(S.hojaSolicitud);
   if (s) hojaSolicitud(s, true); else cerrarHoja();
 }
+/* Mismo patrón que refrescarHojaAbierta() pero para la hoja de detalle de una licitación. */
+function refrescarHojaLicAbierta(){
+  if (!S.hojaLic) return;
+  if (escribiendo()){ S.renderPendiente = true; return; }
+  if (!document.getElementById('hoja').classList.contains('on')) { S.hojaLic = null; return; }
+  var l = buscarLic(S.hojaLic);
+  if (l) hojaLic(l, true); else cerrarHoja();
+}
 function cargar(){ if (cargando) return Promise.resolve(); cargando = true;
   return Promise.all([rpc('omc_hq', { p_token: TOKEN }), rpc('omc_hq_uso', { p_token: TOKEN })]).then(function(r){ S.hq = r[0]; S.uso = r[1]; ordenados();
       var pend; try { pend = sessionStorage.getItem('hq_pendiente_id'); } catch (e) {}
-      if (pend) abrirSolicitud(pend); else render();
-      refrescarHojaAbierta(); })
+      var pendLic; try { pendLic = sessionStorage.getItem('hq_pendiente_lic'); } catch (e) {}
+      if (pend) abrirSolicitud(pend); else if (pendLic) abrirLicitacion(pendLic); else render();
+      refrescarHojaAbierta(); refrescarHojaLicAbierta(); })
     .catch(function(e){ if (!S.hq) app.innerHTML = '<div class="msg">' + (/token/i.test(e.message) ? 'Este enlace ya no es válido.' : 'No se ha podido cargar: ' + e.message) + '</div>'; else toast('Sin conexión: ' + e.message); })
     .then(function(){ cargando = false; }); }
 
@@ -497,9 +509,13 @@ function filaHist(s){ var ag = agente(s.agente), n = ((S.hq.hilos || {})[s.id] |
     el('div', { class: 'txt' }, [el('div', { class: 't' }, conRefs(s.titulo)), el('div', { class: 'm', text: (ag ? persona(ag) : s.agente) + ' · ' + (TIPO[s.tipo] || s.tipo) + (s.importe != null ? ' · ' + eur(s.importe) : '') + (n ? ' · 💬 ' + n : '') + ' · ' + rel(s.done_at || s.resolved_at || s.created_at) })]),
     el('span', { class: 'dato', text: '#' + s.id }),
     el('span', { class: 'estado ' + s.estado, text: ESTADO[s.estado] || s.estado })]); }
+/* ag fijo para hilos de solicitud (un único agente dueño); si no se pasa, cada burbuja resuelve su autor (hilos de licitación: Ariadna antes de decidir, Guillem después). */
 function burbujas(hilo, ag){ var box = el('div', { class: 'hilo' });
-  hilo.forEach(function(m){ box.appendChild(el('div', { class: 'burbuja ' + (m.autor === 'diego' ? 'diego' : 'agente') }, conRefs(m.texto).concat([el('small', { text: (m.autor === 'diego' ? 'Tú' : (ag ? persona(ag) : m.autor)) + ' · ' + rel(m.ts) })]))); });
+  hilo.forEach(function(m){ var quienAg = m.autor === 'diego' ? null : (ag || agente(m.autor));
+    box.appendChild(el('div', { class: 'burbuja ' + (m.autor === 'diego' ? 'diego' : 'agente') }, conRefs(m.texto).concat([el('small', { text: (m.autor === 'diego' ? 'Tú' : (quienAg ? persona(quienAg) : m.autor)) + ' · ' + rel(m.ts) })]))); });
   return box; }
+function comentarLic(l, ta){ var txt = ta.value.trim(); if (!txt){ ta.focus(); return; }
+  rpc('omc_lic_comentar', { p_token: TOKEN, p_lic_id: l.expediente, p_texto: txt }).then(function(){ ta.value = ''; return cargar(); }).then(function(){ toast('Enviado'); emitir(); }).catch(function(e){ toast('No se pudo enviar: ' + e.message); }); }
 function comentar(s, ta, ag){ var txt = ta.value.trim(); if (!txt){ ta.focus(); return; }
   S.abiertas.add(s.id);
   rpc('omc_comentar', { p_token: TOKEN, p_id: s.id, p_texto: txt }).then(function(){ ta.value = ''; return cargar(); }).then(function(){ toast('Enviado a ' + (ag ? persona(ag) : s.agente)); emitir(); }).catch(function(e){ toast('No se pudo enviar: ' + e.message); }); }
@@ -685,8 +701,8 @@ function hoja(kids, opts){ opts = opts || {};
   b.addEventListener('pointermove', function(e){ if (y0 != null && e.clientY - y0 > 90 && b.scrollTop <= 0){ y0 = null; cerrarHoja(); } });
   b.addEventListener('pointerup', function(){ y0 = null; }); })();
 document.getElementById('hoja').addEventListener('click', function(e){ if (e.target.id === 'hoja') e.target.classList.remove('on'); });
-function cerrarHoja(){ document.getElementById('hoja').classList.remove('on'); S.hojaSolicitud = null; }
-function hojaAgente(a, c, total){ S.hojaSolicitud = null; var ct = a.contrato || {}, mias = S.hq.pendientes.concat(S.hq.seguimiento).filter(function(s){ return s.agente === a.id; });
+function cerrarHoja(){ document.getElementById('hoja').classList.remove('on'); S.hojaSolicitud = null; S.hojaLic = null; }
+function hojaAgente(a, c, total){ S.hojaSolicitud = null; S.hojaLic = null; var ct = a.contrato || {}, mias = S.hq.pendientes.concat(S.hq.seguimiento).filter(function(s){ return s.agente === a.id; });
   var usados = (S.uso.por_agente_modelo || []).filter(function(x){ return x.agente === a.id; });
   var kids = [el('div', { class: 'centro' }, [avatar(a, 'grande'), el('div', { class: 'eyebrow', text: '#' + a._n + ' · ' + a.id }), el('h2', { text: persona(a) }), el('p', { class: 'peq', text: rolDe(a) + ' · ' + a.depto + ' · nivel ' + a.nivel + (a.jefe ? ' · reporta a ' + persona(agente(a.jefe) || { nombre: a.jefe }) : '') })])];
   var tags = el('div', { class: 'tags', style: 'justify-content:center' });
@@ -710,7 +726,7 @@ function hojaAgente(a, c, total){ S.hojaSolicitud = null; var ct = a.contrato ||
   kids.push(acc);
   hoja(kids); }
 function hojaPosponer(s){
-  S.hojaSolicitud = null;
+  S.hojaSolicitud = null; S.hojaLic = null;
   var ahora = new Date(), op = [];
   op.push(['En 1 hora', new Date(ahora.getTime() + 36e5)]);
   var tarde = new Date(ahora); tarde.setHours(17, 0, 0, 0); if (tarde > ahora) op.push(['Esta tarde (17:00)', tarde]);
@@ -726,7 +742,7 @@ function posponer(s, hasta){ rpc('omc_posponer', { p_token: TOKEN, p_id: s.id, p
 /* Hoja de detalle de una solicitud: cabecera + chips, Resumen (bullets completos), Detalle completo (párrafos), Conversación (hilo + composer que no cierra la hoja) y, si sigue activa, la fila fija de decisión.
    refrescando=true se usa cuando cargar() la reconstruye en caliente porque sigue abierta (S.hojaSolicitud): conserva el scroll interno y el borrador del composer. */
 function hojaSolicitud(s, refrescando){
-  S.hojaSolicitud = s.id;
+  S.hojaSolicitud = s.id; S.hojaLic = null;
   var borrador = refrescando ? ((document.querySelector('#hoja-cuerpo .nota textarea') || {}).value || '') : '';
   var ag = agente(s.agente), esDuda = s.tipo === 'duda', kids = [];
   kids.push(el('div', { class: 'cab' }, [el('div', { class: 'avw' }, [avatar(ag, 'peq')]),
@@ -843,17 +859,22 @@ function tarjetaLic(l){
   [['Anuncio', l.enlace, 'tinta'], ['PCAP', l.pcap, ''], ['PPT', l.ppt, ''], ['Drive', l.carpeta, '']].forEach(function(x){ if (/^https?:\/\//.test(x[1])) links.appendChild(el('span', { class: 'dato ' + x[2] }, [el('a', { href: x[1], target: '_blank', rel: 'noopener', text: x[0] + ' ↗' })])); });
   links.appendChild(el('span', { class: 'dato' }, [el('a', { href: '#', text: 'Detalle', onclick: function(ev){ ev.preventDefault(); hojaLic(l); } })]));
   card.appendChild(links);
+  var hiloL = (S.hq.hilos_lic || {})[l.expediente] || [];
+  if (hiloL.length){ var ultL = hiloL[hiloL.length - 1], agL = ultL.autor === 'diego' ? null : agente(ultL.autor), quienL = ultL.autor === 'diego' ? 'Tú' : (agL ? persona(agL) : ultL.autor);
+    var txtHiloL = el('span', { class: 'txt' }, [quienL + ': '].concat(conRefs(ultL.texto)));
+    card.appendChild(el('div', { class: 'hilo-resumen', onclick: function(){ hojaLic(l); } }, [txtHiloL, hiloL.length > 1 ? el('span', { class: 'n', text: '💬 ' + hiloL.length }) : null])); }
   card.appendChild(el('div', { class: 'acciones' }, [el('button', { class: 'btn no', text: 'Rechazar', onclick: function(){ hojaDecision(l, 'No'); } }), el('button', { class: 'btn si', text: 'Aprobar', onclick: function(){ hojaDecision(l, 'OK'); } })]));
   deslizar(card, function(){ hojaDecision(l, 'OK'); }, function(){ hojaDecision(l, 'No'); });
   return card;
 }
 function hojaDecision(l, decision){
-  S.hojaSolicitud = null;
+  S.hojaSolicitud = null; S.hojaLic = null;
   var ok = decision === 'OK', elegidos = {}, chips = el('div', { class: 'tags' });
   (ok ? MOTIVOS_OK : MOTIVOS_NO).forEach(function(m){ var b = el('button', { class: 'chip', text: m, onclick: function(){ elegidos[m] = !elegidos[m]; b.classList.toggle('on', elegidos[m]); } }); chips.appendChild(b); });
   var ta = el('textarea', { placeholder: ok ? 'Por qué sí (opcional, ayuda al motor)' : 'Por qué no (obligatorio si no marcas ningún motivo)', rows: '2' }), mic = el('button', { class: 'mic', text: '🎤', onclick: function(){ dictar(ta, mic); } });
   hoja([el('div', { class: 'eyebrow', text: (ok ? 'Aprobar' : 'Rechazar') + ' · ' + l.expediente }), el('h2', { text: l.organo || l.expediente }), el('p', { class: 'peq', text: (l.resumen_corto || l.objeto || '').slice(0, 200) }),
-    el('h2', { class: 'sec-t', text: ok ? 'Por qué la apruebas' : 'Por qué la rechazas' }), chips, el('div', { class: 'nota' }, [ta, mic]),
+    el('h2', { class: 'sec-t', text: ok ? 'Por qué la apruebas' : 'Por qué la rechazas' }), chips,
+    el('div', { class: 'peq', style: 'margin-top:8px', text: 'Motivo (tus palabras)' }), el('div', { class: 'nota' }, [ta, mic]),
     el('div', { class: 'acciones' }, [el('button', { class: 'btn no', text: 'Cancelar', onclick: cerrarHoja }), el('button', { class: 'btn si', text: ok ? 'Confirmar aprobación' : 'Confirmar rechazo', onclick: function(){
       var motivos = Object.keys(elegidos).filter(function(k){ return elegidos[k]; }), txt = ta.value.trim();
       if (!ok && !motivos.length && !txt){ toast('Marca un motivo o escríbelo: el motor aprende de tus rechazos.'); ta.focus(); return; }
@@ -868,17 +889,31 @@ function decidirLic(l, decision, motivos, txt){
 var PROGRESO_ESTADO = { aprobada: 15, 'en preparación': 45, 'en preparacion': 45, presentada: 100, 'en juego': 100, adjudicada: 100, contratada: 100 };
 function progresoLic(l){ var e = (l.estado || '').toLowerCase(); if (l.progreso != null && l.progreso !== '') return Math.max(0, Math.min(100, Number(l.progreso))); if (PROGRESO_ESTADO[e] != null) return PROGRESO_ESTADO[e]; return l.decision === 'OK' ? 15 : null; }
 function filaLic(l){ var quien = l.decidido_por === 'diego' ? 'Diego' : l.decidido_por === 'sales' ? 'auto' : '', e = (l.estado || '').toLowerCase(), pr = LIC_TERMINAL.indexOf(e) < 0 ? progresoLic(l) : null;
-  var txt = el('div', { class: 'txt' }, [el('div', { class: 't', text: (l.organo || l.expediente) + (l.resumen_corto ? ' · ' + l.resumen_corto : '') }), el('div', { class: 'm', text: [l.importe != null ? eur(l.importe) : '', l.cierre ? 'cierra ' + l.cierre.slice(5).split('-').reverse().join('/') : '', l.expediente, quien ? l.decision + ' · ' + quien : ''].filter(Boolean).join(' · ') })]);
+  var nMsg = ((S.hq.hilos_lic || {})[l.expediente] || []).length;
+  var txt = el('div', { class: 'txt' }, [el('div', { class: 't', text: (l.organo || l.expediente) + (l.resumen_corto ? ' · ' + l.resumen_corto : '') }), el('div', { class: 'm', text: [l.importe != null ? eur(l.importe) : '', l.cierre ? 'cierra ' + l.cierre.slice(5).split('-').reverse().join('/') : '', l.expediente, quien ? l.decision + ' · ' + quien : '', nMsg ? '💬 ' + nMsg : ''].filter(Boolean).join(' · ') })]);
   if (pr != null) txt.appendChild(el('div', { class: 'prog' }, [el('div', { class: 'm' }, [el('i', { style: 'width:' + pr + '%', class: pr >= 100 ? 'ok' : '' })]), el('span', { text: pr + ' %' + (l.progreso_nota ? ' · ' + l.progreso_nota : '') })]));
   return el('div', { class: 'fila', onclick: function(){ hojaLic(l); } }, [el('div', { class: 'tipo-ic', text: '§' }), txt,
     el('span', { class: 'estado ' + (LIC_GANADA.indexOf(e) >= 0 ? 'ejecutada' : LIC_TERMINAL.indexOf(e) >= 0 ? 'rechazada' : 'aprobada'), text: l.estado || l.decision })]); }
-function hojaLic(l){ S.hojaSolicitud = null; var dl = el('dl'); [['Expediente', l.expediente], ['Órgano', l.organo], ['Objeto', l.objeto], ['Resumen', l.resumen], ['Importe', l.importe != null ? eur(l.importe) : ''], ['Cierre', l.cierre], ['Tipo', [l.tipo, l.procedimiento].filter(Boolean).join(' · ')], ['Motor', (l.elegible ? l.elegible + ' · ' : '') + (l.motivo_auto || '')], ['Solvencia', l.solvencia], ['Estado', l.estado], ['Decisión', l.decision + (l.decidido_por ? ' · ' + (l.decidido_por === 'diego' ? 'Diego' : 'auto') : '') + (l.fecha_decision ? ' · ' + l.fecha_decision : '') + (l.sincronizado ? '' : ' · pendiente de volcar al Sheet')], ['Motivos', ((l.motivos || []).join(', ') + (l.motivo_texto ? ' · ' + l.motivo_texto : '')).replace(/^ · /, '')], ['Comentarios', l.comentarios]]
+/* Hoja de detalle de una licitación: cabecera + campos, enlaces, decisión, Conversación (hilo + composer que no cierra la hoja).
+   refrescando=true se usa cuando cargar() la reconstruye en caliente porque sigue abierta (S.hojaLic): conserva el scroll interno y el borrador del composer. */
+function hojaLic(l, refrescando){
+  S.hojaSolicitud = null; S.hojaLic = l.expediente;
+  var borrador = refrescando ? ((document.querySelector('#hoja-cuerpo .nota textarea') || {}).value || '') : '';
+  var dl = el('dl'); [['Expediente', l.expediente], ['Órgano', l.organo], ['Objeto', l.objeto], ['Resumen', l.resumen], ['Importe', l.importe != null ? eur(l.importe) : ''], ['Cierre', l.cierre], ['Tipo', [l.tipo, l.procedimiento].filter(Boolean).join(' · ')], ['Motor', (l.elegible ? l.elegible + ' · ' : '') + (l.motivo_auto || '')], ['Solvencia', l.solvencia], ['Estado', l.estado], ['Decisión', l.decision + (l.decidido_por ? ' · ' + (l.decidido_por === 'diego' ? 'Diego' : 'auto') : '') + (l.fecha_decision ? ' · ' + l.fecha_decision : '') + (l.sincronizado ? '' : ' · pendiente de volcar al Sheet')], ['Motivos', ((l.motivos || []).join(', ') + (l.motivo_texto ? ' · ' + l.motivo_texto : '')).replace(/^ · /, '')], ['Comentarios', l.comentarios]]
     .forEach(function(p){ if (p[1]) { dl.appendChild(el('dt', { text: p[0] })); dl.appendChild(el('dd', { text: p[1] })); } });
   var kids = [el('div', { class: 'eyebrow', text: 'licitación' }), el('h2', { text: l.organo || l.expediente }), dl];
   var links = el('div', { class: 'tags' }); [['Anuncio', l.enlace], ['PCAP', l.pcap], ['PPT', l.ppt], ['Drive', l.carpeta]].forEach(function(x){ if (/^https?:\/\//.test(x[1])) links.appendChild(el('span', { class: 'dato tinta' }, [el('a', { href: x[1], target: '_blank', rel: 'noopener', text: x[0] + ' ↗' })])); }); kids.push(links);
   if (l.decidido_por === 'diego' && LIC_TERMINAL.indexOf((l.estado || '').toLowerCase()) < 0 || (l.estado || '').toLowerCase() === 'descartada' && l.decidido_por === 'diego')
     kids.push(el('div', { class: 'acciones' }, [el('button', { class: 'btn no', text: 'Devolver a pendiente', onclick: function(){ cerrarHoja(); rpc('omc_licitacion_decidir', { p_token: TOKEN, p_expediente: l.expediente, p_decision: 'Pendiente', p_motivos: [], p_texto: '' }).then(cargar).catch(function(e){ toast(e.message); }); } })]));
-  hoja(kids); }
+  kids.push(el('h2', { class: 'sec-t', text: 'Conversación' }));
+  var hiloL = (S.hq.hilos_lic || {})[l.expediente] || [];
+  kids.push(hiloL.length ? burbujas(hiloL) : el('p', { class: 'peq', text: 'Sin mensajes todavía.' }));
+  var ta = el('textarea', { placeholder: 'Mensaje sobre esta licitación (para Ariadna o Guillem, según quién la lleve)', rows: '2', class: 'crece', oninput: function(){ this.style.height = 'auto'; this.style.height = Math.min(this.scrollHeight, 240) + 'px'; } });
+  if (borrador) ta.value = borrador;
+  var mic = el('button', { class: 'mic', 'aria-label': 'Dictar', text: '🎤', onclick: function(){ dictar(ta, mic); } });
+  var env = el('button', { class: 'enviar', 'aria-label': 'Enviar comentario', text: '➤', onclick: function(){ comentarLic(l, ta); } });
+  kids.push(el('div', { class: 'nota' }, [ta, mic, env]));
+  hoja(kids, { mantener: !!refrescando }); }
 
 /* ---- negocio ---- */
 var LINEA = { cupones: 'Cupones ACCIÓ', licitaciones: 'Licitaciones', consultoria: 'Consultoría', producto: 'Producto', formacion: 'Formación', otro: 'Otros' };
@@ -919,7 +954,7 @@ function renderNegocio(){
 function filaIngreso(i){ return el('div', { class: 'fila', onclick: function(){ hojaIngreso(i); } }, [
   el('div', { class: 'txt' }, [el('div', { class: 't', text: i.cliente + (i.concepto ? ' · ' + i.concepto : '') }), el('div', { class: 'm', text: (LINEA[i.linea] || i.linea) + ' · ' + eur(i.importe) + (i.periodicidad !== 'unico' ? ' / ' + (i.periodicidad === 'mensual' ? 'mes' : 'año') : '') + (i.fecha ? ' · ' + i.fecha : '') })]),
   el('span', { class: 'estado ' + (i.estado === 'cobrado' ? 'ejecutada' : i.estado === 'perdido' ? 'rechazada' : i.estado === 'propuesto' ? '' : 'aprobada'), text: EST_ING[i.estado] || i.estado })]); }
-function hojaIngreso(i){ S.hojaSolicitud = null; var dl = el('dl'); [['Cliente', i.cliente], ['Línea', LINEA[i.linea] || i.linea], ['Concepto', i.concepto], ['Importe', eur(i.importe) + (i.periodicidad !== 'unico' ? ' ' + i.periodicidad : '')], ['Estado', EST_ING[i.estado] || i.estado], ['Fecha', i.fecha], ['Notas', i.notas], ['Lo lleva', i.agente], ['Actualizado', i.updated_at ? new Date(i.updated_at).toLocaleString('es-ES') : '']]
+function hojaIngreso(i){ S.hojaSolicitud = null; S.hojaLic = null; var dl = el('dl'); [['Cliente', i.cliente], ['Línea', LINEA[i.linea] || i.linea], ['Concepto', i.concepto], ['Importe', eur(i.importe) + (i.periodicidad !== 'unico' ? ' ' + i.periodicidad : '')], ['Estado', EST_ING[i.estado] || i.estado], ['Fecha', i.fecha], ['Notas', i.notas], ['Lo lleva', i.agente], ['Actualizado', i.updated_at ? new Date(i.updated_at).toLocaleString('es-ES') : '']]
     .forEach(function(p){ if (p[1]) { dl.appendChild(el('dt', { text: p[0] })); dl.appendChild(el('dd', { text: p[1] })); } });
   var acc = el('div', { class: 'acciones' }), sig = { propuesto: 'concedido', concedido: 'contratado', contratado: 'facturado', facturado: 'cobrado' }[i.estado];
   if (sig) acc.appendChild(el('button', { class: 'btn si', text: 'Marcar ' + EST_ING[sig].toLowerCase(), onclick: function(){ cerrarHoja(); rpc('omc_ingreso_set', { p_token: TOKEN, p: { id: i.id, estado: sig } }).then(cargar).then(function(){ toast(i.cliente + ' · ' + EST_ING[sig]); }).catch(function(e){ toast(e.message); }); } }));
@@ -987,7 +1022,22 @@ function abrirSolicitud(id){
     else { var s = (S.hq.seguimiento || []).concat(S.hq.pospuestas || [], S.hq.historial || []).filter(function(x){ return x.id === id; })[0]; if (s) hojaSolicitud(s); }
   });
 }
-if ('serviceWorker' in navigator) navigator.serviceWorker.addEventListener('message', function(ev){ if (ev.data && ev.data.tipo === 'abrir' && ev.data.id) abrirSolicitud(ev.data.id); });
+/* Mismo patrón que abrirSolicitud() pero para una licitación (deep link desde notificación push del hilo). */
+function abrirLicitacion(expediente){
+  if (!expediente) return;
+  S.tab = 'licita'; S._resetScroll = true;
+  if (!S.hq){ try { sessionStorage.setItem('hq_pendiente_lic', expediente); } catch (e) {} return; }
+  cargar().then(function(){
+    try { sessionStorage.removeItem('hq_pendiente_lic'); } catch (e) {}
+    render();
+    var l = buscarLic(expediente);
+    if (l) hojaLic(l);
+  });
+}
+if ('serviceWorker' in navigator) navigator.serviceWorker.addEventListener('message', function(ev){
+  if (ev.data && ev.data.tipo === 'abrir' && ev.data.id) abrirSolicitud(ev.data.id);
+  else if (ev.data && ev.data.tipo === 'abrir-lic' && ev.data.lic) abrirLicitacion(ev.data.lic);
+});
 document.addEventListener('visibilitychange', function(){ if (!document.hidden) cargar(); });
 setInterval(function(){ if (!document.hidden) cargar(); }, 90000);
 document.getElementById('tabs').addEventListener('click', function(e){ var b = e.target.closest('button'); if (!b) return; S.tab = b.dataset.t; S._resetScroll = true; render(); });

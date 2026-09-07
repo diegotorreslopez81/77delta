@@ -107,8 +107,33 @@ def salida(obj, js):
         print(linea(obj))
 
 
+def avisar_lic(expediente, texto):
+    """Broadcast en tiempo real a la app y push al móvil cuando un agente comenta en el hilo de una licitación. Nunca bloquea al agente."""
+    empresa = None
+    try:
+        empresa = rpc('omc_token_info', p_token=E['HQ_TOKEN']).get('empresa')
+        req = urllib.request.Request(E['HQ_URL'].rstrip('/') + '/realtime/v1/api/broadcast', method='POST',
+                                     data=json.dumps({'messages': [{'topic': 'omc:' + empresa, 'event': 'cambio', 'payload': {'lic': expediente}}]}).encode(),
+                                     headers={'apikey': E['HQ_ANON'], 'Authorization': 'Bearer ' + E['HQ_ANON'], 'Content-Type': 'application/json'})
+        urllib.request.urlopen(req, timeout=10).read()
+    except Exception:
+        pass
+    if E.get('HQ_NOTIFY_URL'):
+        try:
+            req = urllib.request.Request(E['HQ_NOTIFY_URL'].rstrip('/') + '/hq/notificar-lic', method='POST',
+                                         data=json.dumps({'token': E['HQ_TOKEN'], 'expediente': expediente, 'texto': texto}).encode(),
+                                         headers={'Content-Type': 'application/json'})
+            urllib.request.urlopen(req, timeout=15).read()
+        except Exception:
+            pass
+
+
 def comentarios_diego(s):
     return [m for m in (s.get('hilo') or []) if m['autor'] == 'diego']
+
+
+def comentarios_diego_lic(l):
+    return [m for m in (l.get('hilo') or []) if m['autor'] == 'diego']
 
 
 def esperar(sid, timeout, intervalo, js, vistos=None):
@@ -131,6 +156,25 @@ def esperar(sid, timeout, intervalo, js, vistos=None):
             return 4
         time.sleep(intervalo)
         s = rpc('omc_estado', p_token=E['HQ_TOKEN'], p_id=sid)
+
+
+def esperar_lic(lic_id, timeout, intervalo, js, vistos=None):
+    """Bloquea hasta que Diego comenta en el hilo de una licitación (5: responde con 'lic-comentar' y vuelve a esperar) o pasa el timeout (4)."""
+    fin = time.time() + timeout
+    l = rpc('omc_lic_hilo', p_token=E['HQ_TOKEN'], p_lic_id=lic_id)
+    vistos = len(comentarios_diego_lic(l)) if vistos is None else vistos
+    while True:
+        nuevos = comentarios_diego_lic(l)[vistos:]
+        if nuevos:
+            for m in nuevos:
+                print(f"{lic_id} Diego comenta ({m['ts'][:16].replace('T', ' ')}): {m['texto']}")
+            print(f"Responde con: hq lic-comentar {lic_id} --texto \"...\" y vuelve a esperar con: hq lic-esperar {lic_id} --vistos {len(comentarios_diego_lic(l))}")
+            return 5
+        if time.time() > fin:
+            print(f"{lic_id} sin comentarios nuevos tras {timeout}s", file=sys.stderr)
+            return 4
+        time.sleep(intervalo)
+        l = rpc('omc_lic_hilo', p_token=E['HQ_TOKEN'], p_lic_id=lic_id)
 
 
 def main():
@@ -169,6 +213,9 @@ def main():
     p = sub.add_parser('ingresos', help='listar el libro de ingresos')
     p = sub.add_parser('kpi', help='fijar un KPI de negocio'); p.add_argument('--clave', required=True); p.add_argument('--valor', type=float); p.add_argument('--texto', default=''); p.add_argument('--fuente')
     p = sub.add_parser('licitaciones', help='licitaciones con la decisión y los motivos de Diego (para Sales)'); p.add_argument('--todas', action='store_true'); p.add_argument('--decididas', action='store_true')
+    p = sub.add_parser('lic-hilo', help='ver el hilo de conversación de una licitación'); p.add_argument('id', help='expediente')
+    p = sub.add_parser('lic-comentar', help='comentar en el hilo de una licitación sin resolverla'); p.add_argument('id', help='expediente'); p.add_argument('--texto', required=True); p.add_argument('--agente')
+    p = sub.add_parser('lic-esperar', help='esperar a que Diego comente en el hilo de una licitación'); p.add_argument('id', help='expediente'); p.add_argument('--timeout', type=int, default=21600); p.add_argument('--intervalo', type=int, default=30); p.add_argument('--vistos', type=int, help='comentarios de Diego ya leídos')
     p = sub.add_parser('parte', help='parte de jornada del agente (Engram, proyecto 77delta): lo leen los demás al arrancar'); p.add_argument('texto', nargs='?'); p.add_argument('--agente')
     p = sub.add_parser('partes', help='partes de las últimas 48 h de todos los agentes'); p.add_argument('--horas', type=int, default=48)
     p = sub.add_parser('escaladas', help='(chief) tarjetas respondidas por Diego con orden de escalar que nadie ha cerrado')
@@ -237,6 +284,19 @@ def main():
                 quien = {'diego': 'DIEGO', 'sales': 'sales/auto'}.get(l['decidido_por'], '')
                 mot = (', '.join(l.get('motivos') or []) + (' · ' + l['motivo_texto'] if l.get('motivo_texto') else '')).strip(' ·')
                 print(f"{l['expediente']} · {l['organo'][:40]} · {l['importe'] or '?'} € · cierre {l['cierre'] or '?'} · {l['estado'] or '-'} · {l['decision']}{' (' + quien + ')' if quien else ''}{' · ' + mot if mot else ''}")
+    elif a.cmd == 'lic-hilo':
+        l = rpc('omc_lic_hilo', p_token=E['HQ_TOKEN'], p_lic_id=a.id)
+        if a.json:
+            print(json.dumps(l.get('hilo') or [], ensure_ascii=False))
+        else:
+            print(f"{l['expediente']} · {l.get('organo', '')} · {l.get('importe') or '?'} € · {l.get('decision')}")
+            for m in (l.get('hilo') or []): print(f"  [{m['ts'][:16].replace('T', ' ')}] {m['autor']}: {m['texto']}")
+    elif a.cmd == 'lic-comentar':
+        m = rpc('omc_lic_comentar', p_token=E['HQ_TOKEN'], p_lic_id=a.id, p_texto=a.texto, p_agente=agente_actual(a.agente))
+        avisar_lic(a.id, a.texto)
+        print(json.dumps(m, ensure_ascii=False) if a.json else f"{a.id} comentario enviado a Diego ({m['autor']})")
+    elif a.cmd == 'lic-esperar':
+        sys.exit(esperar_lic(a.id, a.timeout, a.intervalo, a.json, a.vistos))
     elif a.cmd == 'parte':
         import subprocess, datetime
         texto = a.texto or sys.stdin.read().strip()

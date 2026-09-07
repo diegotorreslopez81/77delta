@@ -79,6 +79,11 @@ def main():
         if ev['tipo'] == 'comentario':
             msg = (f"[HQ] Diego ha comentado en tu solicitud #{ev['id']} ({ev['titulo']}): «{texto}». Contesta AHORA por el hilo, corto y ejecutivo: "
                    f"python3 {HQ} comentar {ev['id']} --texto \"...\" ; si te pide hacer algo reversible, hazlo y cuéntalo en el mismo comentario; si cambia el plan, retira la petición y abre otra.")
+        elif ev['tipo'] == 'comentario_lic':
+            imp = f"{ev['importe']} €" if ev.get('importe') is not None else '?'
+            msg = (f"[HQ] Diego ha comentado en la licitación {ev['titulo']} ({ev.get('organo') or '?'}, {imp}): «{texto}». "
+                   f"Contesta por el hilo con python3 {HQ} lic-comentar {ev['titulo']} --texto \"...\" y, si su comentario cambia el criterio, "
+                   f"anótalo en reglas.md como regla aprendida y dilo en el hilo.")
         else:
             verbo = {'aprobada': 'APROBADO', 'rechazada': 'RECHAZADO', 'respondida': 'RESPONDIDO'}.get(ev['estado'], ev['estado'])
             msg = (f"[HQ] Diego ha {verbo} tu solicitud #{ev['id']} ({ev['titulo']})" + (f": «{texto}»" if texto else '') +

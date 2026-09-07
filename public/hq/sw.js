@@ -17,7 +17,7 @@ self.addEventListener('fetch', function (e) {
 self.addEventListener('push', function (e) {
   var d = {}; try { d = e.data ? e.data.json() : {}; } catch (err) { d = { body: e.data && e.data.text() }; }
   e.waitUntil(self.registration.showNotification(d.title || 'HQ', {
-    body: d.body || '', icon: '/hq/icon-192.png', badge: '/hq/icon-192.png', tag: d.tag || 'hq', renotify: true, data: { url: d.url || '/hq/', id: d.id || null }
+    body: d.body || '', icon: '/hq/icon-192.png', badge: '/hq/icon-192.png', tag: d.tag || 'hq', renotify: true, data: { url: d.url || '/hq/', id: d.id || null, lic: d.lic || null }
   }));
 });
 self.addEventListener('notificationclick', function (e) {
@@ -28,8 +28,9 @@ self.addEventListener('notificationclick', function (e) {
     for (var i = 0; i < ws.length; i++) {
       if (ws[i].url.indexOf('/hq/') >= 0) {
         abierta = true;
-        // postMessage: si la app ya está abierta y procesa el mensaje, abre la tarjeta sin recargar.
+        // postMessage: si la app ya está abierta y procesa el mensaje, abre la tarjeta (o la licitación) sin recargar.
         if (d.id) { try { ws[i].postMessage({ tipo: 'abrir', id: d.id }); } catch (err) {} }
+        if (d.lic) { try { ws[i].postMessage({ tipo: 'abrir-lic', lic: d.lic }); } catch (err) {} }
         // navigate: en la app instalada de iOS el postMessage a veces no llega a tiempo (la vista está en segundo plano);
         // forzar la navegación a la URL con ?id= asegura que arranque en la tarjeta aunque el mensaje se pierda.
         if (ws[i].navigate) { try { ws[i].navigate(url); } catch (err) {} }
