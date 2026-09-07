@@ -293,7 +293,7 @@ h2.sec-t small{color:var(--oro-oscuro)}
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
 <script>
-var HQ_VERSION = { v: '0.9.12', fecha: '2026-09-07 15:20' }; // la actualiza scripts/hq/version.sh en cada publicación
+var HQ_VERSION = { v: '0.9.13', fecha: '2026-09-07 20:10' }; // la actualiza scripts/hq/version.sh en cada publicación
 
 (function(){
 'use strict';
@@ -640,14 +640,15 @@ function cargaAgente(a){
 }
 function cuellos(){ var out = []; ordenados().lista.filter(function(a){ return a.activo && a.nivel === 3 && a.depto !== 'Personal'; }).forEach(function(a){ var c = cargaAgente(a); if (c.pts >= 80) out.push({ a: a, c: c, libres: S.hq.agentes.filter(function(b){ return b.activo && b.id !== a.id && b.depto === a.depto && b.nivel === 3 && cargaAgente(b).pts < 30; }) }); }); return out; }
 /* Capacidad de la cuenta Max: carga = % de la semana consumido y su proyección a ritmo actual; aprovechamiento = media del máximo alcanzado en cada ventana de 5 h ya cerrada. */
-function capacidad(){
-  var p = (S.uso.plan || []).filter(function(x){ return x.cuenta === 'principal'; })[0]; if (!p) return null;
+function capacidad(cuenta){
+  cuenta = cuenta || 'principal';
+  var p = (S.uso.plan || []).filter(function(x){ return x.cuenta === cuenta; })[0]; if (!p) return null;
   var ahora = Date.now(), fin = p.semana_reset ? new Date(p.semana_reset).getTime() : null, inicio = fin ? fin - 7 * 864e5 : null;
   var frac = inicio ? Math.max(0.02, Math.min(1, (ahora - inicio) / (7 * 864e5))) : null, sem = Number(p.semana) || 0;
   var proy = frac ? sem / frac : null, agota = (proy && proy > 100 && inicio) ? new Date(inicio + (100 / sem) * frac * 7 * 864e5) : null;
-  var ventanas = {}; (S.uso.plan_serie || []).forEach(function(x){ if (x.cuenta !== 'principal') return; var k = x.cinco_h_reset || x.ts.slice(0, 13); ventanas[k] = Math.max(ventanas[k] || 0, Number(x.cinco_h) || 0); });
+  var ventanas = {}; (S.uso.plan_serie || []).forEach(function(x){ if (x.cuenta !== cuenta) return; var k = x.cinco_h_reset || x.ts.slice(0, 13); ventanas[k] = Math.max(ventanas[k] || 0, Number(x.cinco_h) || 0); });
   var cerradas = Object.keys(ventanas).filter(function(k){ return new Date(k).getTime() < ahora; }), aprov = cerradas.length ? cerradas.reduce(function(s, k){ return s + ventanas[k]; }, 0) / cerradas.length : null;
-  var semanas = {}; (S.uso.plan_serie || []).forEach(function(x){ if (x.cuenta === 'principal' && x.semana_reset) semanas[x.semana_reset] = Math.max(semanas[x.semana_reset] || 0, Number(x.semana) || 0); });
+  var semanas = {}; (S.uso.plan_serie || []).forEach(function(x){ if (x.cuenta === cuenta && x.semana_reset) semanas[x.semana_reset] = Math.max(semanas[x.semana_reset] || 0, Number(x.semana) || 0); });
   var activos = (S.uso.por_agente || []).filter(function(x){ return x.agente && x.coste > 0; }).length || 1, porAgente = proy ? proy / activos : null;
   var caben = porAgente ? Math.max(0, Math.floor((100 - Math.min(100, proy)) / porAgente)) : null;
   var frase;
@@ -661,15 +662,31 @@ function capacidad(){
   return { sem: sem, proy: proy, agota: agota, aprov: aprov, cinco: Number(p.cinco_h) || 0, cincoReset: p.cinco_h_reset, semReset: p.semana_reset, ts: p.ts, frase: frase, activos: activos, caben: caben, semanas: semanas, tipo: p.tipo };
 }
 function renderCapacidad(){
-  var c = capacidad(); if (!c) return;
+  // Una caja por cuenta con plan: la de Diego (conectores de Gmail, Drive y Notion) y la del equipo.
+  var cuentas = {}; (S.uso.plan || []).forEach(function(x){ cuentas[x.cuenta] = true; });
+  var lista = Object.keys(cuentas).sort(); if (!lista.length) lista = ['principal'];
+  lista.forEach(function(cta){ cajaCapacidad(cta, lista.length > 1); });
+}
+var NOMBRE_CUENTA = { principal: 'cuenta de Diego', team: 'cuenta del equipo · team@77delta.com' };
+function agentesDeCuenta(cta){
+  // El contrato guarda la cuenta como texto libre ("Max · team@77delta.com…"): basta con reconocer el buzón del equipo.
+  return ((S.hq && S.hq.agentes) || []).filter(function(a){
+    var t = ((a.contrato || {}).cuenta || '').toLowerCase(), esTeam = t.indexOf('team@') >= 0;
+    return a.activo && (cta === 'team' ? esTeam : !esTeam);
+  });
+}
+function cajaCapacidad(cta, varias){
+  var c = capacidad(cta); if (!c) return;
   var carga = Math.min(100, Math.round(c.proy || c.sem)), cls = carga >= 95 ? 'rojo' : carga >= 70 ? 'oro' : 'verde';
   var caja = el('div', { class: 'kpi cap' });
-  caja.appendChild(el('div', { class: 'eyebrow', text: 'Carga de la cuenta Max' + (c.tipo ? ' · ' + c.tipo.replace('default_claude_', '').replace('_', ' ') : '') + ' · muestra ' + rel(c.ts) }));
+  caja.appendChild(el('div', { class: 'eyebrow', text: (varias ? (NOMBRE_CUENTA[cta] || cta) : 'Carga de la cuenta Max') + (c.tipo ? ' · ' + c.tipo.replace('default_claude_', '').replace('_', ' ') : '') + ' · muestra ' + rel(c.ts) }));
   caja.appendChild(el('div', { class: 'cifra' }, [carga + ' %', el('small', { text: 'a ritmo actual, al cierre de la semana' })]));
   var m = el('div', { class: 'medidor' }); m.appendChild(el('i', { class: cls, style: 'width:' + carga + '%' })); caja.appendChild(m);
   caja.appendChild(el('div', { class: 'sub' }, [el('span', { text: 'consumido ' + Math.round(c.sem) + ' %' + (c.semReset ? ' · reinicia ' + rel(c.semReset) : '') }), el('span', { text: 'ventana 5 h ' + Math.round(c.cinco) + ' %' + (c.cincoReset ? ' · reinicia ' + rel(c.cincoReset) : '') }), c.aprov != null ? el('span', { text: 'aprovechamiento de ventanas ' + Math.round(c.aprov) + ' %' }) : null, el('span', { text: c.activos + ' agentes consumiendo' })]));
   caja.appendChild(el('p', { class: 'frase', text: c.frase }));
-  var cb = cuellos(); if (cb.length) caja.appendChild(el('p', { class: 'frase', style: 'color:#E08678', text: 'Cuello de botella: ' + cb.map(function(x){ return persona(x.a) + ' ' + x.c.pts + ' % (' + x.c.det.join(', ') + ')' + (x.libres.length ? ' · libres en ' + x.a.depto + ': ' + x.libres.map(persona).join(', ') : ' · nadie libre en ' + x.a.depto + ': fichar o repartir') ; }).join(' · ') }));
+  var ags = agentesDeCuenta(cta);
+  if (varias) caja.appendChild(el('div', { class: 'sub' }, [el('span', { title: ags.map(function(a){ return a.nombre || a.id; }).join(', '), text: ags.length + ' agentes aquí: ' + ags.slice(0, 6).map(function(a){ return (a.nombre || a.id).split(' ')[0]; }).join(', ') + (ags.length > 6 ? ' y ' + (ags.length - 6) + ' más' : '') })]));
+  var cb = cta === 'principal' ? cuellos() : []; if (cb.length) caja.appendChild(el('p', { class: 'frase', style: 'color:#E08678', text: 'Cuello de botella: ' + cb.map(function(x){ return persona(x.a) + ' ' + x.c.pts + ' % (' + x.c.det.join(', ') + ')' + (x.libres.length ? ' · libres en ' + x.a.depto + ': ' + x.libres.map(persona).join(', ') : ' · nadie libre en ' + x.a.depto + ': fichar o repartir') ; }).join(' · ') }));
   var sem = Object.keys(c.semanas).sort(); if (sem.length > 1) caja.appendChild(el('div', { class: 'sub' }, [el('span', { text: 'semanas anteriores: ' + sem.slice(0, -1).slice(-4).map(function(k){ return Math.round(c.semanas[k]) + ' %'; }).join(' · ') + ' (segunda cuenta cuando dos seguidas pasen del 80 %)' })]));
   app.appendChild(caja);
 }
