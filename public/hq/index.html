@@ -48,6 +48,7 @@ a{color:inherit}
 .mono{font-family:var(--mono)}
 .eyebrow{font-family:var(--mono);font-size:11px;letter-spacing:.14em;text-transform:uppercase;color:var(--oro-oscuro)}
 .peq{font-size:13px;color:var(--pizarra-tenue)}
+textarea.crece{min-height:64px;max-height:240px;resize:none;line-height:1.35;font-size:16px}
 .ver{font-family:var(--mono);font-size:10px;color:var(--pizarra-tenue);margin-left:8px;letter-spacing:.02em;white-space:nowrap}
 
 /* Cabecera */
@@ -290,7 +291,7 @@ h2.sec-t small{color:var(--oro-oscuro)}
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
 <script>
-var HQ_VERSION = { v: '0.9.7', fecha: '2026-09-07 07:55' }; // la actualiza scripts/hq/version.sh en cada publicación
+var HQ_VERSION = { v: '0.9.8', fecha: '2026-09-07 09:05' }; // la actualiza scripts/hq/version.sh en cada publicación
 
 (function(){
 'use strict';
@@ -456,7 +457,7 @@ function tarjeta(s){
   if (hilo.length){ var ult = hilo[hilo.length - 1], quien = ult.autor === 'diego' ? 'Tú' : (ag ? persona(ag) : ult.autor);
     card.appendChild(el('div', { class: 'hilo-resumen', onclick: abrirHoja }, [el('span', { class: 'txt', text: quien + ': ' + ult.texto }), hilo.length > 1 ? el('span', { class: 'n', text: '💬 ' + hilo.length }) : null])); }
   var abiertaNota = S.abiertas.has(s.id);
-  var ta = el('textarea', { placeholder: esDuda ? 'Tu respuesta o una pregunta' : (hilo.length ? 'Sigue la conversación' : 'Nota o pregunta para ' + (ag ? persona(ag) : 'el agente')), rows: '1' });
+  var ta = el('textarea', { placeholder: esDuda ? 'Tu respuesta o una pregunta' : (hilo.length ? 'Sigue la conversación' : 'Nota o pregunta para ' + (ag ? persona(ag) : 'el agente')), rows: '2', class: 'crece', oninput: function(){ this.style.height = 'auto'; this.style.height = Math.min(this.scrollHeight, 240) + 'px'; } });
   var mic = el('button', { class: 'mic', 'aria-label': 'Dictar', text: '🎤', onclick: function(){ dictar(ta, mic); } });
   var env = el('button', { class: 'enviar', 'aria-label': 'Enviar comentario', title: 'Enviar sin resolver', text: '➤', onclick: function(){ comentar(s, ta, ag); } });
   var nota = el('div', { class: 'nota', style: (esDuda || abiertaNota) ? '' : 'display:none' }, [ta, mic, env]);
@@ -731,7 +732,7 @@ function hojaSolicitud(s, refrescando){
   kids.push(el('h2', { class: 'sec-t', text: 'Conversación' }));
   var hilo = (S.hq.hilos || {})[s.id] || [];
   kids.push(hilo.length ? burbujas(hilo, ag) : el('p', { class: 'peq', text: 'Sin mensajes todavía.' }));
-  var ta = el('textarea', { placeholder: esDuda ? 'Tu respuesta o una pregunta' : 'Mensaje para ' + (ag ? persona(ag) : s.agente), rows: '1' });
+  var ta = el('textarea', { placeholder: esDuda ? 'Tu respuesta o una pregunta' : 'Mensaje para ' + (ag ? persona(ag) : s.agente), rows: '2', class: 'crece', oninput: function(){ this.style.height = 'auto'; this.style.height = Math.min(this.scrollHeight, 240) + 'px'; } });
   if (borrador) ta.value = borrador;
   var mic = el('button', { class: 'mic', 'aria-label': 'Dictar', text: '🎤', onclick: function(){ dictar(ta, mic); } });
   var env = el('button', { class: 'enviar', 'aria-label': 'Enviar comentario', text: '➤', onclick: function(){ comentar(s, ta, ag); } });
