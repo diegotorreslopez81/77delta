@@ -246,6 +246,56 @@ h2.sec-t small{color:var(--oro-oscuro)}
 .grid3 .mini .v small{font-size:11px;margin-top:2px;white-space:nowrap}
 .grid3 .mini .l{font-size:11px;font-family:inherit;line-height:1.2;margin-top:3px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .embudo{font-size:12px;color:var(--pizarra-tenue);margin:0 0 10px;line-height:1.4}
+
+/* Pestaña Plan */
+.obj-cab{background:var(--tinta);color:var(--marfil);border-radius:14px;padding:16px;margin-bottom:14px}
+.obj-cab .eyebrow{color:var(--oro-luz)}
+.obj-num{display:flex;align-items:baseline;gap:8px;flex-wrap:wrap;margin-top:8px}
+.obj-num .actual{font-family:var(--display);font-size:34px;font-weight:700;letter-spacing:-.02em;line-height:1;color:#fff}
+.obj-num .meta{font-family:var(--mono);font-size:13px;color:var(--pizarra-clara)}
+.obj-pct{font-family:var(--mono);font-size:12px;color:var(--oro-luz);margin-top:2px}
+.obj-cab .barra{height:7px;border-radius:5px;background:rgba(255,255,255,.12);overflow:hidden;margin-top:10px}
+.obj-cab .barra i{display:block;height:100%;border-radius:5px;background:linear-gradient(90deg,var(--oro),var(--oro-luz))}
+.bloqueados{background:var(--error-suave);border:1px solid var(--error);border-radius:14px;padding:4px 14px 8px;margin-bottom:16px}
+.bloqueados .sec-t{color:var(--error);margin-top:10px}
+.bloqueados .sec-t small{color:var(--error)}
+.lineaP{background:var(--panel);border:1px solid var(--linea);border-radius:14px;margin-bottom:10px;padding:14px 15px}
+.lineaP .cab{display:flex;justify-content:space-between;align-items:flex-start;gap:10px}
+.lineaP .nombre{font-family:var(--display);font-weight:600;font-size:15px;line-height:1.3}
+.lineaP .kpi{font-size:12.5px;color:var(--pizarra);margin:3px 0 0}
+.semaforo{width:10px;height:10px;border-radius:50%;flex:0 0 auto;margin-top:5px}
+.semaforo.verde{background:var(--exito)} .semaforo.amarillo{background:var(--oro-luz)} .semaforo.rojo{background:var(--error)} .semaforo.gris{background:var(--pizarra-tenue)}
+.lineaP .cifras{display:flex;align-items:baseline;gap:6px;margin-top:12px}
+.lineaP .cifras .v{font-family:var(--mono);font-size:18px;font-weight:500}
+.lineaP .cifras .m{font-family:var(--mono);font-size:12px;color:var(--pizarra-tenue)}
+.lineaP .cifras .p{margin-left:auto;font-family:var(--mono);font-size:12px;font-weight:500}
+.lineaP .cifras .p.verde{color:var(--exito)} .lineaP .cifras .p.amarillo{color:var(--oro-oscuro)} .lineaP .cifras .p.rojo{color:var(--error)} .lineaP .cifras .p.gris{color:var(--pizarra-tenue)}
+.lineaP .barra{height:5px;border-radius:5px;background:var(--panel-2);overflow:hidden;margin-top:6px}
+.lineaP .barra i{display:block;height:100%;border-radius:5px;background:linear-gradient(90deg,var(--oro-oscuro),var(--oro-luz))}
+.lineaP .pie{display:flex;justify-content:space-between;gap:10px;margin-top:11px;padding-top:11px;border-top:1px solid var(--linea);font-size:12px}
+.lineaP .resp{color:var(--tinta-2);font-weight:500}
+.lineaP .hito{color:var(--pizarra);text-align:right;flex:1}
+.lineaP .fuente{display:inline-block;font-family:var(--mono);font-size:9.5px;letter-spacing:.06em;text-transform:uppercase;color:var(--pizarra-tenue);background:var(--panel-2);border-radius:5px;padding:2px 6px;margin-top:8px}
+.encargo{display:flex;align-items:flex-start;gap:9px;padding:9px 0;border-bottom:1px solid var(--linea)}
+.encargo:last-child{border-bottom:none}
+.encargo .cuerpo{flex:1;min-width:0}
+.encargo .txt{font-size:12.5px;line-height:1.35}
+.encargo .meta{display:flex;gap:6px;margin-top:5px;flex-wrap:wrap;align-items:center}
+.chip-e{font-family:var(--mono);font-size:9px;padding:2px 7px;border-radius:20px;text-transform:uppercase;letter-spacing:.03em;white-space:nowrap}
+.chip-e.encolado{background:var(--panel-2);color:var(--pizarra)}
+.chip-e.en_curso{background:var(--exito-suave);color:var(--exito)}
+.chip-e.bloqueado_diego{background:var(--oro-suave);color:var(--oro-oscuro);font-weight:600}
+.chip-e.hecho{background:var(--panel-2);color:var(--pizarra-tenue)}
+.chip-e.descartado{background:var(--panel-2);color:var(--pizarra-tenue);text-decoration:line-through}
+.chip-e.antiguo{background:var(--error-suave);color:var(--error)}
+.encargo .resp2{font-size:10px;color:var(--pizarra-tenue);font-family:var(--mono)}
+.encargos-t{font-family:var(--mono);font-size:10.5px;letter-spacing:.05em;text-transform:uppercase;color:var(--pizarra);margin:10px 0 2px;padding-top:10px;border-top:1px dashed var(--linea-fuerte)}
+.decisionP{margin:0;position:relative;padding:0 0 16px 20px;border-left:2px solid var(--linea)}
+.decisionP:last-child{border-color:transparent;padding-bottom:0}
+.decisionP::before{content:'';position:absolute;left:-5px;top:2px;width:8px;height:8px;border-radius:50%;background:var(--oro)}
+.decisionP .fecha{font-family:var(--mono);font-size:10.5px;color:var(--pizarra-tenue);letter-spacing:.04em}
+.decisionP .texto{font-size:13.5px;margin:3px 0 2px;line-height:1.4}
+.decisionP .quien{font-family:var(--mono);font-size:10.5px;color:var(--oro-oscuro)}
 .barra{margin-bottom:9px}
 .barra .l{display:flex;justify-content:space-between;font-size:13px;margin-bottom:4px;gap:8px}
 .barra .l b{font-weight:500;overflow:hidden;text-overflow:ellipsis;white-space:nowrap} .barra .l span{font-family:var(--mono);color:var(--pizarra);white-space:nowrap}
@@ -295,6 +345,7 @@ h2.sec-t small{color:var(--oro-oscuro)}
   <button data-t="bandeja" class="on">Bandeja<small id="n-bandeja"></small></button>
   <button data-t="negocio">Negocio</button>
   <button data-t="licita">Licita<small id="n-licita"></small></button>
+  <button data-t="plan">Plan</button>
   <button data-t="equipo">Equipo</button>
   <button data-t="costes">Costes</button>
 </nav>
@@ -411,7 +462,7 @@ function render(){ if (escribiendo()){ S.renderPendiente = true; return; } var r
   var nl = licPorDecidir().length; document.getElementById('n-licita').textContent = nl ? nl : '';
   document.querySelectorAll('#tabs button').forEach(function(b){ b.classList.toggle('on', b.dataset.t === S.tab); });
   app.textContent = '';
-  if (S.tab === 'bandeja') renderBandeja(); else if (S.tab === 'negocio') renderNegocio(); else if (S.tab === 'licita') renderLicita(); else if (S.tab === 'equipo') renderEquipo(); else renderCostes();
+  if (S.tab === 'bandeja') renderBandeja(); else if (S.tab === 'negocio') renderNegocio(); else if (S.tab === 'licita') renderLicita(); else if (S.tab === 'plan') renderPlan(); else if (S.tab === 'equipo') renderEquipo(); else renderCostes();
   requestAnimationFrame(function(){ window.scrollTo(0, reset ? 0 : sy); }); }
 
 /* ---- bandeja ---- */
@@ -939,6 +990,80 @@ function renderLicita(){
   var h = el('h2', { class: 'sec-t', onclick: function(){ S.licCerr = !S.licCerr; render(); } }, [(S.licCerr ? '▾ ' : '▸ ') + 'Cerradas y descartadas ', el('small', { text: c.length })]);
   app.appendChild(h); if (S.licCerr) c.forEach(function(l){ app.appendChild(filaLic(l)); });
   app.appendChild(el('p', { class: 'peq', text: 'Aprobar o rechazar aquí escribe la decisión, la fecha y tus motivos en el Sheet de Guillem en menos de 10 minutos. Los motivos alimentan las reglas del motor: lo que apruebas o rechazas siempre por la misma razón acabará decidiéndose solo, marcado como "auto".' }));
+}
+/* ---- plan (objetivo, líneas, encargos, decisiones) ---- */
+function chipEncargo(e){ return el('span', { class: 'chip-e ' + e.estado, text: (e.antiguo ? '⚠ ' : '') + { encolado: 'encolado', en_curso: 'en curso', bloqueado_diego: 'bloqueado · tú', hecho: 'hecho', descartado: 'descartado' }[e.estado] }); }
+function filaEncargo(e, conLinea){
+  var lineaTxt = conLinea ? (lineaPorId(e.linea_id) ? lineaPorId(e.linea_id).linea : 'fuera de plan') : null;
+  return el('div', { class: 'encargo', onclick: function(){ hojaEncargo(e); } }, [
+    el('div', { class: 'cuerpo' }, [
+      el('div', { class: 'txt' }, conRefs(e.texto)),
+      el('div', { class: 'meta' }, [chipEncargo(e), el('span', { class: 'resp2', text: (lineaTxt ? lineaTxt + ' · ' : '') + (e.agente || '') }),
+        e.ultimo_avance ? el('span', { class: 'resp2' }, ['· ' + e.ultimo_avance.slice(0, 70) + (e.ultimo_avance.length > 70 ? '…' : '')]) : null])
+    ])
+  ]);
+}
+function lineaPorId(id){ return (S.hq.plan_lineas || []).filter(function(l){ return l.id === id; })[0]; }
+function hojaEncargo(e){
+  var l = lineaPorId(e.linea_id);
+  var kids = [el('div', { class: 'eyebrow', text: 'Encargo · ' + (l ? l.linea : 'fuera de plan') }), el('h2', {}, conRefs(e.texto))];
+  if (e.interpretacion) kids.push(el('p', { class: 'peq', text: e.interpretacion }));
+  var dl = el('dl'); [['Responsable', e.agente], ['Departamento', e.departamento], ['Estado', { encolado: 'Encolado', en_curso: 'En curso', bloqueado_diego: 'Bloqueado por ti', hecho: 'Hecho', descartado: 'Descartado' }[e.estado]],
+    ['Próximo hito', e.proximo_hito + (e.fecha_hito ? ' · ' + e.fecha_hito.split('-').reverse().join('/') : '')], ['Último avance', e.ultimo_avance], ['Anotado', e.fecha ? e.fecha.slice(0, 10).split('-').reverse().join('/') : '']]
+    .forEach(function(p){ if (p[1]) { dl.appendChild(el('dt', { text: p[0] })); dl.appendChild(el('dd', {}, conRefs(String(p[1])))); } });
+  kids.push(dl);
+  if (e.solicitud_id) kids.push(el('p', { class: 'peq' }, ['Tarjeta relacionada: '].concat(conRefs('#' + e.solicitud_id))));
+  hoja(kids, {});
+}
+function renderPlan(){
+  var obj = S.hq.plan_objetivo, lineas = S.hq.plan_lineas || [], decisiones = S.hq.decisiones || [], encargos = S.hq.encargos || [];
+  if (!obj && !lineas.length){ app.appendChild(el('p', { class: 'peq', text: 'Sin datos del plan todavía.' })); return; }
+  if (obj){
+    var pct = obj.progreso_pct;
+    app.appendChild(el('div', { class: 'obj-cab' }, [
+      el('p', { class: 'eyebrow', text: obj.titulo }),
+      el('div', { class: 'obj-num' }, [el('span', { class: 'actual', text: eurK(obj.valor_actual) }), el('span', { class: 'meta', text: '/ ' + eurK(obj.meta) + ' contratados' })]),
+      el('div', { class: 'obj-pct', text: (pct != null ? pct : '?') + ' % del objetivo' + (obj.fecha_limite ? ' · límite ' + obj.fecha_limite.split('-').reverse().join('/') : '') }),
+      el('div', { class: 'barra' }, [el('i', { style: 'width:' + (pct || 0) + '%' })])
+    ]));
+  }
+  var bloqueados = encargos.filter(function(e){ return e.estado === 'bloqueado_diego'; });
+  if (bloqueados.length){
+    var bl = el('div', { class: 'bloqueados' });
+    bl.appendChild(el('h2', { class: 'sec-t' }, ['Bloqueado por ti ', el('small', { text: bloqueados.length })]));
+    bloqueados.forEach(function(e){ bl.appendChild(filaEncargo(e, true)); });
+    app.appendChild(bl);
+  }
+  app.appendChild(el('h2', { class: 'sec-t' }, ['Líneas ', el('small', { text: lineas.length })]));
+  lineas.forEach(function(l){
+    var enc = encargos.filter(function(e){ return e.linea_id === l.id && e.estado !== 'bloqueado_diego'; });
+    var box = el('div', { class: 'lineaP' });
+    box.appendChild(el('div', { class: 'cab' }, [el('div', {}, [el('div', { class: 'nombre', text: l.linea }), el('p', { class: 'kpi', text: l.kpi })]), el('div', { class: 'semaforo ' + l.semaforo })]));
+    box.appendChild(el('div', { class: 'cifras' }, [el('span', { class: 'v', text: eurK(l.valor_actual) }), el('span', { class: 'm', text: '/ ' + eurK(l.meta) + (l.unidad !== 'EUR' ? ' ' + l.unidad : '') }),
+      l.progreso_pct != null ? el('span', { class: 'p ' + l.semaforo, text: l.progreso_pct + '%' }) : null]));
+    if (l.progreso_pct != null) box.appendChild(el('div', { class: 'barra' }, [el('i', { style: 'width:' + l.progreso_pct + '%;background:var(--' + (l.semaforo === 'verde' ? 'exito' : l.semaforo === 'amarillo' ? 'oro-luz' : l.semaforo === 'rojo' ? 'error' : 'pizarra-tenue') + ')' })]));
+    box.appendChild(el('div', { class: 'pie' }, [el('span', { class: 'resp', text: l.responsable }), el('span', { class: 'hito', text: l.proximo_hito })]));
+    box.appendChild(el('span', { class: 'fuente', text: l.fuente === 'sql' ? '⚙ calculado' : 'manual' }));
+    if (enc.length){ box.appendChild(el('div', { class: 'encargos-t', text: 'Encargos · ' + enc.length })); enc.forEach(function(e){ box.appendChild(filaEncargo(e, false)); }); }
+    app.appendChild(box);
+  });
+  var fdp = encargos.filter(function(e){ return e.linea_id == null && e.estado !== 'bloqueado_diego'; });
+  if (fdp.length){
+    app.appendChild(el('h2', { class: 'sec-t' }, ['Fuera de plan ', el('small', { text: fdp.length })]));
+    var box2 = el('div', { class: 'lineaP' }); fdp.forEach(function(e){ box2.appendChild(filaEncargo(e, false)); }); app.appendChild(box2);
+  }
+  if (decisiones.length){
+    app.appendChild(el('h2', { class: 'sec-t' }, ['Decisiones ', el('small', { text: decisiones.length })]));
+    var dbox = el('div', {});
+    decisiones.forEach(function(d){
+      dbox.appendChild(el('div', { class: 'decisionP' }, [
+        el('div', { class: 'fecha', text: d.fecha.slice(0, 10).split('-').reverse().join('/').toUpperCase() }),
+        el('div', { class: 'texto' }, conRefs(d.decision)),
+        el('div', { class: 'quien', text: d.quien.toUpperCase() + (d.linea_id && lineaPorId(d.linea_id) ? ' · ' + lineaPorId(d.linea_id).linea : '') })
+      ]));
+    });
+    app.appendChild(dbox);
+  }
 }
 function solvenciaLinea(l){ var t = (l.solvencia || '').trim(); if (!t) return ['sin analizar', 'oro']; var s = t.toLowerCase();
   if (/no cumple|no elegible|no acredit/.test(s)) return [t.length > 90 ? t.slice(0, 88) + '…' : t, 'rojo'];

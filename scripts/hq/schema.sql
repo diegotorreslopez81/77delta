@@ -365,7 +365,26 @@ begin
                           and exists (select 1 from public.omc_licitaciones l2 where l2.empresa = e.id and l2.expediente = m.licitacion_id
                                         and (l2.pestana = 'Licitaciones' or l2.updated_at > now() - interval '30 days'))
                         group by m.licitacion_id) h),
-    'ingresos', (select coalesce(jsonb_agg(to_jsonb(i) order by i.fecha desc nulls last, i.id desc), '[]'::jsonb) from public.omc_ingresos i where i.empresa = e.id)
+    'ingresos', (select coalesce(jsonb_agg(to_jsonb(i) order by i.fecha desc nulls last, i.id desc), '[]'::jsonb) from public.omc_ingresos i where i.empresa = e.id),
+    'plan_objetivo', (select jsonb_build_object('titulo', o.titulo, 'meta', o.meta, 'unidad', o.unidad, 'fecha_limite', o.fecha_limite,
+                        'valor_actual', (select coalesce(sum(l.valor_actual), 0) from public.omc_plan_lineas l where l.empresa = e.id and l.activa and l.unidad = o.unidad),
+                        'progreso_pct', case when o.meta <= 0 then null else round(least((select coalesce(sum(l.valor_actual), 0) from public.omc_plan_lineas l where l.empresa = e.id and l.activa and l.unidad = o.unidad) / o.meta, 1) * 100) end)
+                      from public.omc_plan_objetivo o where o.empresa = e.id),
+    'plan_lineas', (select coalesce(jsonb_agg(jsonb_build_object(
+                        'id', l.id, 'orden', l.orden, 'linea', l.linea, 'kpi', l.kpi, 'valor_actual', l.valor_actual, 'meta', l.meta,
+                        'unidad', l.unidad, 'responsable', l.responsable, 'proximo_hito', l.proximo_hito, 'fecha_hito', l.fecha_hito,
+                        'fuente', l.fuente, 'sql_metrica', l.sql_metrica, 'actualizado_por', l.actualizado_por, 'updated_at', l.updated_at,
+                        'semaforo', case when l.meta <= 0 then 'gris' when l.valor_actual >= l.meta then 'verde' when l.valor_actual >= l.meta * 0.5 then 'amarillo' else 'rojo' end,
+                        'progreso_pct', case when l.meta <= 0 then null else round(least(l.valor_actual / l.meta, 1) * 100) end
+                      ) order by l.orden, l.id), '[]'::jsonb) from public.omc_plan_lineas l where l.empresa = e.id and l.activa),
+    'decisiones', (select coalesce(jsonb_agg(to_jsonb(d) order by d.fecha desc), '[]'::jsonb) from public.omc_decisiones d where d.empresa = e.id),
+    'encargos', (select coalesce(jsonb_agg(jsonb_build_object(
+                    'id', ec.id, 'fecha', ec.fecha, 'texto', ec.texto, 'interpretacion', ec.interpretacion, 'linea_id', ec.linea_id,
+                    'departamento', ec.departamento, 'agente', ec.agente, 'estado', ec.estado, 'prioridad', ec.prioridad,
+                    'solicitud_id', ec.solicitud_id, 'proximo_hito', ec.proximo_hito, 'fecha_hito', ec.fecha_hito,
+                    'ultimo_avance', ec.ultimo_avance, 'fecha_avance', ec.fecha_avance, 'creado_por', ec.creado_por, 'updated_at', ec.updated_at,
+                    'antiguo', ec.estado not in ('hecho','descartado') and coalesce(ec.fecha_avance, ec.fecha) < now() - interval '48 hours'
+                  ) order by ec.linea_id nulls last, ec.prioridad), '[]'::jsonb) from public.omc_encargos ec where ec.empresa = e.id)
   );
 end $$;
 
