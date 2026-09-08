@@ -249,6 +249,32 @@ create table if not exists public.omc_decisiones (
 );
 create index if not exists omc_decisiones_empresa on public.omc_decisiones (empresa, fecha desc);
 
+-- Registro de encargos (8-sep, segundo nivel de la pestaña Plan): todo lo que Diego pide por chat o
+-- HQ, con trazabilidad. linea_id null = "fuera de plan". prioridad es un entero que ordena DENTRO de
+-- cada linea (o dentro del grupo "fuera de plan"); las flechas de la UI la cambian con
+-- omc_encargo_prioridad, que es owner-only.
+create table if not exists public.omc_encargos (
+  id bigserial primary key,
+  empresa text not null references public.omc_empresas(id) on delete cascade,
+  fecha timestamptz not null default now(),
+  texto text not null,
+  interpretacion text not null default '',
+  linea_id bigint references public.omc_plan_lineas(id) on delete set null,
+  departamento text not null default '',
+  agente text not null default '',
+  estado text not null default 'encolado' check (estado in ('encolado','en_curso','bloqueado_diego','hecho','descartado')),
+  prioridad int not null default 0,
+  solicitud_id bigint references public.omc_solicitudes(id) on delete set null,
+  proximo_hito text not null default '',
+  fecha_hito date,
+  ultimo_avance text not null default '',
+  fecha_avance timestamptz,
+  creado_por text not null default '',
+  updated_at timestamptz not null default now(),
+  created_at timestamptz not null default now()
+);
+create index if not exists omc_encargos_empresa on public.omc_encargos (empresa, linea_id, prioridad);
+
 alter table public.omc_empresas enable row level security;
 alter table public.omc_tokens enable row level security;
 alter table public.omc_agentes enable row level security;
@@ -264,6 +290,7 @@ alter table public.omc_licitaciones enable row level security;
 alter table public.omc_plan_objetivo enable row level security;
 alter table public.omc_plan_lineas enable row level security;
 alter table public.omc_decisiones enable row level security;
+alter table public.omc_encargos enable row level security;
 revoke all on public.omc_empresas, public.omc_tokens, public.omc_agentes, public.omc_solicitudes, public.omc_uso, public.omc_push, public.omc_plan, public.omc_actividad, public.omc_kpis, public.omc_ingresos, public.omc_mensajes, public.omc_licitaciones from anon, authenticated;
 revoke all on sequence public.omc_solicitudes_id_seq, public.omc_push_id_seq, public.omc_ingresos_id_seq, public.omc_mensajes_id_seq from anon, authenticated;
 
@@ -533,6 +560,117 @@ declare t public.omc_tokens;
 begin
   t := public.omc_tok(p_token);
   return (select coalesce(jsonb_agg(to_jsonb(d) order by d.fecha desc), '[]'::jsonb) from public.omc_decisiones d where d.empresa = t.empresa);
+end $$;
+
+-- Encargos: crear (cualquier token, para registrar en el momento en que Diego lo pide) o editar (solo
+-- owner, el creador o el agente responsable). p_agente lo resuelve el cliente, igual que en el resto de
+-- funciones: el token de agente es compartido por todos y nunca dice quien llama de verdad.
+create or replace function public.omc_encargo_set(p_token text, p jsonb)
+returns jsonb language plpgsql security definer set search_path = public as $$
+declare t public.omc_tokens; e public.omc_encargos; v_id bigint; v_agente text; v_prioridad int;
+begin
+  t := public.omc_tok(p_token);
+  v_id := nullif(p->>'id','')::bigint;
+  v_agente := case when t.rol = 'owner' then 'diego' else coalesce(nullif(p->>'agente',''), 'agente') end;
+  if v_id is null then
+    if coalesce(p->>'texto','') = '' then raise exception 'falta texto'; end if;
+    v_prioridad := (p->>'prioridad')::int;
+    if v_prioridad is null then
+      select coalesce(max(prioridad), 0) + 1 into v_prioridad from public.omc_encargos
+        where empresa = t.empresa and coalesce(linea_id, -1) = coalesce(nullif(p->>'linea_id','')::bigint, -1);
+    end if;
+    insert into public.omc_encargos (empresa, texto, interpretacion, linea_id, departamento, agente, estado, prioridad,
+        solicitud_id, proximo_hito, fecha_hito, creado_por)
+      values (t.empresa, p->>'texto', coalesce(p->>'interpretacion',''), nullif(p->>'linea_id','')::bigint, coalesce(p->>'departamento',''),
+              coalesce(p->>'agente_responsable', p->>'agente', ''), coalesce(nullif(p->>'estado',''), 'encolado'), v_prioridad,
+              nullif(p->>'solicitud_id','')::bigint, coalesce(p->>'proximo_hito',''), nullif(p->>'fecha_hito','')::date, v_agente)
+      returning * into e;
+  else
+    select * into e from public.omc_encargos where empresa = t.empresa and id = v_id;
+    if not found then raise exception 'encargo no encontrado' using errcode = 'P0001'; end if;
+    if t.rol <> 'owner' and lower(v_agente) <> lower(e.creado_por) and position(lower(v_agente) in lower(e.agente)) = 0 then
+      raise exception 'solo Diego, quien lo creo o el responsable pueden editarlo' using errcode = '42501';
+    end if;
+    update public.omc_encargos set texto = coalesce(p->>'texto', texto), interpretacion = coalesce(p->>'interpretacion', interpretacion),
+      linea_id = case when p ? 'linea_id' then nullif(p->>'linea_id','')::bigint else linea_id end,
+      departamento = coalesce(p->>'departamento', departamento), agente = coalesce(p->>'agente_responsable', p->>'agente', agente),
+      estado = coalesce(nullif(p->>'estado',''), estado), proximo_hito = coalesce(p->>'proximo_hito', proximo_hito),
+      fecha_hito = coalesce(nullif(p->>'fecha_hito','')::date, fecha_hito), solicitud_id = coalesce(nullif(p->>'solicitud_id','')::bigint, solicitud_id),
+      updated_at = now()
+      where id = v_id returning * into e;
+  end if;
+  return to_jsonb(e);
+end $$;
+
+create or replace function public.omc_encargo_avance(p_token text, p_id bigint, p_texto text, p_agente text default null)
+returns jsonb language plpgsql security definer set search_path = public as $$
+declare t public.omc_tokens; e public.omc_encargos; v_agente text;
+begin
+  t := public.omc_tok(p_token);
+  v_agente := case when t.rol = 'owner' then 'diego' else coalesce(nullif(p_agente, ''), 'agente') end;
+  select * into e from public.omc_encargos where empresa = t.empresa and id = p_id;
+  if not found then raise exception 'encargo no encontrado' using errcode = 'P0001'; end if;
+  if t.rol <> 'owner' and lower(v_agente) <> lower(e.creado_por) and position(lower(v_agente) in lower(e.agente)) = 0 then
+    raise exception 'solo Diego, quien lo creo o el responsable pueden anotar avance' using errcode = '42501';
+  end if;
+  update public.omc_encargos set ultimo_avance = p_texto, fecha_avance = now(), updated_at = now() where id = p_id returning * into e;
+  return to_jsonb(e);
+end $$;
+
+create or replace function public.omc_encargo_estado(p_token text, p_id bigint, p_estado text, p_agente text default null)
+returns jsonb language plpgsql security definer set search_path = public as $$
+declare t public.omc_tokens; e public.omc_encargos; v_agente text;
+begin
+  t := public.omc_tok(p_token);
+  if p_estado not in ('encolado','en_curso','bloqueado_diego','hecho','descartado') then raise exception 'estado invalido' using errcode = 'P0001'; end if;
+  v_agente := case when t.rol = 'owner' then 'diego' else coalesce(nullif(p_agente, ''), 'agente') end;
+  select * into e from public.omc_encargos where empresa = t.empresa and id = p_id;
+  if not found then raise exception 'encargo no encontrado' using errcode = 'P0001'; end if;
+  if t.rol <> 'owner' and lower(v_agente) <> lower(e.creado_por) and position(lower(v_agente) in lower(e.agente)) = 0 then
+    raise exception 'solo Diego, quien lo creo o el responsable pueden cambiar el estado' using errcode = '42501';
+  end if;
+  update public.omc_encargos set estado = p_estado, updated_at = now() where id = p_id returning * into e;
+  return to_jsonb(e);
+end $$;
+
+-- Solo Diego mueve la prioridad (flechas de la UI): sube o baja intercambiando el numero con el
+-- encargo vecino DENTRO de la misma linea (o del grupo "fuera de plan" si linea_id es null).
+create or replace function public.omc_encargo_prioridad(p_token text, p_id bigint, p_direccion text)
+returns jsonb language plpgsql security definer set search_path = public as $$
+declare t public.omc_tokens; e public.omc_encargos; vecino public.omc_encargos; tmp int;
+begin
+  t := public.omc_tok(p_token);
+  if t.rol <> 'owner' then raise exception 'solo Diego puede cambiar la prioridad' using errcode = '42501'; end if;
+  if p_direccion not in ('subir','bajar') then raise exception 'direccion invalida (subir/bajar)' using errcode = 'P0001'; end if;
+  select * into e from public.omc_encargos where empresa = t.empresa and id = p_id;
+  if not found then raise exception 'encargo no encontrado' using errcode = 'P0001'; end if;
+  if p_direccion = 'subir' then
+    select * into vecino from public.omc_encargos where empresa = t.empresa and coalesce(linea_id,-1) = coalesce(e.linea_id,-1)
+      and prioridad < e.prioridad and id <> e.id order by prioridad desc limit 1;
+  else
+    select * into vecino from public.omc_encargos where empresa = t.empresa and coalesce(linea_id,-1) = coalesce(e.linea_id,-1)
+      and prioridad > e.prioridad and id <> e.id order by prioridad asc limit 1;
+  end if;
+  if not found then return jsonb_build_object('cambiado', false, 'motivo', 'ya esta en el extremo'); end if;
+  tmp := e.prioridad;
+  update public.omc_encargos set prioridad = vecino.prioridad, updated_at = now() where id = e.id;
+  update public.omc_encargos set prioridad = tmp, updated_at = now() where id = vecino.id;
+  return jsonb_build_object('cambiado', true);
+end $$;
+
+create or replace function public.omc_encargos_lista(p_token text)
+returns jsonb language plpgsql security definer set search_path = public as $$
+declare t public.omc_tokens;
+begin
+  t := public.omc_tok(p_token);
+  return (select coalesce(jsonb_agg(jsonb_build_object(
+      'id', e.id, 'fecha', e.fecha, 'texto', e.texto, 'interpretacion', e.interpretacion, 'linea_id', e.linea_id,
+      'departamento', e.departamento, 'agente', e.agente, 'estado', e.estado, 'prioridad', e.prioridad,
+      'solicitud_id', e.solicitud_id, 'proximo_hito', e.proximo_hito, 'fecha_hito', e.fecha_hito,
+      'ultimo_avance', e.ultimo_avance, 'fecha_avance', e.fecha_avance, 'creado_por', e.creado_por, 'updated_at', e.updated_at,
+      'antiguo', e.estado not in ('hecho','descartado') and coalesce(e.fecha_avance, e.fecha) < now() - interval '48 hours'
+    ) order by e.linea_id nulls last, e.prioridad), '[]'::jsonb)
+    from public.omc_encargos e where e.empresa = t.empresa);
 end $$;
 
 -- Actividad de agentes (upsert por observación).
@@ -959,7 +1097,9 @@ revoke all on function public.omc_token_info(text), public.omc_hq(text), public.
   public.omc_marcar_notificado(text, jsonb), public.omc_pendientes_sin_notificar(text),
   public.omc_plan_objetivo_set(text, jsonb), public.omc_plan_objetivo(text), public.omc_plan_linea_set(text, jsonb),
   public.omc_plan_kpi_actualizar(text, bigint, numeric, text, text, date), public.omc_plan_lineas_recalcular_sql(text),
-  public.omc_plan_lineas_lista(text), public.omc_decision_anadir(text, jsonb), public.omc_decisiones_lista(text) from public;
+  public.omc_plan_lineas_lista(text), public.omc_decision_anadir(text, jsonb), public.omc_decisiones_lista(text),
+  public.omc_encargo_set(text, jsonb), public.omc_encargo_avance(text, bigint, text, text), public.omc_encargo_estado(text, bigint, text, text),
+  public.omc_encargo_prioridad(text, bigint, text), public.omc_encargos_lista(text) from public;
 grant execute on function public.omc_token_info(text), public.omc_hq(text), public.omc_hq_uso(text), public.omc_resolver(text, bigint, text, text),
   public.omc_agente_set(text, text, jsonb), public.omc_pedir(text, jsonb), public.omc_estado(text, bigint), public.omc_reportar(text, bigint, boolean, text),
   public.omc_latido(text, text), public.omc_mis_solicitudes(text, text), public.omc_subir_uso(text, jsonb), public.omc_guardar_push(text, jsonb), public.omc_subir_plan(text, jsonb), public.omc_subir_actividad(text, jsonb),
@@ -969,6 +1109,8 @@ grant execute on function public.omc_token_info(text), public.omc_hq(text), publ
   public.omc_marcar_notificado(text, jsonb), public.omc_pendientes_sin_notificar(text),
   public.omc_plan_objetivo_set(text, jsonb), public.omc_plan_objetivo(text), public.omc_plan_linea_set(text, jsonb),
   public.omc_plan_kpi_actualizar(text, bigint, numeric, text, text, date), public.omc_plan_lineas_recalcular_sql(text),
-  public.omc_plan_lineas_lista(text), public.omc_decision_anadir(text, jsonb), public.omc_decisiones_lista(text)
+  public.omc_plan_lineas_lista(text), public.omc_decision_anadir(text, jsonb), public.omc_decisiones_lista(text),
+  public.omc_encargo_set(text, jsonb), public.omc_encargo_avance(text, bigint, text, text), public.omc_encargo_estado(text, bigint, text, text),
+  public.omc_encargo_prioridad(text, bigint, text), public.omc_encargos_lista(text)
   to anon, authenticated, service_role;
 notify pgrst, 'reload schema';

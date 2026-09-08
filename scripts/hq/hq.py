@@ -212,6 +212,19 @@ def main():
     p = sub.add_parser('decision', help='anotar una decisión estratégica (queda en el registro de la pestaña Plan)')
     p.add_argument('--texto', required=True); p.add_argument('--linea', type=int, help='id de la línea del plan afectada'); p.add_argument('--tarjeta', type=int, help='id de la solicitud de la que viene'); p.add_argument('--agente')
     p = sub.add_parser('decisiones', help='ver el registro de decisiones estratégicas')
+    p = sub.add_parser('encargo', help='registro de encargos de Diego (chat o HQ), segundo nivel de la pestaña Plan')
+    esub = p.add_subparsers(dest='sub', required=True)
+    ea = esub.add_parser('alta', help='registrar un encargo nuevo (o editarlo si pasas --id)')
+    ea.add_argument('--id', type=int); ea.add_argument('--texto'); ea.add_argument('--interpretacion'); ea.add_argument('--linea', type=int, help='id de línea del plan; sin esto, fuera de plan')
+    ea.add_argument('--departamento'); ea.add_argument('--responsable'); ea.add_argument('--estado', choices=('encolado', 'en_curso', 'bloqueado_diego', 'hecho', 'descartado'))
+    ea.add_argument('--prioridad', type=int); ea.add_argument('--tarjeta', type=int); ea.add_argument('--proximo-hito', dest='proximo_hito'); ea.add_argument('--fecha-hito', dest='fecha_hito'); ea.add_argument('--agente')
+    ev = esub.add_parser('avance', help='anotar el último avance de un encargo')
+    ev.add_argument('id', type=int); ev.add_argument('--texto', required=True); ev.add_argument('--agente')
+    ee = esub.add_parser('estado', help='cambiar el estado de un encargo')
+    ee.add_argument('id', type=int); ee.add_argument('valor', choices=('encolado', 'en_curso', 'bloqueado_diego', 'hecho', 'descartado')); ee.add_argument('--agente')
+    ep = esub.add_parser('prioridad', help='(Diego) subir o bajar un encargo en su línea')
+    ep.add_argument('id', type=int); ep.add_argument('direccion', choices=('subir', 'bajar'))
+    esub.add_parser('lista', help='ver todos los encargos')
     p = sub.add_parser('parte', help='parte de jornada del agente (Engram, proyecto 77delta): lo leen los demás al arrancar'); p.add_argument('texto', nargs='?'); p.add_argument('--agente')
     p = sub.add_parser('partes', help='partes de las últimas 48 h de todos los agentes'); p.add_argument('--horas', type=int, default=48)
     p = sub.add_parser('escaladas', help='(chief) tarjetas respondidas por Diego con orden de escalar que nadie ha cerrado')
@@ -378,6 +391,31 @@ def main():
         if a.json: print(json.dumps(ds, ensure_ascii=False))
         else:
             for d in ds: print(f"[{d['fecha'][:10]}] {d['decision']} · {d['quien']}" + (f" · línea #{d['linea_id']}" if d.get('linea_id') else ''))
+    elif a.cmd == 'encargo':
+        def linea_encargo(e):
+            return f"línea #{e['linea_id']}" if e.get('linea_id') else 'fuera de plan'
+        if a.sub == 'alta':
+            p = {k: v for k, v in {'id': a.id, 'texto': a.texto, 'interpretacion': a.interpretacion, 'linea_id': a.linea, 'departamento': a.departamento,
+                                   'agente_responsable': a.responsable, 'estado': a.estado, 'prioridad': a.prioridad, 'solicitud_id': a.tarjeta,
+                                   'proximo_hito': a.proximo_hito, 'fecha_hito': a.fecha_hito, 'agente': agente_actual(a.agente)}.items() if v is not None}
+            r = rpc('omc_encargo_set', p_token=E['HQ_TOKEN'], p=p)
+            print(json.dumps(r, ensure_ascii=False) if a.json else f"#{r['id']} [{r['estado']}] {r['texto'][:60]} · {linea_encargo(r)} · prioridad {r['prioridad']}")
+        elif a.sub == 'avance':
+            r = rpc('omc_encargo_avance', p_token=E['HQ_TOKEN'], p_id=a.id, p_texto=a.texto, p_agente=agente_actual(a.agente))
+            print(json.dumps(r, ensure_ascii=False) if a.json else f"#{r['id']} avance anotado: {r['ultimo_avance'][:80]}")
+        elif a.sub == 'estado':
+            r = rpc('omc_encargo_estado', p_token=E['HQ_TOKEN'], p_id=a.id, p_estado=a.valor, p_agente=agente_actual(a.agente))
+            print(json.dumps(r, ensure_ascii=False) if a.json else f"#{r['id']} -> {r['estado']}")
+        elif a.sub == 'prioridad':
+            r = rpc('omc_encargo_prioridad', p_token=E['HQ_TOKEN'], p_id=a.id, p_direccion=a.direccion)
+            print(json.dumps(r, ensure_ascii=False))
+        elif a.sub == 'lista':
+            es = rpc('omc_encargos_lista', p_token=E['HQ_TOKEN'])
+            if a.json: print(json.dumps(es, ensure_ascii=False))
+            else:
+                for e in es:
+                    marca = ' ⚠ 48h sin avance' if e['antiguo'] else ''
+                    print(f"#{e['id']} [{e['estado']}] p{e['prioridad']} · {linea_encargo(e)} · {e['texto'][:60]} · {e['departamento']}/{e['agente']}{marca}")
 
 
 if __name__ == '__main__':
