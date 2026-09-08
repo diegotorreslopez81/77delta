@@ -60,6 +60,9 @@ alter table public.omc_solicitudes add column if not exists pospuesta_hasta time
 -- avisado por push de esta tarjeta en su estado 'pendiente' actual. hq-notificar.py la pone a true al
 -- enviar; omc_pospuestas_vencidas la vuelve a poner a false para que se avise de nuevo cuando toque.
 alter table public.omc_solicitudes add column if not exists notificado_push boolean not null default false;
+-- Texto completo de un envio (correo, mensaje) para revisarlo plegado dentro de la tarjeta antes de
+-- aprobarlo (8-sep, Diego): separado de 'detalle' porque detalle tiene tope de 700 caracteres y esto no.
+alter table public.omc_solicitudes add column if not exists cuerpo text not null default '';
 create index if not exists omc_solicitudes_estado on public.omc_solicitudes (empresa, estado, created_at desc);
 
 create table if not exists public.omc_uso (
@@ -844,9 +847,9 @@ begin
   select * into a from public.omc_agentes where empresa = t.empresa and id = v_agente;
   v_depto := coalesce(nullif(p->>'depto',''), a.depto, '');
   v_prio := coalesce((p->>'prioridad')::int, a.prioridad, 5);
-  insert into public.omc_solicitudes (empresa, agente, depto, tipo, titulo, detalle, importe, riesgo, enlace, vence, prioridad)
+  insert into public.omc_solicitudes (empresa, agente, depto, tipo, titulo, detalle, importe, riesgo, enlace, vence, prioridad, cuerpo)
     values (t.empresa, v_agente, v_depto, coalesce(nullif(p->>'tipo',''), 'otro'), p->>'titulo', coalesce(p->>'detalle',''),
-            nullif(p->>'importe','')::numeric, coalesce(p->>'riesgo',''), coalesce(p->>'enlace',''), nullif(p->>'vence','')::timestamptz, v_prio)
+            nullif(p->>'importe','')::numeric, coalesce(p->>'riesgo',''), coalesce(p->>'enlace',''), nullif(p->>'vence','')::timestamptz, v_prio, coalesce(p->>'cuerpo',''))
     returning * into s;
   update public.omc_agentes set ultima_actividad = now() where empresa = t.empresa and id = v_agente;
   return to_jsonb(s);
@@ -864,16 +867,23 @@ begin
 end $$;
 
 -- Comentar en el hilo de una solicitud sin resolverla. Diego (owner) firma como 'diego'; el agente firma con el id de la solicitud.
-create or replace function public.omc_comentar(p_token text, p_id bigint, p_texto text)
+-- Se anade un parametro nuevo (p_agente): create or replace no sustituye la firma vieja de 3 argumentos,
+-- crea una sobrecarga aparte, asi que hay que borrarla explicitamente para no dejar las dos a la vez.
+drop function if exists public.omc_comentar(text, bigint, text);
+-- p_agente lo resuelve el cliente (hq.py agente_actual), igual que omc_lic_comentar: antes se atribuía
+-- SIEMPRE al agente dueño de la tarjeta (s.agente), así que si otro agente (o el chief) comentaba en una
+-- tarjeta ajena, el mensaje salía firmado con el nombre equivocado (8-sep, Diego).
+create or replace function public.omc_comentar(p_token text, p_id bigint, p_texto text, p_agente text default null)
 returns jsonb language plpgsql security definer set search_path = public as $$
-declare t public.omc_tokens; s public.omc_solicitudes; m public.omc_mensajes;
+declare t public.omc_tokens; s public.omc_solicitudes; m public.omc_mensajes; v_autor text;
 begin
   t := public.omc_tok(p_token);
   select * into s from public.omc_solicitudes where id = p_id and empresa = t.empresa;
   if not found then raise exception 'solicitud no encontrada' using errcode = 'P0001'; end if;
   if coalesce(trim(p_texto), '') = '' then raise exception 'texto vacío' using errcode = 'P0001'; end if;
-  insert into public.omc_mensajes (empresa, solicitud_id, autor, texto) values (t.empresa, s.id, case when t.rol = 'owner' then 'diego' else s.agente end, trim(p_texto)) returning * into m;
-  if t.rol <> 'owner' then update public.omc_agentes set ultima_actividad = now() where empresa = t.empresa and id = s.agente; end if;
+  v_autor := case when t.rol = 'owner' then 'diego' else coalesce(nullif(p_agente, ''), s.agente) end;
+  insert into public.omc_mensajes (empresa, solicitud_id, autor, texto) values (t.empresa, s.id, v_autor, trim(p_texto)) returning * into m;
+  if t.rol <> 'owner' then update public.omc_agentes set ultima_actividad = now() where empresa = t.empresa and id = v_autor; end if;
   return to_jsonb(m);
 end $$;
 
@@ -1091,7 +1101,7 @@ end $$;
 revoke all on function public.omc_token_info(text), public.omc_hq(text), public.omc_hq_uso(text), public.omc_resolver(text, bigint, text, text),
   public.omc_agente_set(text, text, jsonb), public.omc_pedir(text, jsonb), public.omc_estado(text, bigint), public.omc_reportar(text, bigint, boolean, text),
   public.omc_latido(text, text), public.omc_mis_solicitudes(text, text), public.omc_subir_uso(text, jsonb), public.omc_guardar_push(text, jsonb), public.omc_subir_plan(text, jsonb), public.omc_subir_actividad(text, jsonb),
-  public.omc_kpi_set(text, jsonb), public.omc_ingreso_set(text, jsonb), public.omc_ingresos(text), public.omc_comentar(text, bigint, text), public.omc_retirar(text, bigint, text),
+  public.omc_kpi_set(text, jsonb), public.omc_ingreso_set(text, jsonb), public.omc_ingresos(text), public.omc_comentar(text, bigint, text, text), public.omc_retirar(text, bigint, text),
   public.omc_licitaciones_subir(text, jsonb), public.omc_licitacion_decidir(text, text, text, jsonb, text), public.omc_licitaciones_pendientes_sync(text), public.omc_licitaciones_sincronizadas(text, jsonb), public.omc_licitaciones_lista(text, boolean), public.omc_posponer(text, bigint, timestamptz), public.omc_pospuestas_vencidas(text), public.omc_eventos(text, timestamptz),
   public.omc_lic_comentar(text, text, text, text), public.omc_lic_hilo(text, text),
   public.omc_marcar_notificado(text, jsonb), public.omc_pendientes_sin_notificar(text),
@@ -1103,7 +1113,7 @@ revoke all on function public.omc_token_info(text), public.omc_hq(text), public.
 grant execute on function public.omc_token_info(text), public.omc_hq(text), public.omc_hq_uso(text), public.omc_resolver(text, bigint, text, text),
   public.omc_agente_set(text, text, jsonb), public.omc_pedir(text, jsonb), public.omc_estado(text, bigint), public.omc_reportar(text, bigint, boolean, text),
   public.omc_latido(text, text), public.omc_mis_solicitudes(text, text), public.omc_subir_uso(text, jsonb), public.omc_guardar_push(text, jsonb), public.omc_subir_plan(text, jsonb), public.omc_subir_actividad(text, jsonb),
-  public.omc_kpi_set(text, jsonb), public.omc_ingreso_set(text, jsonb), public.omc_ingresos(text), public.omc_comentar(text, bigint, text), public.omc_retirar(text, bigint, text),
+  public.omc_kpi_set(text, jsonb), public.omc_ingreso_set(text, jsonb), public.omc_ingresos(text), public.omc_comentar(text, bigint, text, text), public.omc_retirar(text, bigint, text),
   public.omc_licitaciones_subir(text, jsonb), public.omc_licitacion_decidir(text, text, text, jsonb, text), public.omc_licitaciones_pendientes_sync(text), public.omc_licitaciones_sincronizadas(text, jsonb), public.omc_licitaciones_lista(text, boolean), public.omc_posponer(text, bigint, timestamptz), public.omc_pospuestas_vencidas(text), public.omc_eventos(text, timestamptz),
   public.omc_lic_comentar(text, text, text, text), public.omc_lic_hilo(text, text),
   public.omc_marcar_notificado(text, jsonb), public.omc_pendientes_sin_notificar(text),

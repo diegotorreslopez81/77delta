@@ -110,8 +110,12 @@ main{padding:calc(114px + env(safe-area-inset-top)) 14px 0;max-width:720px;margi
 .card .cab .quien span{display:block;font-family:var(--mono);font-size:11px;color:var(--pizarra);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .card .cab .importe-grande{font-family:var(--display);font-weight:700;font-size:19px;letter-spacing:-.01em;color:var(--oro-oscuro);white-space:nowrap;flex:0 0 auto}
 .card h3{font-size:17px;margin:2px 0 6px;line-height:1.3}
-.card .bullets{margin:0 0 4px;padding-left:18px;color:var(--tinta-2);font-size:14px;line-height:1.42}
-.card .bullets li{margin-bottom:3px}
+.bullets{margin:0 0 10px;padding-left:18px;color:var(--tinta-2);font-size:14px;line-height:1.42}
+.bullets li{margin-bottom:3px}
+.card .bullets{margin:0 0 4px}
+.plegado{margin:0 0 14px;border:1px solid var(--linea);border-radius:10px;padding:2px 12px}
+.plegado summary{cursor:pointer;font-family:var(--mono);font-size:12px;letter-spacing:.06em;text-transform:uppercase;color:var(--pizarra);padding:8px 0}
+.cuerpo-correo{white-space:pre-wrap;font-size:14px;line-height:1.5;color:var(--tinta-2);padding:0 0 10px;border-top:1px solid var(--linea);margin-top:-2px;padding-top:8px}
 .card .hilo-resumen{display:flex;align-items:center;gap:8px;margin-top:8px;padding:8px 0 0;border-top:1px solid var(--linea);cursor:pointer}
 .card .hilo-resumen .txt{flex:1;min-width:0;font-size:13px;color:var(--pizarra);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .card .hilo-resumen .n{font-family:var(--mono);font-size:11px;color:var(--oro-oscuro);flex:0 0 auto;white-space:nowrap}
@@ -442,6 +446,16 @@ function chipVence(s){ if (!s.vence) return null;
   return el('span', { class: 'dato ' + cls, text: txt }); }
 /* Convierte el detalle en bullets: si hay párrafos (líneas en blanco) cada párrafo es un bullet; si no, respeta numeración "(1)…" o "1." si la hay; si no, divide por líneas o por frases.
    limite = nº máximo de bullets (sin límite si se omite); maxChars = recorte por bullet (110 por defecto). */
+/* Quita el marcador de viñeta ("- ", "· ", "* ", "•") al principio de una línea: bulletsDe lo usaba para
+   trocear el texto, pero se dejaba el carácter dentro del <li>, así que salía duplicado (el marcador CSS
+   de la lista más el guion literal) o, si la lista no se pintaba, como texto plano con guiones (Diego, 8-sep). */
+function sinMarcador(p){ return p.replace(/^[-·*•]\s+/, ''); }
+/* Recorta preservando una URL entera si el texto la lleva: cortarla a medio camino rompe conRefs (Diego, 8-sep). */
+function recortaSeguro(p, maxChars){
+  if (p.length <= maxChars) return p;
+  var m = /https?:\/\/[^\s)\]<>"']+/.exec(p);
+  if (m && m.index < maxChars) return p.slice(0, m.index) + m[0];
+  return p.slice(0, maxChars - 1) + '…'; }
 function bulletsDe(texto, limite, maxChars){ if (!texto) return []; maxChars = maxChars || 110;
   var t = texto.trim(), partes, parrafos = t.split(/\n\s*\n+/).map(function(p){ return p.trim(); }).filter(Boolean);
   if (parrafos.length > 1) partes = parrafos;
@@ -449,10 +463,22 @@ function bulletsDe(texto, limite, maxChars){ if (!texto) return []; maxChars = m
   else if (/(^|\n)\s*\d+[.)]\s+/.test(t)) partes = t.split(/(?:^|\n)\s*\d+[.)]\s+/);
   else if (t.indexOf('\n') >= 0) partes = t.split(/\n+/);
   else partes = t.split(/\.\s+/);
-  var out = partes.map(function(p){ return p.trim(); }).filter(Boolean).map(function(p){ p = p.replace(/\.$/, ''); return p.length > maxChars ? p.slice(0, maxChars - 1) + '…' : p; });
+  var out = partes.map(function(p){ return sinMarcador(p.trim()); }).filter(Boolean).map(function(p){ p = p.replace(/\.$/, ''); return recortaSeguro(p, maxChars); });
   return limite ? out.slice(0, limite) : out; }
-/* Párrafos completos del detalle, sin recortar (para "Detalle completo" en la hoja). */
-function parrafosDe(texto){ if (!texto) return []; return texto.trim().split(/\n\s*\n+/).map(function(p){ return p.trim(); }).filter(Boolean); }
+/* Párrafos completos del detalle, sin recortar (para "Detalle completo" en la hoja): reconoce líneas de
+   viñeta ("- ", "· ", "* ", "•") separadas por un solo salto de línea -no hace falta línea en blanco- y
+   las agrupa en una lista de verdad en vez de dejarlas como texto corrido con guiones sueltos. */
+function bloquesDetalle(texto){
+  if (!texto) return [];
+  var parrafos = texto.trim().split(/\n\s*\n+/).map(function(p){ return p.trim(); }).filter(Boolean);
+  var out = [];
+  parrafos.forEach(function(par){
+    var lineas = par.split(/\n/).map(function(l){ return l.trim(); }).filter(Boolean);
+    var conVineta = lineas.filter(function(l){ return /^[-·*•]\s+/.test(l); });
+    if (conVineta.length && conVineta.length === lineas.length) out.push({ tipo: 'lista', items: lineas.map(sinMarcador) });
+    else out.push({ tipo: 'parrafo', texto: par });
+  });
+  return out; }
 /* Detecta referencias "#NN" a otras solicitudes dentro de un texto y las convierte en enlaces que abren esa tarjeta (pendiente: la resalta en Bandeja; resuelta: abre su hoja). No se aplica a códigos de licitación ni a importes, que no llevan "#". Devuelve un array de nodos listo para pasar como kids a el(). */
 function conRefs(texto){
   // Convierte en enlaces las referencias #NN a otras tarjetas y las URLs, que antes quedaban como texto
@@ -814,7 +840,13 @@ function hojaSolicitud(s, refrescando){
   kids.push(chips);
   var bullets = bulletsDe(s.detalle);
   if (bullets.length){ kids.push(el('h2', { class: 'sec-t', text: 'Resumen' })); var ul = el('ul', { class: 'bullets' }); bullets.forEach(function(b){ ul.appendChild(el('li', {}, conRefs(b))); }); kids.push(ul); }
-  if (s.detalle){ kids.push(el('h2', { class: 'sec-t', text: 'Detalle completo' })); var box = el('div', { class: 'parrafos' }); parrafosDe(s.detalle).forEach(function(p){ box.appendChild(el('p', {}, conRefs(p))); }); kids.push(box); }
+  if (s.detalle){ kids.push(el('h2', { class: 'sec-t', text: 'Detalle completo' })); var box = el('div', { class: 'parrafos' });
+    bloquesDetalle(s.detalle).forEach(function(bl){
+      if (bl.tipo === 'lista'){ var ul2 = el('ul', { class: 'bullets' }); bl.items.forEach(function(it){ ul2.appendChild(el('li', {}, conRefs(it))); }); box.appendChild(ul2); }
+      else box.appendChild(el('p', {}, conRefs(bl.texto)));
+    });
+    kids.push(box); }
+  if (s.cuerpo){ kids.push(el('details', { class: 'plegado' }, [el('summary', { text: 'Texto del envío' }), el('div', { class: 'cuerpo-correo' }, conRefs(s.cuerpo))])); }
   if (/^https?:\/\//.test(s.enlace)) kids.push(el('a', { class: 'btn sec', style: 'width:100%;margin-bottom:10px', href: s.enlace, target: '_blank', rel: 'noopener', text: 'Abrir enlace ↗' }));
   if (s.respuesta) kids.push(el('p', { class: 'peq', text: 'Tu respuesta: ' + s.respuesta }));
   if (s.resultado) kids.push(el('p', { class: 'peq', text: 'Resultado: ' + s.resultado }));

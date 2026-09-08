@@ -175,6 +175,8 @@ def main():
         p.add_argument('--riesgo', default='')
         p.add_argument('--enlace', default='')
         p.add_argument('--vence', default='', help='ISO: 2026-09-09 o 2026-09-09T12:00')
+        p.add_argument('--cuerpo', default='', help='texto completo de un envío (correo, mensaje) para verlo plegado en la tarjeta; sin tope de 700 caracteres')
+        p.add_argument('--cuerpo-archivo', dest='cuerpo_archivo', help='leer --cuerpo desde un fichero en vez de pasarlo en la línea de comandos')
         p.add_argument('--agente')
         p.add_argument('--depto')
         p.add_argument('--prioridad', type=int)
@@ -185,7 +187,7 @@ def main():
     p = sub.add_parser('duda'); comun(p)
     p = sub.add_parser('estado'); p.add_argument('id', type=int)
     p = sub.add_parser('esperar'); p.add_argument('id', type=int); p.add_argument('--timeout', type=int, default=21600); p.add_argument('--intervalo', type=int, default=30); p.add_argument('--vistos', type=int, help='comentarios de Diego ya leídos')
-    p = sub.add_parser('comentar', help='responder en el hilo de una solicitud sin cerrarla'); p.add_argument('id', type=int); p.add_argument('--texto', required=True)
+    p = sub.add_parser('comentar', help='responder en el hilo de una solicitud sin cerrarla'); p.add_argument('id', type=int); p.add_argument('--texto', required=True); p.add_argument('--agente')
     p = sub.add_parser('hilo', help='ver el hilo de una solicitud'); p.add_argument('id', type=int)
     p = sub.add_parser('retirar', help='retirar tu propia solicitud cuando el hilo cambia el plan'); p.add_argument('id', type=int); p.add_argument('--nota', default='')
     p = sub.add_parser('hecho'); p.add_argument('id', type=int); p.add_argument('--nota', default='')
@@ -231,8 +233,11 @@ def main():
     a = ap.parse_args()
 
     if a.cmd in ('pedir', 'duda'):
+        cuerpo = a.cuerpo
+        if a.cuerpo_archivo:
+            cuerpo = Path(a.cuerpo_archivo).read_text()
         payload = {'agente': agente_actual(a.agente), 'tipo': 'duda' if a.cmd == 'duda' else a.tipo, 'titulo': a.titulo, 'detalle': a.detalle,
-                   'riesgo': a.riesgo, 'enlace': a.enlace, 'vence': a.vence}
+                   'riesgo': a.riesgo, 'enlace': a.enlace, 'vence': a.vence, 'cuerpo': cuerpo}
         if a.importe is not None: payload['importe'] = a.importe
         if a.depto: payload['depto'] = a.depto
         if a.prioridad: payload['prioridad'] = a.prioridad
@@ -254,7 +259,7 @@ def main():
     elif a.cmd == 'esperar':
         sys.exit(esperar(a.id, a.timeout, a.intervalo, a.json, a.vistos))
     elif a.cmd == 'comentar':
-        m = rpc('omc_comentar', p_token=E['HQ_TOKEN'], p_id=a.id, p_texto=a.texto)
+        m = rpc('omc_comentar', p_token=E['HQ_TOKEN'], p_id=a.id, p_texto=a.texto, p_agente=agente_actual(a.agente))
         avisar({'id': a.id, 'texto': a.texto})
         print(json.dumps(m, ensure_ascii=False) if a.json else f"#{a.id} comentario enviado a Diego ({m['autor']})")
     elif a.cmd == 'retirar':
