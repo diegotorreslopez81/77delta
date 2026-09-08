@@ -47,6 +47,7 @@ h1,h2,h3{font-family:var(--display);font-weight:600;letter-spacing:-.02em;line-h
 button{font:inherit;color:inherit;background:none;border:0;cursor:pointer;-webkit-tap-highlight-color:transparent}
 a{color:inherit}
 a.ref{color:var(--oro-oscuro);text-decoration:underline;text-decoration-style:dotted;font-weight:600}
+a.url{color:var(--oro-luz);text-decoration:underline;word-break:break-word}
 .mono{font-family:var(--mono)}
 .eyebrow{font-family:var(--mono);font-size:11px;letter-spacing:.14em;text-transform:uppercase;color:var(--oro-oscuro)}
 .peq{font-size:13px;color:var(--pizarra-tenue)}
@@ -299,7 +300,7 @@ h2.sec-t small{color:var(--oro-oscuro)}
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
 <script>
-var HQ_VERSION = { v: '0.9.14', fecha: '2026-09-07 20:45' }; // la actualiza scripts/hq/version.sh en cada publicación
+var HQ_VERSION = { v: '0.9.15', fecha: '2026-09-08 08:30' }; // la actualiza scripts/hq/version.sh en cada publicación
 
 (function(){
 'use strict';
@@ -454,15 +455,31 @@ function bulletsDe(texto, limite, maxChars){ if (!texto) return []; maxChars = m
 function parrafosDe(texto){ if (!texto) return []; return texto.trim().split(/\n\s*\n+/).map(function(p){ return p.trim(); }).filter(Boolean); }
 /* Detecta referencias "#NN" a otras solicitudes dentro de un texto y las convierte en enlaces que abren esa tarjeta (pendiente: la resalta en Bandeja; resuelta: abre su hoja). No se aplica a códigos de licitación ni a importes, que no llevan "#". Devuelve un array de nodos listo para pasar como kids a el(). */
 function conRefs(texto){
+  // Convierte en enlaces las referencias #NN a otras tarjetas y las URLs, que antes quedaban como texto
+  // plano y obligaban a copiarlas a mano desde el móvil (Diego, 8-sep).
   texto = texto == null ? '' : String(texto);
-  var out = [], re = /#(\d+)\b/g, ultimo = 0, m;
+  var out = [], re = /(#(\d+)\b)|(https?:\/\/[^\s)\]<>"']+)/g, ultimo = 0, m;
   while ((m = re.exec(texto))){
     if (m.index > ultimo) out.push(document.createTextNode(texto.slice(ultimo, m.index)));
-    out.push(refEnlace(m[1]));
+    if (m[2]) out.push(refEnlace(m[2]));
+    else {
+      var u = m[3].replace(/[.,;:]+$/, '');
+      out.push(el('a', { href: u, target: '_blank', rel: 'noopener', class: 'url', text: etiquetaUrl(u), onclick: function(ev){ ev.stopPropagation(); } }));
+      if (u.length < m[3].length) out.push(document.createTextNode(m[3].slice(u.length)));
+    }
     ultimo = m.index + m[0].length;
   }
   out.push(document.createTextNode(texto.slice(ultimo)));
   return out;
+}
+/* Un enlace largo rompe la lectura en el móvil: se muestra el dominio y el final del path. */
+function etiquetaUrl(u){
+  try {
+    var x = new URL(u), host = x.hostname.replace(/^www\./, '');
+    var fin = x.pathname.split('/').filter(Boolean).pop() || '';
+    if (fin.length > 22) fin = fin.slice(0, 20) + '…';
+    return fin ? host + '/' + fin : host;
+  } catch (e){ return u.length > 40 ? u.slice(0, 38) + '…' : u; }
 }
 function refEnlace(id){ return el('a', { href: '#', class: 'ref', text: '#' + id, onclick: function(ev){ ev.preventDefault(); ev.stopPropagation(); irARef(id); } }); }
 /* Abre la solicitud referenciada desde un texto: si hay una hoja abierta la cierra primero (abrirSolicitud ya distingue pendiente/resuelta). */

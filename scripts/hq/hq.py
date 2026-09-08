@@ -227,6 +227,14 @@ def main():
         if a.importe is not None: payload['importe'] = a.importe
         if a.depto: payload['depto'] = a.depto
         if a.prioridad: payload['prioridad'] = a.prioridad
+        # Formato ejecutivo obligatorio (Diego, 8-sep): tarjetas cortas y en bullets. Se rechaza aquí para que
+        # no dependa de que cada agente se acuerde: el detalle largo y en prosa es lo que hace ilegible HQ en el móvil.
+        det = (a.detalle or '')
+        if len(det) > 700:
+            sys.exit(f'Detalle de {len(det)} caracteres: el máximo son 700. Resúmelo en bullets: qué pasa, qué propones, '
+                     f'qué decides tú (A/B). El detalle largo va en un documento y aquí se pone el enlace.')
+        if len(det) > 220 and not any(l.strip().startswith(('-', '·', '*', '•')) for l in det.splitlines()):
+            sys.exit('Detalle en prosa: pásalo a bullets con "- " al principio de cada línea. Diego lee HQ en el móvil.')
         s = rpc('omc_pedir', p_token=E['HQ_TOKEN'], p=payload)
         avisar(s)
         salida(s, a.json)
