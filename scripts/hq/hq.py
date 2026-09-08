@@ -325,7 +325,7 @@ def main():
         # El parte también cuenta como actividad: si no, omc_agentes.ultima_actividad se queda congelada y
         # hq-test avisa de "10 h sin actividad" a agentes que llevan toda la noche reportando (8-sep).
         # omc_agente_set es solo-owner (401 para un token de agente normal, y rpc() sale con sys.exit en
-        # error — un SystemExit que "except Exception" no atrapa); omc_latido ya hace este mismo update
+        # error - un SystemExit que "except Exception" no atrapa); omc_latido ya hace este mismo update
         # y está abierto a cualquier token, así que es la llamada correcta aquí.
         try:
             rpc('omc_latido', p_token=E['HQ_TOKEN'], p_agente=ag)
