@@ -1,9 +1,12 @@
 ---
 /** Pie de página: franja de tinta, como en la web anterior. */
 import Monograma from './Monograma.astro';
-import { site, href } from '../lib/site';
+import { site, href, hrefCa } from '../lib/site';
 
-const columnas = [
+const idioma = Astro.currentLocale === 'ca' ? 'ca' : 'es';
+const enlace = idioma === 'ca' ? hrefCa : href;
+
+const columnasEs = [
   {
     titulo: 'Servicios',
     enlaces: [
@@ -46,17 +49,75 @@ const columnas = [
     ],
   },
 ];
+
+const columnasCa = [
+  {
+    titulo: 'Serveis',
+    enlaces: [
+      { texto: 'Diagnòstic', ruta: '/servicios/diagnostico/' },
+      { texto: 'Transformació operativa', ruta: '/servicios/transformacion/' },
+      { texto: 'Soci tecnològic', ruta: '/servicios/partner/' },
+      { texto: 'Seguretat d’IA', ruta: '/servicios/seguridad-ia/' },
+      { texto: 'Acreditació ACCIÓ', ruta: '/servicios/#cupo' },
+      { texto: 'Sectors', ruta: '/sectores/' },
+      { texto: "Casos d'ús", ruta: '/casos-de-uso/' },
+      { texto: "Històries d'èxit", ruta: '/historias-de-exito/' },
+    ],
+  },
+  {
+    titulo: 'Productes',
+    enlaces: [
+      { texto: 'LeakAI', ruta: '/productos/leakai/' },
+      { texto: 'Regulia', ruta: '/productos/regulia/' },
+      { texto: 'Contestia', ruta: '/productos/contestia/' },
+      { texto: 'InstantExam', ruta: '/productos/instantexam/' },
+      { texto: 'ScoreFlow', ruta: '/productos/scoreflow/' },
+      { texto: 'Contablia', ruta: '/productos/contablia/' },
+      { texto: 'Swarmix', ruta: '/productos/swarmix/' },
+      { texto: 'Corpora', ruta: '/productos/#corpora' },
+    ],
+  },
+  {
+    titulo: 'Empresa',
+    enlaces: [
+      { texto: 'Sobre nosaltres', ruta: '/sobre-nosotros/' },
+      { texto: 'Contacte', ruta: '/contacto/' },
+    ],
+  },
+  {
+    titulo: 'Legal',
+    enlaces: [
+      { texto: 'Avís legal', ruta: '/aviso-legal/' },
+      { texto: 'Privacitat', ruta: '/politica-privacidad/' },
+      { texto: 'Cookies', ruta: '/politica-cookies/' },
+    ],
+  },
+];
+
+const columnas = idioma === 'ca' ? columnasCa : columnasEs;
 ---
 
 <footer class="bg-marino text-marfil/70">
   <div class="wrap grid gap-10 py-20 md:grid-cols-[1.6fr_repeat(4,1fr)]">
     <div>
-      <a href={href('/')} class="text-marfil" aria-label="77 Delta, inicio"><Monograma size={30} /></a>
-      <p class="mt-5 max-w-[28ch] text-[14px] leading-[1.55] text-marfil/60">
-        Consultora tecnológica especializada en pymes. Transformamos pymes con inteligencia artificial aplicada
-        con criterio.
+      <a href={enlace('/')} class="text-marfil" aria-label="77 Delta, inici"><Monograma size={30} /></a>
+      {
+        idioma === 'ca' ? (
+          <p class="mt-5 max-w-[28ch] text-[14px] leading-[1.55] text-marfil/60">
+            Consultora tecnològica especialitzada en pimes. Transformem pimes amb intel·ligència artificial
+            aplicada amb criteri.
+          </p>
+        ) : (
+          <p class="mt-5 max-w-[28ch] text-[14px] leading-[1.55] text-marfil/60">
+            Consultora tecnológica especializada en pymes. Transformamos pymes con inteligencia artificial aplicada
+            con criterio.
+          </p>
+        )
+      }
+      <p class="mt-6 text-[13px] text-marfil/55">
+        {idioma === 'ca' ? 'Oficina a ' : 'Oficina en '}
+        <strong class="font-semibold text-marfil/85">{site.ciudad}</strong>
       </p>
-      <p class="mt-6 text-[13px] text-marfil/55">Oficina en <strong class="font-semibold text-marfil/85">{site.ciudad}</strong></p>
     </div>
 
     {
@@ -66,7 +127,7 @@ const columnas = [
           <ul class="space-y-2.5">
             {c.enlaces.map((e) => (
               <li>
-                <a href={href(e.ruta)} class="text-[14px] text-marfil/65 transition-colors hover:text-marfil">
+                <a href={enlace(e.ruta)} class="text-[14px] text-marfil/65 transition-colors hover:text-marfil">
                   {e.texto}
                 </a>
               </li>
@@ -79,12 +140,21 @@ const columnas = [
 
   <div class="border-t border-marfil/10">
     <div class="wrap flex flex-col gap-3 py-8 text-[13px] text-marfil/50 md:flex-row md:items-center md:justify-between">
-      <p>
-        © {site.anio} {site.nombre} es una marca de <strong class="font-semibold text-marfil/80">{site.sociedad}</strong> ·
-        CIF {site.cif} · {site.direccion}
-      </p>
+      {
+        idioma === 'ca' ? (
+          <p>
+            © {site.anio} {site.nombre} és una marca de <strong class="font-semibold text-marfil/80">{site.sociedad}</strong> ·
+            CIF {site.cif} · {site.direccion}
+          </p>
+        ) : (
+          <p>
+            © {site.anio} {site.nombre} es una marca de <strong class="font-semibold text-marfil/80">{site.sociedad}</strong> ·
+            CIF {site.cif} · {site.direccion}
+          </p>
+        )
+      }
       <p class="flex items-center gap-5 whitespace-nowrap">
-        <span>Datos procesados en la Unión Europea · RGPD</span>
+        <span>{idioma === 'ca' ? 'Dades processades a la Unió Europea · RGPD' : 'Datos procesados en la Unión Europea · RGPD'}</span>
         <a href={site.linkedin} target="_blank" rel="noopener" class="transition-colors hover:text-marfil">LinkedIn</a>
       </p>
     </div>

@@ -1,6 +1,6 @@
 ---
 /** Cierre de página: franja de tinta con foto al fondo y el botón de diagnóstico, como en la web anterior. */
-import { href } from '../lib/site';
+import { href as hrefEs, hrefCa } from '../lib/site';
 
 interface Props {
   titulo?: string;
@@ -12,6 +12,7 @@ const {
   texto = 'Entrevista estructurada con tu empresa. Te entregamos una propuesta personalizada con estado inicial, plan de trabajo y presupuesto.',
   boton = 'Reservar diagnóstico gratuito',
 } = Astro.props;
+const href = Astro.currentLocale === 'ca' ? hrefCa : hrefEs;
 ---
 
 <section class="relative isolate overflow-hidden bg-marino text-marfil">

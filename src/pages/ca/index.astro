@@ -1,0 +1,792 @@
+---
+/**
+ * Inici, versió catalana. Mateixa estructura i estils que src/pages/index.astro;
+ * es tradueix el text visible i s'anteposa /ca/ als enllaços interns.
+ */
+import Base from '../../layouts/Base.astro';
+import { site } from '../../lib/site';
+import { casos } from '../../data/casos-de-uso';
+
+const familiesCa = [
+  { slug: 'conversacional', num: '01', titol: 'Assistents conversacionals' },
+  { slug: 'agentes', num: '02', titol: 'Agents autònoms' },
+  { slug: 'rag', num: '03', titol: 'Cerca i coneixement' },
+  { slug: 'workflow', num: '04', titol: "Automatització de processos" },
+  { slug: 'governance', num: '05', titol: 'Governança i compliment' },
+  { slug: 'seguridad', num: '06', titol: 'Seguretat d’IA' },
+  { slug: 'verticales', num: '07', titol: 'Plataformes verticals i dades sintètiques' },
+  { slug: 'modelos', num: '08', titol: 'Models propis i predicció' },
+];
+const familiesTextCa: Record<string, string> = {
+  conversacional: 'Chatbots i assistents de veu per a web, WhatsApp i telèfon, amb cerca sobre la teva informació, escalat a persona i analítica de converses. Atenció al client, salut, formació i suport intern.',
+  agentes: 'Agents que executen processos de debò: consulten sistemes interns, responen preguntes de negoci sobre les teves dades, vigilen, proven i fan prospecció. Amb traça completa de cada pas per poder-ho auditar.',
+  rag: 'Cerca semàntica sobre la teva intranet, la teva normativa o les teves gravacions. Control d’accés per rol, citació obligatòria de la font a cada resposta i indexació incremental.',
+  workflow: 'Integració entre sistemes que no es parlen, gestió d’incidències, comunicació multicanal, informes automàtics i memòries tècniques per a licitacions.',
+  governance: 'Governança de sistemes d’IA segons el Reglament Europeu d’IA, auditoria ALTAI i compliment multi-marc amb RGPD, NIS2 i la norma d’accessibilitat. La documentació obligatòria es genera sola.',
+  seguridad: 'Auditoria i blindatge dels assistents que ja tens publicats: què se’ls pot treure, com se’ls treu i com es tanca. Inclou proves adversàries, barreres de protecció i vigilància contínua.',
+  verticales: 'Plataformes d’IA per a un sector concret (assegurances, legal, sanitat, acceleració empresarial), simulació digital i generació de dades sintètiques que preserven la privacitat.',
+  modelos: 'Ajust fi de models oberts per a un vertical, previsió i detecció d’anomalies, classificació supervisada, reconeixement de documents a mida i avaluació de models.',
+};
+---
+
+<Base title="" description={site.descripcion}>
+<div class="home">
+<!-- HERO -->
+<section class="hero">
+  <div class="cont">
+    <div class="grid">
+      <div>
+        <div class="pill"><span class="badge"></span>Acreditats per ACCIÓ<span class="sep">·</span><svg class="claude" viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M13.4 2.6l-.5 5.4 3.8-3.9 1.5 1.5-3.9 3.8 5.4-.5.2 2.2-5.4.5 4.4 3.1-1.3 1.8-4.4-3.2 1.6 5.2-2.1.7-1.6-5.2-1.6 5.2-2.1-.7 1.6-5.2-4.4 3.2-1.3-1.8 4.4-3.1-5.4-.5.2-2.2 5.4.5-3.9-3.8 1.5-1.5 3.8 3.9-.5-5.4z"/></svg>Claude Partner Network</div>
+        <h1>Apliquem la IA per <em>estalviar costos</em> a la teva empresa.</h1>
+        <p class="lead">Consultora tecnològica especialitzada en pimes. Diagnòstic gratuït, transformació operativa amb IA i soci tecnològic.</p>
+        <div class="ctas">
+          <a href="/ca/contacto/" class="btn-primary">Reservar diagnòstic <span>→</span></a>
+          <a href="/ca/servicios/" class="btn-ghost">Veure com treballem</a>
+        </div>
+      </div>
+      <div class="photo">
+        <img src="/img/fotos/equipo-1600.webp" alt="Equip professional treballant">
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- PRUEBA SOCIAL -->
+<section class="proof">
+  <div class="cont">
+    <p class="proof-txt">Més de set anys aplicant IA amb criteri, amb institucions i corporacions de primer nivell</p>
+    <div class="proof-logos">
+      <a href="https://www.accio.gencat.cat" target="_blank" rel="noopener"><img src="/img/logos/accio.png" alt="ACCIÓ" loading="lazy"></a>
+      <a href="https://www.gencat.cat" target="_blank" rel="noopener"><img src="/img/logos/gencat.svg" alt="Generalitat de Catalunya" loading="lazy"></a>
+      <a href="https://www.bancsabadell.com" target="_blank" rel="noopener"><img src="/img/logos/sabadell.png" alt="Banc Sabadell" loading="lazy"></a>
+      <a href="https://futurium.ec.europa.eu" target="_blank" rel="noopener"><img src="/img/logos/futurium.svg" alt="Comissió Europea" loading="lazy"></a>
+      <a href="https://i2cat.net" target="_blank" rel="noopener"><img src="/img/logos/i2cat.svg" alt="i2CAT" loading="lazy"></a>
+      <a href="https://barcelonactiva.cat" target="_blank" rel="noopener"><img src="/img/logos/barcelona-activa.png" alt="Barcelona Activa" loading="lazy"></a>
+      <a href="https://www.anthropic.com" target="_blank" rel="noopener"><img src="/img/logos/anthropic.svg" alt="Anthropic" loading="lazy"></a>
+      <a href="https://aws.amazon.com" target="_blank" rel="noopener"><img src="/img/logos/aws.svg" alt="Amazon Web Services" loading="lazy"></a>
+    </div>
+    <a href="#confianza" class="proof-mas">Veure totes les organitzacions <span>&#8594;</span></a>
+  </div>
+</section>
+
+<section class="problem">
+  <div class="cont">
+    <div class="grid">
+      <div class="photo">
+        <img src="/img/fotos/gerente-1600.webp" alt="Gerent de pime revisant informes">
+      </div>
+      <div>
+        <span class="section-tag">El problema</span>
+        <h2>La intel·ligència artificial està reordenant el teu sector. <em>La pregunta no és si t’afectarà, sinó com aplicar-la bé.</em></h2>
+        <p class="lead">La informació disponible és abundant, però distingir el que realment transforma el teu negoci del que només sona interessant requereix criteri i experiència. La transformació no és només tecnològica: toca processos, equips i formes de decidir.</p>
+        <p class="questions">Quines tasques repetitives consumeixen el dia a dia del teu equip? Quines decisions es prenen sense dades suficients? Quines àrees estan saturades? Què passa quan una persona clau no hi és? Quina és la inversió real per començar i com es mesura el retorn?</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- SERVICIOS -->
+<section class="services" id="servicios">
+  <div class="cont">
+    <div class="section-head">
+      <span class="section-tag">Com treballem</span>
+      <h2>Comencem per un diagnòstic. Després, tu decideixes el recorregut.</h2>
+      <p>Cada empresa és diferent. El procés és lineal: primer entenem la teva realitat, després construïm la transformació i, si vols, t’acompanyem a mitjà i llarg termini com el teu soci tecnològic.</p>
+    </div>
+
+    <div class="svc-featured">
+      <img src="/img/fotos/diagnostico-1600.webp" alt="Diagnòstic inicial">
+      <div class="content">
+        <div class="text-panel">
+          <span class="badge">PRIMER PAS · GRATUÏT · 30 MIN</span>
+          <h3>Diagnòstic</h3>
+          <p>30 minuts d’entrevista estructurada i un formulari que ens permet entendre la teva realitat. Reps una proposta personalitzada amb l’estat inicial de la teva empresa, pla de treball i pressupost. Sense compromís.</p>
+          <a href="/ca/servicios/diagnostico/" class="arrow-btn">Veure el diagnòstic <span>→</span></a>
+        </div>
+      </div>
+    </div>
+
+    <div class="svc-grid">
+      <a href="/ca/servicios/transformacion/" class="svc-card">
+        <div class="num">02 · Projecte a mida</div>
+        <h3>Transformació operativa amb IA</h3>
+        <p>Després del diagnòstic, executem la proposta acordada: implantació, integració amb els teus sistemes, automatització de processos i capacitació del teu equip. Tot el que necessita la transformació. La inversió es defineix a la proposta, ajustada a l’abast.</p>
+        <div class="price"><span>Cotització personalitzada a la proposta</span><span class="arrow">→</span></div>
+      </a>
+      <a href="/ca/servicios/partner/" class="svc-card">
+        <div class="num">03 · Mensualitat</div>
+        <h3>Soci tecnològic</h3>
+        <p>Acompanyament continu en la direcció estratègica d’IA de la teva empresa. Revisem propostes de proveïdors, participem en decisions tecnològiques i identifiquem noves oportunitats cada mes. Tres paquets d’hores amb descompte per volum.</p>
+        <div class="price"><span>Des de 1.000 €/mes · 6 mesos mínim</span><span class="arrow">→</span></div>
+      </a>
+    </div>
+  </div>
+</section>
+
+<!-- SEGURIDAD DE IA -->
+<section class="aisec" id="seguridad">
+  <div class="cont">
+    <div class="aisec-grid">
+      <div>
+        <span class="section-tag">Seguretat d’IA</span>
+        <h2>El teu chatbot <em>explica més del que et penses.</em></h2>
+        <p>Posar un assistent amb IA a la web porta una tarda. Auditar-lo no ho fa gairebé ningú. El provem com el provaria algú amb males intencions i et mostrem què se li escapa: les instruccions internes, els preus que no hauria de donar, les dades de clients a què arriba i el que diu quan algú el treu de guió.</p>
+        <p class="aisec-nota">Ho fem amb LeakAI, l’eina que hem construït per a això. Amb ella vam rastrejar 391 webs espanyoles el setembre de 2026 i seguim auditant a fons els assistents amb IA que hem trobat. El diagnòstic és gratuït. El que es paga és deixar-ho tancat.</p>
+        <p class="aisec-nota"><a href="/ca/estudio-asistentes-ia/" class="aisec-enlace">Veure l’estudi amb les dades &#8594;</a></p>
+        <div class="ctas">
+          <a href="/ca/servicios/seguridad-ia/" class="btn-primary">Demanar l’escaneig gratuït <span>&#8594;</span></a>
+          <a href="/ca/productos/#leakai" class="btn-ghost">Conèixer LeakAI</a>
+        </div>
+      </div>
+
+      <aside class="aisec-informe" aria-label="Exemple d’informe bàsic">
+        <div class="aisec-informe-cab">
+          <span>Informe bàsic</span>
+          <span class="aisec-ejemplo">Exemple</span>
+        </div>
+        <ul>
+          <li><span class="q">Extracció d’instruccions</span><span class="s s3">Crític</span></li>
+          <li><span class="q">Preus i condicions</span><span class="s s2">Alt</span></li>
+          <li><span class="q">Dades de clients</span><span class="s s1">Mitjà</span></li>
+          <li><span class="q">Injecció d’instruccions</span><span class="s s2">Alt</span></li>
+          <li><span class="q">Sortida de guió</span><span class="s s1">Mitjà</span></li>
+        </ul>
+        <p class="aisec-pie">Cada troballa s’acompanya del fragment exacte de la conversa que ho demostra.</p>
+      </aside>
+    </div>
+  </div>
+</section>
+
+<!-- SECTORES -->
+<section class="sectors" id="sectores">
+  <div class="cont">
+    <div class="section-head">
+      <span class="section-tag">Sectors</span>
+      <h2>Sis sectors. Una metodologia.</h2>
+      <p>A cadascun apliquem una metodologia contrastada. La tecnologia és la part visible. El que canvia és com treballa el teu equip.</p>
+    </div>
+    <div class="sec-grid">
+      <a href="/ca/sectores/clinicas/" class="sec-card">
+        <img src="/img/fotos/clinicas-900.webp" alt="Clíniques">
+        <div class="content">
+          <div class="num">Sector 01</div>
+          <h3>Clíniques i centres de salut</h3>
+          <p>Repensem la recepció, l’agenda, el seguiment del pacient i la traçabilitat clínica.</p>
+          <span class="arrow">Veure casos del sector →</span>
+        </div>
+      </a>
+      <a href="/ca/sectores/industria/" class="sec-card">
+        <img src="/img/fotos/industria-900.webp" alt="Indústria">
+        <div class="content">
+          <div class="num">Sector 02</div>
+          <h3>Indústria i tallers</h3>
+          <p>Transformem el cicle de pressupost, manteniment i control de qualitat de processos productius.</p>
+          <span class="arrow">Veure casos del sector →</span>
+        </div>
+      </a>
+      <a href="/ca/sectores/distribucion/" class="sec-card">
+        <img src="/img/fotos/distribucion-900.webp" alt="Distribució">
+        <div class="content">
+          <div class="num">Sector 03</div>
+          <h3>Distribució i logística</h3>
+          <p>Repensem com es reben les comandes, com es valida l’estoc i com treballen els comercials.</p>
+          <span class="arrow">Veure casos del sector →</span>
+        </div>
+      </a>
+      <a href="/ca/sectores/despachos/" class="sec-card">
+        <img src="/img/fotos/despachos-900.webp" alt="Despatxos">
+        <div class="content">
+          <div class="num">Sector 04</div>
+          <h3>Despatxos professionals</h3>
+          <p>Alliberem hores del personal sènior automatitzant documents repetitius i cerques sobre arxiu.</p>
+          <span class="arrow">Veure casos del sector →</span>
+        </div>
+      </a>
+      <a href="/ca/sectores/administracion/" class="sec-card">
+        <img src="/img/fotos/administracion-900.webp" alt="Administració pública">
+        <div class="content">
+          <div class="num">Sector 05</div>
+          <h3>Administració pública</h3>
+          <p>Transformem l’atenció ciutadana, la gestió documental i l’anàlisi d’expedients històrics.</p>
+          <span class="arrow">Veure casos del sector →</span>
+        </div>
+      </a>
+      <a href="/ca/sectores/formacion/" class="sec-card">
+        <img src="/img/fotos/formacion-900.webp" alt="Formació">
+        <div class="content">
+          <div class="num">Sector 06</div>
+          <h3>Formació i recursos humans</h3>
+          <p>Canviem com s’avalua, com es fa l’acollida i com s’analitza el progrés de l’alumne.</p>
+          <span class="arrow">Veure casos del sector →</span>
+        </div>
+      </a>
+    </div>
+  </div>
+</section>
+
+<!-- CAPACIDADES -->
+<section class="caps" id="capacidades">
+  <div class="cont">
+    <div class="section-head">
+      <span class="section-tag">Què sabem fer</span>
+      <h2>{casos.length} capacitats catalogades, en vuit famílies.</h2>
+      <p>Dels assistents conversacionals a la seguretat d’IA, passant per agents, cerca sobre la teva documentació, automatització de processos, compliment europeu i models propis. Totes estan en producció en algun lloc. Els exemples són representatius i estan anonimitzats.</p>
+    </div>
+    <ul class="caps-grid">
+      {
+        familiesCa.map((f) => (
+          <li>
+            <a href={`/ca/casos-de-uso/?familia=${f.slug}`}>
+              <span class="num">{f.num}</span>
+              <h3>{f.titol}</h3>
+              <p>{familiesTextCa[f.slug]}</p>
+              <span class="cuenta">{casos.filter((c) => c.familia === f.slug).length} capacitats</span>
+            </a>
+          </li>
+        ))
+      }
+    </ul>
+    <a href="/ca/casos-de-uso/" class="caps-link">Veure el catàleg complet i filtrar-lo <span>&#8594;</span></a>
+  </div>
+</section>
+
+<section class="case" id="casos">
+  <div class="slides">
+
+    <!-- Slide 1 · Clínicas dentales -->
+    <div class="slide active" data-slide="0">
+      <img class="bg" src="/img/fotos/clinicas-1600.webp" alt="Clínica moderna">
+      <div class="content"><div class="cont"><div class="grid">
+        <div>
+          <div class="big">38<span class="pct">%</span></div>
+          <div class="label">menys absències a consulta</div>
+        </div>
+        <div>
+          <span class="section-tag">Cas 1 de 5 · Clíniques dentals · Barcelona</span>
+          <h3>Tres clíniques dentals compartien el mateix problema.</h3>
+          <p>Un nombre elevat de pacients no acudia a les cites sense avís previ. La recepció no disposava del temps necessari per a les trucades de confirmació.</p>
+          <p>En quatre setmanes vam implantar Contestia, una recepcionista virtual per WhatsApp. La inversió es va amortitzar en menys d’un mes.</p>
+          <a href="/ca/historias-de-exito/clinicas-dentales-barcelona/" class="arrow-btn">Llegir el cas complet <span>→</span></a>
+        </div>
+      </div></div></div>
+    </div>
+
+    <!-- Slide 2 · Distribuidora industrial -->
+    <div class="slide" data-slide="1">
+      <img class="bg" src="/img/fotos/distribucion-1600.webp" alt="Distribuïdora industrial">
+      <div class="content"><div class="cont"><div class="grid">
+        <div>
+          <div class="big">2<span class="pct">h</span></div>
+          <div class="label">recuperades per comercial / dia</div>
+        </div>
+        <div>
+          <span class="section-tag">Cas 2 de 5 · Distribució industrial · Catalunya</span>
+          <h3>12 comercials perdien dues hores diàries en comandes manuals.</h3>
+          <p>Les comandes arribaven per WhatsApp, trucada i correu. Els comercials dedicaven les dues primeres hores del dia a transcriure-les a l’ERP.</p>
+          <p>Vam connectar un assistent d’IA al WhatsApp principal: identifica el client, reconeix referències, valida estoc i genera la comanda. El comercial només intervé en excepcions.</p>
+          <a href="/ca/historias-de-exito/distribuidora-industrial/" class="arrow-btn">Llegir el cas complet <span>→</span></a>
+        </div>
+      </div></div></div>
+    </div>
+
+    <!-- Slide 3 · Despacho de abogados -->
+    <div class="slide" data-slide="2">
+      <img class="bg" src="/img/fotos/despachos-1600.webp" alt="Despatx d'advocats">
+      <div class="content"><div class="cont"><div class="grid">
+        <div>
+          <div class="big">20<span class="pct">h</span></div>
+          <div class="label">alliberades per soci sènior / mes</div>
+        </div>
+        <div>
+          <span class="section-tag">Cas 3 de 5 · Dret mercantil · Madrid</span>
+          <h3>Un despatx de 18 professionals repetia cinc plantilles de contractes.</h3>
+          <p>Cada soci sènior dedicava entre 4 i 6 hores setmanals a redactar i revisar contractes que eren variacions de les mateixes plantilles.</p>
+          <p>Vam desenvolupar un generador de contractes basat en les seves plantilles. El temps mitjà de resposta a clients va passar de 3 dies a 6 hores.</p>
+          <a href="/ca/historias-de-exito/despacho-mercantil/" class="arrow-btn">Llegir el cas complet <span>→</span></a>
+        </div>
+      </div></div></div>
+    </div>
+
+    <!-- Slide 4 · Taller industrial -->
+    <div class="slide" data-slide="3">
+      <img class="bg" src="/img/fotos/industria-1600.webp" alt="Taller industrial">
+      <div class="content"><div class="cont"><div class="grid">
+        <div>
+          <div class="big">45<span class="pct">%</span></div>
+          <div class="label">menys temps en pressupostos</div>
+        </div>
+        <div>
+          <span class="section-tag">Cas 4 de 5 · Indústria metal·lúrgica · Sabadell</span>
+          <h3>Cada pressupost industrial es retardava 3 dies a l’oficina tècnica.</h3>
+          <p>El client enviava plànols per correu. L’oficina tècnica calculava materials, mà d’obra i marges a mà. El pressupost trigava 3 dies a sortir.</p>
+          <p>Vam implantar un sistema d’IA que interpreta el plànol, calcula l’estimació i proposa marges. L’equip revisa i aprova. Termini: 4 hores.</p>
+          <a href="/ca/sectores/industria/" class="arrow-btn">Veure el sector <span>→</span></a>
+        </div>
+      </div></div></div>
+    </div>
+
+    <!-- Slide 5 · Centro formación -->
+    <div class="slide" data-slide="4">
+      <img class="bg" src="/img/fotos/formacion-1600.webp" alt="Centre de formació">
+      <div class="content"><div class="cont"><div class="grid">
+        <div>
+          <div class="big">3<span class="pct">x</span></div>
+          <div class="label">més alumnes atesos en tutoria</div>
+        </div>
+        <div>
+          <span class="section-tag">Cas 5 de 5 · Formació professional · València</span>
+          <h3>Un centre de FP tenia cua d’un mes per a tutories personalitzades.</h3>
+          <p>Els formadors no donaven l’abast amb els dubtes individuals. Els alumnes esperaven fins a un mes per a una tutoria, cosa que afectava la taxa d’aprovat.</p>
+          <p>Vam construir un assistent formatiu entrenat amb el seu material. Resol dubtes 24/7 i escala a tutor humà només en casos complexos. La cua es va eliminar.</p>
+          <a href="/ca/sectores/formacion/" class="arrow-btn">Veure el sector <span>→</span></a>
+        </div>
+      </div></div></div>
+    </div>
+
+  </div>
+
+  <button class="nav-btn prev" aria-label="Cas anterior" data-caso-prev>‹</button>
+  <button class="nav-btn next" aria-label="Cas següent" data-caso-next>›</button>
+
+  <div class="dots">
+    <button class="dot active" data-caso-ir="0" aria-label="Cas 1"></button>
+    <button class="dot" data-caso-ir="1" aria-label="Cas 2"></button>
+    <button class="dot" data-caso-ir="2" aria-label="Cas 3"></button>
+    <button class="dot" data-caso-ir="3" aria-label="Cas 4"></button>
+    <button class="dot" data-caso-ir="4" aria-label="Cas 5"></button>
+  </div>
+</section>
+
+<!-- POR QUÉ 77 DELTA -->
+<section class="why">
+  <div class="cont">
+    <div class="section-head">
+      <span class="section-tag">Per què 77 Delta</span>
+      <h2>Sis raons per confiar en nosaltres</h2>
+    </div>
+    <div class="why-grid">
+      <div class="why-item">
+        <div class="icon">01</div>
+        <h3>Transformació transversal, no només tecnologia</h3>
+        <p>La IA canvia processos, equips i formes de decidir. No n’hi ha prou amb instal·lar eines. Acompanyem la transformació completa de la teva organització.</p>
+      </div>
+      <div class="why-item">
+        <div class="icon">02</div>
+        <h3>La IA augmenta les persones, no les substitueix</h3>
+        <p>Dissenyem cada implantació amb el teu equip al centre. Human-in-the-loop per defecte: alliberem temps de tasques repetitives perquè la teva gent es dediqui al que aporta valor.</p>
+      </div>
+      <div class="why-item">
+        <div class="icon">03</div>
+        <h3>Construïm el que implantem</h3>
+        <p>Operem productes propis en producció amb empreses reals. La tecnologia que proposem està validada amb clients actius.</p>
+      </div>
+      <div class="why-item">
+        <div class="icon">04</div>
+        <h3>Dades a Europa, compliment garantit</h3>
+        <p>Infraestructura pròpia a la UE. Compliment del RGPD. Sense dependències de tercers països. Suport en català i castellà.</p>
+      </div>
+      <div class="why-item">
+        <div class="icon">05</div>
+        <h3>Resultats mesurats en hores i en vendes</h3>
+        <p>Cada projecte comença amb una estimació quantificada: temps recuperat, reducció de costos, augment de producció o vendes. Seguiment mensual amb mètriques verificables.</p>
+      </div>
+      <div class="why-item">
+        <div class="icon">06</div>
+        <h3>Sense dependència tecnològica</h3>
+        <p>En finalitzar el projecte, la teva empresa conserva el codi, les claus, les dades i la documentació. Independència real.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- SOBRE NOSOTROS PREVIEW -->
+<section class="about" id="sobre">
+  <div class="cont">
+    <div class="grid">
+      <div>
+        <span class="section-tag">Sobre nosaltres</span>
+        <h2>Una consultora amb història, <em>nascuda des de dins del problema.</em></h2>
+        <p>Més de 20 anys aplicant tecnologia a empreses reals. Acreditats per la Generalitat de Catalunya. Amb clients des de Barcelona fins a Dubai. I amb una convicció: la IA només aporta valor quan s’aplica amb criteri.</p>
+        <p>77 Delta neix de l’experiència acumulada per Diego Torres al llarg de dues dècades. Després d’acompanyar més de 500 startups, va observar un patró: les grans empreses tenien consultores estratègiques, les pimes quedaven desorientades davant l’allau tecnològica. Va néixer per ser aquest interlocutor de confiança per a la teva empresa.</p>
+        <p class="signature"><strong>Diego Torres</strong>, fundador</p>
+        <a href="/ca/sobre-nosotros/" class="arrow-btn">La nostra missió és ajudar-te, coneix-nos <span>→</span></a>
+      </div>
+      <div class="photo">
+        <img src="/img/fotos/campus-1600.webp" alt="Campus tecnològic">
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- CTA CIERRE -->
+<section class="closing" id="contacto">
+  <img class="bg" src="/img/fotos/oficina-1600.webp" alt="Oficina amb vistes">
+  <div class="cont">
+    <h2>30 minuts. <em>Sense compromís.</em><br>Tu decideixes després.</h2>
+    <p>Entrevista estructurada amb la teva empresa. Et lliurem una proposta personalitzada amb estat inicial, pla de treball i pressupost.</p>
+    <a href="/ca/contacto/" class="btn-primary">Reservar diagnòstic gratuït →</a>
+  </div>
+</section>
+
+<!-- TRUST BAND (al final, antes del footer) -->
+<section class="trust" id="confianza">
+  <div class="cont">
+    <div class="header">
+      <span class="section-tag">Confiança demostrada</span>
+      <h2>Institucions, corporacions i socis tecnològics de primer nivell</h2>
+      <p>Més de 7 anys aplicant IA amb criteri a Catalunya, Europa i el món.</p>
+    </div>
+    <div class="logos">
+      <a class="logo" href="https://www.accio.gencat.cat" target="_blank" rel="noopener"><img src="/img/logos/accio.png" alt="ACCIÓ"></a>
+      <a class="logo tall" href="https://barcelonactiva.cat" target="_blank" rel="noopener"><img src="/img/logos/barcelona-activa.png" alt="Barcelona Activa"></a>
+      <a class="logo" href="https://futurium.ec.europa.eu" target="_blank" rel="noopener"><img src="/img/logos/futurium.svg" alt="Futurium European Commission"></a>
+      <a class="logo" href="https://www.gencat.cat" target="_blank" rel="noopener"><img src="/img/logos/gencat.svg" alt="Generalitat de Catalunya"></a>
+      <a class="logo" href="https://www.dubai.gov.ae" target="_blank" rel="noopener"><img src="/img/logos/gov-dubai.svg" alt="Government of Dubai"></a>
+      <a class="logo wide" href="https://i2cat.net" target="_blank" rel="noopener"><img src="/img/logos/i2cat.svg" alt="i2CAT"></a>
+      <a class="logo" href="https://alastria.io" target="_blank" rel="noopener"><img src="/img/logos/alastria.png" alt="Alastria"></a>
+      <a class="logo tall" href="https://alltechishuman.org" target="_blank" rel="noopener"><img src="/img/logos/all-tech-is-human.png" alt="All Tech Is Human"></a>
+      <a class="logo wide" href="https://www.bancsabadell.com" target="_blank" rel="noopener"><img src="/img/logos/sabadell.png" alt="Banc Sabadell"></a>
+      <a class="logo" href="https://www.eba-online.org" target="_blank" rel="noopener"><img src="/img/logos/eba.png" alt="Euro Banking Association"></a>
+      <a class="logo" href="https://interledger.org" target="_blank" rel="noopener"><img src="/img/logos/interledger.svg" alt="Interledger Foundation"></a>
+      <a class="logo" href="https://www.mydata.org" target="_blank" rel="noopener"><img src="/img/logos/mydata.png" alt="MyData Global"></a>
+      <a class="logo" href="https://www.opensocietyfoundations.org" target="_blank" rel="noopener"><img src="/img/logos/open-society.png" alt="Open Society Foundations"></a>
+      <a class="logo wide" href="https://peninsula.es" target="_blank" rel="noopener"><img src="/img/logos/peninsula.png" alt="Peninsula"></a>
+      <a class="logo wide" href="https://www.anthropic.com" target="_blank" rel="noopener"><img src="/img/logos/anthropic.svg" alt="Anthropic"></a>
+      <a class="logo wide" href="https://aws.amazon.com" target="_blank" rel="noopener"><img src="/img/logos/aws.svg" alt="Amazon Web Services"></a>
+      <a class="logo wide" href="https://www.cloudflare.com" target="_blank" rel="noopener"><img src="/img/logos/cloudflare.svg" alt="Cloudflare"></a>
+      <a class="logo" href="https://www.deepseek.com" target="_blank" rel="noopener"><img src="/img/logos/deepseek.svg" alt="DeepSeek"></a>
+      <a class="logo" href="https://gemini.google.com" target="_blank" rel="noopener"><img src="/img/logos/gemini.svg" alt="Google Gemini"></a>
+      <a class="logo wide" href="https://cloud.google.com" target="_blank" rel="noopener"><img src="/img/logos/googlecloud.svg" alt="Google Cloud"></a>
+      <a class="logo" href="https://www.hetzner.com" target="_blank" rel="noopener"><img src="/img/logos/hetzner.svg" alt="Hetzner Cloud"></a>
+      <a class="logo wide" href="https://huggingface.co" target="_blank" rel="noopener"><img src="/img/logos/huggingface.svg" alt="Hugging Face"></a>
+      <a class="logo wide" href="https://mistral.ai" target="_blank" rel="noopener"><img src="/img/logos/mistral.svg" alt="Mistral AI"></a>
+      <a class="logo wide" href="https://openai.com" target="_blank" rel="noopener"><img src="/img/logos/openai.svg" alt="OpenAI"></a>
+    </div>
+  </div>
+</section>
+
+<!-- FOOTER -->
+</div>
+</Base>
+
+<style>
+  .home{
+    --paper:#F3EEE4; --white:#FAF7F0; --ink:#0A1628; --ink-2:#26354D; --ink-3:#5C6879; --ink-4:#9AA3B0;
+    --accent:#A7781B; --accent-2:#8A6216; --accent-luz:#D4A03A; --accent-soft:rgba(167,120,27,.12); --accent-glow:rgba(167,120,27,.30);
+    --line:rgba(10,22,40,.10); --line-strong:rgba(10,22,40,.18); --dark:#06101F; --ease:cubic-bezier(.2,.7,.2,1);
+  }
+
+  section{max-width:100%;overflow-x:clip;position:relative}
+  h1,h2,h3,h4{font-family:'Sora',system-ui,sans-serif;font-weight:600;letter-spacing:-.025em;line-height:1.08}
+  .cont{max-width:1280px;margin:0 auto;padding:0 32px}
+
+
+  /* HERO asimétrico (texto izquierda + foto derecha) */
+  .hero{min-height:min(calc(100vh - 72px),880px);padding:60px 0;position:relative;overflow:hidden;display:flex;align-items:center;background:var(--dark);color:#EDEAE3}
+  .hero::before{content:"";position:absolute;top:-30%;right:-10%;width:700px;height:700px;background:radial-gradient(circle,rgba(167,120,27,.16),transparent 60%);filter:blur(70px);pointer-events:none}
+  .hero .cont{position:relative;z-index:1}
+  .hero .cont{width:100%;position:relative;z-index:1}
+  .hero .grid{display:grid;grid-template-columns:6fr 6fr;gap:64px;align-items:center}
+  .hero .pill{display:inline-flex;align-items:center;gap:10px;padding:8px 16px;border:1px solid rgba(237,234,227,.22);background:rgba(237,234,227,.07);border-radius:100px;font-family:'IBM Plex Sans',system-ui,sans-serif;font-size:13px;color:rgba(237,234,227,.88);margin-bottom:28px;font-weight:500;white-space:nowrap}
+  .hero .pill .sep{color:rgba(237,234,227,.45);margin:0 2px}
+  .hero .pill .claude{width:15px;height:15px;color:#D97757;flex-shrink:0}
+  .hero .pill .badge{width:8px;height:8px;background:var(--accent);border-radius:50%;box-shadow:0 0 12px var(--accent-glow),0 0 4px var(--accent)}
+  .hero h1{font-size:clamp(36px,4.2vw,58px);font-weight:600;letter-spacing:-.03em;margin-bottom:28px;color:#EDEAE3}
+  .hero h1 em{font-style:normal;color:var(--accent-luz);font-weight:700}
+  .hero .lead{font-size:19px;color:rgba(237,234,227,.78);margin-bottom:36px;line-height:1.5}
+  .hero .ctas{display:flex;gap:12px;flex-wrap:wrap}
+  .btn-primary{background:var(--accent);color:#EDEAE3;padding:15px 26px;border-radius:10px;font-weight:600;font-size:15px;display:inline-flex;align-items:center;gap:10px;transition:background .2s,transform .2s,box-shadow .2s;box-shadow:0 6px 24px var(--accent-glow)}
+  .btn-primary:hover{background:var(--ink);color:#EDEAE3;transform:translateY(-1px);box-shadow:0 12px 32px rgba(10,22,40,.25)}
+  .hero .btn-primary:hover{background:#EDEAE3;color:var(--ink);box-shadow:0 12px 32px rgba(0,0,0,.35)}
+  .btn-ghost{background:transparent;color:#EDEAE3;padding:15px 26px;border-radius:10px;font-weight:600;font-size:15px;border:1px solid rgba(237,234,227,.3);transition:background .2s,border-color .2s}
+  .btn-ghost:hover{background:rgba(237,234,227,.1);border-color:#EDEAE3}
+  .hero .photo{aspect-ratio:5/4;border-radius:20px;overflow:hidden;background:#E0D9CB;position:relative;box-shadow:0 30px 80px rgba(0,0,0,.45)}
+  .hero .photo img{width:100%;height:100%;object-fit:cover}
+  .hero .photo .tag{position:absolute;bottom:24px;left:24px;background:rgba(10,22,40,.78);backdrop-filter:blur(20px);color:#EDEAE3;padding:10px 16px;border-radius:100px;font-size:12px;font-weight:600;letter-spacing:.05em;text-transform:uppercase}
+
+
+  /* Seguridad de IA */
+  .aisec{padding:140px 0;background:var(--dark);color:#EDEAE3}
+  .aisec::before{content:"";position:absolute;top:-20%;left:-8%;width:620px;height:620px;background:radial-gradient(circle,rgba(167,120,27,.14),transparent 62%);filter:blur(70px);pointer-events:none}
+  .aisec .cont{position:relative;z-index:1}
+  .aisec-grid{display:grid;grid-template-columns:7fr 5fr;gap:72px;align-items:center}
+  .aisec .section-tag{color:var(--accent-luz)}
+  .aisec h2{font-size:clamp(30px,3.6vw,46px);font-weight:200;letter-spacing:-.03em;margin-bottom:24px;color:#EDEAE3}
+  .aisec h2 em{font-style:normal;font-weight:600;color:var(--accent-luz)}
+  .aisec p{font-size:17px;line-height:1.6;color:rgba(237,234,227,.72);margin-bottom:18px;max-width:56ch}
+  .aisec .aisec-nota{font-size:15px;color:rgba(237,234,227,.55)}
+  .aisec-enlace{color:var(--accent-luz);font-family:'IBM Plex Mono',ui-monospace,monospace;font-size:12px;letter-spacing:.04em}
+  .aisec-enlace:hover{color:#EDEAE3}
+  .aisec .ctas{display:flex;gap:12px;flex-wrap:wrap;margin-top:32px}
+  .aisec .btn-primary:hover{background:#EDEAE3;color:var(--ink);box-shadow:0 12px 32px rgba(0,0,0,.35)}
+  .aisec-informe{border:1px solid rgba(237,234,227,.14);background:rgba(237,234,227,.04);border-radius:14px;padding:26px 24px}
+  .aisec-informe-cab{display:flex;align-items:center;justify-content:space-between;gap:12px;padding-bottom:16px;border-bottom:1px solid rgba(237,234,227,.12);font-family:'IBM Plex Mono',ui-monospace,monospace;font-size:11px;letter-spacing:.14em;text-transform:uppercase;color:rgba(237,234,227,.8)}
+  .aisec-ejemplo{color:rgba(237,234,227,.45)}
+  .aisec-informe ul{list-style:none;margin:6px 0 0}
+  .aisec-informe li{display:flex;align-items:center;justify-content:space-between;gap:16px;padding:14px 0;border-bottom:1px solid rgba(237,234,227,.08)}
+  .aisec-informe li .q{font-size:14px;color:rgba(237,234,227,.86)}
+  .aisec-informe li .s{flex-shrink:0;font-family:'IBM Plex Mono',ui-monospace,monospace;font-size:10px;letter-spacing:.12em;text-transform:uppercase;padding:5px 10px;border-radius:100px;border:1px solid}
+  .aisec-informe li .s1{color:rgba(237,234,227,.6);border-color:rgba(237,234,227,.22)}
+  .aisec-informe li .s2{color:var(--accent-luz);border-color:rgba(212,160,58,.4)}
+  .aisec-informe li .s3{color:#06101F;background:var(--accent-luz);border-color:var(--accent-luz);font-weight:700}
+  .aisec-pie{font-size:12px;line-height:1.6;color:rgba(237,234,227,.45);margin:18px 0 0}
+
+
+  /* Capacidades */
+  .caps{padding:140px 0;background:var(--white);border-top:1px solid var(--line)}
+  .caps-grid{list-style:none;display:grid;grid-template-columns:repeat(4,1fr);gap:1px;background:var(--line);border:1px solid var(--line);border-radius:4px;overflow:hidden;margin-top:56px}
+  .caps-grid li{background:var(--paper)}
+  .caps-grid a{display:flex;flex-direction:column;height:100%;padding:28px 24px;transition:background .2s}
+  .caps-grid a:hover{background:rgba(167,120,27,.06)}
+  .caps-grid .num{font-family:'IBM Plex Mono',ui-monospace,monospace;font-size:11px;letter-spacing:.14em;color:var(--accent-2)}
+  .caps-grid h3{font-size:17px;font-weight:600;margin:12px 0 10px;line-height:1.25;color:var(--ink)}
+  .caps-grid p{font-size:14px;line-height:1.55;color:var(--ink-3);flex:1;margin:0}
+  .caps-grid .cuenta{margin-top:18px;font-family:'IBM Plex Mono',ui-monospace,monospace;font-size:11px;letter-spacing:.12em;text-transform:uppercase;color:var(--ink-4)}
+  .caps-link{display:inline-flex;align-items:center;gap:10px;margin-top:36px;font-family:'Sora',system-ui,sans-serif;font-size:15px;font-weight:600;color:var(--accent-2)}
+  .caps-link:hover{color:var(--ink)}
+
+
+  /* Prueba social bajo el hero */
+  .proof{padding:40px 0 44px;background:var(--dark);border-top:1px solid rgba(237,234,227,.08)}
+  .proof-txt{font-family:'IBM Plex Mono',ui-monospace,monospace;font-size:11px;letter-spacing:.14em;text-transform:uppercase;color:rgba(237,234,227,.45);text-align:center;margin-bottom:26px}
+  .proof-logos{display:flex;flex-wrap:wrap;align-items:center;justify-content:center;gap:22px 44px}
+  .proof-logos img{height:26px;width:auto;max-width:130px;object-fit:contain;filter:brightness(0) invert(1);opacity:.5;transition:opacity .2s}
+  .proof-logos a:hover img{opacity:.95}
+  .proof-mas{display:block;text-align:center;margin-top:26px;font-family:'IBM Plex Mono',ui-monospace,monospace;font-size:11px;letter-spacing:.1em;color:rgba(237,234,227,.4)}
+  .proof-mas:hover{color:var(--accent-luz)}
+
+  .trust{padding:80px 0 100px;background:var(--paper);border-top:1px solid var(--line)}
+  .trust .header{text-align:center;margin-bottom:48px}
+  .trust .header .section-tag{display:inline-block;font-size:12px;color:var(--accent);font-weight:700;letter-spacing:.14em;text-transform:uppercase;margin-bottom:14px}
+  .trust .header h2{font-size:clamp(28px,3vw,40px);max-width:680px;margin:0 auto 14px}
+  .trust .header p{font-size:16px;color:var(--ink-3);max-width:580px;margin:0 auto;line-height:1.5}
+  .trust .logos{display:grid;grid-template-columns:repeat(6,1fr);gap:32px 24px;align-items:center;max-width:1080px;margin:0 auto}
+  .trust .logo{display:flex;align-items:center;justify-content:center;padding:14px 10px;min-height:64px;text-decoration:none}
+  .trust .logo img{max-height:34px;max-width:140px;width:auto;height:auto;object-fit:contain;filter:brightness(0) opacity(.5);transition:filter .25s var(--ease),transform .25s var(--ease)}
+  .trust .logo.tall img{max-height:48px;max-width:90px}
+  .trust .logo.wide img{max-height:28px;max-width:170px}
+  .trust .logo:hover img{filter:brightness(0) opacity(.9);transform:scale(1.04)}
+
+  /* PROBLEMA (foto izq + texto derecha) · DARK ANCHOR */
+  .problem{min-height:min(100vh,880px);padding:120px 0;background:var(--white);color:var(--ink);position:relative;overflow:hidden;display:flex;align-items:center}
+  .problem::before{content:"";position:absolute;top:-20%;right:-10%;width:600px;height:600px;background:radial-gradient(circle,rgba(167,120,27,.10),transparent 60%);filter:blur(60px);pointer-events:none}
+  .problem .cont{position:relative;z-index:1}
+  .problem .grid{display:grid;grid-template-columns:6fr 6fr;gap:80px;align-items:center}
+  .problem .photo{aspect-ratio:4/5;border-radius:20px;overflow:hidden}
+  .problem .photo img{width:100%;height:100%;object-fit:cover}
+  .problem h2{font-size:clamp(34px,4vw,52px);margin-bottom:28px;color:var(--ink)}
+  .problem h2 em{color:var(--accent);font-style:normal;font-weight:600}
+  .problem .lead{font-size:18px;color:var(--ink-2);margin-bottom:24px;line-height:1.55}
+  .problem .section-tag{color:var(--accent-2)}
+  .problem .questions{font-size:18px;color:var(--ink-2);font-family:'Sora',system-ui,sans-serif;font-style:normal;line-height:1.5;padding:24px;background:rgba(167,120,27,.12);border-radius:14px;border-left:3px solid var(--accent);backdrop-filter:blur(20px)}
+
+  /* SERVICIOS */
+  .services{padding:140px 0}
+  .section-head{margin-bottom:64px;max-width:880px}
+  .section-tag{display:inline-block;font-size:12px;color:var(--accent);font-weight:700;letter-spacing:.14em;text-transform:uppercase;margin-bottom:18px}
+  .section-head h2{font-size:clamp(34px,4vw,52px);margin-bottom:18px}
+  .section-head p{font-size:18px;color:var(--ink-3);line-height:1.55}
+
+  .svc-featured{position:relative;border-radius:24px;overflow:hidden;margin-bottom:20px;min-height:460px;box-shadow:0 24px 60px rgba(10,22,40,.18)}
+  .svc-featured img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover}
+  .svc-featured::before{content:"";position:absolute;inset:0;background:linear-gradient(115deg,rgba(10,22,40,.35) 0%,rgba(10,22,40,.15) 60%,transparent 100%)}
+  .svc-featured .content{position:relative;padding:48px;display:flex;flex-direction:column;justify-content:flex-end;height:100%;min-height:460px}
+  .svc-featured .text-panel{background:rgba(10,22,40,.48);backdrop-filter:blur(40px) saturate(180%);-webkit-backdrop-filter:blur(40px) saturate(180%);border:1px solid rgba(255,255,255,.14);border-radius:20px;padding:36px;max-width:540px;box-shadow:0 20px 60px rgba(0,0,0,.35),inset 0 1px 0 rgba(255,255,255,.08)}
+  .svc-featured .badge{display:inline-flex;align-items:center;background:rgba(167,120,27,.32);backdrop-filter:blur(20px);color:#EDEAE3;padding:8px 16px;border-radius:100px;font-size:11px;font-weight:700;letter-spacing:.12em;margin-bottom:22px;width:fit-content;border:1px solid rgba(167,120,27,.55);box-shadow:0 0 20px rgba(167,120,27,.35)}
+  .svc-featured h3{font-size:42px;color:#EDEAE3;margin-bottom:14px;font-weight:500;text-shadow:0 2px 16px rgba(0,0,0,.4)}
+  .svc-featured p{color:rgba(255,255,255,.94);font-size:16px;margin-bottom:24px;line-height:1.55;text-shadow:0 1px 8px rgba(0,0,0,.35)}
+  .svc-featured .arrow-btn{display:inline-flex;align-items:center;gap:10px;color:#EDEAE3;font-weight:600;font-size:15px;padding:14px 24px;background:var(--accent);border-radius:10px;border:1px solid rgba(255,255,255,.18);width:fit-content;transition:background .2s,transform .2s,box-shadow .2s;box-shadow:0 6px 24px rgba(167,120,27,.5)}
+  .svc-featured .arrow-btn:hover{background:#EDEAE3;color:var(--ink);transform:translateY(-1px);box-shadow:0 12px 32px rgba(0,0,0,.35)}
+
+  .svc-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:20px}
+  .svc-card{background:var(--white);border:1px solid var(--line);border-radius:18px;padding:40px;transition:transform .25s var(--ease),box-shadow .25s var(--ease),border-color .25s var(--ease)}
+  .svc-card:hover{transform:translateY(-4px);box-shadow:0 16px 40px rgba(10,22,40,.08);border-color:var(--line-strong)}
+  .svc-card .num{font-family:'Sora',system-ui,sans-serif;font-size:13px;color:var(--accent);font-weight:600;margin-bottom:24px;letter-spacing:.05em}
+  .svc-card h3{font-size:24px;margin-bottom:12px}
+  .svc-card p{color:var(--ink-3);font-size:15px;margin-bottom:24px;line-height:1.55}
+  .svc-card .price{font-size:14px;color:var(--ink-2);font-weight:600;padding-top:20px;border-top:1px solid var(--line);display:flex;justify-content:space-between;align-items:center}
+  .svc-card .price .arrow{color:var(--accent);font-size:18px}
+
+  /* SECTORES (fotos verticales con overlay) */
+  .sectors{padding:140px 0;background:var(--white)}
+  .sec-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:16px}
+  .sec-card{aspect-ratio:3/4;border-radius:18px;overflow:hidden;position:relative;cursor:pointer;transition:transform .3s var(--ease)}
+  .sec-card:hover{transform:scale(1.02)}
+  .sec-card img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;transition:transform .6s var(--ease)}
+  .sec-card:hover img{transform:scale(1.08)}
+  .sec-card::before{content:"";position:absolute;inset:0;background:linear-gradient(180deg,transparent 30%,rgba(10,22,40,.85) 100%);z-index:1}
+  .sec-card .content{position:absolute;bottom:0;left:0;right:0;padding:28px;color:#EDEAE3;z-index:2}
+  .sec-card .num{font-family:'Sora',system-ui,sans-serif;font-size:13px;color:rgba(255,255,255,.6);font-weight:600;margin-bottom:10px;letter-spacing:.05em}
+  .sec-card h3{color:#EDEAE3;font-size:24px;margin-bottom:8px;font-weight:500}
+  .sec-card p{color:rgba(255,255,255,.85);font-size:14px;line-height:1.5;margin-bottom:14px}
+  .sec-card .arrow{display:inline-flex;align-items:center;gap:8px;font-size:13px;font-weight:600}
+
+  /* CASO DESTACADO (foto background + cifra gigante + CARRUSEL) */
+  .case{padding:0;position:relative;min-height:min(100vh,860px);display:flex;align-items:center;overflow:hidden;background:var(--dark)}
+  .case .slides{position:absolute;inset:0;width:100%;height:100%}
+  .case .slide{position:absolute;inset:0;opacity:0;transition:opacity .8s var(--ease);pointer-events:none}
+  .case .slide.active{opacity:1;pointer-events:auto}
+  .case .slide .bg{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;opacity:.45}
+  .case .slide::after{content:"";position:absolute;inset:0;background:linear-gradient(90deg,rgba(10,22,40,.92) 0%,rgba(10,22,40,.72) 50%,rgba(10,22,40,.5) 100%)}
+  .case .slide .content{position:absolute;inset:0;display:flex;align-items:center;z-index:2}
+  .case .slide .cont{padding:140px 32px;width:100%;color:#EDEAE3}
+  .case .slide .grid{display:grid;grid-template-columns:5fr 7fr;gap:80px;align-items:center;max-width:1280px;margin:0 auto}
+  .case .big{font-weight:200;font-family:'Sora',system-ui,sans-serif;font-size:clamp(120px,16vw,220px);line-height:.9;color:var(--accent);letter-spacing:-.05em;text-shadow:none}
+  .case .big .pct{font-size:.5em;color:#EDEAE3}
+  .case .label{font-size:14px;color:rgba(255,255,255,.7);text-transform:uppercase;letter-spacing:.14em;margin-top:20px;font-weight:600}
+  .case .section-tag{color:rgba(255,255,255,.6)}
+  .case h3{font-size:36px;color:#EDEAE3;margin-bottom:24px;max-width:580px;font-weight:500}
+  .case p{font-size:17px;color:rgba(255,255,255,.82);margin-bottom:18px;max-width:620px;line-height:1.55}
+  .case .arrow-btn{display:inline-flex;align-items:center;gap:10px;color:#EDEAE3;font-weight:600;font-size:15px;margin-top:18px;padding:14px 22px;background:var(--accent);border-radius:10px;border:1px solid transparent;transition:background .2s,color .2s}
+  .case .arrow-btn:hover{background:#EDEAE3;color:var(--ink)}
+
+  /* Flechas y dots del carrusel */
+  .case .nav-btn{position:absolute;top:50%;transform:translateY(-50%);z-index:5;width:56px;height:56px;border-radius:50%;background:rgba(255,255,255,.08);backdrop-filter:blur(20px);border:1px solid rgba(255,255,255,.2);color:#EDEAE3;font-size:24px;display:flex;align-items:center;justify-content:center;cursor:pointer;transition:background .2s,transform .2s,box-shadow .2s}
+  .case .nav-btn:hover{background:var(--accent);box-shadow:0 8px 24px var(--accent-glow);transform:translateY(-50%) scale(1.05);border-color:transparent}
+  .case .nav-btn.prev{left:32px}
+  .case .nav-btn.next{right:32px}
+  .case .dots{position:absolute;bottom:40px;left:50%;transform:translateX(-50%);z-index:5;display:flex;gap:10px}
+  .case .dot{width:8px;height:8px;border-radius:50%;background:rgba(255,255,255,.25);cursor:pointer;transition:all .3s var(--ease);border:none;padding:0}
+  .case .dot.active{background:var(--accent);width:32px;border-radius:100px;box-shadow:0 0 12px var(--accent-glow)}
+
+  /* POR QUÉ 77 DELTA (6 puntos sobrios) */
+  .why{padding:140px 0}
+  .why-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:32px 24px;margin-top:32px}
+  .why-item{padding-top:32px;border-top:2px solid var(--ink)}
+  .why-item .icon{font-size:36px;margin-bottom:24px;font-family:'Sora',system-ui,sans-serif;color:var(--accent);font-weight:600}
+  .why-item h3{font-size:20px;margin-bottom:12px;font-weight:600;font-family:'IBM Plex Sans',system-ui,sans-serif;letter-spacing:-.01em}
+  .why-item p{color:var(--ink-3);font-size:14px;line-height:1.6}
+
+
+  /* SOBRE NOSOTROS PREVIEW · LILA SUTIL */
+  .about{min-height:min(100vh,880px);padding:120px 0;background:linear-gradient(180deg,var(--paper) 0%,rgba(167,120,27,.06) 100%);position:relative;overflow:hidden;display:flex;align-items:center}
+  .about::before{content:"";position:absolute;top:-30%;right:-15%;width:600px;height:600px;background:radial-gradient(circle,rgba(167,120,27,.12),transparent 60%);filter:blur(80px);pointer-events:none}
+  .about .cont{position:relative;z-index:1}
+  .about .grid{display:grid;grid-template-columns:7fr 5fr;gap:80px;align-items:center}
+  .about h2{font-size:clamp(34px,4vw,52px);margin-bottom:24px}
+  .about h2 em{color:var(--accent);font-style:normal;font-weight:600}
+  .about p{font-size:18px;color:var(--ink-2);margin-bottom:18px;line-height:1.55}
+  .about .signature{margin-top:32px;font-family:'Sora',system-ui,sans-serif;font-style:normal;font-size:18px;color:var(--ink-2)}
+  .about .signature strong{color:var(--ink);font-weight:600;font-style:normal}
+  .about .photo{aspect-ratio:4/5;border-radius:20px;overflow:hidden;position:relative}
+  .about .photo img{width:100%;height:100%;object-fit:cover;transition:transform .5s var(--ease)}
+  .about .photo:hover img{transform:scale(1.03)}
+  .about .arrow-btn{margin-top:28px;display:inline-flex;align-items:center;gap:10px;color:#EDEAE3;background:var(--accent);font-weight:600;font-size:15px;padding:14px 22px;border:1px solid var(--accent);border-radius:10px;transition:background .2s,color .2s}
+  .about .arrow-btn:hover{background:var(--ink);color:#EDEAE3;border-color:var(--ink)}
+
+  /* CTA CIERRE */
+  .closing{padding:0;position:relative;min-height:min(100vh,820px);display:flex;align-items:center;overflow:hidden;background:var(--dark)}
+  .closing .bg{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;opacity:.35}
+  .closing::after{content:"";position:absolute;inset:0;background:radial-gradient(ellipse at center,rgba(167,120,27,.22) 0%,rgba(10,22,40,.55) 45%,rgba(10,22,40,.96) 75%);z-index:1}
+  .closing .cont{position:relative;z-index:2;padding:120px 32px;text-align:center;color:#EDEAE3}
+  .closing h2{font-size:clamp(38px,5vw,76px);max-width:920px;margin:0 auto 28px;color:#EDEAE3;font-weight:500;line-height:1.08}
+  .closing h2 em{color:#EDEAE3;font-style:normal;text-shadow:none;background:linear-gradient(180deg,#EDEAE3 0%,#EDEAE3 100%);background-clip:text;-webkit-background-clip:text}
+  .closing h2 br{display:block}
+  .closing p{font-size:19px;color:rgba(255,255,255,.78);max-width:680px;margin:0 auto 40px;line-height:1.5}
+  .closing .btn-primary{background:var(--accent);color:#EDEAE3;padding:20px 36px;font-size:17px;font-weight:700;box-shadow:0 12px 40px rgba(255,255,255,.25),0 0 80px var(--accent-glow);border:1px solid rgba(255,255,255,.5)}
+  .closing .btn-primary:hover{background:#EDEAE3;color:var(--ink);box-shadow:0 16px 50px rgba(0,0,0,.35);transform:translateY(-2px)}
+
+
+  /* PANTALLAS GRANDES */
+  @media(min-width:1800px){
+    .cont{max-width:1440px}
+    .hero h1{font-size:66px}
+    .hero .lead{font-size:21px;max-width:56ch}
+    .hero .grid{gap:96px}
+    .section-head h2,.problem h2,.about h2{font-size:56px}
+  }
+
+  /* RESPONSIVE */
+  @media(max-width:1024px){
+    .cont{padding:0 24px}
+    .hero .grid,.problem .grid,.case .slide .grid,.about .grid{grid-template-columns:1fr;gap:48px}
+    .aisec-grid{grid-template-columns:1fr;gap:44px}
+    .caps-grid{grid-template-columns:repeat(2,1fr)}
+    .sec-grid{grid-template-columns:repeat(2,1fr)}
+    .svc-grid{grid-template-columns:1fr}
+    .trust .logos{grid-template-columns:repeat(3,1fr);gap:24px 16px}
+    .why-grid{grid-template-columns:repeat(2,1fr)}
+    .case .nav-btn{width:44px;height:44px}
+    .case .nav-btn.prev{left:16px}
+    .case .nav-btn.next{right:16px}
+  }
+  @media(max-width:1100px){
+  }
+  @media(max-width:640px){
+    .cont{padding:0 20px}
+    .hero{padding:48px 0 64px;min-height:auto}
+    .hero h1{font-size:34px;line-height:1.1}
+    .hero .pill{white-space:normal;font-size:12px}
+    .hero .lead{font-size:16px}
+    .hero .ctas{flex-direction:column;align-items:stretch}
+    .hero .ctas a{justify-content:center;text-align:center}
+    .btn-primary,.btn-ghost{padding:14px 22px;font-size:14px}
+    .problem{padding:80px 0;min-height:auto}
+    .problem h2{font-size:30px;line-height:1.15}
+    .problem .lead,.problem .questions{font-size:16px}
+    .aisec{padding:80px 0}
+    .caps{padding:80px 0}
+    .proof-logos{gap:18px 26px}
+    .proof-logos img{height:20px;max-width:96px}
+    .caps-grid{grid-template-columns:1fr}
+    .aisec-grid{grid-template-columns:1fr;gap:40px}
+    .services{padding:80px 0}
+    .section-head h2{font-size:28px;line-height:1.15}
+    .section-head p{font-size:16px}
+    .svc-featured{min-height:auto}
+    .svc-featured .content{padding:32px 24px;min-height:380px}
+    .svc-featured .text-panel{padding:24px}
+    .svc-featured h3{font-size:28px}
+    .svc-featured p{font-size:15px}
+    .svc-card{padding:28px}
+    .svc-card h3{font-size:20px}
+    .sectors{padding:80px 0}
+    .sec-grid{grid-template-columns:1fr;gap:16px}
+    .sec-card{aspect-ratio:4/3}
+    .why{padding:80px 0}
+    .why-grid{grid-template-columns:1fr;gap:24px}
+    .why-item{padding-top:24px}
+    .why-item h3{font-size:18px}
+    .case{min-height:auto;padding:0}
+    .case .slide .cont{padding:80px 20px;min-height:100vh;display:flex;align-items:center}
+    .case .big{font-size:96px;line-height:1}
+    .case h3{font-size:24px}
+    .case p{font-size:15px}
+    .case .nav-btn{width:40px;height:40px;font-size:20px}
+    .case .nav-btn.prev{left:8px}
+    .case .nav-btn.next{right:8px}
+    .case .dots{bottom:20px}
+    .about{padding:80px 0;min-height:auto}
+    .about h2{font-size:28px;line-height:1.15}
+    .about p{font-size:16px}
+    .closing{min-height:auto}
+    .closing .cont{padding:80px 20px}
+    .closing h2{font-size:32px;line-height:1.15}
+    .closing p{font-size:16px}
+    .trust{padding:60px 0}
+    .trust .header h2{font-size:24px;line-height:1.2}
+    .trust .header p{font-size:14px}
+    .trust .logos{grid-template-columns:repeat(2,1fr);gap:20px 12px}
+    .trust .logo img{max-width:120px}
+  }
+
+</style>
+
+<script>
+  const slides = document.querySelectorAll<HTMLElement>('.case .slide');
+  const dots = document.querySelectorAll<HTMLButtonElement>('.case .dot');
+  let actual = 0;
+  const ir = (i: number) => {
+    actual = (i + slides.length) % slides.length;
+    slides.forEach((s, k) => s.classList.toggle('active', k === actual));
+    dots.forEach((d, k) => d.classList.toggle('active', k === actual));
+  };
+  document.querySelector('[data-caso-prev]')?.addEventListener('click', () => ir(actual - 1));
+  document.querySelector('[data-caso-next]')?.addEventListener('click', () => ir(actual + 1));
+  dots.forEach((d) => d.addEventListener('click', () => ir(Number(d.dataset.casoIr))));
+  if (slides.length > 1 && !matchMedia('(prefers-reduced-motion: reduce)').matches) {
+    let timer = setInterval(() => ir(actual + 1), 7000);
+    document.querySelector('.case')?.addEventListener('pointerenter', () => clearInterval(timer));
+    document.querySelector('.case')?.addEventListener('pointerleave', () => { timer = setInterval(() => ir(actual + 1), 7000); });
+  }
+</script>

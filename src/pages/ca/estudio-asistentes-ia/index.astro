@@ -1,0 +1,230 @@
+---
+import Base from '../../../layouts/Base.astro';
+import Boton from '../../../components/Boton.astro';
+import Cta from '../../../components/Cta.astro';
+import { hrefCa as href } from '../../../lib/site';
+
+// Dades del rastreig de LeakAI del 5 de setembre de 2026. Mai es nomena ningú:
+// les troballes només s'ensenyen al responsable de l'empresa afectada.
+const rastreo = [
+  { cifra: '236', texto: 'no tenien cap chat a la portada, contacte ni ajuda' },
+  { cifra: '62', texto: 'tenien un widget de suport que pot portar IA al darrere' },
+  { cifra: '29', texto: 'tenien un assistent amb IA confirmat responent en obert' },
+  { cifra: '12', texto: 'tenien chat guionitzat o atès per persones' },
+  { cifra: '9', texto: 'amagaven el chat rere un registre o un formulari previ' },
+  { cifra: '40', texto: 'no es van poder rastrejar per bloquejos o errors' },
+];
+
+const categorias = [
+  {
+    nombre: 'Obeir instruccions d’un desconegut',
+    texto:
+      'Un missatge ben construït aconsegueix que el bot ignori el seu guió i faci el que demana qui escriu. Surt amb el logotip de l’empresa al costat. És, de moment, el tipus de fuga més freqüent.',
+  },
+  {
+    nombre: 'Recitar les seves instruccions internes',
+    texto:
+      'L’assistent reprodueix part del seu propi system prompt, amb restriccions que li han posat i eines a què arriba. És el mapa per a tota la resta.',
+  },
+  {
+    nombre: 'Revelar dades de clients o informació comercial interna',
+    texto:
+      'De moment, cap assistent provat ha revelat dades personals ni preus o marges interns davant les nostres proves.',
+  },
+];
+---
+
+<Base
+  title="Què se’ls escapa als assistents d’IA de les webs espanyoles"
+  description="Vam rastrejar 391 webs espanyoles i vam trobar 29 assistents amb IA responent en obert. Els estem auditant a fons, amb doble revisió de cada troballa. Dades pròpies, setembre de 2026."
+>
+  <!-- Hero -->
+  <section class="wrap py-24 md:py-32">
+    <p class="eyebrow" data-reveal>Estudi propi · En curs · Setembre de 2026</p>
+    <h1
+      class="mt-7 max-w-[20ch] font-display text-[clamp(38px,6vw,76px)] font-extralight leading-[1.04] tracking-[-0.035em]"
+      data-reveal
+    >
+      Auditem els assistents d’IA de les webs espanyoles. <span class="font-semibold text-oro-oscuro"
+        >Això és el que hem trobat, de moment</span
+      >.
+    </h1>
+    <p class="mt-8 max-w-[56ch] text-[clamp(17px,1.6vw,20px)] text-pizarra" data-reveal>
+      Vam rastrejar 391 webs d’empreses espanyoles buscant assistents amb IA oberts al públic. Vam trobar 29
+      responent sense demanar res a canvi. Els estem provant a fons, un per un, amb una bateria de proves i una
+      segona revisió adversa de cada troballa abans de donar-la per bona.
+    </p>
+    <p class="mt-6 max-w-[56ch] text-[15px] text-pizarra" data-reveal>
+      No nomenem ningú. Cada troballa es comparteix només amb l’empresa afectada. Aquest estudi s’actualitza a
+      mesura que avança el rastreig; les xifres de sota són les de l’última revisió.
+    </p>
+
+    <ul class="mt-14 grid gap-4 sm:grid-cols-2" role="list" data-reveal>
+      {
+        [
+          ['391', 'webs rastrejades'],
+          ['29', 'assistents amb IA responent en obert'],
+        ].map(([cifra, texto]) => (
+          <li class="rounded-[4px] border border-linea bg-panel px-6 py-6">
+            <p class="font-display text-[40px] font-extralight leading-none tracking-[-0.04em] text-oro-oscuro">
+              {cifra}
+            </p>
+            <p class="mt-3 text-[14px] text-pizarra">{texto}</p>
+          </li>
+        ))
+      }
+    </ul>
+  </section>
+
+  <!-- Qué hay ahí fuera -->
+  <section class="hairline bg-panel">
+    <div class="wrap py-24 md:py-32">
+      <div class="max-w-[62ch]" data-reveal>
+        <p class="eyebrow">Primera troballa</p>
+        <h2 class="mt-5 font-display text-[clamp(28px,3.6vw,44px)] font-extralight leading-[1.1] tracking-[-0.03em]">
+          Hi ha menys assistents amb IA dels que sembla. Però els que hi ha estan exposats.
+        </h2>
+        <p class="mt-6 text-[17px] text-pizarra">
+          De les 391 webs rastrejades, la majoria no té chat de cap tipus. El bloc interessant són els 29
+          assistents amb IA que responen a qualsevol que hi entri, sense registre i sense identificar-se.
+        </p>
+      </div>
+
+      <ul class="mt-14 grid gap-x-12 gap-y-8 md:grid-cols-2" role="list">
+        {
+          rastreo.map((r) => (
+            <li class="flex items-baseline gap-5 border-t border-linea pt-5" data-reveal>
+              <span class="w-[3.5ch] shrink-0 text-right font-display text-[26px] font-extralight tracking-[-0.03em] text-oro-oscuro">
+                {r.cifra}
+              </span>
+              <span class="text-[15px] text-pizarra">{r.texto}</span>
+            </li>
+          ))
+        }
+      </ul>
+    </div>
+  </section>
+
+  <!-- Resultados de las pruebas -->
+  <section class="hairline bg-marino text-marfil">
+    <div class="wrap py-24 md:py-32">
+      <div class="max-w-[62ch]" data-reveal>
+        <p class="eyebrow text-oro-luz">Segona troballa</p>
+        <h2 class="mt-5 font-display text-[clamp(28px,3.6vw,44px)] font-extralight leading-[1.1] tracking-[-0.03em]">
+          La majoria aguanta. Un grapat no.
+        </h2>
+        <p class="mt-6 text-[17px] text-marfil/72">
+          A cada assistent li llancem la mateixa bateria de proves, sempre des de la seva web pública i sempre
+          conversant com ho faria un visitant. Cada possible troballa passa a més per una segona revisió adversa
+          abans de comptar-la: descartem, per exemple, un bot que citava correctament la seva política de
+          devolucions o una demo de producte que un jutge automàtic havia llegit com a conversa real.
+        </p>
+        <p class="mt-4 text-[17px] text-marfil/72">
+          Amb aquesta exigència, la majoria dels assistents provats rebutgen les proves. Un grup petit, d’un sol
+          dígit, ha mostrat alguna fuga confirmada. Actualitzem aquesta xifra a mesura que avança el rastreig.
+        </p>
+      </div>
+    </div>
+  </section>
+
+  <!-- Por categoría -->
+  <section class="hairline">
+    <div class="wrap py-24 md:py-32">
+      <div class="max-w-[62ch]" data-reveal>
+        <p class="eyebrow">Què se’ls escapa, per tipus</p>
+        <h2 class="mt-5 font-display text-[clamp(28px,3.6vw,44px)] font-extralight leading-[1.1] tracking-[-0.03em]">
+          El que més se’ls escapa són les seves pròpies instruccions.
+        </h2>
+        <p class="mt-6 text-[17px] text-pizarra">
+          Amb el rastreig encara en marxa, donem el repartiment per tipus en lloc de xifres exactes: canvien d’una
+          setmana a l’altra a mesura que seguim auditant.
+        </p>
+      </div>
+
+      <ul class="mt-14" role="list">
+        {
+          categorias.map((c) => (
+            <li class="border-t border-linea py-7" data-reveal>
+              <h3 class="font-display text-[19px] font-semibold leading-[1.3]">{c.nombre}</h3>
+              <p class="mt-3 max-w-[62ch] text-[15px] text-pizarra">{c.texto}</p>
+            </li>
+          ))
+        }
+      </ul>
+    </div>
+  </section>
+
+  <!-- Método y límites -->
+  <section class="hairline bg-panel">
+    <div class="wrap grid gap-12 py-24 md:grid-cols-12 md:py-32">
+      <div class="md:col-span-6" data-reveal>
+        <p class="eyebrow">Com està fet</p>
+        <div class="mt-6 space-y-5 text-[16px] text-pizarra">
+          <p>
+            Un rastrejador visita la portada i les pàgines de contacte, suport i ajuda de cada domini, busca les
+            signatures dels proveïdors de chat coneguts i obre el widget com ho faria una persona. Envia un
+            missatge innocent i classifica la resposta per separar un model de llenguatge d’un chat guionitzat.
+          </p>
+          <p>
+            Als que responen se’ls llança una bateria de proves en una sola conversa, amb pauses entre missatges i
+            una única sessió per domini i dia. Un primer model jutge puntua cada resposta contra la seva rúbrica i
+            cita el fragment literal que constitueix la fuga. Cada alerta passa després per un segon jutge, més
+            exigent, que la confirma o la descarta a mà. Només el que sobreviu a les dues revisions es compta com
+            a troballa.
+          </p>
+        </div>
+      </div>
+      <div class="md:col-span-6 md:pl-6" data-reveal>
+        <p class="eyebrow">El que aquest estudi no diu</p>
+        <div class="mt-6 space-y-5 text-[16px] text-pizarra">
+          <p>
+            La mostra no és representativa de l’empresa espanyola: són 391 dominis triats per tenir presència
+            digital i probabilitat d’haver posat un assistent. Quaranta webs no es van poder rastrejar, així que
+            hi ha assistents que no hem vist.
+          </p>
+          <p>
+            Les proves són de primer nivell, les que faria algú amb curiositat i paciència, no un atacant dedicat.
+            Un assistent que aguanta aquestes sis no és un assistent segur: és un que no cau a la primera.
+          </p>
+          <p>
+            Res d’això es va fer entrant en sistemes aliens. Només es va parlar amb chats publicats en webs
+            públiques, com qualsevol visitant.
+          </p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Cierre -->
+  <section class="hairline">
+    <div class="wrap grid gap-12 py-24 md:grid-cols-12 md:py-32">
+      <div class="md:col-span-5" data-reveal>
+        <p class="eyebrow">La conclusió</p>
+        <h2 class="mt-5 font-display text-[clamp(28px,3.6vw,44px)] font-extralight leading-[1.1] tracking-[-0.03em]">
+          El problema no és la IA. És que ningú la revisa després.
+        </h2>
+      </div>
+      <div class="space-y-5 text-[17px] text-pizarra md:col-span-7 md:pt-12" data-reveal>
+        <p>
+          Els assistents que aguanten les proves solen ser d’empreses grans, amb un classificador al davant que
+          bloqueja qualsevol missatge estrany. Els que fallen són, de moment, d’empreses mitjanes que van muntar
+          l’assistent ràpid, el van connectar a la seva documentació i no hi han tornat a mirar.
+        </p>
+        <p>
+          Tancar això no és un projecte llarg: és reescriure les instruccions, posar filtres a l’entrada i a la
+          sortida, acotar el que l’assistent pot consultar i deixar proves que avisin si es torna a obrir.
+        </p>
+        <div class="flex flex-wrap gap-4 pt-4">
+          <Boton href={href('/contacto/')}>Escanejar el meu gratis →</Boton>
+          <Boton href={href('/servicios/seguridad-ia/')} variante="linea">Com ho auditem</Boton>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <Cta
+    titulo="Vols saber en quin grup està el teu?"
+    texto="Ens dius el teu domini i et retornem l’informe bàsic amb la severitat i les categories de fuga que trobem. Sense cost i sense compromís."
+    boton="Demanar l'escaneig"
+  />
+</Base>

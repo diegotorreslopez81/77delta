@@ -2,6 +2,7 @@
  * Datos de la web en un solo sitio. Todo lo que cambie con el dominio,
  * el email o la sociedad se toca aquí y en ningún otro fichero.
  */
+import { getRelativeLocaleUrl } from 'astro:i18n';
 export const site = {
   nombre: '77 Delta',
   claim: 'Aplicamos la IA para ahorrar costes a tu empresa',
@@ -25,11 +26,31 @@ export const site = {
   anio: 2026,
 } as const;
 
-/** Antepone el `base` de Astro a una ruta interna. Usar en todos los enlaces internos. */
+/** Antepone el `base` de Astro a una ruta interna. Usar en todos los enlaces internos (páginas en castellano). */
 export function href(path: string): string {
   const base = import.meta.env.BASE_URL.replace(/\/$/, '');
   if (path === '/' || path === '') return `${base}/`;
   return `${base}${path.startsWith('/') ? path : `/${path}`}`;
+}
+
+/**
+ * Igual que `href`, pero para las páginas en catalán: antepone /ca/ (routing i18n de Astro,
+ * prefixDefaultLocale: false). Usar en todos los enlaces internos de src/pages/ca/.
+ */
+export function hrefCa(path: string): string {
+  const limpio = path === '/' || path === '' ? '' : path.replace(/^\//, '');
+  return getRelativeLocaleUrl('ca', limpio);
+}
+
+/** Dado un pathname de castellano (p.ej. '/servicios/'), la ruta equivalente en catalán. */
+export function equivalenteCa(pathnameEs: string): string {
+  return hrefCa(pathnameEs);
+}
+
+/** Dado un pathname de catalán bajo /ca/, la ruta equivalente en castellano. */
+export function equivalenteEs(pathnameCa: string): string {
+  const sinCa = pathnameCa.replace(/^\/ca(\/|$)/, '/');
+  return href(sinCa === '' ? '/' : sinCa);
 }
 
 export const nav = [
@@ -53,3 +74,17 @@ export const umami = {
 export const searchConsole = '';
 
 export const cta = { texto: 'Reservar diagnóstico', ruta: '/contacto/' } as const;
+
+/** Mismas rutas que `nav`, en catalán, para las páginas de /ca/. */
+export const navCa = [
+  { texto: 'Sectors', ruta: '/sectores/' },
+  { texto: 'Serveis', ruta: '/servicios/' },
+  { texto: 'Seguretat IA', ruta: '/servicios/seguridad-ia/' },
+  { texto: "Casos d'ús", ruta: '/casos-de-uso/' },
+  { texto: "Històries d'èxit", ruta: '/historias-de-exito/' },
+  { texto: 'Productes', ruta: '/productos/' },
+  { texto: 'Sobre nosaltres', ruta: '/sobre-nosotros/' },
+  { texto: 'Contacte', ruta: '/contacto/' },
+] as const;
+
+export const ctaCa = { texto: 'Reservar diagnòstic', ruta: '/contacto/' } as const;

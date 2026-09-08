@@ -1,0 +1,144 @@
+---
+import Base from '../../../layouts/Base.astro';
+import { site, hrefCa as href } from '../../../lib/site';
+
+const enlace = 'text-tinta underline decoration-oro/50 underline-offset-4 transition-colors hover:text-oro-oscuro';
+const parrafo = 'mt-4 text-[16px] text-pizarra';
+const titulo = 'mt-3 font-display text-[clamp(21px,2.2vw,27px)] font-semibold leading-[1.2]';
+const numero = 'font-mono text-[11px] tracking-[0.14em] text-oro-oscuro';
+const lista = 'mt-4 list-disc space-y-2 pl-5 text-[16px] text-pizarra marker:text-oro-oscuro';
+
+const navegadores = [
+  { nombre: 'Google Chrome', url: 'https://support.google.com/chrome/answer/95647' },
+  { nombre: 'Mozilla Firefox', url: 'https://support.mozilla.org/ca/kb/Eliminar%20cookies' },
+  { nombre: 'Safari', url: 'https://support.apple.com/ca-es/guide/safari/sfri11471/mac' },
+  {
+    nombre: 'Microsoft Edge',
+    url: 'https://support.microsoft.com/es-es/microsoft-edge/eliminar-las-cookies-en-microsoft-edge-63947406-40ac-c3b8-57b9-2a946a29ae09',
+  },
+];
+---
+
+<Base
+  title="Política de cookies"
+  description="Aquest lloc web no instal·la cookies pròpies ni de tercers. L'analítica és anònima i sense cookies."
+>
+  <section class="wrap pb-14 pt-20 md:pb-20 md:pt-28">
+    <p class="eyebrow" data-reveal>Legal</p>
+    <h1
+      class="mt-5 max-w-[16ch] font-display text-[clamp(38px,6vw,76px)] font-extralight leading-[1.04] tracking-[-0.035em]"
+      data-reveal
+    >
+      Sense cookies pròpies. Sense seguiment.
+    </h1>
+    <p class="mt-7 max-w-[52ch] text-[clamp(17px,1.6vw,20px)] text-pizarra" data-reveal>
+      Aquest lloc web no instal·la cookies pròpies ni de tercers. La mesura de visites és anònima, agregada i
+      sense cookies.
+    </p>
+  </section>
+
+  <section class="hairline">
+    <div class="wrap py-16 md:py-24">
+      <article class="max-w-[68ch] space-y-14">
+        <section data-reveal>
+          <p class={numero}>01</p>
+          <h2 class={titulo}>Què són les cookies?</h2>
+          <p class={parrafo}>
+            Les cookies són petits arxius de text que un lloc web emmagatzema al teu dispositiu quan el
+            visites. Serveixen per recordar preferències, mantenir sessions actives o mesurar l'ús del lloc.
+          </p>
+        </section>
+
+        <section data-reveal>
+          <p class={numero}>02</p>
+          <h2 class={titulo}>Quines cookies utilitzem?</h2>
+          <p class={parrafo}>
+            Cap. Aquest lloc web és estàtic i no requereix identificació ni sessió d'usuari, així que no
+            instal·la cookies pròpies. Tampoc utilitzem cookies analítiques ni de tercers: no hi ha Google
+            Analytics, ni píxels de xarxes socials, ni eines de publicitat o de seguiment entre llocs.
+          </p>
+          <p class={parrafo}>
+            Per saber quines pàgines es visiten utilitzem Umami, una eina d'analítica que no instal·la
+            cookies, no guarda l'adreça IP i no identifica el visitant. Registra únicament dades agregades:
+            pàgina vista, país, tipus de dispositiu i origen de la visita. S'executa en un servidor propi a la
+            Unió Europea.
+          </p>
+          <p class={parrafo}>
+            En no instal·lar-se cap cookie pròpia que requereixi consentiment, no veuràs cap bàner
+            demanant-t'ho. El calendari de Google només es carrega a la pàgina de contacte i té una
+            alternativa sense incrustar.
+          </p>
+        </section>
+
+        <section data-reveal>
+          <p class={numero}>03</p>
+          <h2 class={titulo}>Recursos externs</h2>
+          <p class={parrafo}>
+            Les tipografies, les imatges i el codi d'aquesta web se serveixen des del nostre propi domini.
+            L'únic recurs extern que es carrega és l'script d'analítica anònima descrit al punt anterior,
+            allotjat en un servidor propi a la Unió Europea.
+          </p>
+          <p class={parrafo}>
+            El formulari de contacte envia el teu missatge a un subdomini nostre, servit des d'infraestructura
+            pròpia a la Unió Europea, i tampoc instal·la cookies. La pàgina de contacte sí que incrusta el
+            calendari de reserva de Google, que en carregar-se pot instal·lar cookies pròpies de Google: pots
+            evitar-ho escrivint pel formulari o obrint el calendari en la seva pròpia finestra. Els accessos a
+            LinkedIn són enllaços externs, no contingut incrustat: només interactues amb aquests serveis si hi
+            fas clic, i llavors s'apliquen les seves pròpies polítiques de cookies i privacitat.
+          </p>
+          <p class={parrafo}>
+            Si en algun moment incrustem contingut extern, com vídeos o calendaris de reserva, aquests serveis
+            poden establir les seves pròpies cookies. En aquest cas apareixerà l'avís corresponent i se't
+            sol·licitarà el consentiment previ.
+          </p>
+        </section>
+
+        <section data-reveal>
+          <p class={numero}>04</p>
+          <h2 class={titulo}>Com gestionar les cookies?</h2>
+          <p class={parrafo}>
+            Pots configurar el teu navegador per acceptar, rebutjar o eliminar cookies de qualsevol lloc web.
+            Cada navegador ofereix opcions diferents:
+          </p>
+          <ul class={lista}>
+            {
+              navegadores.map((n) => (
+                <li>
+                  <a href={n.url} target="_blank" rel="noopener" class={enlace}>
+                    {n.nombre}
+                  </a>
+                </li>
+              ))
+            }
+          </ul>
+        </section>
+
+        <section data-reveal>
+          <p class={numero}>05</p>
+          <h2 class={titulo}>Canvis en la política</h2>
+          <p class={parrafo}>
+            Aquesta política es pot actualitzar. Qualsevol canvi es reflectirà aquí, amb la data de darrera
+            actualització al peu de la pàgina.
+          </p>
+        </section>
+
+        <section data-reveal>
+          <p class={numero}>06</p>
+          <h2 class={titulo}>Contacte</h2>
+          <p class={parrafo}>
+            Per a qualsevol dubte sobre cookies, escriu a <a href={`mailto:${site.email}`} class={enlace}
+              >{site.email}</a
+            >. El tractament de dades personals es detalla a la <a
+              href={href('/politica-privacidad/')}
+              class={enlace}>política de privacitat</a
+            >.
+          </p>
+        </section>
+
+        <p class="hairline pt-8 font-mono text-[12px] text-pizarra" data-reveal>
+          Darrera actualització: setembre de 2026
+        </p>
+      </article>
+    </div>
+  </section>
+</Base>

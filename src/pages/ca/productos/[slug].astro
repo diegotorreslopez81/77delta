@@ -1,0 +1,135 @@
+---
+import Base from '../../../layouts/Base.astro';
+import Boton from '../../../components/Boton.astro';
+import Cta from '../../../components/Cta.astro';
+import { hrefCa as href } from '../../../lib/site';
+import { productos, type Producto } from '../../../data/productos.ca';
+
+export function getStaticPaths() {
+  return productos.map((producto) => ({
+    params: { slug: producto.slug },
+    props: { producto },
+  }));
+}
+
+interface Props {
+  producto: Producto;
+}
+
+const { producto } = Astro.props;
+const otros = productos.filter((p) => p.slug !== producto.slug).slice(0, 3);
+---
+
+<Base
+  title={producto.nombre}
+  description={`${producto.nombre}: ${producto.descripcion} Producte propi de 77 Delta, ${producto.estado.toLowerCase()}.`}
+>
+  <!-- Hero -->
+  <section class="wrap py-24 md:py-32">
+    <p class="eyebrow" data-reveal>
+      <a href={href('/productos/')} class="transition-colors hover:text-tinta">Productes</a> · {producto.categoria}
+    </p>
+
+    <div class="mt-8 flex items-center gap-6" data-reveal>
+      <img
+        src={href(`/img/productos/${producto.logo}`)}
+        alt={`Logotip de ${producto.nombre}`}
+        width="256"
+        height="256"
+        class="h-16 w-16 rounded-[12px] object-contain ring-1 ring-linea"
+      />
+      <div>
+        <h1 class="font-display text-[clamp(34px,5vw,60px)] font-semibold leading-[1.05] tracking-[-0.035em]">
+          {producto.nombre}
+        </h1>
+        <p class="mt-2 font-mono text-[11px] uppercase tracking-[0.14em] text-pizarra">{producto.estado}</p>
+      </div>
+    </div>
+
+    <p class="mt-10 max-w-[52ch] text-[clamp(17px,1.6vw,20px)] text-pizarra" data-reveal>{producto.descripcion}</p>
+
+    {
+      producto.url && (
+        <div class="mt-10" data-reveal>
+          <Boton href={producto.url} externo>
+            Visitar {producto.nombre} →
+          </Boton>
+        </div>
+      )
+    }
+  </section>
+
+  <!-- Qué hace y con qué -->
+  <section class="hairline bg-panel">
+    <div class="wrap grid gap-12 py-24 md:grid-cols-12 md:py-32">
+      <div class="md:col-span-7" data-reveal>
+        <p class="eyebrow">Què fa</p>
+        <p class="mt-6 text-[17px] leading-[1.65] text-tinta/85">{producto.queHace}</p>
+      </div>
+      <div class="md:col-span-5 md:pl-6" data-reveal>
+        <p class="eyebrow">Construït amb</p>
+        <p class="mt-6 font-mono text-[13px] leading-[1.9] text-pizarra">{producto.stack}</p>
+        <p class="mt-8 border-t border-linea pt-6 text-[15px] text-pizarra">
+          Infraestructura a la Unió Europea. El client conserva el codi, les claus i les dades en acabar el
+          projecte.
+        </p>
+      </div>
+    </div>
+  </section>
+
+  <!-- Cómo lo usamos en proyectos -->
+  <section class="hairline">
+    <div class="wrap grid gap-12 py-24 md:grid-cols-12 md:py-32">
+      <div class="md:col-span-6" data-reveal>
+        <p class="eyebrow">En un projecte teu</p>
+        <h2 class="mt-5 font-display text-[clamp(28px,3.6vw,44px)] font-extralight leading-[1.1] tracking-[-0.03em]">
+          No experimentem amb la teva empresa.
+        </h2>
+      </div>
+      <div class="space-y-5 text-[17px] text-pizarra md:col-span-6 md:pt-12" data-reveal>
+        <p>
+          {producto.nombre} és un dels productes que adaptem durant els projectes de transformació. Si després
+          del diagnòstic encaixa amb el que necessites, l’implantem amb la teva marca, les teves dades i els
+          teus fluxos.
+        </p>
+        <p>
+          Si no encaixa, construïm una altra cosa des de zero o combinem diverses peces. Aquesta és la diferència
+          entre un proveïdor amb tecnologia pròpia i una consultora que només integra eines de tercers.
+        </p>
+        <a
+          href={href('/casos-de-uso/')}
+          class="inline-block font-mono text-[12px] text-oro-oscuro transition-colors hover:text-tinta"
+        >
+          Veure les capacitats que sabem aplicar →
+        </a>
+      </div>
+    </div>
+  </section>
+
+  <!-- Otros productos -->
+  <section class="hairline bg-panel">
+    <div class="wrap py-20 md:py-24">
+      <p class="eyebrow" data-reveal>Altres productes propis</p>
+      <ul class="mt-10 grid gap-px overflow-hidden rounded-[4px] border border-linea bg-linea sm:grid-cols-3" role="list">
+        {
+          otros.map((o) => (
+            <li class="bg-panel" data-reveal>
+              <a href={href(`/productos/${o.slug}/`)} class="group flex h-full flex-col p-8 transition-colors hover:bg-oro/5">
+                <span class="font-mono text-[11px] uppercase tracking-[0.14em] text-pizarra">{o.categoria}</span>
+                <h3 class="mt-3 font-display text-[20px] font-semibold">{o.nombre}</h3>
+                <p class="mt-2 flex-1 text-[15px] text-pizarra">{o.descripcion}</p>
+                <span class="mt-6 font-mono text-[12px] text-tinta/80 group-hover:text-oro-oscuro">Veure la fitxa →</span>
+              </a>
+            </li>
+          ))
+        }
+      </ul>
+    </div>
+  </section>
+
+  <Cta
+    titulo={`T’encaixa ${producto.nombre} a la teva empresa?`}
+    texto="El diagnòstic diu si aquesta solució concreta és la correcta per al teu cas, si val la pena adaptar-la o si el teu cas demana una altra cosa."
+    boton="Reservar diagnòstic gratuït"
+  />
+</Base>

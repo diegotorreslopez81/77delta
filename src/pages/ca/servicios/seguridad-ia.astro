@@ -1,0 +1,277 @@
+---
+import Base from '../../../layouts/Base.astro';
+import Boton from '../../../components/Boton.astro';
+import Cta from '../../../components/Cta.astro';
+import { hrefCa as href } from '../../../lib/site';
+
+const fugas = [
+  {
+    titulo: 'Les instruccions internes',
+    texto:
+      'El system prompt complet: com se li ha dit al bot que es comporti, què no ha de dir i amb quines dades treballa. És el mapa per a tota la resta.',
+  },
+  {
+    titulo: 'Preus, descomptes i marges',
+    texto:
+      'Rangs d’honoraris, condicions especials i llindars de negociació que són al context del bot perquè algú els va enganxar allà perquè respongués millor.',
+  },
+  {
+    titulo: 'Dades de clients',
+    texto:
+      'Si el chatbot consulta un CRM, un històric de comandes o una base de coneixement amb dades reals, se li pot demanar que en parli.',
+  },
+  {
+    titulo: 'Comportament fora de guió',
+    texto:
+      'Amb una injecció d’instruccions, el bot de la teva web pot acabar dient el que decideixi un tercer. Surt amb el teu logotip al costat.',
+  },
+  {
+    titulo: 'Promeses que no pots complir',
+    texto:
+      'Terminis, garanties i condicions inventades sobre la marxa. Un chatbot al teu domini és la teva veu, i el que afirma té efecte davant del client.',
+  },
+  {
+    titulo: 'Accés a eines connectades',
+    texto:
+      'Quan l’agent pot reservar, consultar o escriure als teus sistemes, la pregunta deixa de ser què explica i passa a ser què fa.',
+  },
+];
+
+const pasos = [
+  {
+    titulo: 'Detecció',
+    texto:
+      'Recorrem la teva web com ho faria un visitant i localitzem els assistents amb IA que hi ha publicats, inclosos els que l’equip de màrqueting va posar sense avisar sistemes.',
+  },
+  {
+    titulo: 'Proves',
+    texto:
+      'Llancem una bateria de proves de fuga sobre cada assistent: extracció d’instruccions, revelació de condicions comercials, dades personals, injecció d’instruccions i sortida de guió.',
+  },
+  {
+    titulo: 'Informe',
+    texto:
+      'Un model jutge puntua cada resposta contra la seva rúbrica i ha de citar el fragment exacte que constitueix la fuga. Sense aquest fragment, no ho comptem com a troballa.',
+  },
+  {
+    titulo: 'Remediació',
+    texto:
+      'Reescrivim el system prompt, posem barreres de protecció i filtres de sortida, acotem el que l’agent pot consultar i deixem proves de regressió perquè no es torni a obrir.',
+  },
+];
+
+const entregables = [
+  {
+    etiqueta: 'Gratuït',
+    titulo: 'Informe bàsic',
+    texto:
+      'Severitat global, categories de fuga detectades i un parell d’exemples redactats. Suficient per saber si tens un problema i de quina mida.',
+  },
+  {
+    etiqueta: 'Amb la remediació',
+    titulo: 'Informe complet',
+    texto:
+      'El detall reproduïble de cada troballa, amb la conversa exacta i la recomanació tècnica. Es lliura en contractar l’arranjament, no es ven solt.',
+  },
+  {
+    etiqueta: 'Opcional',
+    titulo: 'Vigilància contínua',
+    texto:
+      'Repetim l’escaneig cada mes. Canviar el system prompt o afegir una font a l’assistent pot reobrir el que estava tancat.',
+  },
+];
+
+const normas = [
+  {
+    norma: 'Reglament Europeu d’IA',
+    texto:
+      'Obliga a gestionar el risc dels sistemes d’IA i a ser transparent amb l’usuari sobre el fet que parla amb una màquina. Un assistent que es surt de guió és un risc sense gestionar.',
+  },
+  {
+    norma: 'RGPD',
+    texto:
+      'Si l’assistent pot revelar dades personals de clients o empleats, això és una bretxa de seguretat amb obligació de notificació.',
+  },
+  {
+    norma: 'NIS2',
+    texto:
+      'Per a entitats essencials i importants, el chatbot és superfície d’exposició pública i entra en la gestió de riscos de la cadena de subministrament digital.',
+  },
+];
+---
+
+<Base
+  title="Seguretat d'IA"
+  description="Auditem els chatbots i agents amb IA de la teva web: quina informació se'ls pot treure, com se'ls treu i com es tanca. Informe bàsic gratuït i remediació."
+>
+  <!-- Hero -->
+  <section class="wrap py-24 md:py-32">
+    <p class="eyebrow" data-reveal>Seguretat d’IA</p>
+    <h1
+      class="mt-7 max-w-[18ch] font-display text-[clamp(38px,6vw,76px)] font-extralight leading-[1.04] tracking-[-0.035em]"
+      data-reveal
+    >
+      El teu chatbot <span class="font-semibold text-oro-oscuro">explica més del que et penses</span>.
+    </h1>
+    <p class="mt-8 max-w-[54ch] text-[clamp(17px,1.6vw,20px)] text-pizarra" data-reveal>
+      Posar un assistent amb IA a la web porta una tarda. Auditar-lo no ho fa gairebé ningú. Nosaltres el provem
+      com ho faria algú amb males intencions i et mostrem què se li escapa.
+    </p>
+    <div class="mt-12 flex flex-wrap gap-4" data-reveal>
+      <Boton href={href('/contacto/')}>Demanar l’escaneig gratuït →</Boton>
+      <Boton href={href('/estudio-asistentes-ia/')} variante="linea">Veure el nostre estudi</Boton>
+    </div>
+  </section>
+
+  <!-- El problema -->
+  <section class="hairline bg-panel">
+    <div class="wrap py-24 md:py-32">
+      <div class="max-w-[62ch]" data-reveal>
+        <p class="eyebrow">El que se li pot treure</p>
+        <h2 class="mt-5 font-display text-[clamp(28px,3.6vw,44px)] font-extralight leading-[1.1] tracking-[-0.03em]">
+          No cal ser un atacant sofisticat. N’hi ha prou d’insistir bé.
+        </h2>
+        <p class="mt-6 text-[17px] text-pizarra">
+          Al setembre de 2026 vam rastrejar 391 webs espanyoles. Un grapat dels assistents amb IA que vam trobar
+          van deixar escapar alguna cosa en provar-los a fons, amb una segona revisió adversa sobre cada
+          troballa. Ningú no va vulnerar res: només va caldre escriure al xat. El rastreig continua en marxa.
+        </p>
+        <a
+          href={href('/estudio-asistentes-ia/')}
+          class="mt-5 inline-block font-mono text-[12px] text-oro-oscuro transition-colors hover:text-tinta"
+        >
+          Veure l’estudi complet amb les dades →
+        </a>
+      </div>
+
+      <ul class="mt-16 grid gap-x-12 gap-y-12 md:grid-cols-2 lg:grid-cols-3" role="list">
+        {
+          fugas.map((f, i) => (
+            <li data-reveal>
+              <span class="font-mono text-[11px] tracking-[0.14em] text-oro-oscuro">
+                {String(i + 1).padStart(2, '0')}
+              </span>
+              <h3 class="mt-4 font-display text-[19px] font-semibold leading-[1.3]">{f.titulo}</h3>
+              <p class="mt-3 text-[15px] text-pizarra">{f.texto}</p>
+            </li>
+          ))
+        }
+      </ul>
+    </div>
+  </section>
+
+  <!-- Cómo lo hacemos -->
+  <section class="hairline">
+    <div class="wrap py-24 md:py-32">
+      <div class="grid gap-10 md:grid-cols-12">
+        <div class="md:col-span-6" data-reveal>
+          <p class="eyebrow">Com ho fem</p>
+          <h2
+            class="mt-5 font-display text-[clamp(28px,3.6vw,44px)] font-extralight leading-[1.1] tracking-[-0.03em]"
+          >
+            Quatre passos, amb LeakAI fent la feina pesada.
+          </h2>
+        </div>
+        <div class="text-[17px] text-pizarra md:col-span-6 md:pt-12" data-reveal>
+          <p>
+            LeakAI és la nostra eina d’auditoria. Detecta els assistents publicats, els prova i puntua cada
+            troballa. La construïm nosaltres i la fem servir a cada projecte, així el diagnòstic no depèn que
+            algú tingui la tarda lliure.
+          </p>
+        </div>
+      </div>
+
+      <ol class="mt-16 grid gap-px overflow-hidden rounded-[4px] border border-linea bg-linea md:grid-cols-2" role="list">
+        {
+          pasos.map((p, i) => (
+            <li class="bg-panel p-8 md:p-10" data-reveal>
+              <span class="font-mono text-[11px] tracking-[0.14em] text-oro-oscuro">
+                {String(i + 1).padStart(2, '0')}
+              </span>
+              <h3 class="mt-4 font-display text-[20px] font-semibold leading-[1.3]">{p.titulo}</h3>
+              <p class="mt-3 text-[15px] text-pizarra">{p.texto}</p>
+            </li>
+          ))
+        }
+      </ol>
+    </div>
+  </section>
+
+  <!-- Qué te llevas -->
+  <section class="hairline bg-marino text-marfil">
+    <div class="wrap py-24 md:py-32">
+      <div class="max-w-[62ch]" data-reveal>
+        <p class="eyebrow text-oro-luz">Què t’enduus</p>
+        <h2 class="mt-5 font-display text-[clamp(28px,3.6vw,44px)] font-extralight leading-[1.1] tracking-[-0.03em]">
+          El diagnòstic és gratis. El que es paga és deixar-ho tancat.
+        </h2>
+      </div>
+
+      <ul class="mt-16 grid gap-10 md:grid-cols-3" role="list">
+        {
+          entregables.map((e) => (
+            <li class="border-t border-marfil/15 pt-8" data-reveal>
+              <span class="font-mono text-[11px] uppercase tracking-[0.18em] text-oro-luz">{e.etiqueta}</span>
+              <h3 class="mt-4 font-display text-[20px] font-semibold leading-[1.3]">{e.titulo}</h3>
+              <p class="mt-3 text-[15px] text-marfil/70">{e.texto}</p>
+            </li>
+          ))
+        }
+      </ul>
+    </div>
+  </section>
+
+  <!-- Normativa -->
+  <section class="hairline">
+    <div class="wrap py-24 md:py-32">
+      <div class="grid gap-10 md:grid-cols-12">
+        <div class="md:col-span-5" data-reveal>
+          <p class="eyebrow">Per què et tocarà igualment</p>
+          <h2
+            class="mt-5 font-display text-[clamp(28px,3.6vw,44px)] font-extralight leading-[1.1] tracking-[-0.03em]"
+          >
+            Un assistent sense auditar és un risc sense gestionar.
+          </h2>
+        </div>
+        <ul class="md:col-span-7 md:pl-6" role="list">
+          {
+            normas.map((n) => (
+              <li class="border-t border-linea py-8 first:border-t-0 first:pt-0 md:first:pt-2" data-reveal>
+                <h3 class="font-display text-[19px] font-semibold">{n.norma}</h3>
+                <p class="mt-3 text-[15px] text-pizarra">{n.texto}</p>
+              </li>
+            ))
+          }
+        </ul>
+      </div>
+    </div>
+  </section>
+
+  <!-- Cómo trabajamos esto -->
+  <section class="hairline bg-panel">
+    <div class="wrap grid gap-10 py-24 md:grid-cols-12 md:py-32">
+      <div class="md:col-span-6" data-reveal>
+        <p class="eyebrow">Els límits, per escrit</p>
+        <h2 class="mt-5 font-display text-[clamp(28px,3.6vw,44px)] font-extralight leading-[1.1] tracking-[-0.03em]">
+          Això és un diagnòstic, no una amenaça.
+        </h2>
+      </div>
+      <div class="space-y-5 text-[17px] text-pizarra md:col-span-6 md:pt-12" data-reveal>
+        <p>
+          Parlem amb l’assistent com ho faria qualsevol visitant, des de la web pública i a un ritme limitat. No
+          entrem en sistemes, no explotem vulnerabilitats i no toquem res que no estigui publicat.
+        </p>
+        <p>
+          Les dades personals que apareguin no es guarden en clar. Les troballes s’ensenyen només al responsable
+          de l’empresa, mai a tercers i mai en públic.
+        </p>
+      </div>
+    </div>
+  </section>
+
+  <Cta
+    titulo="Escanegem el teu assistent gratis. Després decideixes."
+    texto="Ens dius el teu domini i et retornem l’informe bàsic amb la severitat i les categories de fuga que hàgim trobat. Sense compromís i sense cost."
+    boton="Demanar l’escaneig"
+  />
+</Base>

@@ -3,7 +3,7 @@ import '../styles/global.css';
 import Nav from '../components/Nav.astro';
 import Footer from '../components/Footer.astro';
 import WhatsApp from '../components/WhatsApp.astro';
-import { site, umami, searchConsole, href } from '../lib/site';
+import { site, umami, searchConsole, href, equivalenteCa, equivalenteEs } from '../lib/site';
 
 interface Props {
   /** Título de la página, sin el nombre de la marca. */
@@ -16,19 +16,28 @@ interface Props {
 }
 const { title, description = site.descripcion, ogImage = '/img/og.png', noindex = false } = Astro.props;
 
+const idioma = Astro.currentLocale === 'ca' ? 'ca' : 'es';
 const tituloCompleto = title ? `${title} · ${site.nombre}` : `${site.nombre} · ${site.claim}`;
 const canonical = new URL(Astro.url.pathname, Astro.site).href;
 const og = new URL(href(ogImage), Astro.site).href;
+// Alternativas de idioma para hreflang: la propia página, la equivalente en el otro idioma, y x-default en castellano.
+const rutaEs = idioma === 'ca' ? equivalenteEs(Astro.url.pathname) : Astro.url.pathname;
+const rutaCa = idioma === 'ca' ? Astro.url.pathname : equivalenteCa(Astro.url.pathname);
+const urlEs = new URL(rutaEs, Astro.site).href;
+const urlCa = new URL(rutaCa, Astro.site).href;
 ---
 
 <!doctype html>
-<html lang="es">
+<html lang={idioma}>
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>{tituloCompleto}</title>
     <meta name="description" content={description} />
     <link rel="canonical" href={canonical} />
+    <link rel="alternate" hreflang="es-ES" href={urlEs} />
+    <link rel="alternate" hreflang="ca-ES" href={urlCa} />
+    <link rel="alternate" hreflang="x-default" href={urlEs} />
     <link rel="icon" type="image/svg+xml" href={href('/favicon.svg')} />
     <link rel="alternate icon" href={href('/favicon.ico')} sizes="16x16 32x32 48x48" />
     <meta name="theme-color" content="#06101F" />
@@ -44,12 +53,33 @@ const og = new URL(href(ogImage), Astro.site).href;
     <meta property="og:image" content={og} />
     <meta property="og:image:width" content="1200" />
     <meta property="og:image:height" content="630" />
-    <meta property="og:locale" content="es_ES" />
+    <meta property="og:locale" content={idioma === 'ca' ? 'ca_ES' : 'es_ES'} />
+    <meta property="og:locale:alternate" content={idioma === 'ca' ? 'es_ES' : 'ca_ES'} />
     <meta name="twitter:card" content="summary_large_image" />
     <meta name="twitter:title" content={tituloCompleto} />
     <meta name="twitter:description" content={description} />
     <meta name="twitter:image" content={og} />
 
+    <script is:inline define:vars={{ idioma, rutaCa, rutaEs }}>
+      // Detección de idioma por navegador, con selección recordada y sin pisar una elección manual.
+      // Corre lo antes posible (antes de pintar el body) para minimizar el parpadeo de idioma.
+      try {
+        var guardado = localStorage.getItem('idioma-77delta');
+        if (!guardado) {
+          var prefiereCatalan = (navigator.language || navigator.userLanguage || '').toLowerCase().startsWith('ca');
+          if (prefiereCatalan && idioma !== 'ca') {
+            localStorage.setItem('idioma-77delta', 'ca');
+            location.replace(rutaCa);
+          } else if (!prefiereCatalan && idioma !== 'es') {
+            // Visitante sin catalán en el navegador que llega directo a una página en catalán: no le forzamos nada,
+            // solo dejamos memoria de que su idioma detectado es castellano por si vuelve a la home.
+            localStorage.setItem('idioma-77delta', idioma);
+          } else {
+            localStorage.setItem('idioma-77delta', idioma);
+          }
+        }
+      } catch (e) {}
+    </script>
   </head>
   <body class="min-h-screen bg-papel text-tinta">
     <Nav />

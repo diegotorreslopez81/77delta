@@ -1,0 +1,155 @@
+---
+import Base from '../../../layouts/Base.astro';
+import Cta from '../../../components/Cta.astro';
+import { hrefCa as href } from '../../../lib/site';
+import { sectores, type Sector } from '../../../data/sectores.ca';
+
+export function getStaticPaths() {
+  return sectores.map((sector, i) => ({
+    params: { slug: sector.slug },
+    props: { sector, indice: i },
+  }));
+}
+
+interface Props {
+  sector: Sector;
+  indice: number;
+}
+
+const { sector, indice } = Astro.props;
+const numero = String(indice + 1).padStart(2, '0');
+
+// La xifra del cas és text ("38%", "2h", "3x"). Si comença per número, l'animem.
+const partes = /^([\d.,]+)(.*)$/.exec(sector.caso.cifra);
+const valor = partes ? Number(partes[1].replace(',', '.')) : null;
+const sufijo = partes ? partes[2] : '';
+---
+
+<Base title={sector.nombre} description={sector.lead}>
+  <!-- Hero -->
+  <section class="wrap py-24 md:py-32">
+    <p class="eyebrow" data-reveal>Sector {numero} · {sector.nombre}</p>
+    <h1
+      class="mt-7 max-w-[18ch] font-display text-[clamp(38px,6vw,76px)] font-extralight leading-[1.04] tracking-[-0.035em]"
+      data-reveal
+    >
+      {sector.h1}
+    </h1>
+    <p class="mt-8 max-w-[52ch] text-[clamp(17px,1.6vw,20px)] text-pizarra" data-reveal>{sector.lead}</p>
+  </section>
+
+  <!-- El problema típico del sector -->
+  <section class="hairline">
+    <div class="wrap grid gap-10 py-24 md:grid-cols-12 md:py-32">
+      <div class="md:col-span-7" data-reveal>
+        <p class="eyebrow">El problema típic del sector</p>
+        <h2 class="mt-5 font-display text-[clamp(28px,3.6vw,44px)] font-extralight leading-[1.1] tracking-[-0.03em]">
+          El que ens expliquen quan arriben a nosaltres
+        </h2>
+      </div>
+      <div class="md:col-span-5 md:pt-12" data-reveal>
+        <p class="text-[17px] text-pizarra">{sector.problema}</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- Cuatro líneas de transformación -->
+  <section class="hairline bg-panel">
+    <div class="wrap py-24 md:py-32">
+      <div class="max-w-[62ch]" data-reveal>
+        <p class="eyebrow">Solucions aplicables</p>
+        <h2 class="mt-5 font-display text-[clamp(28px,3.6vw,44px)] font-extralight leading-[1.1] tracking-[-0.03em]">
+          Quatre línies de transformació amb IA
+        </h2>
+        <p class="mt-6 text-[17px] text-pizarra">
+          Implantacions contrastades que adaptem al cas concret després del diagnòstic.
+        </p>
+      </div>
+
+      <ol class="mt-16 grid gap-x-12 gap-y-12 md:grid-cols-2" role="list">
+        {
+          sector.soluciones.map((s, i) => (
+            <li data-reveal>
+              <span class="font-mono text-[11px] tracking-[0.14em] text-oro-oscuro">{String(i + 1).padStart(2, '0')}</span>
+              <p class="mt-4 font-display text-[19px] font-semibold leading-[1.3]">{s}</p>
+            </li>
+          ))
+        }
+      </ol>
+    </div>
+  </section>
+
+  <!-- Caso destacado -->
+  <section class="hairline">
+    <div class="wrap grid gap-6 py-24 md:grid-cols-12 md:gap-10 md:py-32">
+      <div class="md:col-span-5" data-reveal>
+        <p class="font-display text-[clamp(64px,9vw,128px)] font-extralight leading-none tracking-[-0.04em] text-oro-oscuro">
+          {
+            valor === null ? (
+              <span>{sector.caso.cifra}</span>
+            ) : (
+              <span data-contador={valor} data-sufijo={sufijo}>
+                0{sufijo}
+              </span>
+            )
+          }
+        </p>
+        <p class="mt-3 font-mono text-[12px] uppercase tracking-[0.14em] text-pizarra">{sector.caso.etiqueta}</p>
+      </div>
+      <div class="md:col-span-7" data-reveal>
+        <p class="eyebrow text-pizarra">Cas destacat</p>
+        <h2 class="mt-4 font-display text-[clamp(22px,2.4vw,30px)] font-semibold leading-[1.2]">
+          {sector.caso.titulo}
+        </h2>
+        <p class="mt-5 text-[16px] text-pizarra">{sector.caso.texto}</p>
+        <div class="mt-6 flex flex-wrap gap-x-8 gap-y-3">
+          {
+            sector.caso.historia && (
+              <a
+                href={href(`/historias-de-exito/${sector.caso.historia}/`)}
+                class="font-mono text-[12px] text-oro-oscuro hover:text-tinta"
+              >
+                Llegir el cas complet →
+              </a>
+            )
+          }
+          <a href={href('/historias-de-exito/')} class="font-mono text-[12px] text-tinta/70 hover:text-oro-oscuro">
+            Veure més casos del sector →
+          </a>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  {
+    sector.aparte && (
+      <section class="hairline">
+        <div class="wrap grid gap-10 py-24 md:grid-cols-12 md:py-32">
+          <div class="md:col-span-6" data-reveal>
+            <p class="eyebrow">{sector.aparte.eyebrow}</p>
+            <h2 class="mt-5 font-display text-[clamp(28px,3.6vw,44px)] font-extralight leading-[1.1] tracking-[-0.03em]">
+              {sector.aparte.titulo}
+            </h2>
+          </div>
+          <div class="md:col-span-6 md:pt-12" data-reveal>
+            <p class="text-[17px] text-pizarra">{sector.aparte.texto}</p>
+            <a
+              href={sector.aparte.enlace}
+              target="_blank"
+              rel="noopener"
+              class="mt-6 inline-block font-mono text-[12px] text-oro-oscuro transition-colors hover:text-tinta"
+            >
+              {sector.aparte.etiqueta}
+            </a>
+          </div>
+        </div>
+      </section>
+    )
+  }
+
+  <Cta
+    titulo={sector.ctaTitulo}
+    texto="Diagnòstic de 30 minuts. Et lliurem una proposta personalitzada amb estat inicial, pla de treball i pressupost. Sense compromís."
+    boton="Reservar diagnòstic gratuït"
+  />
+</Base>

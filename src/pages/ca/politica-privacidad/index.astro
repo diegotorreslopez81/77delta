@@ -1,0 +1,181 @@
+---
+import Base from '../../../layouts/Base.astro';
+import { site, hrefCa as href } from '../../../lib/site';
+
+const enlace = 'text-tinta underline decoration-oro/50 underline-offset-4 transition-colors hover:text-oro-oscuro';
+const parrafo = 'mt-4 text-[16px] text-pizarra';
+const titulo = 'mt-3 font-display text-[clamp(21px,2.2vw,27px)] font-semibold leading-[1.2]';
+const numero = 'font-mono text-[11px] tracking-[0.14em] text-oro-oscuro';
+const lista = 'mt-4 list-disc space-y-2 pl-5 text-[16px] text-pizarra marker:text-oro-oscuro';
+---
+
+<Base
+  title="Política de privacitat"
+  description="Tota la informació que ens proporciones es processa i s'emmagatzema a la Unió Europea, d'acord amb el Reglament General de Protecció de Dades."
+>
+  <section class="wrap pb-14 pt-20 md:pb-20 md:pt-28">
+    <p class="eyebrow" data-reveal>Legal</p>
+    <h1
+      class="mt-5 max-w-[16ch] font-display text-[clamp(38px,6vw,76px)] font-extralight leading-[1.04] tracking-[-0.035em]"
+      data-reveal
+    >
+      Les teves dades a Europa. D'acord amb el RGPD.
+    </h1>
+    <p class="mt-7 max-w-[52ch] text-[clamp(17px,1.6vw,20px)] text-pizarra" data-reveal>
+      Tota la informació que ens proporciones es processa i s'emmagatzema a la Unió Europea, d'acord amb el
+      Reglament General de Protecció de Dades.
+    </p>
+  </section>
+
+  <section class="hairline">
+    <div class="wrap py-16 md:py-24">
+      <article class="max-w-[68ch] space-y-14">
+        <section data-reveal>
+          <p class={numero}>01</p>
+          <h2 class={titulo}>Responsable del tractament</h2>
+          <p class={parrafo}>
+            El responsable del tractament de les teves dades personals és {site.sociedad}, amb CIF {site.cif} i
+            domicili a {site.direccion}, societat que opera comercialment sota la marca {site.nombre}.
+          </p>
+          <p class={parrafo}>
+            Correu de contacte en matèria de privacitat: <a href={`mailto:${site.email}`} class={enlace}
+              >{site.email}</a
+            >.
+          </p>
+        </section>
+
+        <section data-reveal>
+          <p class={numero}>02</p>
+          <h2 class={titulo}>Dades que recopilem</h2>
+          <p class={parrafo}>
+            Recopilem únicament les dades que tu ens proporciones voluntàriament en omplir formularis, reservar
+            un diagnòstic o enviar-nos un correu. Aquestes dades poden incloure:
+          </p>
+          <ul class={lista}>
+            <li>Nom i cognoms</li>
+            <li>Empresa i càrrec</li>
+            <li>Adreça de correu electrònic</li>
+            <li>Número de telèfon, si ens el proporciones</li>
+            <li>Sector d'activitat i descripció de la teva situació</li>
+          </ul>
+          <p class={parrafo}>
+            En enviar el formulari registrem a més l'adreça IP des de la qual s'envia, amb l'única finalitat de
+            limitar els enviaments automatitzats. Es conserva juntament amb el missatge i s'elimina amb ell.
+          </p>
+          <p class={parrafo}>
+            Per mesurar l'ús de la web utilitzem Umami, una eina d'analítica sense cookies que no identifica el
+            visitant ni en guarda l'adreça IP: registra de manera anònima i agregada les pàgines vistes, el
+            país, el tipus de dispositiu i l'origen de la visita, en un servidor propi a la Unió Europea. No hi
+            ha cookies de seguiment ni perfilat publicitari, i no encreuem dades amb fonts externes. Pots
+            consultar-ne el detall a la <a href={href('/politica-cookies/')} class={enlace}
+              >política de cookies</a
+            >.
+          </p>
+        </section>
+
+        <section data-reveal>
+          <p class={numero}>03</p>
+          <h2 class={titulo}>Finalitats del tractament</h2>
+          <ul class={lista}>
+            <li>Respondre a la teva sol·licitud de contacte o diagnòstic.</li>
+            <li>Enviar-te propostes comercials personalitzades si així ho sol·licites.</li>
+            <li>Mantenir una relació contractual si decideixes contractar els nostres serveis.</li>
+            <li>Complir amb obligacions legals i fiscals.</li>
+            <li>Millorar els nostres serveis mitjançant anàlisi agregada.</li>
+          </ul>
+        </section>
+
+        <section data-reveal>
+          <p class={numero}>04</p>
+          <h2 class={titulo}>Base legal del tractament</h2>
+          <p class={parrafo}>
+            La base legal del tractament és el teu consentiment explícit en omplir els nostres formularis i, si
+            escau, l'execució d'un contracte.
+          </p>
+        </section>
+
+        <section data-reveal>
+          <p class={numero}>05</p>
+          <h2 class={titulo}>Conservació de les dades</h2>
+          <p class={parrafo}>
+            Conservem les teves dades durant el temps necessari per complir les finalitats indicades, llevat
+            que la llei exigeixi un termini diferent. En el cas de contactes comercials sense contracte signat,
+            les dades es conserven durant un màxim de 24 mesos des de l'últim contacte.
+          </p>
+        </section>
+
+        <section data-reveal>
+          <p class={numero}>06</p>
+          <h2 class={titulo}>Ubicació i transferències de dades</h2>
+          <p class={parrafo}>
+            Les pàgines d'aquest lloc són estàtiques i se serveixen a través de GitHub Pages, un servei de
+            GitHub, Inc., que registra únicament dades tècniques d'accés, com l'adreça IP, per prestar el
+            servei. GitHub està adherit al Marc de Privacitat de Dades UE-EUA.
+          </p>
+          <p class={parrafo}>
+            El formulari de contacte el processa un servidor propi situat a Alemanya. Allà es guarda el
+            missatge i des d'allà es remet al nostre correu corporatiu, allotjat a Google Workspace (Google
+            Ireland Ltd.). Si ens escrius directament o reserves una conversa, el teu missatge i la cita es
+            gestionen amb Google Workspace i Google Calendar en les mateixes condicions.
+          </p>
+          <p class={parrafo}>
+            Els sistemes que construïm per als nostres clients s'allotgen en infraestructura de la Unió
+            Europea, principalment a Frankfurt, Alemanya. No fem altres transferències internacionals de dades
+            sense les garanties que exigeix el RGPD.
+          </p>
+        </section>
+
+        <section data-reveal>
+          <p class={numero}>07</p>
+          <h2 class={titulo}>Els teus drets</h2>
+          <p class={parrafo}>Com a interessat tens dret a:</p>
+          <ul class={lista}>
+            <li><span class="text-tinta">Accés:</span> conèixer quines dades teves tractem.</li>
+            <li><span class="text-tinta">Rectificació:</span> corregir dades inexactes o incompletes.</li>
+            <li><span class="text-tinta">Supressió:</span> sol·licitar l'eliminació de les teves dades.</li>
+            <li><span class="text-tinta">Oposició:</span> oposar-te al tractament de les teves dades.</li>
+            <li><span class="text-tinta">Limitació:</span> sol·licitar la limitació del tractament.</li>
+            <li><span class="text-tinta">Portabilitat:</span> rebre les teves dades en format estructurat.</li>
+            <li>
+              <span class="text-tinta">Reclamació:</span> presentar una reclamació davant l'<a
+                href="https://www.aepd.es/"
+                target="_blank"
+                rel="noopener"
+                class={enlace}>Agència Espanyola de Protecció de Dades</a
+              >.
+            </li>
+          </ul>
+          <p class={parrafo}>
+            Per exercir qualsevol d'aquests drets, escriu a <a href={`mailto:${site.email}`} class={enlace}
+              >{site.email}</a
+            > identificant-te i especificant la sol·licitud.
+          </p>
+        </section>
+
+        <section data-reveal>
+          <p class={numero}>08</p>
+          <h2 class={titulo}>Seguretat</h2>
+          <p class={parrafo}>
+            Apliquem mesures tècniques i organitzatives raonables per protegir les teves dades: xifratge en
+            trànsit amb HTTPS, accés restringit al correu corporatiu i, en els projectes de client, control
+            d'accés i còpies de seguretat en infraestructura europea. Tot i això, cap sistema no és completament
+            invulnerable, i no podem garantir una seguretat absoluta.
+          </p>
+        </section>
+
+        <section data-reveal>
+          <p class={numero}>09</p>
+          <h2 class={titulo}>Canvis en aquesta política</h2>
+          <p class={parrafo}>
+            Aquesta política es pot actualitzar. La data de darrera actualització apareix al peu de la pàgina.
+            Els canvis substancials es comunicaran per correu als contactes actius.
+          </p>
+        </section>
+
+        <p class="hairline pt-8 font-mono text-[12px] text-pizarra" data-reveal>
+          Darrera actualització: setembre de 2026
+        </p>
+      </article>
+    </div>
+  </section>
+</Base>

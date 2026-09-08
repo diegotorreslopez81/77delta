@@ -1,0 +1,24 @@
+---
+import Base from '../../layouts/Base.astro';
+import Boton from '../../components/Boton.astro';
+import { hrefCa as href } from '../../lib/site';
+---
+
+<Base title="Pàgina no trobada" description="Aquesta pàgina no existeix o ha canviat de lloc." noindex>
+  <section class="wrap py-32 md:py-44">
+    <p class="eyebrow" data-reveal>Error 404</p>
+    <h1
+      class="mt-7 max-w-[18ch] font-display text-[clamp(38px,6vw,76px)] font-extralight leading-[1.04] tracking-[-0.035em]"
+      data-reveal
+    >
+      Aquesta pàgina no existeix o ha canviat de lloc.
+    </h1>
+    <p class="mt-8 max-w-[52ch] text-[clamp(17px,1.6vw,20px)] text-pizarra" data-reveal>
+      Revisa l'adreça o torna a l'inici. Si hi has arribat des d'un enllaç nostre, escriu-nos i ho arreglem.
+    </p>
+    <div class="mt-12 flex flex-wrap gap-4" data-reveal>
+      <Boton href={href('/')}>Tornar a l'inici →</Boton>
+      <Boton href={href('/contacto/')} variante="linea">Contacte</Boton>
+    </div>
+  </section>
+</Base>

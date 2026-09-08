@@ -14,6 +14,19 @@ export default defineConfig({
   // La seguridad de IA vivió unas horas en la raíz antes de pasar a ser un servicio más.
   redirects: { '/seguridad-ia': '/servicios/seguridad-ia/' },
   build: { format: 'directory' },
-  integrations: [sitemap()],
+  // Castellano en la raíz (no rompe URLs ya indexadas), catalán bajo /ca/.
+  i18n: {
+    defaultLocale: 'es',
+    locales: ['es', 'ca'],
+    routing: { prefixDefaultLocale: false },
+  },
+  integrations: [
+    sitemap({
+      i18n: {
+        defaultLocale: 'es',
+        locales: { es: 'es-ES', ca: 'ca-ES' },
+      },
+    }),
+  ],
   vite: { plugins: [tailwindcss()] },
 });

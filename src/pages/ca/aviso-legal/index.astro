@@ -1,0 +1,152 @@
+---
+import Base from '../../../layouts/Base.astro';
+import { site, hrefCa as href } from '../../../lib/site';
+
+const enlace = 'text-tinta underline decoration-oro/50 underline-offset-4 transition-colors hover:text-oro-oscuro';
+const parrafo = 'mt-4 text-[16px] text-pizarra';
+const titulo = 'mt-3 font-display text-[clamp(21px,2.2vw,27px)] font-semibold leading-[1.2]';
+const numero = 'font-mono text-[11px] tracking-[0.14em] text-oro-oscuro';
+const lista = 'mt-4 list-disc space-y-2 pl-5 text-[16px] text-pizarra marker:text-oro-oscuro';
+---
+
+<Base
+  title="Avís legal"
+  description={`Informació societària de ${site.sociedad}, titular de la marca ${site.nombre}, i condicions d'ús d'aquest lloc web.`}
+>
+  <section class="wrap pb-14 pt-20 md:pb-20 md:pt-28">
+    <p class="eyebrow" data-reveal>Legal</p>
+    <h1
+      class="mt-5 max-w-[16ch] font-display text-[clamp(38px,6vw,76px)] font-extralight leading-[1.04] tracking-[-0.035em]"
+      data-reveal
+    >
+      Informació societària.
+    </h1>
+    <p class="mt-7 max-w-[52ch] text-[clamp(17px,1.6vw,20px)] text-pizarra" data-reveal>
+      Dades de la societat que opera sota la marca {site.nombre} i termes d'ús d'aquest lloc web.
+    </p>
+  </section>
+
+  <section class="hairline">
+    <div class="wrap py-16 md:py-24">
+      <article class="max-w-[68ch] space-y-14">
+        <section data-reveal>
+          <p class={numero}>01</p>
+          <h2 class={titulo}>Titularitat del lloc web</h2>
+          <p class={parrafo}>
+            Aquest lloc web és titularitat de {site.sociedad}, societat espanyola que desenvolupa la seva
+            activitat comercial sota el nom {site.nombre}. Tota la contractació, la facturació i la
+            responsabilitat legal derivada dels serveis oferts corresponen a aquesta societat.
+          </p>
+
+          <dl class="mt-8 grid gap-px overflow-hidden rounded-[4px] border border-linea bg-linea sm:grid-cols-2">
+            <div class="bg-panel p-6">
+              <dt class="eyebrow text-pizarra">Raó social</dt>
+              <dd class="mt-2 text-[15px] text-tinta">{site.sociedad}</dd>
+            </div>
+            <div class="bg-panel p-6">
+              <dt class="eyebrow text-pizarra">CIF</dt>
+              <dd class="mt-2 font-mono text-[15px] text-tinta">{site.cif}</dd>
+            </div>
+            <div class="bg-panel p-6">
+              <dt class="eyebrow text-pizarra">Domicili social</dt>
+              <dd class="mt-2 text-[15px] text-tinta">{site.direccion}</dd>
+            </div>
+            <div class="bg-panel p-6">
+              <dt class="eyebrow text-pizarra">Registre</dt>
+              <dd class="mt-2 text-[15px] text-tinta">Inscrita al Registre Mercantil de Barcelona</dd>
+            </div>
+            <div class="bg-panel p-6 sm:col-span-2">
+              <dt class="eyebrow text-pizarra">Correu de contacte</dt>
+              <dd class="mt-2 text-[15px]">
+                <a href={`mailto:${site.email}`} class={enlace}>{site.email}</a>
+              </dd>
+            </div>
+          </dl>
+        </section>
+
+        <section data-reveal>
+          <p class={numero}>02</p>
+          <h2 class={titulo}>Objecte del lloc web</h2>
+          <p class={parrafo}>
+            Aquest lloc web té com a finalitat informar sobre els serveis i productes de {site.nombre},
+            permetre la reserva de diagnòstics i converses inicials, així com facilitar el contacte comercial.
+          </p>
+        </section>
+
+        <section data-reveal>
+          <p class={numero}>03</p>
+          <h2 class={titulo}>Condicions d'ús</h2>
+          <p class={parrafo}>
+            L'accés a aquest lloc web és gratuït i lliure. L'usuari es compromet a un ús lícit dels continguts
+            i a no dur a terme activitats que puguin perjudicar el lloc o impedir-ne el correcte funcionament.
+          </p>
+          <ul class={lista}>
+            <li>Queda prohibida la reproducció total o parcial del contingut sense autorització expressa.</li>
+            <li>
+              Els logotips i marques comercials mostrats són propietat dels seus respectius titulars i
+              s'utilitzen amb permís o sota l'empara de les lleis d'ús lícit.
+            </li>
+            <li>
+              {site.sociedad} es reserva el dret a modificar o suspendre el lloc web sense avís previ.
+            </li>
+          </ul>
+        </section>
+
+        <section data-reveal>
+          <p class={numero}>04</p>
+          <h2 class={titulo}>Propietat intel·lectual</h2>
+          <p class={parrafo}>
+            Els textos, les imatges, el codi, els dissenys, les marques i la resta de continguts publicats en
+            aquest lloc són propietat de {site.sociedad} o s'utilitzen amb llicència. La seva reproducció,
+            distribució o modificació sense autorització expressa està prohibida.
+          </p>
+        </section>
+
+        <section data-reveal>
+          <p class={numero}>05</p>
+          <h2 class={titulo}>Exempció de responsabilitat</h2>
+          <p class={parrafo}>
+            {site.sociedad} no es fa responsable dels danys derivats de l'ús de la informació publicada en
+            aquest lloc web. La informació té caràcter orientatiu i no constitueix assessorament professional
+            vinculant fins que hi hagi un contracte signat.
+          </p>
+        </section>
+
+        <section data-reveal>
+          <p class={numero}>06</p>
+          <h2 class={titulo}>Llei aplicable i jurisdicció</h2>
+          <p class={parrafo}>
+            Per als serveis prestats i per a qualsevol controvèrsia derivada de l'ús d'aquest lloc web és
+            aplicable la legislació espanyola, amb submissió als jutjats i tribunals de Barcelona, llevat que
+            el contracte concret signat amb el client disposi un altre fur.
+          </p>
+        </section>
+
+        <section data-reveal>
+          <p class={numero}>07</p>
+          <h2 class={titulo}>Acreditació ACCIÓ</h2>
+          <p class={parrafo}>
+            {site.sociedad} és proveïdor acreditat per ACCIÓ, l'agència de la Generalitat de Catalunya per a
+            la competitivitat empresarial. L'acreditació ens habilita per executar projectes dins dels seus
+            programes públics de digitalització.
+          </p>
+        </section>
+
+        <section data-reveal>
+          <p class={numero}>08</p>
+          <h2 class={titulo}>Contacte</h2>
+          <p class={parrafo}>
+            Per a qualsevol consulta sobre aquest avís legal, escriu a <a
+              href={`mailto:${site.email}`}
+              class={enlace}>{site.email}</a
+            > o utilitza el <a href={href('/contacto/')} class={enlace}>formulari de contacte</a>.
+          </p>
+        </section>
+
+        <p class="hairline pt-8 font-mono text-[12px] text-pizarra" data-reveal>
+          Darrera actualització: setembre de 2026
+        </p>
+      </article>
+    </div>
+  </section>
+</Base>

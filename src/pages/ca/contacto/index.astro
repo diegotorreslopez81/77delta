@@ -1,0 +1,275 @@
+---
+import Base from '../../../layouts/Base.astro';
+import { site, hrefCa as href } from '../../../lib/site';
+
+const sectors = [
+  'Clíniques i centres de salut',
+  'Indústria i tallers',
+  'Distribució i logística',
+  'Despatxos professionals',
+  'Administració pública',
+  'Formació i RH',
+  'Altres',
+];
+
+const vies = [
+  {
+    titol: 'Reservar conversa',
+    text:
+      '30 minuts per videoconferència. Sense cost. Sense compromís. Et lliurem una proposta personalitzada després de la trucada.',
+    enllac: site.calendario,
+    etiqueta: 'Accedir al calendari →',
+    extern: true,
+  },
+  {
+    titol: 'Email directe',
+    text: 'Escriu-nos directament i responem en 24 hores hàbils.',
+    enllac: `mailto:${site.email}`,
+    etiqueta: `${site.email} →`,
+    extern: false,
+  },
+  {
+    titol: 'LinkedIn',
+    text: 'Segueix el nostre dia a dia i la nostra activitat pública. Missatges també responguts.',
+    enllac: site.linkedin,
+    etiqueta: 'Veure perfil →',
+    extern: true,
+  },
+];
+
+const camp =
+  'mt-3 w-full rounded-[8px] border border-tinta/15 bg-panel px-4 py-3 font-sans text-[15px] text-tinta transition-colors placeholder:text-pizarra/60 focus:border-oro';
+const etiqueta = 'block font-mono text-[11px] uppercase tracking-[0.18em] text-pizarra';
+---
+
+<Base
+  title="Contacte"
+  description="Explica'ns la teva situació. Responem en 24 hores hàbils o reserva directament la conversa inicial de 30 minuts."
+>
+  <!-- Hero -->
+  <section class="wrap py-24 md:py-32">
+    <p class="eyebrow" data-reveal>Contacte</p>
+    <h1
+      class="mt-7 max-w-[16ch] font-display text-[clamp(38px,6vw,76px)] font-extralight leading-[1.04] tracking-[-0.035em]"
+      data-reveal
+    >
+      Explica’ns la teva situació.
+    </h1>
+    <p class="mt-8 max-w-[52ch] text-[clamp(17px,1.6vw,20px)] text-pizarra" data-reveal>
+      Responem en 24 hores hàbils. Si ho prefereixes, reserva directament la conversa inicial de 30 minuts al
+      calendari.
+    </p>
+  </section>
+
+  <!-- Calendario -->
+  <section class="hairline bg-panel">
+    <div class="wrap py-20 md:py-24">
+      <div class="max-w-[62ch]" data-reveal>
+        <p class="eyebrow">Reserva directa</p>
+        <h2 class="mt-5 font-display text-[clamp(28px,3.6vw,44px)] font-extralight leading-[1.1] tracking-[-0.03em]">
+          Agafa un forat al calendari i ens veiem.
+        </h2>
+        <p class="mt-6 text-[17px] text-pizarra">
+          Trenta minuts per videoconferència, sense cost i sense compromís. Si prefereixes escriure primer, tens el
+          formulari a sota.
+        </p>
+      </div>
+      <div class="mt-10 overflow-hidden rounded-[8px] border border-linea bg-panel" data-reveal>
+        <iframe
+          src={site.calendarioIncrustado}
+          title="Calendari de reserva de 77 Delta"
+          loading="lazy"
+          class="h-[620px] w-full border-0"
+        ></iframe>
+      </div>
+      <p class="mt-5 max-w-[62ch] text-[13px] text-pizarra">
+        El calendari el serveix Google. En carregar-lo, Google pot instal·lar les seves pròpies cookies. Ho pots
+        evitar fent servir el <a
+          href="#form-contacto"
+          class="text-tinta underline decoration-linea underline-offset-4 transition-colors hover:decoration-oro"
+          >formulari</a
+        > o l’<a
+          href={site.calendario}
+          target="_blank"
+          rel="noopener"
+          class="text-tinta underline decoration-linea underline-offset-4 transition-colors hover:decoration-oro"
+          >enllaç directe</a
+        >.
+      </p>
+    </div>
+  </section>
+
+  <!-- Formulario y otras vías -->
+  <section class="hairline">
+    <div class="wrap grid gap-16 py-24 md:grid-cols-12 md:gap-12 md:py-32">
+      <!-- Formulario -->
+      <div class="md:col-span-7" data-reveal>
+        <p class="eyebrow">Escriu-nos</p>
+        <h2 class="mt-5 font-display text-[clamp(28px,3.6vw,44px)] font-extralight leading-[1.1] tracking-[-0.03em]">
+          Descriu la teva situació amb les teves pròpies paraules.
+        </h2>
+        <p class="mt-6 max-w-[48ch] text-[17px] text-pizarra">
+          Et responem en menys de 24 hores hàbils.
+        </p>
+
+        <form
+          id="form-contacto"
+          class="relative mt-12 grid gap-7 sm:grid-cols-2"
+          action={`mailto:${site.email}`}
+          method="post"
+          enctype="text/plain"
+          data-destino={site.email}
+          data-endpoint={site.formulario}
+          novalidate={false}
+        >
+          <!-- Honeypot: oculto a personas, los bots lo rellenan. -->
+          <div class="absolute -left-[9999px] h-px w-px overflow-hidden" aria-hidden="true">
+            <label for="web">Web</label>
+            <input type="text" id="web" name="web" tabindex="-1" autocomplete="off" />
+          </div>
+          <div>
+            <label class={etiqueta} for="nombre">Nom</label>
+            <input class={camp} type="text" id="nombre" name="nombre" autocomplete="name" required />
+          </div>
+
+          <div>
+            <label class={etiqueta} for="empresa">Empresa</label>
+            <input class={camp} type="text" id="empresa" name="empresa" autocomplete="organization" required />
+          </div>
+
+          <div>
+            <label class={etiqueta} for="email">Email</label>
+            <input class={camp} type="email" id="email" name="email" autocomplete="email" required />
+          </div>
+
+          <div>
+            <label class={etiqueta} for="sector">Sector</label>
+            <select
+              class={`${camp} appearance-none [&_option]:bg-panel [&_option]:text-tinta`}
+              id="sector"
+              name="sector"
+              required
+            >
+              <option value="" disabled selected>Tria un sector</option>
+              {sectors.map((s) => <option value={s}>{s}</option>)}
+            </select>
+          </div>
+
+          <div class="sm:col-span-2">
+            <label class={etiqueta} for="mensaje">Què et porta per aquí?</label>
+            <textarea class={camp} id="mensaje" name="mensaje" rows="6" required></textarea>
+          </div>
+
+          <div class="sm:col-span-2">
+            <button
+              type="submit"
+              class="inline-flex items-center gap-2 whitespace-nowrap rounded-[10px] bg-oro px-6 py-3.5 font-sans text-[15px] font-semibold text-marfil shadow-[0_6px_24px_rgba(167,120,27,.30)] transition-[background-color,transform] duration-200 hover:-translate-y-px hover:bg-tinta disabled:cursor-wait disabled:opacity-60"
+            >
+              Enviar missatge →
+            </button>
+            <p id="form-estado" class="mt-5 hidden max-w-[52ch] text-[15px] text-tinta" role="status" aria-live="polite"></p>
+            <p class="mt-6 max-w-[52ch] text-[13px] text-pizarra">
+              Les dades es tracten a la Unió Europea d’acord amb el RGPD. No les cedim a tercers. Més detall a la
+              nostra <a
+                href={href('/politica-privacidad/')}
+                class="text-tinta underline decoration-linea underline-offset-4 transition-colors hover:decoration-oro"
+                >política de privacitat</a
+              >.
+            </p>
+          </div>
+        </form>
+      </div>
+
+      <!-- Otras vías -->
+      <div class="md:col-span-5 md:pl-6" data-reveal>
+        <p class="eyebrow">Altres vies</p>
+        <ul class="mt-10" role="list">
+          {
+            vies.map((v) => (
+              <li class="border-t border-linea py-8 first:pt-0">
+                <h3 class="font-display text-[19px] font-semibold">{v.titol}</h3>
+                <p class="mt-3 text-[15px] text-pizarra">{v.text}</p>
+                <a
+                  href={v.enllac}
+                  target={v.extern ? '_blank' : undefined}
+                  rel={v.extern ? 'noopener' : undefined}
+                  class="mt-5 inline-block font-mono text-[12px] text-oro-oscuro transition-colors hover:text-tinta"
+                >
+                  {v.etiqueta}
+                </a>
+              </li>
+            ))
+          }
+        </ul>
+      </div>
+    </div>
+  </section>
+
+  <script>
+    // Envía el formulario al endpoint propio (api/ del repo). Si no responde, cae al mailto de siempre.
+    const form = document.querySelector<HTMLFormElement>('#form-contacto');
+    const estado = document.querySelector<HTMLParagraphElement>('#form-estado');
+    const boton = form?.querySelector<HTMLButtonElement>('button[type=submit]');
+
+    const mostrar = (texto: string) => {
+      if (!estado) return;
+      estado.textContent = texto;
+      estado.classList.remove('hidden');
+    };
+
+    const leerCampos = (f: HTMLFormElement) => {
+      const datos = new FormData(f);
+      const leer = (nombre: string) => String(datos.get(nombre) ?? '').trim();
+      return {
+        nombre: leer('nombre'),
+        empresa: leer('empresa'),
+        email: leer('email'),
+        sector: leer('sector'),
+        mensaje: leer('mensaje'),
+        web: leer('web'),
+        origen: location.pathname,
+      };
+    };
+
+    const abrirCorreo = (destino: string, c: ReturnType<typeof leerCampos>) => {
+      const asunto = `Contacte web · ${c.empresa}`;
+      const cuerpo = [`Nom: ${c.nombre}`, `Empresa: ${c.empresa}`, `Email: ${c.email}`, `Sector: ${c.sector}`, '', c.mensaje].join('\n');
+      window.location.href = `mailto:${destino}?subject=${encodeURIComponent(asunto)}&body=${encodeURIComponent(cuerpo)}`;
+    };
+
+    form?.addEventListener('submit', async (evento) => {
+      evento.preventDefault();
+      const destino = form.dataset.destino ?? '';
+      const endpoint = form.dataset.endpoint ?? '';
+      const campos = leerCampos(form);
+
+      if (!endpoint) return abrirCorreo(destino, campos);
+
+      if (boton) boton.disabled = true;
+      mostrar('Enviant…');
+      try {
+        const r = await fetch(endpoint, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(campos),
+        });
+        const respuesta = (await r.json().catch(() => ({}))) as { ok?: boolean; error?: string };
+        if (r.ok && respuesta.ok) {
+          form.reset();
+          mostrar('Rebut. Et responem en menys de 24 hores hàbils.');
+          return;
+        }
+        if (r.status === 400 || r.status === 429) {
+          mostrar(respuesta.error ?? 'No hem pogut enviar el missatge. Revisa els camps.');
+          return;
+        }
+        throw new Error(`respuesta ${r.status}`);
+      } catch {
+        mostrar('L’enviament directe no està disponible ara mateix: s’obre el teu programa de correu amb el missatge preparat.');
+        abrirCorreo(destino, campos);
+      } finally {
+        if (boton) boton.disabled = false;
+      }
+    });
+  </script>
+</Base>
