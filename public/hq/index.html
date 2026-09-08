@@ -462,7 +462,7 @@ function render(){ if (escribiendo()){ S.renderPendiente = true; return; } var r
   var nl = licPorDecidir().length; document.getElementById('n-licita').textContent = nl ? nl : '';
   document.querySelectorAll('#tabs button').forEach(function(b){ b.classList.toggle('on', b.dataset.t === S.tab); });
   app.textContent = '';
-  if (S.tab === 'bandeja') renderBandeja(); else if (S.tab === 'negocio') renderNegocio(); else if (S.tab === 'licita') renderLicita(); else if (S.tab === 'plan') renderPlan(); else if (S.tab === 'equipo') renderEquipo(); else renderCostes();
+  if (S.tab === 'bandeja') renderBandeja(); else if (S.tab === 'negocio') renderNegocio(); else if (S.tab === 'licita') renderLicita(); else if (S.tab === 'plan') renderPlanEstrategico(); else if (S.tab === 'equipo') renderEquipo(); else renderCostes();
   requestAnimationFrame(function(){ window.scrollTo(0, reset ? 0 : sy); }); }
 
 /* ---- bandeja ---- */
@@ -1015,7 +1015,7 @@ function hojaEncargo(e){
   if (e.solicitud_id) kids.push(el('p', { class: 'peq' }, ['Tarjeta relacionada: '].concat(conRefs('#' + e.solicitud_id))));
   hoja(kids, {});
 }
-function renderPlan(){
+function renderPlanEstrategico(){
   var obj = S.hq.plan_objetivo, lineas = S.hq.plan_lineas || [], decisiones = S.hq.decisiones || [], encargos = S.hq.encargos || [];
   if (!obj && !lineas.length){ app.appendChild(el('p', { class: 'peq', text: 'Sin datos del plan todavía.' })); return; }
   if (obj){
