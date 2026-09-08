@@ -3,7 +3,7 @@
 
 Lee las pestañas Licitaciones y Descartadas con la API de Sheets (OAuth del MCP gdrive-pdata: refresh token en
 ~/.google-mcp/gdrive-pdata/token.json y client en credentials.json; no se escribe nada en esos ficheros) y sube a HQ:
-lic.detectadas / aprobadas / presentadas / en_juego / contratadas / perdidas (n y €), tasa de éxito y próximo cierre.
+lic.detectadas / analizadas / aprobadas / presentadas / adjudicadas / contratadas / perdidas / descartadas (n y €), tasa de éxito y próximo cierre.
 Cron cada hora.
 
   hq-kpis.py [--seco]
@@ -15,15 +15,19 @@ from pathlib import Path
 CONF = Path.home() / '.config' / '77delta' / 'hq.env'
 GDIR = Path.home() / '.google-mcp' / 'gdrive-pdata'
 SHEET = '12XpybhNqVapG1esl8vcHHaew83ACeTRli0gfkhcKb9I'
+# Grupos mutuamente excluyentes (8-sep, Diego: "analizadas nunca puede superar detectadas, arregla la
+# fuente"): antes 'presentadas' era la union de en_juego+contratadas+perdidas, así que una licitación
+# ya adjudicada contaba a la vez en su propio grupo Y en "presentadas" -de ahí el embudo imposible.
+# Adjudicada y contratada también se separan: son dos etapas de la escalera, no una.
 ESTADOS = {
     'analisis': {'nueva', 'analizada'},
     'aprobadas': {'aprobada', 'en preparación', 'en preparacion'},
-    'en_juego': {'presentada', 'en juego', 'en evaluación', 'en evaluacion'},
-    'contratadas': {'adjudicada', 'contratada', 'ganada', 'contratado'},
+    'presentadas': {'presentada', 'en juego', 'en evaluación', 'en evaluacion'},
+    'adjudicadas': {'adjudicada'},
+    'contratadas': {'contratada', 'ganada', 'contratado'},
     'perdidas': {'perdida', 'no adjudicada', 'desierta', 'excluida'},
-    'sin_presentar': {'cerrada sin presentar', 'descartada'},
+    'descartadas': {'cerrada sin presentar', 'descartada'},
 }
-ESTADOS['presentadas'] = ESTADOS['en_juego'] | ESTADOS['contratadas'] | ESTADOS['perdidas']
 
 
 def env():
@@ -96,21 +100,28 @@ def main():
     hoy_s = date.today().isoformat(); hace7 = (date.today() - timedelta(days=7)).isoformat()
     fechas = [f['detectada'] for f in vivas + desc if f.get('detectada')]
     k_motor = {'lic.detectadas_hoy.n': sum(1 for d in fechas if d == hoy_s), 'lic.detectadas_7d.n': sum(1 for d in fechas if d >= hace7), 'lic.ultima_deteccion': max(fechas) if fechas else ''}
-    # Detectada = fila que el bot ya ha analizado (tiene estado o importe); el resto es barrido en bruto y se cuenta aparte.
+    # Detectada = TODO lo que el barrido ha encontrado alguna vez (analizado o no). Analizada = el bot ya
+    # le ha puesto estado o importe; el resto es barrido en bruto ("brutas"). Por construcción,
+    # analizadas = detectadas - brutas, así que analizadas nunca puede superar a detectadas (8-sep).
     brutas = [f for f in vivas if not f['estado'] and not f['importe']]
     vivas = [f for f in vivas if f['estado'] or f['importe']]
     todas = vivas + desc
-    def grupo(nombre, base=vivas):
-        sel = [f for f in base if f['estado'] in ESTADOS[nombre]]
+    def grupo(nombre, extra=None):
+        sel = [f for f in vivas if f['estado'] in ESTADOS[nombre]] + (extra or [])
         return len(sel), round(sum(f['importe'] for f in sel), 2)
     k = {}
-    k['lic.detectadas.n'], k['lic.detectadas.eur'] = len(todas), round(sum(f['importe'] for f in todas), 2)
+    k['lic.detectadas.n'], k['lic.detectadas.eur'] = len(todas) + len(brutas), round(sum(f['importe'] for f in todas), 2)
+    k['lic.analizadas.n'], k['lic.analizadas.eur'] = len(todas), round(sum(f['importe'] for f in todas), 2)
     k['lic.brutas.n'] = len(brutas)
     k['lic.vivas.n'], k['lic.vivas.eur'] = len(vivas), round(sum(f['importe'] for f in vivas), 2)
-    for g in ('analisis', 'aprobadas', 'presentadas', 'en_juego', 'contratadas', 'perdidas', 'sin_presentar'):
+    for g in ('analisis', 'aprobadas', 'presentadas', 'adjudicadas', 'contratadas', 'perdidas'):
         k[f'lic.{g}.n'], k[f'lic.{g}.eur'] = grupo(g)
-    res = k['lic.contratadas.n'] + k['lic.perdidas.n']
-    k['lic.tasa_exito'] = round(k['lic.contratadas.n'] / res * 100, 1) if res else None
+    # Descartadas (no-go) = marcadas así en la pestaña Licitaciones + todo lo que vive en la pestaña
+    # Descartadas (por definición son bajas antes de presentar, aunque su columna Estado venga vacía).
+    k['lic.descartadas.n'], k['lic.descartadas.eur'] = grupo('descartadas', extra=desc)
+    ganadas_n = k['lic.adjudicadas.n'] + k['lic.contratadas.n']
+    res = ganadas_n + k['lic.perdidas.n']
+    k['lic.tasa_exito'] = round(ganadas_n / res * 100, 1) if res else None
     hoy = date.today().isoformat()
     prox = sorted([f for f in vivas if f['estado'] in ESTADOS['aprobadas'] | ESTADOS['analisis'] and f['cierre'] and f['cierre'][:10] >= hoy], key=lambda f: f['cierre'])
     filas_kpi = [{'clave': c, 'valor': v, 'fuente': 'sheet-licitaciones'} for c, v in k.items()]

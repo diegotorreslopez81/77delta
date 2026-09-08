@@ -866,22 +866,39 @@ function renderLicita(){
   var pd = licPorDecidir(), ec = licEnCurso(), g = licGanadas(), c = licCerradas(), vivas = licTodas().filter(function(l){ return l.pestana === 'Licitaciones'; });
   var est = function(l){ return (l.estado || '').toLowerCase(); }, suma = function(ls){ var t = 0; ls.forEach(function(l){ t += Number(l.importe) || 0; }); return t; };
   var prep = vivas.filter(function(l){ return ['aprobada', 'en preparación', 'en preparacion'].indexOf(est(l)) >= 0; });
-  var pres = licTodas().filter(function(l){ return ['presentada', 'en juego', 'en evaluación', 'en evaluacion', 'adjudicada', 'contratada', 'perdida', 'no adjudicada', 'desierta'].indexOf(est(l)) >= 0; });
-  var juego = pres.filter(function(l){ return ['presentada', 'en juego', 'en evaluación', 'en evaluacion'].indexOf(est(l)) >= 0; });
-  var perd = pres.filter(function(l){ return ['perdida', 'no adjudicada', 'desierta'].indexOf(est(l)) >= 0; }), resueltas = g.length + perd.length;
+  // Escalera única (8-sep, Diego): Presentadas es SOLO lo enviado y aún sin resolver -nunca adjudicada,
+  // contratada o perdida, que son etapas propias-. Antes se sumaban aquí también y una misma licitación
+  // contaba dos veces en el embudo (por eso "analizadas" podía superar a "detectadas").
+  var pres = licTodas().filter(function(l){ return ['presentada', 'en juego', 'en evaluación', 'en evaluacion'].indexOf(est(l)) >= 0; });
+  var enEval = pres.filter(function(l){ return ['en evaluación', 'en evaluacion'].indexOf(est(l)) >= 0; });
+  var adj = licTodas().filter(function(l){ return est(l) === 'adjudicada'; });
+  var contr = licTodas().filter(function(l){ return est(l) === 'contratada'; });
+  var perd = licTodas().filter(function(l){ return ['perdida', 'no adjudicada', 'desierta', 'excluida'].indexOf(est(l)) >= 0; });
+  var desc = licTodas().filter(function(l){ return ['descartada', 'cerrada sin presentar'].indexOf(est(l)) >= 0; });
   var vencen = prep.concat(pd).filter(function(l){ return l.cierre && (new Date(l.cierre + 'T14:00:00') - Date.now()) < 7 * 864e5 && new Date(l.cierre + 'T14:00:00') > Date.now(); });
   var tile = function(n, e, l, cls){ return el('div', { class: 'mini' + (cls ? ' ' + cls : '') }, [el('div', { class: 'v' }, [String(n), e != null ? el('small', { text: e }) : null]), el('div', { class: 'l', text: l })]); };
   var f = el('div', { class: 'grid3' });
-  f.appendChild(tile(pd.length, eurK(suma(pd)), 'por decidir'));
-  f.appendChild(tile(prep.length, eurK(suma(prep)), 'en preparación'));
-  f.appendChild(tile(pres.length, eurK(suma(pres)), juego.length ? juego.length + ' en juego' : 'presentadas'));
-  f.appendChild(tile(g.length, eurK(suma(g)), resueltas ? 'ganadas · ' + Math.round(g.length / resueltas * 100) + ' %' : 'ganadas', 'plan'));
-  f.appendChild(tile(vencen.length, eurK(suma(vencen)), 'vencen ≤ 7 días', vencen.length ? 'alerta' : ''));
+  f.appendChild(tile(pd.length, eurK(suma(pd)), 'Por decidir'));
+  f.appendChild(tile(prep.length, eurK(suma(prep)), 'En preparación'));
+  f.appendChild(tile(pres.length, eurK(suma(pres)) + (enEval.length ? ' · ' + enEval.length + ' en evaluación' : ''), 'Presentadas'));
+  f.appendChild(tile(adj.length, eurK(suma(adj)), 'Adjudicadas', 'plan'));
+  f.appendChild(tile(vencen.length, eurK(suma(vencen)), 'Vencen ≤ 7 días', vencen.length ? 'alerta' : ''));
   var finde = [0, 6].indexOf(new Date().getDay()) >= 0 && !(kpi('lic.detectadas_hoy.n') > 0);
-  f.appendChild(tile(finde ? '·' : (kpi('lic.detectadas_hoy.n') != null ? kpi('lic.detectadas_hoy.n') : '?'), kpi('lic.detectadas_7d.n') != null ? kpi('lic.detectadas_7d.n') + ' / semana' : null, finde ? 'fin de semana: sin publicaciones' : 'nuevas hoy'));
+  f.appendChild(tile(finde ? '·' : (kpi('lic.detectadas_hoy.n') != null ? kpi('lic.detectadas_hoy.n') : '?'), kpi('lic.detectadas_7d.n') != null ? kpi('lic.detectadas_7d.n') + ' / semana' : null, finde ? 'fin de semana: sin publicaciones' : 'Nuevas hoy'));
   app.appendChild(f);
-  var det = kpi('lic.detectadas.n'), ana = vivas.length + c.length, apro = prep.length + pres.length;
-  app.appendChild(el('p', { class: 'embudo', text: (det != null ? det + ' detectadas → ' : '') + ana + ' analizadas → ' + apro + ' aprobadas' + (ana ? ' (' + Math.round(apro / ana * 100) + ' %)' : '') + ' → ' + pres.length + ' presentadas → ' + g.length + ' ganadas' + (kpi('lic.actualizado') ? ' · Sheet leído ' + rel(kpi('lic.actualizado')) : '') }));
+  // Detectadas y Analizadas SOLO pueden salir del KPI del barrido (hq-kpis.py): el barrido en bruto nunca
+  // llega a esta tabla, así que aquí en vivo no hay forma de contarlo. El resto de números de esta línea
+  // son EXACTAMENTE los de las casillas de arriba (mismo universo, pestaña Licitaciones), nunca otros.
+  var det = kpi('lic.detectadas.n'), ana = kpi('lic.analizadas.n'), apro = prep.length;
+  var partes = [];
+  if (det != null) partes.push(det + ' detectadas');
+  if (ana != null) partes.push(ana + ' analizadas');
+  partes.push(pd.length + ' por decidir');
+  partes.push(apro + ' aprobadas' + (ana ? ' (' + Math.round(apro / ana * 100) + ' %)' : ''));
+  partes.push(pres.length + ' presentadas');
+  partes.push(adj.length + ' adjudicadas');
+  partes.push(contr.length + ' contratadas');
+  app.appendChild(el('p', { class: 'embudo', text: partes.join(' → ') + ' · ' + desc.length + ' descartadas · ' + perd.length + ' perdidas' + (kpi('lic.actualizado') ? ' · Sheet leído ' + rel(kpi('lic.actualizado')) : '') }));
   app.appendChild(el('h2', { class: 'sec-t' }, ['Por decidir ', el('small', { text: pd.length + ' · por cierre' })]));
   if (!pd.length) app.appendChild(el('div', { class: 'vacio' }, [el('div', { class: 'delta', text: 'Δ' }), el('p', { text: 'Nada por decidir.' })]));
   pd.forEach(function(l){ app.appendChild(tarjetaLic(l)); });
@@ -988,7 +1005,7 @@ function renderNegocio(){
   if (kpi('lic.detectadas.n') != null){
     app.appendChild(el('h2', { class: 'sec-t' }, ['Licitaciones ', el('small', { text: 'Sheet de Guillem · ' + (kpi('lic.actualizado') ? rel(kpi('lic.actualizado')) : '') })]));
     var f = el('div', { class: 'grid2' });
-    [['detectadas', 'Detectadas'], ['aprobadas', 'Aprobadas por ti'], ['presentadas', 'Presentadas'], ['en_juego', 'En juego'], ['contratadas', 'Contratadas'], ['perdidas', 'Perdidas']].forEach(function(p){
+    [['detectadas', 'Detectadas'], ['analizadas', 'Analizadas'], ['aprobadas', 'Aprobadas por ti'], ['presentadas', 'Presentadas'], ['adjudicadas', 'Adjudicadas'], ['contratadas', 'Contratadas'], ['perdidas', 'Perdidas'], ['descartadas', 'Descartadas']].forEach(function(p){
       var n = kpi('lic.' + p[0] + '.n'), e = kpi('lic.' + p[0] + '.eur'); if (n == null) return;
       f.appendChild(el('div', { class: 'mini' + (p[0] === 'contratadas' ? ' plan' : '') }, [el('div', { class: 'v' }, [String(n), el('small', { text: ' · ' + eur(e) })]), el('div', { class: 'l', text: p[1] })])); });
     app.appendChild(f);
