@@ -33,11 +33,16 @@ export function href(path: string): string {
   return `${base}${path.startsWith('/') ? path : `/${path}`}`;
 }
 
+/** Rutas de recursos estáticos (imágenes, iconos): no van bajo /ca/, son las mismas en los dos idiomas. */
+const esRecursoEstatico = (path: string) => path.startsWith('/img/') || /\.(webp|png|svg|jpe?g|ico|pdf)$/i.test(path);
+
 /**
  * Igual que `href`, pero para las páginas en catalán: antepone /ca/ (routing i18n de Astro,
  * prefixDefaultLocale: false). Usar en todos los enlaces internos de src/pages/ca/.
+ * Los recursos estáticos (/img/...) se sirven igual que en castellano, sin prefijo de idioma.
  */
 export function hrefCa(path: string): string {
+  if (esRecursoEstatico(path)) return href(path);
   const limpio = path === '/' || path === '' ? '' : path.replace(/^\//, '');
   return getRelativeLocaleUrl('ca', limpio);
 }
@@ -50,6 +55,9 @@ export function equivalenteCa(pathnameEs: string): string {
 /** Dado un pathname de catalán bajo /ca/, la ruta equivalente en castellano. */
 export function equivalenteEs(pathnameCa: string): string {
   const sinCa = pathnameCa.replace(/^\/ca(\/|$)/, '/');
+  // La 404 en castellano es un fichero especial plano (dist/404.html, lo exige GitHub Pages),
+  // no una carpeta: no lleva barra final como el resto de páginas.
+  if (sinCa === '/404' || sinCa === '/404/') return href('/404.html');
   return href(sinCa === '' ? '/' : sinCa);
 }
 

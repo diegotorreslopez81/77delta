@@ -35,9 +35,15 @@ const urlCa = new URL(rutaCa, Astro.site).href;
     <title>{tituloCompleto}</title>
     <meta name="description" content={description} />
     <link rel="canonical" href={canonical} />
-    <link rel="alternate" hreflang="es-ES" href={urlEs} />
-    <link rel="alternate" hreflang="ca-ES" href={urlCa} />
-    <link rel="alternate" hreflang="x-default" href={urlEs} />
+    {
+      !noindex && (
+        <>
+          <link rel="alternate" hreflang="es-ES" href={urlEs} />
+          <link rel="alternate" hreflang="ca-ES" href={urlCa} />
+          <link rel="alternate" hreflang="x-default" href={urlEs} />
+        </>
+      )
+    }
     <link rel="icon" type="image/svg+xml" href={href('/favicon.svg')} />
     <link rel="alternate icon" href={href('/favicon.ico')} sizes="16x16 32x32 48x48" />
     <meta name="theme-color" content="#06101F" />
