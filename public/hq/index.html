@@ -300,7 +300,7 @@ h2.sec-t small{color:var(--oro-oscuro)}
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
 <script>
-var HQ_VERSION = { v: '0.9.15', fecha: '2026-09-08 08:30' }; // la actualiza scripts/hq/version.sh en cada publicación
+var HQ_VERSION = { v: '0.9.16', fecha: '2026-09-08 10:05' }; // la actualiza scripts/hq/version.sh en cada publicación
 
 (function(){
 'use strict';
@@ -545,6 +545,8 @@ function comentar(s, ta, ag){ var txt = ta.value.trim(); if (!txt){ ta.focus(); 
 
 /* ---- acciones ---- */
 function resolver(s, estado, respuesta){
+  // Aviso inmediato: si al pulsar no aparece nada, es que el clic no llega al botón (y no que falle el envío).
+  toast((estado === 'rechazada' ? 'Rechazando' : estado === 'aprobada' ? 'Aprobando' : 'Guardando') + ' #' + s.id + '…');
   var card = document.getElementById('s-' + s.id); if (card) card.classList.add('saliendo' + (estado === 'rechazada' ? ' rechazo' : ''));
   rpc('omc_resolver', { p_token: TOKEN, p_id: s.id, p_estado: estado, p_respuesta: respuesta || '' }).then(function(){
     return cargar().then(function(){ toast((ESTADO[estado] || estado) + ' #' + s.id, 'Deshacer', function(){ rpc('omc_resolver', { p_token: TOKEN, p_id: s.id, p_estado: 'pendiente', p_respuesta: '' }).then(cargar).catch(function(e){ toast(e.message); }); }); emitir(); });
