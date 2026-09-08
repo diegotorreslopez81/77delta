@@ -197,6 +197,36 @@ async function notificarLic(token, expediente, texto = '') {
   return { enviados, fallidos, dispositivos: subs.length };
 }
 
+// Push agrupado (8-sep, ruido de notificaciones): un único aviso cuando hq-notificar.py encuentra varias
+// tarjetas pendientes sin notificar a la vez, en vez de una por tarjeta. tag fijo 'hq-lote' para que un
+// segundo aviso agrupado sustituya al anterior en vez de apilarse en la bandeja del móvil.
+async function notificarLote(token, ids) {
+  const info = await rpc('omc_token_info', { p_token: token });
+  const subs = await supa(`/rest/v1/omc_push?empresa=eq.${encodeURIComponent(info.empresa)}&select=id,endpoint,sub`, {}, HQ.service);
+  const filtro = ids.map((x) => Number(x)).filter(Number.isInteger).join(',');
+  const filas = await supa(`/rest/v1/omc_solicitudes?empresa=eq.${encodeURIComponent(info.empresa)}&id=in.(${filtro})&select=id,tipo,titulo,agente&order=created_at.asc`, {}, HQ.service);
+  const resumen = (filas || []).slice(0, 4).map((f) => `${TIPO[f.tipo] || f.tipo} · ${f.agente}: ${f.titulo}`).join('\n');
+  const carga = JSON.stringify({
+    title: `${filas.length} tarjetas pendientes de tu decisión`,
+    body: resumen + (filas.length > 4 ? `\n… y ${filas.length - 4} más` : ''),
+    url: HQ.app,
+    tag: 'hq-lote',
+  });
+  let enviados = 0, fallidos = 0;
+  for (const fila of subs) {
+    try {
+      await webpush.sendNotification(fila.sub, carga, { TTL: 3600, urgency: 'high' });
+      enviados++;
+    } catch (e) {
+      fallidos++;
+      if (e.statusCode === 404 || e.statusCode === 410) {
+        await supa(`/rest/v1/omc_push?id=eq.${fila.id}`, { method: 'DELETE' }, HQ.service).catch(() => {});
+      } else console.error('push error', e.statusCode, e.message);
+    }
+  }
+  return { enviados, fallidos, dispositivos: subs.length, tarjetas: filas.length };
+}
+
 const servidor = http.createServer(async (req, res) => {
   cors(req, res);
   const ruta = new URL(req.url, 'http://x').pathname;
@@ -243,6 +273,22 @@ const servidor = http.createServer(async (req, res) => {
     } catch (e) {
       console.error('hq notificar', e.message);
       return responder(res, /token|encontrada/i.test(e.message) ? 403 : 502, { ok: false, error: e.message });
+    }
+  }
+  if (ruta === '/hq/notificar-lote' && req.method === 'POST') {
+    // Lo llama solo hq-notificar.py (cron), nunca un agente directamente.
+    if (!VAPID_OK) return responder(res, 503, { ok: false, error: 'avisos no configurados' });
+    let cuerpo;
+    try { cuerpo = await leerJson(req); } catch { return responder(res, 400, { ok: false, error: 'Cuerpo no válido.' }); }
+    const token = limpiar(cuerpo.token, 120), ids = Array.isArray(cuerpo.ids) ? cuerpo.ids : [];
+    if (!token || !ids.length) return responder(res, 400, { ok: false, error: 'Faltan token o ids.' });
+    try {
+      const r = await notificarLote(token, ids);
+      console.log('hq push lote', ids.length, JSON.stringify(r));
+      return responder(res, 200, { ok: true, ...r });
+    } catch (e) {
+      console.error('hq notificar-lote', e.message);
+      return responder(res, /token/i.test(e.message) ? 403 : 502, { ok: false, error: e.message });
     }
   }
   if (ruta === '/hq/notificar-lic' && req.method === 'POST') {

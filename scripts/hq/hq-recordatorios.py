@@ -1,6 +1,9 @@
 #!/usr/bin/env python3
-"""HQ · devuelve a la bandeja las solicitudes pospuestas cuya hora ha llegado y avisa a Diego por push. Cron cada 5 minutos."""
-import json, os, sys, urllib.request
+"""HQ · devuelve a la bandeja las solicitudes pospuestas cuya hora ha llegado. Cron cada 5 minutos.
+Ya no avisa a Diego por push aquí (8-sep, ruido): omc_pospuestas_vencidas resetea notificado_push=false
+al devolverlas, y es hq-notificar.py (cron cada 10 min) quien las recoge y las agrupa con cualquier otra
+tarjeta pendiente en un único push."""
+import json, sys, urllib.request
 from pathlib import Path
 CONF = Path.home() / '.config' / '77delta' / 'hq.env'
 e = {}
@@ -12,12 +15,5 @@ def rpc(fn, **p):
                                  headers={'apikey': e['HQ_ANON'], 'Authorization': 'Bearer ' + e['HQ_ANON'], 'Content-Type': 'application/json'})
     return json.loads(urllib.request.urlopen(req, timeout=30).read() or b'null')
 vencidas = rpc('omc_pospuestas_vencidas', p_token=e['HQ_OWNER_TOKEN']) or []
-for s in vencidas:
-    try:
-        req = urllib.request.Request(e['HQ_NOTIFY_URL'].rstrip('/') + '/hq/notificar', method='POST', headers={'Content-Type': 'application/json'},
-                                     data=json.dumps({'token': e['HQ_TOKEN'], 'id': s['id'], 'texto': 'Recordatorio: pospusiste esta decisión y ya toca. ' + s['titulo']}).encode())
-        urllib.request.urlopen(req, timeout=15).read()
-    except Exception as ex:
-        print('aviso fallido', s['id'], ex, file=sys.stderr)
 if vencidas:
-    print(f"{len(vencidas)} pospuestas devueltas a la bandeja")
+    print(f"{len(vencidas)} pospuestas devueltas a la bandeja: {', '.join('#' + str(s['id']) for s in vencidas)}")

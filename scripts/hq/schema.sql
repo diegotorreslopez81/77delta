@@ -56,6 +56,10 @@ create table if not exists public.omc_solicitudes (
   pospuesta_hasta timestamptz
 );
 alter table public.omc_solicitudes add column if not exists pospuesta_hasta timestamptz;
+-- Control de push agrupado (8-sep, queja de Diego por ruido de notificaciones): true en cuanto se ha
+-- avisado por push de esta tarjeta en su estado 'pendiente' actual. hq-notificar.py la pone a true al
+-- enviar; omc_pospuestas_vencidas la vuelve a poner a false para que se avise de nuevo cuando toque.
+alter table public.omc_solicitudes add column if not exists notificado_push boolean not null default false;
 create index if not exists omc_solicitudes_estado on public.omc_solicitudes (empresa, estado, created_at desc);
 
 create table if not exists public.omc_uso (
@@ -403,15 +407,22 @@ end $$;
 -- Owner resuelve una solicitud: aprobada | rechazada | respondida | pendiente (deshacer) | caducada.
 create or replace function public.omc_resolver(p_token text, p_id bigint, p_estado text, p_respuesta text default '')
 returns jsonb language plpgsql security definer set search_path = public as $$
-declare t public.omc_tokens; s public.omc_solicitudes;
+declare t public.omc_tokens; s public.omc_solicitudes; v_actual text;
 begin
   t := public.omc_tok(p_token);
   if t.rol <> 'owner' then raise exception 'solo owner' using errcode = '42501'; end if;
   if p_estado not in ('aprobada','rechazada','respondida','pendiente','caducada') then raise exception 'estado no válido'; end if;
+  select estado into v_actual from public.omc_solicitudes where id = p_id and empresa = t.empresa;
+  if not found then raise exception 'solicitud no encontrada' using errcode = 'P0002'; end if;
+  -- Sin esta guardia, volver a tocar una tarjeta ya cerrada (p.ej. un doble tap en el móvil, o una vista
+  -- desactualizada) la reabría sin querer a p_estado, dejando datos contradictorios: done_at/resultado del
+  -- cierre original intactos junto a un estado "aprobada" nuevo. Le pasó de verdad a la #109 (8-sep).
+  if v_actual in ('ejecutada','fallida','retirada') then
+    raise exception 'la solicitud #% ya está cerrada (%), no se puede reabrir así', p_id, v_actual using errcode = 'P0003';
+  end if;
   update public.omc_solicitudes set estado = p_estado, respuesta = coalesce(p_respuesta, ''),
     resolved_at = case when p_estado = 'pendiente' then null else now() end
     where id = p_id and empresa = t.empresa returning * into s;
-  if not found then raise exception 'solicitud no encontrada' using errcode = 'P0002'; end if;
   return to_jsonb(s);
 end $$;
 
@@ -433,9 +444,34 @@ returns jsonb language plpgsql security definer set search_path = public as $$
 declare t public.omc_tokens; r jsonb;
 begin
   t := public.omc_tok(p_token);
-  with v as (update public.omc_solicitudes set pospuesta_hasta = null where empresa = t.empresa and estado = 'pendiente' and pospuesta_hasta is not null and pospuesta_hasta <= now() returning id, titulo, agente)
+  with v as (update public.omc_solicitudes set pospuesta_hasta = null, notificado_push = false where empresa = t.empresa and estado = 'pendiente' and pospuesta_hasta is not null and pospuesta_hasta <= now() returning id, titulo, agente)
   select coalesce(jsonb_agg(to_jsonb(v)), '[]'::jsonb) into r from v;
   return r;
+end $$;
+
+-- Notificaciones push agrupadas (8-sep): hq-notificar.py llama esto tras avisar, para no repetir el
+-- mismo aviso. Cualquier token de agente vale, es solo contabilidad interna, no cambia estado real.
+create or replace function public.omc_marcar_notificado(p_token text, p_ids jsonb)
+returns jsonb language plpgsql security definer set search_path = public as $$
+declare t public.omc_tokens; n int;
+begin
+  t := public.omc_tok(p_token);
+  update public.omc_solicitudes set notificado_push = true
+    where empresa = t.empresa and id in (select (jsonb_array_elements_text(p_ids))::bigint);
+  get diagnostics n = row_count;
+  return jsonb_build_object('marcadas', n);
+end $$;
+
+-- Candidatas a push agrupado: pendientes de un tipo que de verdad necesita decision de Diego, no
+-- avisadas todavia en su estado actual. hq-notificar.py las consulta cada pocos minutos.
+create or replace function public.omc_pendientes_sin_notificar(p_token text)
+returns jsonb language plpgsql security definer set search_path = public as $$
+declare t public.omc_tokens;
+begin
+  t := public.omc_tok(p_token);
+  return (select coalesce(jsonb_agg(to_jsonb(s) order by s.created_at), '[]'::jsonb) from public.omc_solicitudes s
+          where s.empresa = t.empresa and s.estado = 'pendiente' and s.notificado_push = false
+            and s.tipo in ('duda','accion','gasto','contacto','estrategia'));
 end $$;
 
 -- Owner edita o crea un agente (activo, contrato, rutas...).
@@ -725,12 +761,14 @@ revoke all on function public.omc_token_info(text), public.omc_hq(text), public.
   public.omc_latido(text, text), public.omc_mis_solicitudes(text, text), public.omc_subir_uso(text, jsonb), public.omc_guardar_push(text, jsonb), public.omc_subir_plan(text, jsonb), public.omc_subir_actividad(text, jsonb),
   public.omc_kpi_set(text, jsonb), public.omc_ingreso_set(text, jsonb), public.omc_ingresos(text), public.omc_comentar(text, bigint, text), public.omc_retirar(text, bigint, text),
   public.omc_licitaciones_subir(text, jsonb), public.omc_licitacion_decidir(text, text, text, jsonb, text), public.omc_licitaciones_pendientes_sync(text), public.omc_licitaciones_sincronizadas(text, jsonb), public.omc_licitaciones_lista(text, boolean), public.omc_posponer(text, bigint, timestamptz), public.omc_pospuestas_vencidas(text), public.omc_eventos(text, timestamptz),
-  public.omc_lic_comentar(text, text, text, text), public.omc_lic_hilo(text, text) from public;
+  public.omc_lic_comentar(text, text, text, text), public.omc_lic_hilo(text, text),
+  public.omc_marcar_notificado(text, jsonb), public.omc_pendientes_sin_notificar(text) from public;
 grant execute on function public.omc_token_info(text), public.omc_hq(text), public.omc_hq_uso(text), public.omc_resolver(text, bigint, text, text),
   public.omc_agente_set(text, text, jsonb), public.omc_pedir(text, jsonb), public.omc_estado(text, bigint), public.omc_reportar(text, bigint, boolean, text),
   public.omc_latido(text, text), public.omc_mis_solicitudes(text, text), public.omc_subir_uso(text, jsonb), public.omc_guardar_push(text, jsonb), public.omc_subir_plan(text, jsonb), public.omc_subir_actividad(text, jsonb),
   public.omc_kpi_set(text, jsonb), public.omc_ingreso_set(text, jsonb), public.omc_ingresos(text), public.omc_comentar(text, bigint, text), public.omc_retirar(text, bigint, text),
   public.omc_licitaciones_subir(text, jsonb), public.omc_licitacion_decidir(text, text, text, jsonb, text), public.omc_licitaciones_pendientes_sync(text), public.omc_licitaciones_sincronizadas(text, jsonb), public.omc_licitaciones_lista(text, boolean), public.omc_posponer(text, bigint, timestamptz), public.omc_pospuestas_vencidas(text), public.omc_eventos(text, timestamptz),
-  public.omc_lic_comentar(text, text, text, text), public.omc_lic_hilo(text, text)
+  public.omc_lic_comentar(text, text, text, text), public.omc_lic_hilo(text, text),
+  public.omc_marcar_notificado(text, jsonb), public.omc_pendientes_sin_notificar(text)
   to anon, authenticated, service_role;
 notify pgrst, 'reload schema';

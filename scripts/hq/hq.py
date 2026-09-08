@@ -65,8 +65,9 @@ def agente_actual(explicito=None):
 
 
 def avisar(solicitud):
-    """Broadcast en tiempo real a la app y push al móvil. Nunca bloquea al agente."""
-    empresa = None
+    """Broadcast en tiempo real a la app (refresco si la tiene abierta). El push al móvil de Diego NO se
+    manda desde aquí (8-sep, queja de ruido): lo hace el cron hq-notificar.py agrupando lo pendiente-sin-
+    -notificar cada 10 min, para que una ráfaga de tarjetas/comentarios llegue como un único aviso."""
     try:
         empresa = rpc('omc_token_info', p_token=E['HQ_TOKEN']).get('empresa')
         req = urllib.request.Request(E['HQ_URL'].rstrip('/') + '/realtime/v1/api/broadcast', method='POST',
@@ -75,14 +76,6 @@ def avisar(solicitud):
         urllib.request.urlopen(req, timeout=10).read()
     except Exception:
         pass
-    if E.get('HQ_NOTIFY_URL'):
-        try:
-            req = urllib.request.Request(E['HQ_NOTIFY_URL'].rstrip('/') + '/hq/notificar', method='POST',
-                                         data=json.dumps({'token': E['HQ_TOKEN'], 'id': solicitud['id'], 'texto': solicitud.get('texto', '')}).encode(),
-                                         headers={'Content-Type': 'application/json'})
-            urllib.request.urlopen(req, timeout=15).read()
-        except Exception:
-            pass
 
 
 def linea(s):
@@ -108,8 +101,9 @@ def salida(obj, js):
 
 
 def avisar_lic(expediente, texto):
-    """Broadcast en tiempo real a la app y push al móvil cuando un agente comenta en el hilo de una licitación. Nunca bloquea al agente."""
-    empresa = None
+    """Broadcast en tiempo real a la app cuando un agente comenta en el hilo de una licitación. Sin push
+    directo (8-sep): es una respuesta de un agente en un hilo que Diego ya conoce, no una tarjeta pendiente
+    nueva; si de verdad necesita su decisión, se abre como tarjeta y la recoge hq-notificar.py."""
     try:
         empresa = rpc('omc_token_info', p_token=E['HQ_TOKEN']).get('empresa')
         req = urllib.request.Request(E['HQ_URL'].rstrip('/') + '/realtime/v1/api/broadcast', method='POST',
@@ -118,14 +112,6 @@ def avisar_lic(expediente, texto):
         urllib.request.urlopen(req, timeout=10).read()
     except Exception:
         pass
-    if E.get('HQ_NOTIFY_URL'):
-        try:
-            req = urllib.request.Request(E['HQ_NOTIFY_URL'].rstrip('/') + '/hq/notificar-lic', method='POST',
-                                         data=json.dumps({'token': E['HQ_TOKEN'], 'expediente': expediente, 'texto': texto}).encode(),
-                                         headers={'Content-Type': 'application/json'})
-            urllib.request.urlopen(req, timeout=15).read()
-        except Exception:
-            pass
 
 
 def comentarios_diego(s):
@@ -313,6 +299,15 @@ def main():
         eng = shutil.which('engram') or os.path.expanduser('~/.local/bin/engram')
         r = subprocess.run([eng, 'save', f'[PARTE {ag}] {hoy}', texto, '--project', '77delta', '--type', 'context'], capture_output=True, text=True)
         print(f"parte de {ag} guardado en Engram (77delta)" if r.returncode == 0 else f"no se pudo guardar: {r.stderr.strip()[:200]}")
+        # El parte también cuenta como actividad: si no, omc_agentes.ultima_actividad se queda congelada y
+        # hq-test avisa de "10 h sin actividad" a agentes que llevan toda la noche reportando (8-sep).
+        # omc_agente_set es solo-owner (401 para un token de agente normal, y rpc() sale con sys.exit en
+        # error — un SystemExit que "except Exception" no atrapa); omc_latido ya hace este mismo update
+        # y está abierto a cualquier token, así que es la llamada correcta aquí.
+        try:
+            rpc('omc_latido', p_token=E['HQ_TOKEN'], p_agente=ag)
+        except SystemExit:
+            pass
     elif a.cmd == 'partes':
         import datetime
         try:
