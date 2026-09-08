@@ -17,7 +17,8 @@ interface Props {
 const { title, description = site.descripcion, ogImage = '/img/og.png', noindex = false } = Astro.props;
 
 const idioma = Astro.currentLocale === 'ca' ? 'ca' : 'es';
-const tituloCompleto = title ? `${title} · ${site.nombre}` : `${site.nombre} · ${site.claim}`;
+const claimIdioma = idioma === 'ca' ? site.claimCa : site.claim;
+const tituloCompleto = title ? `${title} · ${site.nombre}` : `${site.nombre} · ${claimIdioma}`;
 const canonical = new URL(Astro.url.pathname, Astro.site).href;
 const og = new URL(href(ogImage), Astro.site).href;
 // Alternativas de idioma para hreflang: la propia página, la equivalente en el otro idioma, y x-default en castellano.

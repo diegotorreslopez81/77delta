@@ -2,7 +2,7 @@
  * Proyectos en curso vía Cupó IA d'ACCIÓ, en /proyectos-en-curso/.
  * Regla dura (encargo de Diego, 2026-09-08): ninguno de estos cupones está cerrado
  * todavía, todos siguen en diagnosis. NO se publican cifras de resultado, porcentajes
- * de mejora ni la palabra "certificado" — lo que se publica aquí se nos puede pedir
+ * de mejora ni la palabra "certificado": lo que se publica aquí se nos puede pedir
  * acreditado ante un órgano de contratación. Solo cliente, año, ámbito y qué estamos
  * haciendo ahora, en presente.
  *

@@ -6,8 +6,11 @@ import { getRelativeLocaleUrl } from 'astro:i18n';
 export const site = {
   nombre: '77 Delta',
   claim: 'Aplicamos la IA para ahorrar costes a tu empresa',
+  claimCa: 'Apliquem la IA per estalviar costos a la teva empresa',
   descripcion:
     'Consultora tecnológica especializada en pymes. Diagnóstico gratuito, transformación operativa con IA, auditoría de seguridad de asistentes y partner tecnológico. Barcelona.',
+  descripcionCa:
+    "Consultora tecnològica especialitzada en pimes. Diagnòstic gratuït, transformació operativa amb IA, auditoria de seguretat d'assistents i soci tecnològic. Barcelona.",
   ciudad: 'Barcelona',
   // Pendiente: activar el buzón cuando se compre el dominio.
   email: 'hola@77delta.com',
