@@ -202,6 +202,16 @@ def main():
     p = sub.add_parser('lic-hilo', help='ver el hilo de conversación de una licitación'); p.add_argument('id', help='expediente')
     p = sub.add_parser('lic-comentar', help='comentar en el hilo de una licitación sin resolverla'); p.add_argument('id', help='expediente'); p.add_argument('--texto', required=True); p.add_argument('--agente')
     p = sub.add_parser('lic-esperar', help='esperar a que Diego comente en el hilo de una licitación'); p.add_argument('id', help='expediente'); p.add_argument('--timeout', type=int, default=21600); p.add_argument('--intervalo', type=int, default=30); p.add_argument('--vistos', type=int, help='comentarios de Diego ya leídos')
+    p = sub.add_parser('plan', help='pestaña Plan: objetivo global y líneas con KPI, meta y semáforo')
+    p = sub.add_parser('plan-linea', help='(Diego) crear o editar una línea del plan estratégico')
+    p.add_argument('--id', type=int); p.add_argument('--linea'); p.add_argument('--kpi'); p.add_argument('--meta', type=float); p.add_argument('--unidad')
+    p.add_argument('--responsable'); p.add_argument('--proximo-hito', dest='proximo_hito'); p.add_argument('--fecha-hito', dest='fecha_hito')
+    p.add_argument('--fuente', choices=('manual', 'sql')); p.add_argument('--sql-metrica', dest='sql_metrica'); p.add_argument('--orden', type=int); p.add_argument('--borrar', action='store_true')
+    p = sub.add_parser('kpi-linea', help='actualizar el progreso de TU línea del plan (solo fuente manual)')
+    p.add_argument('id', type=int); p.add_argument('--valor', type=float, required=True); p.add_argument('--proximo-hito', dest='proximo_hito'); p.add_argument('--fecha-hito', dest='fecha_hito'); p.add_argument('--agente')
+    p = sub.add_parser('decision', help='anotar una decisión estratégica (queda en el registro de la pestaña Plan)')
+    p.add_argument('--texto', required=True); p.add_argument('--linea', type=int, help='id de la línea del plan afectada'); p.add_argument('--tarjeta', type=int, help='id de la solicitud de la que viene'); p.add_argument('--agente')
+    p = sub.add_parser('decisiones', help='ver el registro de decisiones estratégicas')
     p = sub.add_parser('parte', help='parte de jornada del agente (Engram, proyecto 77delta): lo leen los demás al arrancar'); p.add_argument('texto', nargs='?'); p.add_argument('--agente')
     p = sub.add_parser('partes', help='partes de las últimas 48 h de todos los agentes'); p.add_argument('--horas', type=int, default=48)
     p = sub.add_parser('escaladas', help='(chief) tarjetas respondidas por Diego con orden de escalar que nadie ha cerrado')
@@ -341,6 +351,33 @@ def main():
             if not out: print('(nada escalado pendiente)')
     elif a.cmd == 'kpi':
         print(json.dumps(rpc('omc_kpi_set', p_token=E['HQ_TOKEN'], p_filas=[{'clave': a.clave, 'valor': a.valor, 'texto': a.texto, 'fuente': a.fuente or agente_actual(None)}]), ensure_ascii=False))
+    elif a.cmd == 'plan':
+        obj = rpc('omc_plan_objetivo', p_token=E['HQ_TOKEN'])
+        lineas = rpc('omc_plan_lineas_lista', p_token=E['HQ_TOKEN'])
+        if a.json:
+            print(json.dumps({'objetivo': obj, 'lineas': lineas}, ensure_ascii=False))
+        else:
+            if obj:
+                print(f"{obj['titulo']}: {obj['valor_actual']:g} / {obj['meta']:g} {obj['unidad']} ({obj['progreso_pct']}%)" + (f" · límite {obj['fecha_limite']}" if obj.get('fecha_limite') else ''))
+            for l in lineas:
+                print(f"  #{l['id']} [{l['semaforo']}] {l['linea']} · {l['valor_actual']:g}/{l['meta']:g} {l['unidad']} ({l['progreso_pct']}%) · {l['responsable']} · {l['fuente']}" + (f" · próximo: {l['proximo_hito']}" if l.get('proximo_hito') else ''))
+    elif a.cmd == 'plan-linea':
+        p = {k: v for k, v in {'id': a.id, 'linea': a.linea, 'kpi': a.kpi, 'meta': a.meta, 'unidad': a.unidad, 'responsable': a.responsable,
+                               'proximo_hito': a.proximo_hito, 'fecha_hito': a.fecha_hito, 'fuente': a.fuente, 'sql_metrica': a.sql_metrica,
+                               'orden': a.orden, 'borrar': a.borrar or None}.items() if v is not None}
+        print(json.dumps(rpc('omc_plan_linea_set', p_token=E['HQ_TOKEN'], p=p), ensure_ascii=False))
+    elif a.cmd == 'kpi-linea':
+        r = rpc('omc_plan_kpi_actualizar', p_token=E['HQ_TOKEN'], p_id=a.id, p_valor=a.valor, p_agente=agente_actual(a.agente), p_proximo_hito=a.proximo_hito, p_fecha_hito=a.fecha_hito)
+        print(json.dumps(r, ensure_ascii=False) if a.json else f"#{r['id']} {r['linea']}: {r['valor_actual']:g}/{r['meta']:g} {r['unidad']}" + (f" · próximo: {r['proximo_hito']}" if r.get('proximo_hito') else ''))
+    elif a.cmd == 'decision':
+        p = {'decision': a.texto, 'linea_id': a.linea, 'solicitud_id': a.tarjeta, 'agente': agente_actual(a.agente)}
+        r = rpc('omc_decision_anadir', p_token=E['HQ_TOKEN'], p=p)
+        print(json.dumps(r, ensure_ascii=False) if a.json else f"decisión #{r['id']} anotada ({r['quien']})")
+    elif a.cmd == 'decisiones':
+        ds = rpc('omc_decisiones_lista', p_token=E['HQ_TOKEN'])
+        if a.json: print(json.dumps(ds, ensure_ascii=False))
+        else:
+            for d in ds: print(f"[{d['fecha'][:10]}] {d['decision']} · {d['quien']}" + (f" · línea #{d['linea_id']}" if d.get('linea_id') else ''))
 
 
 if __name__ == '__main__':

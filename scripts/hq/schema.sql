@@ -204,6 +204,51 @@ create table if not exists public.omc_push (
   created_at timestamptz not null default now()
 );
 
+-- Plan estrategico (8-sep, encargo de Diego): pestaña Plan de HQ, objetivo global + lineas con KPI,
+-- meta y responsable. Las lineas de fuente 'sql' las actualiza el cron hq-plan-kpis.py calculando desde
+-- omc_licitaciones/omc_ingresos por una CLAVE FIJA (sql_metrica), nunca SQL libre de nadie: la clave
+-- solo elige entre calculos ya escritos y revisados en el script, cero riesgo de inyeccion.
+create table if not exists public.omc_plan_objetivo (
+  empresa text primary key references public.omc_empresas(id) on delete cascade,
+  titulo text not null default 'Contratado a 31 de diciembre',
+  meta numeric not null,
+  unidad text not null default 'EUR',
+  fecha_limite date,
+  updated_at timestamptz not null default now()
+);
+
+create table if not exists public.omc_plan_lineas (
+  id bigserial primary key,
+  empresa text not null references public.omc_empresas(id) on delete cascade,
+  orden int not null default 0,
+  linea text not null,
+  kpi text not null,
+  valor_actual numeric not null default 0,
+  meta numeric not null,
+  unidad text not null default 'EUR',
+  responsable text not null default '',
+  proximo_hito text not null default '',
+  fecha_hito date,
+  fuente text not null default 'manual' check (fuente in ('manual','sql')),
+  sql_metrica text,
+  activa boolean not null default true,
+  actualizado_por text not null default '',
+  updated_at timestamptz not null default now(),
+  created_at timestamptz not null default now()
+);
+
+create table if not exists public.omc_decisiones (
+  id bigserial primary key,
+  empresa text not null references public.omc_empresas(id) on delete cascade,
+  fecha timestamptz not null default now(),
+  decision text not null,
+  quien text not null,
+  linea_id bigint references public.omc_plan_lineas(id) on delete set null,
+  solicitud_id bigint references public.omc_solicitudes(id) on delete set null,
+  created_at timestamptz not null default now()
+);
+create index if not exists omc_decisiones_empresa on public.omc_decisiones (empresa, fecha desc);
+
 alter table public.omc_empresas enable row level security;
 alter table public.omc_tokens enable row level security;
 alter table public.omc_agentes enable row level security;
@@ -216,6 +261,9 @@ alter table public.omc_kpis enable row level security;
 alter table public.omc_ingresos enable row level security;
 alter table public.omc_mensajes enable row level security;
 alter table public.omc_licitaciones enable row level security;
+alter table public.omc_plan_objetivo enable row level security;
+alter table public.omc_plan_lineas enable row level security;
+alter table public.omc_decisiones enable row level security;
 revoke all on public.omc_empresas, public.omc_tokens, public.omc_agentes, public.omc_solicitudes, public.omc_uso, public.omc_push, public.omc_plan, public.omc_actividad, public.omc_kpis, public.omc_ingresos, public.omc_mensajes, public.omc_licitaciones from anon, authenticated;
 revoke all on sequence public.omc_solicitudes_id_seq, public.omc_push_id_seq, public.omc_ingresos_id_seq, public.omc_mensajes_id_seq from anon, authenticated;
 
@@ -339,6 +387,152 @@ declare t public.omc_tokens;
 begin
   t := public.omc_tok(p_token);
   return (select coalesce(jsonb_agg(to_jsonb(i) order by i.fecha desc nulls last, i.id desc), '[]'::jsonb) from public.omc_ingresos i where i.empresa = t.empresa);
+end $$;
+
+-- Plan estrategico: objetivo global (solo owner lo fija/cambia), lineas (owner crea/edita la
+-- definicion; el responsable solo toca su valor_actual con omc_plan_kpi_actualizar) y decisiones
+-- (cualquier token anota, para poder registrarlas desde el hilo de una tarjeta).
+create or replace function public.omc_plan_objetivo_set(p_token text, p jsonb)
+returns jsonb language plpgsql security definer set search_path = public as $$
+declare t public.omc_tokens; o public.omc_plan_objetivo;
+begin
+  t := public.omc_tok(p_token);
+  if t.rol <> 'owner' then raise exception 'solo owner' using errcode = '42501'; end if;
+  insert into public.omc_plan_objetivo (empresa, titulo, meta, unidad, fecha_limite, updated_at)
+    values (t.empresa, coalesce(nullif(p->>'titulo',''), 'Contratado a 31 de diciembre'), (p->>'meta')::numeric, coalesce(nullif(p->>'unidad',''),'EUR'), nullif(p->>'fecha_limite','')::date, now())
+    on conflict (empresa) do update set titulo = excluded.titulo, meta = excluded.meta, unidad = excluded.unidad, fecha_limite = excluded.fecha_limite, updated_at = now()
+    returning * into o;
+  return to_jsonb(o);
+end $$;
+
+create or replace function public.omc_plan_objetivo(p_token text)
+returns jsonb language plpgsql security definer set search_path = public as $$
+declare t public.omc_tokens; o public.omc_plan_objetivo; actual numeric;
+begin
+  t := public.omc_tok(p_token);
+  select * into o from public.omc_plan_objetivo where empresa = t.empresa;
+  if not found then return null; end if;
+  select coalesce(sum(l.valor_actual), 0) into actual from public.omc_plan_lineas l where l.empresa = t.empresa and l.activa and l.unidad = o.unidad;
+  return jsonb_build_object('titulo', o.titulo, 'meta', o.meta, 'unidad', o.unidad, 'fecha_limite', o.fecha_limite, 'valor_actual', actual,
+    'progreso_pct', case when o.meta <= 0 then null else round(least(actual / o.meta, 1) * 100) end);
+end $$;
+
+-- Crear o editar una linea del plan (solo owner: es una decision estrategica, no una actualizacion de KPI).
+create or replace function public.omc_plan_linea_set(p_token text, p jsonb)
+returns jsonb language plpgsql security definer set search_path = public as $$
+declare t public.omc_tokens; l public.omc_plan_lineas; v_id bigint;
+begin
+  t := public.omc_tok(p_token);
+  if t.rol <> 'owner' then raise exception 'solo owner' using errcode = '42501'; end if;
+  v_id := nullif(p->>'id','')::bigint;
+  if coalesce((p->>'borrar')::boolean, false) then
+    update public.omc_plan_lineas set activa = false, updated_at = now() where empresa = t.empresa and id = v_id;
+    return jsonb_build_object('desactivada', v_id);
+  end if;
+  if v_id is null then
+    if coalesce(p->>'linea','') = '' then raise exception 'falta linea'; end if;
+    insert into public.omc_plan_lineas (empresa, orden, linea, kpi, valor_actual, meta, unidad, responsable, proximo_hito, fecha_hito, fuente, sql_metrica, actualizado_por)
+      values (t.empresa, coalesce((p->>'orden')::int, 0), p->>'linea', coalesce(p->>'kpi',''), coalesce((p->>'valor_actual')::numeric, 0), (p->>'meta')::numeric,
+              coalesce(nullif(p->>'unidad',''),'EUR'), coalesce(p->>'responsable',''), coalesce(p->>'proximo_hito',''), nullif(p->>'fecha_hito','')::date,
+              coalesce(nullif(p->>'fuente',''),'manual'), nullif(p->>'sql_metrica',''), 'diego')
+      returning * into l;
+  else
+    update public.omc_plan_lineas set orden = coalesce((p->>'orden')::int, orden), linea = coalesce(nullif(p->>'linea',''), linea), kpi = coalesce(p->>'kpi', kpi),
+      meta = coalesce((p->>'meta')::numeric, meta), unidad = coalesce(nullif(p->>'unidad',''), unidad), responsable = coalesce(p->>'responsable', responsable),
+      proximo_hito = coalesce(p->>'proximo_hito', proximo_hito), fecha_hito = coalesce(nullif(p->>'fecha_hito','')::date, fecha_hito),
+      fuente = coalesce(nullif(p->>'fuente',''), fuente), sql_metrica = coalesce(nullif(p->>'sql_metrica',''), sql_metrica), actualizado_por = 'diego', updated_at = now()
+      where empresa = t.empresa and id = v_id returning * into l;
+    if not found then raise exception 'linea no encontrada' using errcode = 'P0001'; end if;
+  end if;
+  return to_jsonb(l);
+end $$;
+
+-- Actualizar el progreso de una linea MANUAL: el owner siempre puede; un agente solo si su nombre
+-- aparece en el responsable de esa linea (el campo es texto libre tipo "Helena + Aina" porque varias
+-- lineas tienen mas de un responsable). Las lineas de fuente 'sql' se rechazan aqui a proposito: esas
+-- las toca solo el cron con omc_plan_lineas_actualizar_sql.
+-- p_agente lo resuelve el cliente (hq.py agente_actual), igual que omc_lic_comentar: el token de agente
+-- es UNICO Y COMPARTIDO por todos los agentes, así que el token nunca dice quién llama de verdad.
+create or replace function public.omc_plan_kpi_actualizar(p_token text, p_id bigint, p_valor numeric, p_agente text default null, p_proximo_hito text default null, p_fecha_hito date default null)
+returns jsonb language plpgsql security definer set search_path = public as $$
+declare t public.omc_tokens; l public.omc_plan_lineas; v_agente text;
+begin
+  t := public.omc_tok(p_token);
+  v_agente := case when t.rol = 'owner' then 'diego' else coalesce(nullif(p_agente, ''), 'agente') end;
+  select * into l from public.omc_plan_lineas where empresa = t.empresa and id = p_id and activa;
+  if not found then raise exception 'linea no encontrada' using errcode = 'P0001'; end if;
+  if l.fuente <> 'manual' then raise exception 'linea de fuente %, no se actualiza a mano', l.fuente using errcode = 'P0001'; end if;
+  if t.rol <> 'owner' and position(lower(v_agente) in lower(l.responsable)) = 0 then
+    raise exception 'solo el responsable de esta linea (%) o Diego pueden actualizarla', l.responsable using errcode = '42501';
+  end if;
+  update public.omc_plan_lineas set valor_actual = p_valor, proximo_hito = coalesce(p_proximo_hito, proximo_hito),
+    fecha_hito = coalesce(p_fecha_hito, fecha_hito), actualizado_por = v_agente, updated_at = now()
+    where id = p_id returning * into l;
+  return to_jsonb(l);
+end $$;
+
+-- Recalcula EN EL PROPIO SERVIDOR el valor_actual de las lineas de fuente 'sql' (8-sep): las tablas
+-- fuente (omc_licitaciones, omc_ingresos) tienen RLS sin políticas -no son legibles por REST directo a
+-- proposito, "ninguna tabla expuesta a anon" (cabecera de este fichero)-, así que el cálculo tiene que
+-- vivir aquí dentro, no en un script que lea las tablas por fuera. sql_metrica es una CLAVE FIJA de una
+-- lista cerrada (el CASE de abajo): nunca se ejecuta una cadena SQL que venga de fuera. Anadir una
+-- metrica nueva = anadir un WHEN aqui, nunca aceptar SQL de nadie. Llamado por el cron hq-plan-kpis.py.
+create or replace function public.omc_plan_lineas_recalcular_sql(p_token text)
+returns jsonb language plpgsql security definer set search_path = public as $$
+declare t public.omc_tokens; l record; v numeric; n int := 0; ini date;
+begin
+  t := public.omc_tok(p_token);
+  ini := date_trunc('quarter', current_date)::date;
+  for l in select id, sql_metrica from public.omc_plan_lineas where empresa = t.empresa and activa and fuente = 'sql' loop
+    v := case l.sql_metrica
+      when 'licitaciones_ganables_eur' then
+        (select coalesce(sum(importe), 0) from public.omc_licitaciones where empresa = t.empresa and lower(estado) in ('adjudicada','contratada'))
+      when 'ingresos_nga_trimestre_eur' then
+        -- excluye 'cupones' (los factura Diego como persona fisica, decision del 8-sep, no NGA).
+        (select coalesce(sum(importe), 0) from public.omc_ingresos where empresa = t.empresa and estado in ('facturado','cobrado') and linea <> 'cupones' and fecha >= ini)
+      else null
+    end;
+    if v is null then continue; end if;
+    update public.omc_plan_lineas set valor_actual = v, actualizado_por = 'sql', updated_at = now() where id = l.id;
+    n := n + 1;
+  end loop;
+  return jsonb_build_object('actualizadas', n);
+end $$;
+
+create or replace function public.omc_plan_lineas_lista(p_token text)
+returns jsonb language plpgsql security definer set search_path = public as $$
+declare t public.omc_tokens;
+begin
+  t := public.omc_tok(p_token);
+  return (select coalesce(jsonb_agg(jsonb_build_object(
+      'id', l.id, 'orden', l.orden, 'linea', l.linea, 'kpi', l.kpi, 'valor_actual', l.valor_actual, 'meta', l.meta,
+      'unidad', l.unidad, 'responsable', l.responsable, 'proximo_hito', l.proximo_hito, 'fecha_hito', l.fecha_hito,
+      'fuente', l.fuente, 'sql_metrica', l.sql_metrica, 'actualizado_por', l.actualizado_por, 'updated_at', l.updated_at,
+      'semaforo', case when l.meta <= 0 then 'gris' when l.valor_actual >= l.meta then 'verde' when l.valor_actual >= l.meta * 0.5 then 'amarillo' else 'rojo' end,
+      'progreso_pct', case when l.meta <= 0 then null else round(least(l.valor_actual / l.meta, 1) * 100) end
+    ) order by l.orden, l.id), '[]'::jsonb)
+    from public.omc_plan_lineas l where l.empresa = t.empresa and l.activa);
+end $$;
+
+create or replace function public.omc_decision_anadir(p_token text, p jsonb)
+returns jsonb language plpgsql security definer set search_path = public as $$
+declare t public.omc_tokens; d public.omc_decisiones; v_quien text;
+begin
+  t := public.omc_tok(p_token);
+  if coalesce(p->>'decision','') = '' then raise exception 'falta decision'; end if;
+  v_quien := case when t.rol = 'owner' then 'diego' else coalesce(nullif(p->>'agente',''), 'agente') end;
+  insert into public.omc_decisiones (empresa, fecha, decision, quien, linea_id, solicitud_id)
+    values (t.empresa, coalesce(nullif(p->>'fecha','')::timestamptz, now()), p->>'decision', v_quien, nullif(p->>'linea_id','')::bigint, nullif(p->>'solicitud_id','')::bigint)
+    returning * into d;
+  return to_jsonb(d);
+end $$;
+
+create or replace function public.omc_decisiones_lista(p_token text)
+returns jsonb language plpgsql security definer set search_path = public as $$
+declare t public.omc_tokens;
+begin
+  t := public.omc_tok(p_token);
+  return (select coalesce(jsonb_agg(to_jsonb(d) order by d.fecha desc), '[]'::jsonb) from public.omc_decisiones d where d.empresa = t.empresa);
 end $$;
 
 -- Actividad de agentes (upsert por observación).
@@ -762,13 +956,19 @@ revoke all on function public.omc_token_info(text), public.omc_hq(text), public.
   public.omc_kpi_set(text, jsonb), public.omc_ingreso_set(text, jsonb), public.omc_ingresos(text), public.omc_comentar(text, bigint, text), public.omc_retirar(text, bigint, text),
   public.omc_licitaciones_subir(text, jsonb), public.omc_licitacion_decidir(text, text, text, jsonb, text), public.omc_licitaciones_pendientes_sync(text), public.omc_licitaciones_sincronizadas(text, jsonb), public.omc_licitaciones_lista(text, boolean), public.omc_posponer(text, bigint, timestamptz), public.omc_pospuestas_vencidas(text), public.omc_eventos(text, timestamptz),
   public.omc_lic_comentar(text, text, text, text), public.omc_lic_hilo(text, text),
-  public.omc_marcar_notificado(text, jsonb), public.omc_pendientes_sin_notificar(text) from public;
+  public.omc_marcar_notificado(text, jsonb), public.omc_pendientes_sin_notificar(text),
+  public.omc_plan_objetivo_set(text, jsonb), public.omc_plan_objetivo(text), public.omc_plan_linea_set(text, jsonb),
+  public.omc_plan_kpi_actualizar(text, bigint, numeric, text, text, date), public.omc_plan_lineas_recalcular_sql(text),
+  public.omc_plan_lineas_lista(text), public.omc_decision_anadir(text, jsonb), public.omc_decisiones_lista(text) from public;
 grant execute on function public.omc_token_info(text), public.omc_hq(text), public.omc_hq_uso(text), public.omc_resolver(text, bigint, text, text),
   public.omc_agente_set(text, text, jsonb), public.omc_pedir(text, jsonb), public.omc_estado(text, bigint), public.omc_reportar(text, bigint, boolean, text),
   public.omc_latido(text, text), public.omc_mis_solicitudes(text, text), public.omc_subir_uso(text, jsonb), public.omc_guardar_push(text, jsonb), public.omc_subir_plan(text, jsonb), public.omc_subir_actividad(text, jsonb),
   public.omc_kpi_set(text, jsonb), public.omc_ingreso_set(text, jsonb), public.omc_ingresos(text), public.omc_comentar(text, bigint, text), public.omc_retirar(text, bigint, text),
   public.omc_licitaciones_subir(text, jsonb), public.omc_licitacion_decidir(text, text, text, jsonb, text), public.omc_licitaciones_pendientes_sync(text), public.omc_licitaciones_sincronizadas(text, jsonb), public.omc_licitaciones_lista(text, boolean), public.omc_posponer(text, bigint, timestamptz), public.omc_pospuestas_vencidas(text), public.omc_eventos(text, timestamptz),
   public.omc_lic_comentar(text, text, text, text), public.omc_lic_hilo(text, text),
-  public.omc_marcar_notificado(text, jsonb), public.omc_pendientes_sin_notificar(text)
+  public.omc_marcar_notificado(text, jsonb), public.omc_pendientes_sin_notificar(text),
+  public.omc_plan_objetivo_set(text, jsonb), public.omc_plan_objetivo(text), public.omc_plan_linea_set(text, jsonb),
+  public.omc_plan_kpi_actualizar(text, bigint, numeric, text, text, date), public.omc_plan_lineas_recalcular_sql(text),
+  public.omc_plan_lineas_lista(text), public.omc_decision_anadir(text, jsonb), public.omc_decisiones_lista(text)
   to anon, authenticated, service_role;
 notify pgrst, 'reload schema';
