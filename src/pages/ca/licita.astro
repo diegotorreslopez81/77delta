@@ -1,0 +1,385 @@
+---
+import { Image } from 'astro:assets';
+import Base from '../../layouts/Base.astro';
+import { href, hrefCa, site } from '../../lib/site';
+import panelGeneral from '../../assets/licita/panel-vista-general.png';
+import panelFiltro from '../../assets/licita/panel-filtro-cierran-semana.png';
+
+const capacitats = [
+  {
+    titol: 'Detecta',
+    text:
+      'Rastreja licitacions publicades a les 17 comunitats autònomes i a les plataformes europees (TED), cada dia.',
+  },
+  {
+    titol: 'Filtra',
+    text:
+      'Descarta el que no encaixa amb el que la teva empresa sap fer i amb el que pot signar de debò: solvència, capacitat, sector.',
+  },
+  {
+    titol: 'Mastega el plec',
+    text:
+      'Converteix cada plec en una fitxa curta: data de tancament, import, solvència exigida i el motiu concret per anar-hi o no.',
+  },
+  {
+    titol: 'Avisa de terminis',
+    text: 'Cap tancament es passa per no haver-lo vist a temps.',
+  },
+];
+
+const camp =
+  'mt-3 w-full rounded-[8px] border border-tinta/15 bg-panel px-4 py-3 font-sans text-[15px] text-tinta transition-colors placeholder:text-pizarra/60 focus:border-oro';
+const etiqueta = 'block font-mono text-[11px] uppercase tracking-[0.18em] text-pizarra';
+---
+
+<Base
+  title="Licita · el motor de licitacions"
+  description="Licita rastreja licitacions a les 17 comunitats autònomes i a Europa, filtra pel que la teva empresa pot signar i mastega cada plec en una fitxa amb tancament, import, solvència i motiu per anar-hi o no."
+>
+  <!-- Hero -->
+  <section class="wrap py-24 md:py-32">
+    <p class="eyebrow" data-reveal>Licita · per a empreses que licitin</p>
+    <h1
+      class="mt-7 max-w-[20ch] font-display text-[clamp(38px,6vw,76px)] font-extralight leading-[1.04] tracking-[-0.035em]"
+      data-reveal
+    >
+      Deixa de perdre la tarda <span class="font-semibold text-oro-oscuro">llegint plecs que no eren per a tu</span>.
+    </h1>
+    <p class="mt-8 max-w-[58ch] text-[clamp(17px,1.6vw,20px)] text-pizarra" data-reveal>
+      Si la teva empresa licita, ja coneixes el problema: centenars de publicacions noves cada setmana, i la
+      majoria no et serveixen. Licita les llegeix totes, es queda amb les que pots signar de debò i et diu, de
+      cadascuna, si val la pena o no abans que et posis a redactar.
+    </p>
+    <div class="mt-12 flex flex-wrap gap-4" data-reveal>
+      <a
+        href="#sollicitar-demo"
+        class="inline-flex items-center gap-2 rounded-[10px] bg-oro px-6 py-3.5 font-sans text-[15px] font-semibold text-marfil shadow-[0_6px_24px_rgba(167,120,27,.30)] transition-[background-color,transform] duration-200 hover:-translate-y-px hover:bg-tinta"
+      >
+        Demanar una demo →
+      </a>
+      <a href={href('/licita/')} class="inline-flex items-center gap-2 font-mono text-[12px] text-pizarra hover:text-tinta">
+        En castellano →
+      </a>
+    </div>
+  </section>
+
+  <!-- Què fa avui -->
+  <section class="hairline bg-panel">
+    <div class="wrap py-24 md:py-32">
+      <div class="max-w-[62ch]" data-reveal>
+        <p class="eyebrow">Què fa Licita avui</p>
+        <h2 class="mt-5 font-display text-[clamp(28px,3.6vw,44px)] font-extralight leading-[1.1] tracking-[-0.03em]">
+          Sense promeses. Això és el que fa ara mateix.
+        </h2>
+      </div>
+
+      <ol class="mt-16 grid gap-x-12 gap-y-14 md:grid-cols-2" role="list">
+        {
+          capacitats.map((c, i) => (
+            <li class="border-t border-linea pt-6" data-reveal>
+              <span class="font-mono text-[12px] text-oro-oscuro">0{i + 1}</span>
+              <h3 class="mt-2 font-display text-[20px] font-semibold">{c.titol}</h3>
+              <p class="mt-3 text-[15px] leading-[1.6] text-pizarra">{c.text}</p>
+            </li>
+          ))
+        }
+      </ol>
+    </div>
+  </section>
+
+  <!-- El panell real -->
+  <section class="hairline">
+    <div class="wrap py-24 md:py-32">
+      <div class="max-w-[62ch]" data-reveal>
+        <p class="eyebrow">El panell real</p>
+        <h2 class="mt-5 font-display text-[clamp(28px,3.6vw,44px)] font-extralight leading-[1.1] tracking-[-0.03em]">
+          Això no és una maqueta. És el panell d'avui, amb dades d'avui.
+        </h2>
+      </div>
+
+      <div class="mt-14 grid gap-8 md:grid-cols-2">
+        <figure data-reveal>
+          <Image
+            src={panelGeneral}
+            width={1400}
+            format="webp"
+            alt="Panell de Licita: llistat de licitacions amb tancament, import, elegibilitat, solvència i resum"
+            loading="lazy"
+            class="w-full rounded-[8px] border border-linea"
+          />
+          <figcaption class="mt-3 font-mono text-[11px] uppercase tracking-[0.14em] text-pizarra">
+            Vista general: 1.128 licitacions rastrejades, filtrades pel que encaixa
+          </figcaption>
+        </figure>
+        <figure data-reveal>
+          <Image
+            src={panelFiltro}
+            width={1400}
+            format="webp"
+            alt="Panell de Licita amb el filtre 'Tanquen aquesta setmana' actiu, amb organismes i províncies reals"
+            loading="lazy"
+            class="w-full rounded-[8px] border border-linea"
+          />
+          <figcaption class="mt-3 font-mono text-[11px] uppercase tracking-[0.14em] text-pizarra">
+            El preset "Tanquen aquesta setmana", amb avisos de termini en vermell
+          </figcaption>
+        </figure>
+      </div>
+      <p class="mt-8 max-w-[60ch] font-mono text-[12px] text-pizarra" data-reveal>
+        Captures reals del panell, 8 de setembre de 2026. A la demo el veiem complet, en directe.
+      </p>
+    </div>
+  </section>
+
+  <!-- El titular real -->
+  <section class="hairline bg-marino text-marfil">
+    <div class="wrap py-24 md:py-32">
+      <div class="max-w-[68ch]" data-reveal>
+        <p class="eyebrow text-pizarra">El cas real</p>
+        <h2 class="mt-5 max-w-[24ch] font-display text-[clamp(26px,3.4vw,42px)] font-extralight leading-[1.15] tracking-[-0.03em]">
+          El motor et diu si el pots signar <span class="font-semibold text-oro">abans</span> que perdis la tarda
+          redactant-lo.
+        </h2>
+        <p class="mt-8 text-[17px] leading-[1.7] text-pizarra">
+          Una licitació pública d'auditoria i protecció de dades, uns 24.000 €, encaixava a primera vista. Licita
+          va marcar l'expedient per revisar. En llegir el plec complet, el requisit real era tenir a plantilla un
+          consultor de protecció de dades titular i un suplent, tots dos amb grau en Dret i certificació DPD
+          acreditada per ENAC. Sense això, l'oferta queda fora passi el que passi amb el preu. Licita ho va detectar
+          abans d'escriure una sola línia.
+        </p>
+        <p class="mt-6 text-[17px] leading-[1.7] text-pizarra">
+          El mateix dia, dues licitacions més (65.230 € i 14.310 €) es van retirar pel mateix tipus de motiu, amb
+          deu documents ja redactats i signats entre totes dues. Aquest temps és just el que Licita estalvia quan
+          funciona.
+        </p>
+      </div>
+    </div>
+  </section>
+
+  <!-- Com és una fitxa -->
+  <section class="hairline">
+    <div class="wrap py-24 md:py-32">
+      <div class="max-w-[62ch]" data-reveal>
+        <p class="eyebrow">Com és una fitxa</p>
+        <h2 class="mt-5 font-display text-[clamp(28px,3.6vw,44px)] font-extralight leading-[1.1] tracking-[-0.03em]">
+          Un plec de 70 pàgines, en una fitxa que es llegeix en un minut.
+        </h2>
+        <p class="mt-6 text-[16px] text-pizarra">
+          Dues fitxes reals, del panell d'avui: una que diu hi anem i una que diu no hi anem. Totes dues amb el
+          motiu exacte, no una etiqueta genèrica.
+        </p>
+      </div>
+
+      <div class="mt-14 grid gap-8 md:grid-cols-2">
+        <div class="overflow-hidden rounded-[8px] border border-linea bg-panel" data-reveal>
+          <div class="flex items-start justify-between gap-4 border-b border-linea px-8 py-5">
+            <div>
+              <p class="font-mono text-[11px] uppercase tracking-[0.14em] text-pizarra">Exemple real, anonimitzat</p>
+              <h3 class="mt-2 font-display text-[19px] font-semibold">Ajuntament del Vallès Occidental</h3>
+              <p class="mt-1 text-[13px] text-pizarra">Renovació del web municipal, disseny, desenvolupament i formació</p>
+            </div>
+            <span class="mt-1 shrink-0 rounded-full bg-oro/15 px-3 py-1 font-mono text-[11px] font-semibold text-oro-oscuro">GO</span>
+          </div>
+          <dl class="grid grid-cols-2 gap-6 px-8 py-8">
+            <div>
+              <dt class="font-mono text-[11px] uppercase tracking-[0.14em] text-pizarra">Tancament</dt>
+              <dd class="mt-2 text-[16px] font-semibold text-tinta">10 set 2026</dd>
+            </div>
+            <div>
+              <dt class="font-mono text-[11px] uppercase tracking-[0.14em] text-pizarra">Import</dt>
+              <dd class="mt-2 text-[16px] font-semibold text-tinta">14.900 €</dd>
+            </div>
+          </dl>
+          <div class="border-t border-linea px-8 py-6">
+            <p class="font-mono text-[11px] uppercase tracking-[0.14em] text-pizarra">Solvència exigida</p>
+            <p class="mt-2 text-[14px] italic leading-[1.6] text-pizarra">
+              "Sense solvència formal: declaració responsable + 2 projectes similars en 5 anys." Criteris 100%
+              automàtics: preu 70%, borsa d'hores 15%, formació 8%, termini 7%.
+            </p>
+            <p class="mt-4 font-mono text-[11px] uppercase tracking-[0.14em] text-pizarra">Motiu per anar-hi</p>
+            <p class="mt-2 text-[14px] leading-[1.6] text-tinta">
+              Encaix total. Consultoria, UX, desenvolupament i formació és just el que sabem fer, sense
+              certificacions impossibles.
+            </p>
+          </div>
+        </div>
+
+        <div class="overflow-hidden rounded-[8px] border border-linea bg-panel" data-reveal>
+          <div class="flex items-start justify-between gap-4 border-b border-linea px-8 py-5">
+            <div>
+              <p class="font-mono text-[11px] uppercase tracking-[0.14em] text-pizarra">Exemple real, anonimitzat</p>
+              <h3 class="mt-2 font-display text-[19px] font-semibold">Organisme públic estatal</h3>
+              <p class="mt-1 text-[13px] text-pizarra">Auditoria, anàlisi de riscos i formació en protecció de dades</p>
+            </div>
+            <span class="mt-1 shrink-0 rounded-full bg-tinta/10 px-3 py-1 font-mono text-[11px] font-semibold text-tinta">NO&#8209;GO</span>
+          </div>
+          <dl class="grid grid-cols-2 gap-6 px-8 py-8">
+            <div>
+              <dt class="font-mono text-[11px] uppercase tracking-[0.14em] text-pizarra">Tancament</dt>
+              <dd class="mt-2 text-[16px] font-semibold text-tinta">24 set 2026</dd>
+            </div>
+            <div>
+              <dt class="font-mono text-[11px] uppercase tracking-[0.14em] text-pizarra">Import</dt>
+              <dd class="mt-2 text-[16px] font-semibold text-tinta">23.891 €</dd>
+            </div>
+          </dl>
+          <div class="border-t border-linea px-8 py-6">
+            <p class="font-mono text-[11px] uppercase tracking-[0.14em] text-pizarra">Solvència exigida</p>
+            <p class="mt-2 text-[14px] italic leading-[1.6] text-pizarra">
+              "Declaració de volum de negoci o, alternativament, assegurança de responsabilitat civil." Això sol no
+              descarta: l'assegurança és una via disponible.
+            </p>
+            <p class="mt-4 font-mono text-[11px] uppercase tracking-[0.14em] text-pizarra">Motiu real per no anar-hi</p>
+            <p class="mt-2 text-[14px] leading-[1.6] text-tinta">
+              Personal que no es té: consultor DPD titular i suplent, cadascun amb grau en Dret, certificació DPD
+              acreditada per ENAC i 3 anys d'experiència. No és la solvència econòmica el que descarta.
+            </p>
+          </div>
+        </div>
+      </div>
+
+      <p class="mt-8 max-w-[60ch] font-mono text-[12px] text-pizarra" data-reveal>
+        Fitxes reals del 8 de setembre de 2026, amb òrgans i xifres públics (PLACSP / contractaciopublica.cat). A la
+        demo veiem el panell complet, en directe.
+      </p>
+    </div>
+  </section>
+
+  <!-- Formulari de demo -->
+  <section id="sollicitar-demo" class="hairline bg-panel">
+    <div class="wrap py-24 md:py-32">
+      <div class="grid gap-16 md:grid-cols-12">
+        <div class="md:col-span-5" data-reveal>
+          <p class="eyebrow">Veure el motor en marxa</p>
+          <h2 class="mt-5 font-display text-[clamp(26px,3.2vw,38px)] font-extralight leading-[1.15] tracking-[-0.03em]">
+            Vint minuts. Amb el teu sector, no amb un de genèric.
+          </h2>
+          <p class="mt-6 text-[16px] text-pizarra">
+            Et mostrem el panell real, amb licitacions del teu propi sector i territori. Sense cost, sense
+            compromís.
+          </p>
+        </div>
+
+        <div class="md:col-span-7" data-reveal>
+          <form
+            id="form-demo-licita-ca"
+            action={`mailto:${site.email}`}
+            method="post"
+            data-destino={site.email}
+            data-endpoint={site.formulario}
+            class="grid gap-6 sm:grid-cols-2"
+            novalidate
+          >
+            <input type="text" name="web" tabindex="-1" autocomplete="off" class="hidden" aria-hidden="true" />
+            <input type="hidden" name="sector" value="Sol·licitud de demo · Licita" />
+
+            <div>
+              <label class={etiqueta} for="nom">Nom</label>
+              <input class={camp} type="text" id="nom" name="nombre" autocomplete="name" required />
+            </div>
+            <div>
+              <label class={etiqueta} for="empresa">Empresa</label>
+              <input class={camp} type="text" id="empresa" name="empresa" autocomplete="organization" required />
+            </div>
+            <div>
+              <label class={etiqueta} for="email">Email</label>
+              <input class={camp} type="email" id="email" name="email" autocomplete="email" required />
+            </div>
+            <div>
+              <label class={etiqueta} for="telefon">Telèfon (opcional)</label>
+              <input class={camp} type="tel" id="telefon" name="telefono" autocomplete="tel" />
+            </div>
+            <div class="sm:col-span-2">
+              <label class={etiqueta} for="missatge">En quin sector liciteu?</label>
+              <textarea class={camp} id="missatge" name="mensaje" rows="4" placeholder="Sector, territori i quin tipus de contractes us interessen"></textarea>
+            </div>
+            <div class="sm:col-span-2">
+              <button
+                type="submit"
+                class="inline-flex items-center gap-2 whitespace-nowrap rounded-[10px] bg-oro px-6 py-3.5 font-sans text-[15px] font-semibold text-marfil shadow-[0_6px_24px_rgba(167,120,27,.30)] transition-[background-color,transform] duration-200 hover:-translate-y-px hover:bg-tinta disabled:cursor-wait disabled:opacity-60"
+              >
+                Sol·licitar demo →
+              </button>
+              <p id="form-estado-ca" class="mt-5 hidden max-w-[52ch] text-[15px] text-tinta" role="status" aria-live="polite"></p>
+              <p class="mt-6 max-w-[52ch] text-[13px] text-pizarra">
+                Les dades es tracten a la Unió Europea d'acord amb el RGPD. Més detall a la nostra
+                <a
+                  href={hrefCa('/politica-privacidad/')}
+                  class="text-tinta underline decoration-linea underline-offset-4 transition-colors hover:decoration-oro"
+                  >política de privacitat</a
+                >.
+              </p>
+            </div>
+          </form>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <script>
+    const form = document.querySelector<HTMLFormElement>('#form-demo-licita-ca');
+    const estado = document.querySelector<HTMLParagraphElement>('#form-estado-ca');
+    const boton = form?.querySelector<HTMLButtonElement>('button[type=submit]');
+
+    const mostrar = (texto: string) => {
+      if (!estado) return;
+      estado.textContent = texto;
+      estado.classList.remove('hidden');
+    };
+
+    const leerCampos = (f: HTMLFormElement) => {
+      const datos = new FormData(f);
+      const leer = (nombre: string) => String(datos.get(nombre) ?? '').trim();
+      return {
+        nombre: leer('nombre'),
+        empresa: leer('empresa'),
+        email: leer('email'),
+        sector: leer('sector'),
+        mensaje: [leer('telefono') ? `Telèfon: ${leer('telefono')}` : '', leer('mensaje')].filter(Boolean).join('\n'),
+        web: leer('web'),
+        origen: location.pathname,
+      };
+    };
+
+    const abrirCorreo = (destino: string, c: ReturnType<typeof leerCampos>) => {
+      const asunto = `Sol·licitud de demo · Licita · ${c.empresa}`;
+      const cuerpo = [`Nom: ${c.nombre}`, `Empresa: ${c.empresa}`, `Email: ${c.email}`, '', c.mensaje].join('\n');
+      window.location.href = `mailto:${destino}?subject=${encodeURIComponent(asunto)}&body=${encodeURIComponent(cuerpo)}`;
+    };
+
+    form?.addEventListener('submit', async (evento) => {
+      evento.preventDefault();
+      const destino = form.dataset.destino ?? '';
+      const endpoint = form.dataset.endpoint ?? '';
+      const campos = leerCampos(form);
+
+      if (!endpoint) return abrirCorreo(destino, campos);
+
+      if (boton) boton.disabled = true;
+      mostrar('Enviant…');
+      try {
+        const r = await fetch(endpoint, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(campos),
+        });
+        const respuesta = (await r.json().catch(() => ({}))) as { ok?: boolean; error?: string };
+        if (r.ok && respuesta.ok) {
+          form.reset();
+          mostrar('Rebut. Et contactarem per quadrar la demo.');
+          return;
+        }
+        if (r.status === 400 || r.status === 429) {
+          mostrar(respuesta.error ?? 'No hem pogut enviar el missatge. Revisa els camps.');
+          return;
+        }
+        throw new Error(`respuesta ${r.status}`);
+      } catch {
+        mostrar("L'enviament directe no està disponible ara mateix: s'obre el teu programa de correu amb el missatge preparat.");
+        abrirCorreo(destino, campos);
+      } finally {
+        if (boton) boton.disabled = false;
+      }
+    });
+  </script>
+</Base>
