@@ -289,6 +289,10 @@ h2.sec-t small{color:var(--oro-oscuro)}
 .chip-e.descartado{background:var(--panel-2);color:var(--pizarra-tenue);text-decoration:line-through}
 .chip-e.antiguo{background:var(--error-suave);color:var(--error)}
 .encargo .resp2{font-size:10px;color:var(--pizarra-tenue);font-family:var(--mono)}
+.prio-e{display:flex;flex-direction:column;gap:1px;flex:0 0 auto}
+.flecha-p{width:22px;height:18px;line-height:1;font-size:10px;color:var(--oro);background:var(--panel-2);border-radius:4px;display:flex;align-items:center;justify-content:center}
+.flecha-p:disabled{opacity:.4}
+.flecha-p:active{background:var(--oro-suave)}
 .encargos-t{font-family:var(--mono);font-size:10.5px;letter-spacing:.05em;text-transform:uppercase;color:var(--pizarra);margin:10px 0 2px;padding-top:10px;border-top:1px dashed var(--linea-fuerte)}
 .decisionP{margin:0;position:relative;padding:0 0 16px 20px;border-left:2px solid var(--linea)}
 .decisionP:last-child{border-color:transparent;padding-bottom:0}
@@ -993,9 +997,18 @@ function renderLicita(){
 }
 /* ---- plan (objetivo, líneas, encargos, decisiones) ---- */
 function chipEncargo(e){ return el('span', { class: 'chip-e ' + e.estado, text: (e.antiguo ? '⚠ ' : '') + { encolado: 'encolado', en_curso: 'en curso', bloqueado_diego: 'bloqueado · tú', hecho: 'hecho', descartado: 'descartado' }[e.estado] }); }
+function moverEncargo(e, direccion, btn){
+  btn.disabled = true;
+  rpc('omc_encargo_prioridad', { p_token: TOKEN, p_id: e.id, p_direccion: direccion })
+    .then(function(r){ if (r && r.cambiado === false) toast('Ya está en el extremo'); return cargar(); })
+    .catch(function(err){ toast('No se pudo: ' + err.message); btn.disabled = false; });
+}
 function filaEncargo(e, conLinea){
   var lineaTxt = conLinea ? (lineaPorId(e.linea_id) ? lineaPorId(e.linea_id).linea : 'fuera de plan') : null;
+  var subir = el('button', { class: 'flecha-p', 'aria-label': 'Subir prioridad', text: '▲', onclick: function(ev){ ev.stopPropagation(); moverEncargo(e, 'subir', subir); } });
+  var bajar = el('button', { class: 'flecha-p', 'aria-label': 'Bajar prioridad', text: '▼', onclick: function(ev){ ev.stopPropagation(); moverEncargo(e, 'bajar', bajar); } });
   return el('div', { class: 'encargo', onclick: function(){ hojaEncargo(e); } }, [
+    el('div', { class: 'prio-e' }, [subir, bajar]),
     el('div', { class: 'cuerpo' }, [
       el('div', { class: 'txt' }, conRefs(e.texto)),
       el('div', { class: 'meta' }, [chipEncargo(e), el('span', { class: 'resp2', text: (lineaTxt ? lineaTxt + ' · ' : '') + (e.agente || '') }),
