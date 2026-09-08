@@ -1,0 +1,61 @@
+---
+import Base from '../../layouts/Base.astro';
+import { proyectosEnCurso } from '../../data/proyectos-en-curso';
+---
+
+<Base
+  title="Proyectos en curso"
+  description="Proyectos reales en ejecución con clientes, dentro del Cupó IA d'ACCIÓ. Cliente, año, ámbito y qué estamos haciendo ahora."
+>
+  <!-- Hero -->
+  <section class="wrap py-24 md:py-32">
+    <p class="eyebrow" data-reveal>Proyectos en curso</p>
+    <h1
+      class="mt-7 max-w-[20ch] font-display text-[clamp(38px,6vw,76px)] font-extralight leading-[1.04] tracking-[-0.035em]"
+      data-reveal
+    >
+      Lo que estamos <span class="font-semibold text-oro-oscuro">ejecutando ahora mismo</span>, con nombre y apellido.
+    </h1>
+    <p class="mt-8 max-w-[58ch] text-[clamp(17px,1.6vw,20px)] text-pizarra" data-reveal>
+      Estos proyectos están en marcha, no cerrados. Por eso no publicamos cifras de resultado todavía: solo qué
+      empresa, en qué sector, y qué estamos haciendo ahora. Cuando terminen, pasan a
+      <a href="/historias-de-exito/" class="text-oro-oscuro hover:underline">historias de éxito</a>, con resultados
+      verificados.
+    </p>
+  </section>
+
+  <!-- Lista de proyectos -->
+  <section class="hairline">
+    <div class="wrap py-8 md:py-12">
+      <ol role="list">
+        {
+          proyectosEnCurso.map((p) => (
+            <li class="border-b border-linea py-10 last:border-b-0 md:py-14" data-reveal>
+              <div class="grid gap-4 md:grid-cols-12 md:gap-10">
+                <div class="md:col-span-4">
+                  <h2 class="font-display text-[22px] font-semibold leading-[1.2]">{p.cliente}</h2>
+                  <p class="mt-2 font-mono text-[12px] uppercase tracking-[0.14em] text-pizarra">
+                    {p.ambito} · {p.anio}
+                  </p>
+                </div>
+                <div class="md:col-span-8">
+                  <p class="text-[16px] leading-[1.6] text-pizarra">{p.queHacemos}</p>
+                </div>
+              </div>
+            </li>
+          ))
+        }
+      </ol>
+    </div>
+  </section>
+
+  <!-- Acreditación -->
+  <section class="hairline bg-panel">
+    <div class="wrap py-16">
+      <p class="max-w-[60ch] text-[14px] leading-[1.7] text-pizarra">
+        Proyectos desarrollados como proveedor acreditado del <b class="text-tinta">Cupó IA d'ACCIÓ</b> (Generalitat
+        de Catalunya). Facturados por Next Gen Academy SL, CIF B44861649.
+      </p>
+    </div>
+  </section>
+</Base>
