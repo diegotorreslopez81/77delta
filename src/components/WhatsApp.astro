@@ -3,7 +3,11 @@
 import { site } from '../lib/site';
 
 const numero = (site as { whatsapp?: string }).whatsapp?.replace(/\D/g, '');
-const texto = encodeURIComponent('Hola, vengo de 77delta.com y quiero hablar sobre IA para mi empresa.');
+const mensaje =
+  Astro.currentLocale === 'ca'
+    ? 'Hola, vinc de 77delta.com i vull parlar sobre IA.'
+    : 'Hola, vengo de 77delta.com y quiero hablar sobre IA.';
+const texto = encodeURIComponent(mensaje);
 ---
 
 {
