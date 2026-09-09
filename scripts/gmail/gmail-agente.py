@@ -131,9 +131,32 @@ def exigir_remitente_coherente(a, remitente_addr):
             sys.exit(f"NO ENVÍO: el alias '{a.alias}@77delta.com' no consta como 'enviar como' verificado (ALIAS_OK en gmail-equipo.env). Gmail reescribiría el From al buzón autenticado. Pendiente #89.")
 
 
+def exigir_cuerpo_sano(body, destinatarios, forzar):
+    """9-sep (Jordi-COO, incidente real): un agente envió con --body apuntando al fichero de trabajo
+    entero en vez del texto del mensaje - le llegó a una regidora de Terrassa un documento interno de
+    9.739 caracteres con 10 correos de cargos de otros ayuntamientos y notas internas. El script hizo
+    lo que le pidieron: el hueco era que no había red de seguridad. Avisa y para, no bloquea en
+    silencio: --forzar-cuerpo lo salta a propósito para quien de verdad lo necesite."""
+    if forzar:
+        return
+    propios = {d.strip().lower() for d in destinatarios if d and d.strip()}
+    problemas = []
+    if re.search(r'(?m)^\s*#{1,6}\s|^\s*>\s', body):
+        problemas.append("tiene cabeceras markdown al principio de línea (#, ##, >): parece un documento de trabajo, no el texto de un correo")
+    ajenos = sorted({e.lower() for e in re.findall(r'[\w.+-]+@[\w-]+\.[\w.-]+', body)} - propios)
+    if len(ajenos) > 2:
+        problemas.append(f"tiene {len(ajenos)} direcciones de correo que no son el destinatario ({', '.join(ajenos[:5])}{', ...' if len(ajenos) > 5 else ''}): parece contener contactos ajenos, no el mensaje")
+    if len(body) > 3000:
+        problemas.append(f"tiene {len(body)} caracteres: ningún correo en frío nuestro llega a 3.000")
+    if problemas:
+        sys.exit("NO ENVÍO/NO GUARDO: el --body parece el fichero equivocado (" + '; '.join(problemas) + "). "
+                  "Si el fichero es el correcto y de verdad quieres pasarlo así, repite el mismo comando añadiendo --forzar-cuerpo.")
+
+
 def construir_mensaje(a, remitente_addr):
     exigir_remitente_coherente(a, remitente_addr)
     body = open(a.body, encoding='utf-8').read().strip()
+    exigir_cuerpo_sano(body, [a.to, a.cc or ''], getattr(a, 'forzar_cuerpo', False))
     msg = EmailMessage()
     # 9-sep: desde el buzon personal el nombre visible es siempre Diego; 'Equipo 77 Delta' solo tiene sentido en team@.
     # 9-sep, regla de Diego: nunca 'Equipo 77 Delta'. O el agente desde su alias verificado, o Diego Torres.
@@ -264,11 +287,13 @@ if __name__ == '__main__':
     q = sp.add_parser('draft'); comun(q)
     q.add_argument('--to', required=True); q.add_argument('--cc'); q.add_argument('--subject', default='')
     q.add_argument('--body', required=True); q.add_argument('--reply-to'); q.add_argument('--sin-diego', action='store_true')
+    q.add_argument('--forzar-cuerpo', dest='forzar_cuerpo', action='store_true', help='salta el chequeo de --body (markdown, >2 emails ajenos, >3000 caracteres) a propósito')
 
     r = sp.add_parser('send'); comun(r)
     r.add_argument('--to', required=True); r.add_argument('--cc'); r.add_argument('--subject', default='')
     r.add_argument('--body', required=True); r.add_argument('--reply-to'); r.add_argument('--sin-diego', action='store_true')
     r.add_argument('--tarjeta', type=int, required=True); r.add_argument('--lote', action='store_true', help='varios envios bajo la misma tarjeta aprobada: no la cierra, solo comenta; cerrarla al final con hq.py hecho')
+    r.add_argument('--forzar-cuerpo', dest='forzar_cuerpo', action='store_true', help='salta el chequeo de --body (markdown, >2 emails ajenos, >3000 caracteres) a propósito')
 
     l = sp.add_parser('list'); comun(l, con_agente=False)
     d = sp.add_parser('delete'); comun(d, con_agente=False); d.add_argument('text')
