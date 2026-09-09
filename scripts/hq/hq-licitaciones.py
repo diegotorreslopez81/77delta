@@ -18,7 +18,7 @@ SHEET = '12XpybhNqVapG1esl8vcHHaew83ACeTRli0gfkhcKb9I'
 CAMPOS = {'detectada': 'detectada', 'expediente': 'expediente', 'organo': 'órgano', 'provincia': 'provincia', 'objeto': 'objeto', 'importe': 'importe', 'tipo': 'tipo',
           'procedimiento': 'procedimiento', 'elegible': 'elegible', 'motivo_auto': 'motivo', 'solvencia': 'solvencia', 'cierre': 'cierre', 'enlace': 'enlace', 'pcap': 'pcap',
           'ppt': 'ppt', 'carpeta': 'carpeta', 'resumen': 'resumen', 'comentarios': 'comentarios', 'resumen_corto': 'resumen corto', 'decision': 'decisión', 'fecha_decision': 'fecha decisión',
-          'excepcion': 'excepción', 'progreso': 'progreso', 'progreso_nota': 'nota progreso'}
+          'excepcion': 'excepción', 'progreso': 'progreso', 'progreso_nota': 'nota progreso', 'checklist_coherencia': 'checklist coherencia'}
 
 
 def env():
@@ -117,7 +117,8 @@ def parsear(valores, pestana):
                       'motivo_auto': g('motivo_auto')[:2000], 'solvencia': g('solvencia')[:1500], 'cierre': fecha(g('cierre')), 'enlace': g('enlace'), 'pcap': g('pcap'), 'ppt': g('ppt'),
                       'carpeta': g('carpeta'), 'estado': estado if pestana == 'Licitaciones' else 'Descartada', 'decision': g('decision') or 'Pendiente',
                       'fecha_decision': fecha(g('fecha_decision')), 'comentarios': g('comentarios')[:2000], 'excepcion': g('excepcion')[:500],
-                      'progreso': num(r[idx['progreso']] if 'progreso' in idx and idx['progreso'] < len(r) else None), 'progreso_nota': g('progreso_nota')[:200]})
+                      'progreso': num(r[idx['progreso']] if 'progreso' in idx and idx['progreso'] < len(r) else None), 'progreso_nota': g('progreso_nota')[:200],
+                      'checklist_coherencia': g('checklist_coherencia')[:200]})
     cols = {c: idx.get(c) for c in ('decision', 'estado', 'fecha_decision', 'comentarios')}
     return filas, cols
 
@@ -145,10 +146,21 @@ def main():
         nota = f"HQ {l['decision']} ({l.get('fecha_decision') or date.today().isoformat()}): {motivo}".strip()
         if cols.get('decision') is not None: datos.append({'range': f"Licitaciones!{letra(cols['decision'])}{n}", 'values': [[l['decision']]]})
         if cols.get('fecha_decision') is not None: datos.append({'range': f"Licitaciones!{letra(cols['fecha_decision'])}{n}", 'values': [[l.get('fecha_decision') or date.today().isoformat()]]})
-        if cols.get('estado') is not None and l.get('estado'): datos.append({'range': f"Licitaciones!{letra(cols['estado'])}{n}", 'values': [[l['estado']]]})
+        # Gate obligatorio (09/09, Jordi/Ferran): no se escribe Presentada sin checklist de coherencia real
+        # (reglas.md, "Checklist de coherencia de declaraciones"), marcado a mano DESPUÉS de abrir los
+        # documentos del sobre, no solo leyendo el Sheet. Mismo gate que setEstado() en webapp/Code.gs,
+        # pero esta vía (sync desde HQ) escribe directo por API y así no lo bypasea.
+        estado_nuevo = l.get('estado')
+        bloqueado = estado_nuevo == 'Presentada' and not re.match(r'^\s*s[ií]\b', f.get('checklist_coherencia') or '', re.I)
+        if bloqueado:
+            print(f"BLOQUEADO {l['expediente']}: HQ pide Presentada pero falta el checklist de coherencia real (columna 'Checklist coherencia OK' vacía o no empieza por 'Sí'). No se marca sincronizada: se reintenta cada 10 min hasta que se rellene.")
+            nota = f"BLOQUEADO por checklist de coherencia sin marcar (gate 09/09): {nota}"
+        elif cols.get('estado') is not None and estado_nuevo:
+            datos.append({'range': f"Licitaciones!{letra(cols['estado'])}{n}", 'values': [[estado_nuevo]]})
         if cols.get('comentarios') is not None and nota not in coment: datos.append({'range': f"Licitaciones!{letra(cols['comentarios'])}{n}", 'values': [[(coment + '\n' if coment else '') + nota]]})
-        hechas.append(l['expediente'])
-        f['decision'], f['fecha_decision'], f['estado'] = l['decision'], l.get('fecha_decision') or date.today().isoformat(), l.get('estado') or f['estado']
+        if not bloqueado:
+            hechas.append(l['expediente'])
+            f['decision'], f['fecha_decision'], f['estado'] = l['decision'], l.get('fecha_decision') or date.today().isoformat(), l.get('estado') or f['estado']
     if datos and not a.seco:
         escribir(tok, datos)
         rpc(e, 'omc_licitaciones_sincronizadas', e['HQ_TOKEN'], p_expedientes=hechas)
