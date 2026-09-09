@@ -135,6 +135,7 @@ export const sectores: Sector[] = [
       'Cerca semàntica sobre expedients històrics',
       'Resum i classificació automàtica d’actes de ple',
       'Assistent per a la gestió documental interna',
+      'Formació de l’equip municipal en eines d’IA',
     ],
     caso: {
       cifra: '60%',
