@@ -295,6 +295,17 @@ h2.sec-t small{color:var(--oro-oscuro)}
 .flecha-p:active{background:var(--oro-suave)}
 .encargos-t{font-family:var(--mono);font-size:10.5px;letter-spacing:.05em;text-transform:uppercase;color:var(--pizarra);margin:10px 0 2px;padding-top:10px;border-top:1px dashed var(--linea-fuerte)}
 .decisionP{margin:0;position:relative;padding:0 0 16px 20px;border-left:2px solid var(--linea)}
+/* Pestaña Registro (encargo 43) */
+.chip-p{font-family:var(--mono);font-size:9px;padding:2px 6px;border-radius:20px;text-transform:uppercase;letter-spacing:.03em;white-space:nowrap;background:var(--panel-2);color:var(--pizarra)}
+.chip-p.alta{background:var(--error-suave);color:var(--error)}
+.chip-p.media{background:var(--oro-suave);color:var(--oro-oscuro)}
+.chip-p.baja{background:var(--panel-2);color:var(--pizarra-tenue)}
+.espera-e{font-size:10px;color:var(--oro-oscuro);font-family:var(--mono)}
+.depto-r{margin-bottom:22px}
+.depto-r .nombre{font-family:var(--display);font-size:17px;font-weight:600}
+.sub-r{font-family:var(--mono);font-size:10px;letter-spacing:.06em;text-transform:uppercase;color:var(--pizarra-tenue);margin:8px 0 2px}
+.omc-item{padding:6px 0;border-bottom:1px solid var(--linea);font-size:12.5px}
+.omc-item .fecha{font-family:var(--mono);font-size:10px;color:var(--pizarra-tenue)}
 .decisionP:last-child{border-color:transparent;padding-bottom:0}
 .decisionP::before{content:'';position:absolute;left:-5px;top:2px;width:8px;height:8px;border-radius:50%;background:var(--oro)}
 .decisionP .fecha{font-family:var(--mono);font-size:10.5px;color:var(--pizarra-tenue);letter-spacing:.04em}
@@ -350,6 +361,7 @@ h2.sec-t small{color:var(--oro-oscuro)}
   <button data-t="negocio">Negocio</button>
   <button data-t="licita">Licita<small id="n-licita"></small></button>
   <button data-t="plan">Plan</button>
+  <button data-t="registro">Registro</button>
   <button data-t="equipo">Equipo</button>
   <button data-t="costes">Costes</button>
 </nav>
@@ -466,7 +478,7 @@ function render(){ if (escribiendo()){ S.renderPendiente = true; return; } var r
   var nl = licPorDecidir().length; document.getElementById('n-licita').textContent = nl ? nl : '';
   document.querySelectorAll('#tabs button').forEach(function(b){ b.classList.toggle('on', b.dataset.t === S.tab); });
   app.textContent = '';
-  if (S.tab === 'bandeja') renderBandeja(); else if (S.tab === 'negocio') renderNegocio(); else if (S.tab === 'licita') renderLicita(); else if (S.tab === 'plan') renderPlanEstrategico(); else if (S.tab === 'equipo') renderEquipo(); else renderCostes();
+  if (S.tab === 'bandeja') renderBandeja(); else if (S.tab === 'negocio') renderNegocio(); else if (S.tab === 'licita') renderLicita(); else if (S.tab === 'plan') renderPlanEstrategico(); else if (S.tab === 'registro') renderRegistro(); else if (S.tab === 'equipo') renderEquipo(); else renderCostes();
   requestAnimationFrame(function(){ window.scrollTo(0, reset ? 0 : sy); }); }
 
 /* ---- bandeja ---- */
@@ -1028,6 +1040,29 @@ function hojaEncargo(e){
   if (e.solicitud_id) kids.push(el('p', { class: 'peq' }, ['Tarjeta relacionada: '].concat(conRefs('#' + e.solicitud_id))));
   hoja(kids, {});
 }
+function renderLineasEnContenedor(contenedor, lineas, encargos){
+  lineas.forEach(function(l){
+    var enc = encargos.filter(function(e){ return e.linea_id === l.id && e.estado !== 'bloqueado_diego'; });
+    // % completado ponderado (9-sep, encargo de Diego): media del KPI (valor/meta) y de los encargos de la
+    // línea que están 'hecho' sobre el total (sin contar descartados). Con solo una de las dos señales, se
+    // usa esa; sin ninguna, sin dato (n/d), igual que antes.
+    var todosLinea = encargos.filter(function(e){ return e.linea_id === l.id && e.estado !== 'descartado'; });
+    var hechosLinea = todosLinea.filter(function(e){ return e.estado === 'hecho'; }).length;
+    var pctEncargos = todosLinea.length ? Math.round(100 * hechosLinea / todosLinea.length) : null;
+    var pctKpi = l.progreso_pct;
+    var pctLinea = (pctKpi != null && pctEncargos != null) ? Math.round((pctKpi + pctEncargos) / 2) : (pctEncargos != null ? pctEncargos : pctKpi);
+    var box = el('div', { class: 'lineaP' });
+    box.appendChild(el('div', { class: 'cab' }, [el('div', {}, [el('div', { class: 'nombre', text: l.linea }), el('p', { class: 'kpi-txt', text: l.kpi })]), el('div', { class: 'semaforo ' + l.semaforo })]));
+    box.appendChild(el('div', { class: 'cifras' }, [el('span', { class: 'v', text: eurK(l.valor_actual) }), el('span', { class: 'm', text: '/ ' + eurK(l.meta) + (l.unidad !== 'EUR' ? ' ' + l.unidad : '') }),
+      pctLinea != null ? el('span', { class: 'p ' + l.semaforo, text: pctLinea + '%' }) : null]));
+    if (pctLinea != null) box.appendChild(el('div', { class: 'barra' }, [el('i', { style: 'width:' + pctLinea + '%;background:var(--' + (l.semaforo === 'verde' ? 'exito' : l.semaforo === 'amarillo' ? 'oro-luz' : l.semaforo === 'rojo' ? 'error' : 'pizarra-tenue') + ')' })]));
+    if (todosLinea.length) box.appendChild(el('p', { class: 'kpi-txt', text: 'KPI ' + (pctKpi != null ? pctKpi + '%' : 'n/d') + ' · encargos ' + hechosLinea + '/' + todosLinea.length + ' hechos (' + pctEncargos + '%)' }));
+    box.appendChild(el('div', { class: 'pie' }, [el('span', { class: 'resp', text: l.responsable }), el('span', { class: 'hito', text: l.proximo_hito })]));
+    box.appendChild(el('span', { class: 'fuente', text: l.fuente === 'sql' ? '⚙ calculado' : 'manual' }));
+    if (enc.length){ box.appendChild(el('div', { class: 'encargos-t', text: 'Encargos · ' + enc.length })); enc.forEach(function(e){ box.appendChild(filaEncargo(e, false)); }); }
+    contenedor.appendChild(box);
+  });
+}
 function renderPlanEstrategico(){
   var obj = S.hq.plan_objetivo, lineas = S.hq.plan_lineas || [], decisiones = S.hq.decisiones || [], encargos = S.hq.encargos || [];
   if (!obj && !lineas.length){ app.appendChild(el('p', { class: 'peq', text: 'Sin datos del plan todavía.' })); return; }
@@ -1048,27 +1083,7 @@ function renderPlanEstrategico(){
     app.appendChild(bl);
   }
   app.appendChild(el('h2', { class: 'sec-t' }, ['Líneas ', el('small', { text: lineas.length })]));
-  lineas.forEach(function(l){
-    var enc = encargos.filter(function(e){ return e.linea_id === l.id && e.estado !== 'bloqueado_diego'; });
-    // % completado ponderado (9-sep, encargo de Diego): media del KPI (valor/meta) y de los encargos de la
-    // línea que están 'hecho' sobre el total (sin contar descartados). Con solo una de las dos señales, se
-    // usa esa; sin ninguna, sin dato (n/d), igual que antes.
-    var todosLinea = encargos.filter(function(e){ return e.linea_id === l.id && e.estado !== 'descartado'; });
-    var hechosLinea = todosLinea.filter(function(e){ return e.estado === 'hecho'; }).length;
-    var pctEncargos = todosLinea.length ? Math.round(100 * hechosLinea / todosLinea.length) : null;
-    var pctKpi = l.progreso_pct;
-    var pctLinea = (pctKpi != null && pctEncargos != null) ? Math.round((pctKpi + pctEncargos) / 2) : (pctEncargos != null ? pctEncargos : pctKpi);
-    var box = el('div', { class: 'lineaP' });
-    box.appendChild(el('div', { class: 'cab' }, [el('div', {}, [el('div', { class: 'nombre', text: l.linea }), el('p', { class: 'kpi-txt', text: l.kpi })]), el('div', { class: 'semaforo ' + l.semaforo })]));
-    box.appendChild(el('div', { class: 'cifras' }, [el('span', { class: 'v', text: eurK(l.valor_actual) }), el('span', { class: 'm', text: '/ ' + eurK(l.meta) + (l.unidad !== 'EUR' ? ' ' + l.unidad : '') }),
-      pctLinea != null ? el('span', { class: 'p ' + l.semaforo, text: pctLinea + '%' }) : null]));
-    if (pctLinea != null) box.appendChild(el('div', { class: 'barra' }, [el('i', { style: 'width:' + pctLinea + '%;background:var(--' + (l.semaforo === 'verde' ? 'exito' : l.semaforo === 'amarillo' ? 'oro-luz' : l.semaforo === 'rojo' ? 'error' : 'pizarra-tenue') + ')' })]));
-    if (todosLinea.length) box.appendChild(el('p', { class: 'kpi-txt', text: 'KPI ' + (pctKpi != null ? pctKpi + '%' : 'n/d') + ' · encargos ' + hechosLinea + '/' + todosLinea.length + ' hechos (' + pctEncargos + '%)' }));
-    box.appendChild(el('div', { class: 'pie' }, [el('span', { class: 'resp', text: l.responsable }), el('span', { class: 'hito', text: l.proximo_hito })]));
-    box.appendChild(el('span', { class: 'fuente', text: l.fuente === 'sql' ? '⚙ calculado' : 'manual' }));
-    if (enc.length){ box.appendChild(el('div', { class: 'encargos-t', text: 'Encargos · ' + enc.length })); enc.forEach(function(e){ box.appendChild(filaEncargo(e, false)); }); }
-    app.appendChild(box);
-  });
+  renderLineasEnContenedor(app, lineas, encargos);
   var fdp = encargos.filter(function(e){ return e.linea_id == null && e.estado !== 'bloqueado_diego'; });
   if (fdp.length){
     app.appendChild(el('h2', { class: 'sec-t' }, ['Fuera de plan ', el('small', { text: fdp.length })]));
@@ -1078,6 +1093,93 @@ function renderPlanEstrategico(){
     app.appendChild(el('h2', { class: 'sec-t' }, ['Decisiones ', el('small', { text: decisiones.length })]));
     var dbox = el('div', {});
     decisiones.forEach(function(d){
+      dbox.appendChild(el('div', { class: 'decisionP' }, [
+        el('div', { class: 'fecha', text: d.fecha.slice(0, 10).split('-').reverse().join('/').toUpperCase() }),
+        el('div', { class: 'texto' }, conRefs(d.decision)),
+        el('div', { class: 'quien', text: d.quien.toUpperCase() + (d.linea_id && lineaPorId(d.linea_id) ? ' · ' + lineaPorId(d.linea_id).linea : '') })
+      ]));
+    });
+    app.appendChild(dbox);
+  }
+}
+function terciles(lista){
+  var n = lista.length, out = {};
+  lista.forEach(function(e, i){ var pos = n <= 1 ? 0 : i / n; out[e.id] = pos < 1 / 3 ? 'alta' : (pos < 2 / 3 ? 'media' : 'baja'); });
+  return out;
+}
+function filaRegistro(e, prioTxt){
+  var chips = [chipEncargo(e)];
+  if (prioTxt) chips.push(el('span', { class: 'chip-p ' + prioTxt, text: prioTxt }));
+  if (e.fecha_hito) chips.push(el('span', { class: 'resp2', text: 'cierre ' + String(e.fecha_hito).slice(0, 10).split('-').reverse().join('/') }));
+  var esperaTxt = e.estado === 'bloqueado_diego' ? 'tu' + (e.espera ? ' · ' + e.espera : '') : e.espera;
+  return el('div', { class: 'encargo', onclick: e._lic ? null : function(){ hojaEncargo(e); } }, [
+    el('div', { class: 'cuerpo' }, [
+      el('div', { class: 'txt' }, conRefs(e.texto)),
+      el('div', { class: 'meta' }, chips),
+      esperaTxt ? el('div', { class: 'espera-e', text: 'espera: ' + esperaTxt }) : null
+    ])
+  ]);
+}
+function renderRegistro(){
+  var lineas = S.hq.plan_lineas || [], encargos = S.hq.encargos || [], licitaciones = S.hq.licitaciones || [], hilosLic = S.hq.hilos_lic || {};
+  if (!lineas.length && !encargos.length){ app.appendChild(el('p', { class: 'peq', text: 'Sin datos todavía.' })); return; }
+
+  var bloqueados = encargos.filter(function(e){ return e.estado === 'bloqueado_diego'; });
+  app.appendChild(el('div', { class: 'obj-cab' }, [el('p', { class: 'eyebrow', text: 'Bloqueado por ti' }), el('div', { class: 'obj-num' }, [el('span', { class: 'actual', text: String(bloqueados.length) })])]));
+
+  app.appendChild(el('h2', { class: 'sec-t' }, ['Líneas estratégicas ', el('small', { text: lineas.length })]));
+  renderLineasEnContenedor(app, lineas, encargos);
+
+  var vivas = licitaciones.filter(function(l){ return l.decision === 'OK' && (l.estado === 'Aprobada' || l.estado === 'Presentada'); });
+  var porDepto = {};
+  encargos.forEach(function(e){ var d = (e.departamento || '').trim() || 'Sin departamento'; (porDepto[d] = porDepto[d] || []).push(e); });
+  if (vivas.length){
+    var depLic = 'Ventas/Licitaciones';
+    porDepto[depLic] = porDepto[depLic] || [];
+    vivas.forEach(function(l){
+      var msgs = hilosLic[l.expediente] || [], espera = '';
+      for (var i = msgs.length - 1; i >= 0; i--){ var m = /\[espera-diego\]\s*(.*)$/i.exec(msgs[i].texto || ''); if (m){ espera = m[1].slice(0, 90); break; } }
+      porDepto[depLic].push({ id: 'lic-' + l.expediente, texto: (l.organo || l.expediente) + (l.importe != null ? ' · ' + eur(l.importe) : ''),
+        estado: 'en_curso', prioridad: 500, fecha_hito: l.cierre, espera: espera, agente: '', _lic: true });
+    });
+  }
+
+  app.appendChild(el('h2', { class: 'sec-t', text: 'Áreas' }));
+  Object.keys(porDepto).sort().forEach(function(dep){
+    var todos = porDepto[dep];
+    var enCurso = todos.filter(function(e){ return e.estado === 'en_curso' || e.estado === 'bloqueado_diego'; }).sort(function(a, b){ return a.prioridad - b.prioridad; });
+    var backlog = todos.filter(function(e){ return e.estado === 'encolado'; });
+    var ahora = Date.now();
+    var hechoSemana = todos.filter(function(e){ return e.estado === 'hecho' && e.updated_at && (ahora - new Date(e.updated_at).getTime()) < 7 * 864e5; });
+    if (!enCurso.length && !backlog.length && !hechoSemana.length) return;
+    var ter = terciles(enCurso);
+    var box = el('div', { class: 'depto-r' });
+    box.appendChild(el('div', { class: 'nombre', text: dep }));
+    if (enCurso.length){ box.appendChild(el('div', { class: 'sub-r', text: 'En curso · ' + enCurso.length })); enCurso.forEach(function(e){ box.appendChild(filaRegistro(e, ter[e.id])); }); }
+    if (backlog.length){ box.appendChild(el('div', { class: 'sub-r', text: 'Backlog · ' + backlog.length })); backlog.forEach(function(e){ box.appendChild(filaRegistro(e, null)); }); }
+    if (hechoSemana.length){ box.appendChild(el('div', { class: 'sub-r', text: 'Completado esta semana · ' + hechoSemana.length })); hechoSemana.forEach(function(e){ box.appendChild(filaRegistro(e, null)); }); }
+    app.appendChild(box);
+  });
+
+  app.appendChild(el('h2', { class: 'sec-t', text: 'One Man Company · histórico' }));
+  var omcBox = el('div', {}); app.appendChild(omcBox);
+  omcBox.appendChild(el('p', { class: 'peq', text: 'Cargando histórico de Engram…' }));
+  fetch('http://127.0.0.1:7437/observations?project=77delta&limit=300').then(function(r){ return r.json(); }).then(function(obs){
+    omcBox.innerHTML = '';
+    var filtrado = (obs || []).filter(function(o){ var t = o.title || ''; return t.indexOf('[CORE]') === 0 || t.indexOf('[DECISION]') === 0 || t.indexOf('[ENCARGO') === 0 || t.indexOf('[CORREO]') === 0; });
+    if (!filtrado.length){ omcBox.appendChild(el('p', { class: 'peq', text: 'Sin entradas [CORE]/[DECISION]/[ENCARGO] todavía.' })); return; }
+    filtrado.slice(0, 80).forEach(function(o){
+      omcBox.appendChild(el('div', { class: 'omc-item' }, [el('span', { class: 'fecha', text: (o.created_at || '').slice(0, 16).replace('T', ' ') + ' · ' }), el('span', { text: o.title })]));
+    });
+  }).catch(function(){
+    omcBox.innerHTML = '';
+    omcBox.appendChild(el('p', { class: 'peq', text: 'Histórico de Engram no disponible desde aquí (solo se ve en un navegador de esta misma máquina, 127.0.0.1:7437).' }));
+  });
+
+  if (S.hq.decisiones && S.hq.decisiones.length){
+    app.appendChild(el('h2', { class: 'sec-t' }, ['Decisiones ', el('small', { text: S.hq.decisiones.length })]));
+    var dbox = el('div', {});
+    S.hq.decisiones.forEach(function(d){
       dbox.appendChild(el('div', { class: 'decisionP' }, [
         el('div', { class: 'fecha', text: d.fecha.slice(0, 10).split('-').reverse().join('/').toUpperCase() }),
         el('div', { class: 'texto' }, conRefs(d.decision)),
