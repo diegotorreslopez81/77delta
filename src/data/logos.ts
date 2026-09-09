@@ -25,7 +25,6 @@ export const instituciones: Logo[] = [
 ];
 
 export const tecnologia: Logo[] = [
-  { src: 'anthropic.svg', alt: 'Anthropic', href: 'https://www.anthropic.com', forma: 'wide' },
   { src: 'aws.svg', alt: 'Amazon Web Services', href: 'https://aws.amazon.com', forma: 'wide' },
   { src: 'cloudflare.svg', alt: 'Cloudflare', href: 'https://www.cloudflare.com', forma: 'wide' },
   { src: 'deepseek.svg', alt: 'DeepSeek', href: 'https://www.deepseek.com' },
