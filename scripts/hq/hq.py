@@ -11,7 +11,7 @@ El agente se resuelve por --agente, HQ_AGENTE, el fichero .claude/hq-agente del 
   hq.py activo [agente]        (código 0 activo, 2 desactivado, 3 no existe)
   hq.py pendientes [agente]
 """
-import shutil, argparse, json, os, sys, time, urllib.request, urllib.error
+import shutil, argparse, json, os, subprocess, sys, time, urllib.request, urllib.error
 from pathlib import Path
 
 CONF = Path.home() / '.config' / '77delta' / 'hq.env'
@@ -110,6 +110,27 @@ def avisar_lic(expediente, texto):
                                      data=json.dumps({'messages': [{'topic': 'omc:' + empresa, 'event': 'cambio', 'payload': {'lic': expediente}}]}).encode(),
                                      headers={'apikey': E['HQ_ANON'], 'Authorization': 'Bearer ' + E['HQ_ANON'], 'Content-Type': 'application/json'})
         urllib.request.urlopen(req, timeout=10).read()
+    except Exception:
+        pass
+
+
+def engram(titulo, texto, tipo='context'):
+    """Espejo automático en Engram (decisión del chief, doc 32-engram-hq-omc.md, encargo 42): HQ dice
+    'cómo está', Engram dice 'qué pasó y por qué'. Nunca debe romper la operación de HQ si Engram no
+    responde - si el guardado falla, se encola en ~/.config/77delta/engram-cola.jsonl y hq-test.py
+    (cada 10 min) la vacía."""
+    eng = shutil.which('engram') or os.path.expanduser('~/.local/bin/engram')
+    try:
+        r = subprocess.run([eng, 'save', titulo, texto, '--project', '77delta', '--type', tipo], capture_output=True, text=True, timeout=15)
+        if r.returncode == 0:
+            return
+    except Exception:
+        pass
+    try:
+        cola = Path.home() / '.config' / '77delta' / 'engram-cola.jsonl'
+        cola.parent.mkdir(parents=True, exist_ok=True)
+        with cola.open('a') as f:
+            f.write(json.dumps({'titulo': titulo, 'texto': texto, 'tipo': tipo}, ensure_ascii=False) + '\n')
     except Exception:
         pass
 
@@ -276,7 +297,9 @@ def main():
         avisar({'id': a.id, 'texto': a.texto})
         print(json.dumps(m, ensure_ascii=False) if a.json else f"#{a.id} comentario enviado a Diego ({m['autor']})")
     elif a.cmd == 'retirar':
-        salida(rpc('omc_retirar', p_token=E['HQ_TOKEN'], p_id=a.id, p_nota=a.nota), a.json)
+        r = rpc('omc_retirar', p_token=E['HQ_TOKEN'], p_id=a.id, p_nota=a.nota)
+        engram(f"[TARJETA #{a.id}] retirada", a.nota or '(sin nota)')
+        salida(r, a.json)
     elif a.cmd == 'hilo':
         s = rpc('omc_estado', p_token=E['HQ_TOKEN'], p_id=a.id)
         if a.json: print(json.dumps(s.get('hilo') or [], ensure_ascii=False))
@@ -284,7 +307,9 @@ def main():
             print(linea(s))
             for m in (s.get('hilo') or []): print(f"  [{m['ts'][:16].replace('T', ' ')}] {m['autor']}: {m['texto']}")
     elif a.cmd in ('hecho', 'fallo'):
-        salida(rpc('omc_reportar', p_token=E['HQ_TOKEN'], p_id=a.id, p_ok=(a.cmd == 'hecho'), p_nota=a.nota), a.json)
+        r = rpc('omc_reportar', p_token=E['HQ_TOKEN'], p_id=a.id, p_ok=(a.cmd == 'hecho'), p_nota=a.nota)
+        engram(f"[TARJETA #{a.id}] {a.cmd}", (r.get('titulo') or '') + (' · ' + a.nota if a.nota else ''))
+        salida(r, a.json)
     elif a.cmd == 'activo':
         r = rpc('omc_latido', p_token=E['HQ_TOKEN'], p_agente=agente_actual(a.agente))
         if a.json:
@@ -480,6 +505,7 @@ def main():
     elif a.cmd == 'decision':
         p = {'decision': a.texto, 'linea_id': a.linea, 'solicitud_id': a.tarjeta, 'agente': agente_actual(a.agente)}
         r = rpc('omc_decision_anadir', p_token=E['HQ_TOKEN'], p=p)
+        engram(f"[DECISION] {a.texto[:80]}", a.texto)
         print(json.dumps(r, ensure_ascii=False) if a.json else f"decisión #{r['id']} anotada ({r['quien']})")
     elif a.cmd == 'decisiones':
         ds = rpc('omc_decisiones_lista', p_token=E['HQ_TOKEN'])
@@ -494,12 +520,15 @@ def main():
                                    'agente_responsable': a.responsable, 'estado': a.estado, 'prioridad': a.prioridad, 'solicitud_id': a.tarjeta,
                                    'proximo_hito': a.proximo_hito, 'fecha_hito': a.fecha_hito, 'agente': agente_actual(a.agente), 'espera': a.espera}.items() if v is not None}
             r = rpc('omc_encargo_set', p_token=E['HQ_TOKEN'], p=p)
+            engram(f"[ENCARGO #{r['id']}] alta", f"{r['texto']} · {linea_encargo(r)} · {r.get('departamento') or 'sin depto'} · {r.get('agente') or 'sin responsable'} · estado {r['estado']}")
             print(json.dumps(r, ensure_ascii=False) if a.json else f"#{r['id']} [{r['estado']}] {r['texto'][:60]} · {linea_encargo(r)} · prioridad {r['prioridad']}")
         elif a.sub == 'avance':
             r = rpc('omc_encargo_avance', p_token=E['HQ_TOKEN'], p_id=a.id, p_texto=a.texto, p_agente=agente_actual(a.agente))
+            engram(f"[ENCARGO #{a.id}] avance", a.texto)
             print(json.dumps(r, ensure_ascii=False) if a.json else f"#{r['id']} avance anotado: {r['ultimo_avance'][:80]}")
         elif a.sub == 'estado':
             r = rpc('omc_encargo_estado', p_token=E['HQ_TOKEN'], p_id=a.id, p_estado=a.valor, p_agente=agente_actual(a.agente))
+            engram(f"[ENCARGO #{a.id}] estado", f"-> {a.valor}")
             print(json.dumps(r, ensure_ascii=False) if a.json else f"#{r['id']} -> {r['estado']}")
         elif a.sub == 'prioridad':
             r = rpc('omc_encargo_prioridad', p_token=E['HQ_TOKEN'], p_id=a.id, p_direccion=a.direccion)
