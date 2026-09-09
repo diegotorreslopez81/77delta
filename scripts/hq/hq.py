@@ -220,6 +220,7 @@ def main():
     ea.add_argument('--id', type=int); ea.add_argument('--texto'); ea.add_argument('--interpretacion'); ea.add_argument('--linea', type=int, help='id de línea del plan; sin esto, fuera de plan')
     ea.add_argument('--departamento'); ea.add_argument('--responsable'); ea.add_argument('--estado', choices=('encolado', 'en_curso', 'bloqueado_diego', 'hecho', 'descartado'))
     ea.add_argument('--prioridad', type=int); ea.add_argument('--tarjeta', type=int); ea.add_argument('--proximo-hito', dest='proximo_hito'); ea.add_argument('--fecha-hito', dest='fecha_hito'); ea.add_argument('--agente')
+    ea.add_argument('--espera', help='en qué espera un encargo EN_CURSO, corto: "2 referees", "tu decisión"... (registro vivo, encargo 43)')
     ev = esub.add_parser('avance', help='anotar el último avance de un encargo')
     ev.add_argument('id', type=int); ev.add_argument('--texto', required=True); ev.add_argument('--agente')
     ee = esub.add_parser('estado', help='cambiar el estado de un encargo')
@@ -409,7 +410,7 @@ def main():
                 idx = next(i for i, l in enumerate(lineas) if l.strip() == "LISTA='")
             except StopIteration:
                 sys.exit("2/5 no encuentro \"LISTA='\" en ~/bin/equipo; añade la ventana a mano")
-            lineas.insert(idx + 1, f"{a.ventana}|{a.carpeta}||{a.modelo}|{a.cuenta}")
+            lineas.insert(idx + 1, f"{a.ventana}|{a.carpeta}||{a.modelo}|{a.cuenta}|{a.id}")
             eq.write_text('\n'.join(lineas) + '\n')
             r = subprocess.run(['bash', '-n', str(eq)], capture_output=True, text=True)
             if r.returncode != 0:
@@ -491,7 +492,7 @@ def main():
         if a.sub == 'alta':
             p = {k: v for k, v in {'id': a.id, 'texto': a.texto, 'interpretacion': a.interpretacion, 'linea_id': a.linea, 'departamento': a.departamento,
                                    'agente_responsable': a.responsable, 'estado': a.estado, 'prioridad': a.prioridad, 'solicitud_id': a.tarjeta,
-                                   'proximo_hito': a.proximo_hito, 'fecha_hito': a.fecha_hito, 'agente': agente_actual(a.agente)}.items() if v is not None}
+                                   'proximo_hito': a.proximo_hito, 'fecha_hito': a.fecha_hito, 'agente': agente_actual(a.agente), 'espera': a.espera}.items() if v is not None}
             r = rpc('omc_encargo_set', p_token=E['HQ_TOKEN'], p=p)
             print(json.dumps(r, ensure_ascii=False) if a.json else f"#{r['id']} [{r['estado']}] {r['texto'][:60]} · {linea_encargo(r)} · prioridad {r['prioridad']}")
         elif a.sub == 'avance':
