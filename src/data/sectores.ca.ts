@@ -125,12 +125,13 @@ export const sectores: Sector[] = [
   {
     slug: 'administracion',
     nombre: 'Administració pública',
-    resumen: 'Transformem l’atenció ciutadana, la gestió documental i l’anàlisi d’expedients històrics.',
+    resumen: 'Consultoria de transformació digital, atenció ciutadana, gestió documental i anàlisi d’expedients històrics.',
     h1: 'Atenció ciutadana, gestió documental i anàlisi d’expedients amb IA',
-    lead: 'Seu electrònica conversacional, classificació documental massiva i anàlisi d’expedients. Compliment ENS i dades processades en territori europeu.',
+    lead: 'Consultoria tecnològica per a administracions: diagnòstic de processos, seu electrònica conversacional, classificació documental massiva i anàlisi d’expedients. Compliment ENS i dades processades en territori europeu.',
     problema:
       'L’atenció ciutadana satura el call center. Els expedients històrics són difícils de consultar. Els plens generen actes extenses.',
     soluciones: [
+      'Consultoria de transformació digital: diagnòstic i full de ruta abans de construir res',
       'Chatbot d’atenció ciutadana 24/7 amb escalat a funcionari',
       'Cerca semàntica sobre expedients històrics',
       'Resum i classificació automàtica d’actes de ple',

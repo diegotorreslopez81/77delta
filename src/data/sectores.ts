@@ -125,12 +125,13 @@ export const sectores: Sector[] = [
   {
     slug: 'administracion',
     nombre: 'Administración pública',
-    resumen: 'Transformamos la atención ciudadana, la gestión documental y el análisis de expedientes históricos.',
+    resumen: 'Consultoría de transformación digital, atención ciudadana, gestión documental y análisis de expedientes históricos.',
     h1: 'Atención ciudadana, gestión documental y análisis de expedientes con IA',
-    lead: 'Sede electrónica conversacional, clasificación documental masiva y análisis de expedientes. Cumplimiento ENS y datos procesados en territorio europeo.',
+    lead: 'Consultoría tecnológica para administraciones: diagnóstico de procesos, sede electrónica conversacional, clasificación documental masiva y análisis de expedientes. Cumplimiento ENS y datos procesados en territorio europeo.',
     problema:
       'La atención ciudadana satura el call center. Los expedientes históricos son difíciles de consultar. Los plenos generan actas extensas.',
     soluciones: [
+      'Consultoría de transformación digital: diagnóstico y hoja de ruta antes de construir nada',
       'Chatbot de atención ciudadana 24/7 con escalado a funcionario',
       'Búsqueda semántica sobre expedientes históricos',
       'Resumen y clasificación automática de actas de pleno',
