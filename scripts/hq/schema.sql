@@ -279,6 +279,9 @@ create table if not exists public.omc_encargos (
 create index if not exists omc_encargos_empresa on public.omc_encargos (empresa, linea_id, prioridad);
 -- 9-sep, registro vivo (encargo 43): en qué espera un encargo en curso ("2 referees", "tu decisión"...), corto.
 alter table public.omc_encargos add column if not exists espera text not null default '';
+-- 9-sep, encargo 42 (doc 32 §5): vínculo con el mensaje de Diego (tarjeta 193) del que nació este encargo,
+-- para que hq-test.py pueda avisar si un mensaje lleva >30 min sin encargo vinculado.
+alter table public.omc_encargos add column if not exists mensaje_id bigint references public.omc_mensajes(id) on delete set null;
 
 alter table public.omc_empresas enable row level security;
 alter table public.omc_tokens enable row level security;
@@ -384,7 +387,7 @@ begin
                     'id', ec.id, 'fecha', ec.fecha, 'texto', ec.texto, 'interpretacion', ec.interpretacion, 'linea_id', ec.linea_id,
                     'departamento', ec.departamento, 'agente', ec.agente, 'estado', ec.estado, 'prioridad', ec.prioridad,
                     'solicitud_id', ec.solicitud_id, 'proximo_hito', ec.proximo_hito, 'fecha_hito', ec.fecha_hito,
-                    'ultimo_avance', ec.ultimo_avance, 'fecha_avance', ec.fecha_avance, 'creado_por', ec.creado_por, 'updated_at', ec.updated_at, 'espera', ec.espera,
+                    'ultimo_avance', ec.ultimo_avance, 'fecha_avance', ec.fecha_avance, 'creado_por', ec.creado_por, 'updated_at', ec.updated_at, 'espera', ec.espera, 'mensaje_id', ec.mensaje_id,
                     'antiguo', ec.estado not in ('hecho','descartado') and coalesce(ec.fecha_avance, ec.fecha) < now() - interval '48 hours'
                   ) order by ec.linea_id nulls last, ec.prioridad), '[]'::jsonb) from public.omc_encargos ec where ec.empresa = e.id)
   );
@@ -604,11 +607,11 @@ begin
         where empresa = t.empresa and coalesce(linea_id, -1) = coalesce(nullif(p->>'linea_id','')::bigint, -1);
     end if;
     insert into public.omc_encargos (empresa, texto, interpretacion, linea_id, departamento, agente, estado, prioridad,
-        solicitud_id, proximo_hito, fecha_hito, creado_por, espera)
+        solicitud_id, proximo_hito, fecha_hito, creado_por, espera, mensaje_id)
       values (t.empresa, p->>'texto', coalesce(p->>'interpretacion',''), nullif(p->>'linea_id','')::bigint, coalesce(p->>'departamento',''),
               coalesce(p->>'agente_responsable', p->>'agente', ''), coalesce(nullif(p->>'estado',''), 'encolado'), v_prioridad,
               nullif(p->>'solicitud_id','')::bigint, coalesce(p->>'proximo_hito',''), nullif(p->>'fecha_hito','')::date, v_agente,
-              coalesce(p->>'espera',''))
+              coalesce(p->>'espera',''), nullif(p->>'mensaje_id','')::bigint)
       returning * into e;
   else
     select * into e from public.omc_encargos where empresa = t.empresa and id = v_id;
@@ -622,6 +625,7 @@ begin
       estado = coalesce(nullif(p->>'estado',''), estado), proximo_hito = coalesce(p->>'proximo_hito', proximo_hito),
       fecha_hito = coalesce(nullif(p->>'fecha_hito','')::date, fecha_hito), solicitud_id = coalesce(nullif(p->>'solicitud_id','')::bigint, solicitud_id),
       espera = case when p ? 'espera' then p->>'espera' else espera end,
+      mensaje_id = case when p ? 'mensaje_id' then nullif(p->>'mensaje_id','')::bigint else mensaje_id end,
       updated_at = now()
       where id = v_id returning * into e;
   end if;
@@ -693,7 +697,7 @@ begin
       'id', e.id, 'fecha', e.fecha, 'texto', e.texto, 'interpretacion', e.interpretacion, 'linea_id', e.linea_id,
       'departamento', e.departamento, 'agente', e.agente, 'estado', e.estado, 'prioridad', e.prioridad,
       'solicitud_id', e.solicitud_id, 'proximo_hito', e.proximo_hito, 'fecha_hito', e.fecha_hito,
-      'ultimo_avance', e.ultimo_avance, 'fecha_avance', e.fecha_avance, 'creado_por', e.creado_por, 'updated_at', e.updated_at, 'espera', e.espera,
+      'ultimo_avance', e.ultimo_avance, 'fecha_avance', e.fecha_avance, 'creado_por', e.creado_por, 'updated_at', e.updated_at, 'espera', e.espera, 'mensaje_id', e.mensaje_id,
       'antiguo', e.estado not in ('hecho','descartado') and coalesce(e.fecha_avance, e.fecha) < now() - interval '48 hours'
     ) order by e.linea_id nulls last, e.prioridad), '[]'::jsonb)
     from public.omc_encargos e where e.empresa = t.empresa);
@@ -1050,7 +1054,7 @@ declare t public.omc_tokens;
 begin
   t := public.omc_tok(p_token);
   return (select coalesce(jsonb_agg(x order by x->>'ts'), '[]'::jsonb) from (
-    select jsonb_build_object('tipo', 'comentario', 'ts', m.ts, 'id', s.id, 'agente', s.agente, 'titulo', s.titulo, 'texto', m.texto, 'estado', s.estado)
+    select jsonb_build_object('tipo', 'comentario', 'ts', m.ts, 'id', s.id, 'mensaje_id', m.id, 'agente', s.agente, 'titulo', s.titulo, 'texto', m.texto, 'estado', s.estado)
       from public.omc_mensajes m join public.omc_solicitudes s on s.id = m.solicitud_id where m.empresa = t.empresa and m.autor = 'diego' and m.ts > p_desde
     union all
     select jsonb_build_object('tipo', 'resolucion', 'ts', s.resolved_at, 'id', s.id, 'agente', s.agente, 'titulo', s.titulo, 'texto', s.respuesta, 'estado', s.estado)

@@ -242,6 +242,7 @@ def main():
     ea.add_argument('--departamento'); ea.add_argument('--responsable'); ea.add_argument('--estado', choices=('encolado', 'en_curso', 'bloqueado_diego', 'hecho', 'descartado'))
     ea.add_argument('--prioridad', type=int); ea.add_argument('--tarjeta', type=int); ea.add_argument('--proximo-hito', dest='proximo_hito'); ea.add_argument('--fecha-hito', dest='fecha_hito'); ea.add_argument('--agente')
     ea.add_argument('--espera', help='en qué espera un encargo EN_CURSO, corto: "2 referees", "tu decisión"... (registro vivo, encargo 43)')
+    ea.add_argument('--mensaje', type=int, help='id del mensaje de Diego (tarjeta 193) del que nace este encargo (encargo 42)')
     ev = esub.add_parser('avance', help='anotar el último avance de un encargo')
     ev.add_argument('id', type=int); ev.add_argument('--texto', required=True); ev.add_argument('--agente')
     ee = esub.add_parser('estado', help='cambiar el estado de un encargo')
@@ -539,7 +540,8 @@ def main():
         if a.sub == 'alta':
             p = {k: v for k, v in {'id': a.id, 'texto': a.texto, 'interpretacion': a.interpretacion, 'linea_id': a.linea, 'departamento': a.departamento,
                                    'agente_responsable': a.responsable, 'estado': a.estado, 'prioridad': a.prioridad, 'solicitud_id': a.tarjeta,
-                                   'proximo_hito': a.proximo_hito, 'fecha_hito': a.fecha_hito, 'agente': agente_actual(a.agente), 'espera': a.espera}.items() if v is not None}
+                                   'proximo_hito': a.proximo_hito, 'fecha_hito': a.fecha_hito, 'agente': agente_actual(a.agente), 'espera': a.espera,
+                                   'mensaje_id': a.mensaje}.items() if v is not None}
             r = rpc('omc_encargo_set', p_token=E['HQ_TOKEN'], p=p)
             engram(f"[ENCARGO #{r['id']}] alta", f"{r['texto']} · {linea_encargo(r)} · {r.get('departamento') or 'sin depto'} · {r.get('agente') or 'sin responsable'} · estado {r['estado']}")
             print(json.dumps(r, ensure_ascii=False) if a.json else f"#{r['id']} [{r['estado']}] {r['texto'][:60]} · {linea_encargo(r)} · prioridad {r['prioridad']}")
