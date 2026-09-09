@@ -63,6 +63,11 @@ alter table public.omc_solicitudes add column if not exists notificado_push bool
 -- Texto completo de un envio (correo, mensaje) para revisarlo plegado dentro de la tarjeta antes de
 -- aprobarlo (8-sep, Diego): separado de 'detalle' porque detalle tiene tope de 700 caracteres y esto no.
 alter table public.omc_solicitudes add column if not exists cuerpo text not null default '';
+-- 9-sep, encargo 56 (metodología OMC): a Diego solo llegan tarjetas de acciones suyas en persona
+-- (gasto/accion, o --diego-en-persona explícito); el resto se enruta al chief (cola 'duda-chief'), que
+-- las resuelve por chat y puede subir una a Diego con `hq.py escalar`. Default 'diego' para que las
+-- pendientes de antes de hoy no cambien de sitio (no se tocan).
+alter table public.omc_solicitudes add column if not exists destinatario text not null default 'diego' check (destinatario in ('diego', 'chief'));
 create index if not exists omc_solicitudes_estado on public.omc_solicitudes (empresa, estado, created_at desc);
 
 create table if not exists public.omc_uso (
@@ -335,7 +340,7 @@ begin
     'agentes', (select coalesce(jsonb_agg(to_jsonb(a) order by a.nivel, a.orden, a.id), '[]'::jsonb)
                 from public.omc_agentes a where a.empresa = e.id),
     'pendientes', (select coalesce(jsonb_agg(to_jsonb(s) order by s.prioridad, s.vence asc nulls last, s.created_at), '[]'::jsonb)
-                   from public.omc_solicitudes s where s.empresa = e.id and s.estado = 'pendiente' and (s.pospuesta_hasta is null or s.pospuesta_hasta <= now())),
+                   from public.omc_solicitudes s where s.empresa = e.id and s.estado = 'pendiente' and s.destinatario = 'diego' and (s.pospuesta_hasta is null or s.pospuesta_hasta <= now())),
     'pospuestas', (select coalesce(jsonb_agg(to_jsonb(s) order by s.pospuesta_hasta), '[]'::jsonb)
                    from public.omc_solicitudes s where s.empresa = e.id and s.estado = 'pendiente' and s.pospuesta_hasta > now()),
     'seguimiento', (select coalesce(jsonb_agg(to_jsonb(s) order by s.resolved_at desc), '[]'::jsonb)
@@ -832,7 +837,7 @@ declare t public.omc_tokens;
 begin
   t := public.omc_tok(p_token);
   return (select coalesce(jsonb_agg(to_jsonb(s) order by s.created_at), '[]'::jsonb) from public.omc_solicitudes s
-          where s.empresa = t.empresa and s.estado = 'pendiente' and s.notificado_push = false
+          where s.empresa = t.empresa and s.estado = 'pendiente' and s.notificado_push = false and s.destinatario = 'diego'
             and s.tipo in ('duda','accion','gasto','contacto','estrategia'));
 end $$;
 
@@ -865,7 +870,7 @@ end $$;
 -- Un agente pide algo (aprobación, duda, acción humana).
 create or replace function public.omc_pedir(p_token text, p jsonb)
 returns jsonb language plpgsql security definer set search_path = public as $$
-declare t public.omc_tokens; a public.omc_agentes; s public.omc_solicitudes; v_agente text; v_depto text; v_prio int;
+declare t public.omc_tokens; a public.omc_agentes; s public.omc_solicitudes; v_agente text; v_depto text; v_prio int; v_tipo text; v_destinatario text;
 begin
   t := public.omc_tok(p_token);
   v_agente := coalesce(nullif(p->>'agente',''), t.nombre);
@@ -874,12 +879,43 @@ begin
   select * into a from public.omc_agentes where empresa = t.empresa and id = v_agente;
   v_depto := coalesce(nullif(p->>'depto',''), a.depto, '');
   v_prio := coalesce((p->>'prioridad')::int, a.prioridad, 5);
-  insert into public.omc_solicitudes (empresa, agente, depto, tipo, titulo, detalle, importe, riesgo, enlace, vence, prioridad, cuerpo)
-    values (t.empresa, v_agente, v_depto, coalesce(nullif(p->>'tipo',''), 'otro'), p->>'titulo', coalesce(p->>'detalle',''),
-            nullif(p->>'importe','')::numeric, coalesce(p->>'riesgo',''), coalesce(p->>'enlace',''), nullif(p->>'vence','')::timestamptz, v_prio, coalesce(p->>'cuerpo',''))
+  v_tipo := coalesce(nullif(p->>'tipo',''), 'otro');
+  -- 9-sep, encargo 56: solo gasto/accion llegan a Diego (son sus acciones en persona: pagar, firmar,
+  -- captcha); --diego-en-persona fuerza el paso a Diego para un caso suelto que no encaje en esos dos
+  -- tipos. Todo lo demas (contacto, publicacion, estrategia, duda, otro) va a la cola del chief.
+  v_destinatario := case when v_tipo in ('gasto', 'accion') or (p->>'diego_en_persona')::boolean then 'diego' else 'chief' end;
+  insert into public.omc_solicitudes (empresa, agente, depto, tipo, titulo, detalle, importe, riesgo, enlace, vence, prioridad, cuerpo, destinatario)
+    values (t.empresa, v_agente, v_depto, v_tipo, p->>'titulo', coalesce(p->>'detalle',''),
+            nullif(p->>'importe','')::numeric, coalesce(p->>'riesgo',''), coalesce(p->>'enlace',''), nullif(p->>'vence','')::timestamptz, v_prio, coalesce(p->>'cuerpo',''), v_destinatario)
     returning * into s;
   update public.omc_agentes set ultima_actividad = now() where empresa = t.empresa and id = v_agente;
   return to_jsonb(s);
+end $$;
+
+-- El chief sube una solicitud de su cola a la de Diego (encargo 56): solo owner o el propio chief.
+-- Solo owner (el token de agente normal es único y compartido por todos - "agentes" - no distingue
+-- quién llama; igual que omc_agente_set, esto exige HQ_OWNER_TOKEN. El chief ya lo usa para sus scripts
+-- de guardia, así que hq.py escalar/pendientes-chief lo usan igual, no el HQ_TOKEN normal de agente).
+create or replace function public.omc_escalar(p_token text, p_id bigint)
+returns jsonb language plpgsql security definer set search_path = public as $$
+declare t public.omc_tokens; s public.omc_solicitudes;
+begin
+  t := public.omc_tok(p_token);
+  if t.rol <> 'owner' then raise exception 'solo owner' using errcode = '42501'; end if;
+  update public.omc_solicitudes set destinatario = 'diego' where empresa = t.empresa and id = p_id returning * into s;
+  if not found then raise exception 'solicitud no encontrada' using errcode = 'P0001'; end if;
+  return to_jsonb(s);
+end $$;
+
+-- Cola del chief (encargo 56): pendientes con destinatario='chief'.
+create or replace function public.omc_pendientes_chief(p_token text)
+returns jsonb language plpgsql security definer set search_path = public as $$
+declare t public.omc_tokens;
+begin
+  t := public.omc_tok(p_token);
+  if t.rol <> 'owner' then raise exception 'solo owner' using errcode = '42501'; end if;
+  return (select coalesce(jsonb_agg(to_jsonb(s) order by s.prioridad, s.created_at), '[]'::jsonb)
+          from public.omc_solicitudes s where s.empresa = t.empresa and s.estado = 'pendiente' and s.destinatario = 'chief');
 end $$;
 
 create or replace function public.omc_estado(p_token text, p_id bigint)
@@ -911,7 +947,7 @@ begin
   v_autor := case when t.rol = 'owner' then 'diego' else coalesce(nullif(p_agente, ''), s.agente) end;
   insert into public.omc_mensajes (empresa, solicitud_id, autor, texto) values (t.empresa, s.id, v_autor, trim(p_texto)) returning * into m;
   if t.rol <> 'owner' then update public.omc_agentes set ultima_actividad = now() where empresa = t.empresa and id = v_autor; end if;
-  return to_jsonb(m);
+  return to_jsonb(m) || jsonb_build_object('destinatario', s.destinatario);
 end $$;
 
 -- El agente cierra el bucle: ejecutada o fallida.
@@ -1126,7 +1162,7 @@ begin
 end $$;
 
 revoke all on function public.omc_token_info(text), public.omc_hq(text), public.omc_hq_uso(text), public.omc_resolver(text, bigint, text, text),
-  public.omc_agente_set(text, text, jsonb), public.omc_pedir(text, jsonb), public.omc_estado(text, bigint), public.omc_reportar(text, bigint, boolean, text),
+  public.omc_agente_set(text, text, jsonb), public.omc_pedir(text, jsonb), public.omc_estado(text, bigint), public.omc_reportar(text, bigint, boolean, text), public.omc_escalar(text, bigint), public.omc_pendientes_chief(text),
   public.omc_latido(text, text), public.omc_mis_solicitudes(text, text), public.omc_subir_uso(text, jsonb), public.omc_guardar_push(text, jsonb), public.omc_subir_plan(text, jsonb), public.omc_subir_actividad(text, jsonb),
   public.omc_kpi_set(text, jsonb), public.omc_ingreso_set(text, jsonb), public.omc_ingresos(text), public.omc_comentar(text, bigint, text, text), public.omc_retirar(text, bigint, text),
   public.omc_licitaciones_subir(text, jsonb), public.omc_licitacion_decidir(text, text, text, jsonb, text), public.omc_licitaciones_pendientes_sync(text), public.omc_licitaciones_sincronizadas(text, jsonb), public.omc_licitaciones_lista(text, boolean), public.omc_posponer(text, bigint, timestamptz), public.omc_pospuestas_vencidas(text), public.omc_eventos(text, timestamptz),
@@ -1138,7 +1174,7 @@ revoke all on function public.omc_token_info(text), public.omc_hq(text), public.
   public.omc_encargo_set(text, jsonb), public.omc_encargo_avance(text, bigint, text, text), public.omc_encargo_estado(text, bigint, text, text),
   public.omc_encargo_prioridad(text, bigint, text), public.omc_encargos_lista(text) from public;
 grant execute on function public.omc_token_info(text), public.omc_hq(text), public.omc_hq_uso(text), public.omc_resolver(text, bigint, text, text),
-  public.omc_agente_set(text, text, jsonb), public.omc_pedir(text, jsonb), public.omc_estado(text, bigint), public.omc_reportar(text, bigint, boolean, text),
+  public.omc_agente_set(text, text, jsonb), public.omc_pedir(text, jsonb), public.omc_estado(text, bigint), public.omc_reportar(text, bigint, boolean, text), public.omc_escalar(text, bigint), public.omc_pendientes_chief(text),
   public.omc_latido(text, text), public.omc_mis_solicitudes(text, text), public.omc_subir_uso(text, jsonb), public.omc_guardar_push(text, jsonb), public.omc_subir_plan(text, jsonb), public.omc_subir_actividad(text, jsonb),
   public.omc_kpi_set(text, jsonb), public.omc_ingreso_set(text, jsonb), public.omc_ingresos(text), public.omc_comentar(text, bigint, text, text), public.omc_retirar(text, bigint, text),
   public.omc_licitaciones_subir(text, jsonb), public.omc_licitacion_decidir(text, text, text, jsonb, text), public.omc_licitaciones_pendientes_sync(text), public.omc_licitaciones_sincronizadas(text, jsonb), public.omc_licitaciones_lista(text, boolean), public.omc_posponer(text, bigint, timestamptz), public.omc_pospuestas_vencidas(text), public.omc_eventos(text, timestamptz),

@@ -203,9 +203,13 @@ def main():
         p.add_argument('--prioridad', type=int)
         p.add_argument('--esperar', nargs='?', const=21600, type=int, help='bloquea hasta el veredicto (segundos, 6h por defecto)')
         p.add_argument('--intervalo', type=int, default=30)
+        p.add_argument('--diego-en-persona', dest='diego_en_persona', action='store_true',
+                        help='fuerza que esto llegue a Diego aunque el tipo no sea gasto/accion (encargo 56): un caso suelto que de verdad necesita su acción en persona')
 
     p = sub.add_parser('pedir'); comun(p); p.add_argument('--tipo', choices=TIPOS, default='otro')
     p = sub.add_parser('duda'); comun(p)
+    p = sub.add_parser('escalar', help='(chief) subir una solicitud de la cola del chief a la de Diego'); p.add_argument('id', type=int)
+    p = sub.add_parser('pendientes-chief', help='(chief) cola de solicitudes con destinatario=chief, pendientes de resolver por chat')
     p = sub.add_parser('estado'); p.add_argument('id', type=int)
     p = sub.add_parser('esperar'); p.add_argument('id', type=int); p.add_argument('--timeout', type=int, default=21600); p.add_argument('--intervalo', type=int, default=30); p.add_argument('--vistos', type=int, help='comentarios de Diego ya leídos')
     p = sub.add_parser('comentar', help='responder en el hilo de una solicitud sin cerrarla'); p.add_argument('id', type=int); p.add_argument('--texto', required=True); p.add_argument('--agente')
@@ -275,7 +279,7 @@ def main():
         if a.cuerpo_archivo:
             cuerpo = Path(a.cuerpo_archivo).read_text()
         payload = {'agente': agente_actual(a.agente), 'tipo': 'duda' if a.cmd == 'duda' else a.tipo, 'titulo': a.titulo, 'detalle': a.detalle,
-                   'riesgo': a.riesgo, 'enlace': a.enlace, 'vence': a.vence, 'cuerpo': cuerpo}
+                   'riesgo': a.riesgo, 'enlace': a.enlace, 'vence': a.vence, 'cuerpo': cuerpo, 'diego_en_persona': bool(a.diego_en_persona)}
         if a.importe is not None: payload['importe'] = a.importe
         if a.depto: payload['depto'] = a.depto
         if a.prioridad: payload['prioridad'] = a.prioridad
@@ -290,8 +294,28 @@ def main():
         s = rpc('omc_pedir', p_token=E['HQ_TOKEN'], p=payload)
         avisar(s)
         salida(s, a.json)
+        # encargo 56: solo gasto/accion (o --diego-en-persona) llegan a Diego; el resto va a la cola del
+        # chief, que la resuelve por chat. Aviso inmediato además de lo que recoja hq-despertar.py.
+        if not a.json:
+            print(f"-> destinatario: {s.get('destinatario', 'diego')}")
+        if s.get('destinatario') == 'chief':
+            import subprocess as _sp
+            _sp.run([str(Path.home() / 'bin' / 'tmux-decir'), 'Marc-Chief',
+                     f"[hq.py {a.cmd}] #{s['id']} de {s['agente']}: {s['titulo']}" + (f" - {a.detalle[:200]}" if a.detalle else '') +
+                     f" · resuelve con: hq.py comentar {s['id']} --texto \"...\" (o hq.py escalar {s['id']} si de verdad necesita a Diego)"],
+                    capture_output=True, text=True, timeout=40)
         if a.esperar:
             sys.exit(esperar(s['id'], a.esperar, a.intervalo, a.json))
+    elif a.cmd == 'escalar':
+        owner = E.get('HQ_OWNER_TOKEN')
+        if not owner:
+            sys.exit('falta HQ_OWNER_TOKEN en hq.env: escalar es solo del chief/Diego')
+        salida(rpc('omc_escalar', p_token=owner, p_id=a.id), a.json)
+    elif a.cmd == 'pendientes-chief':
+        owner = E.get('HQ_OWNER_TOKEN')
+        if not owner:
+            sys.exit('falta HQ_OWNER_TOKEN en hq.env: la cola del chief es solo del chief/Diego')
+        salida(rpc('omc_pendientes_chief', p_token=owner), a.json)
     elif a.cmd == 'estado':
         salida(rpc('omc_estado', p_token=E['HQ_TOKEN'], p_id=a.id), a.json)
     elif a.cmd == 'esperar':
@@ -299,7 +323,8 @@ def main():
     elif a.cmd == 'comentar':
         m = rpc('omc_comentar', p_token=E['HQ_TOKEN'], p_id=a.id, p_texto=a.texto, p_agente=agente_actual(a.agente))
         avisar({'id': a.id, 'texto': a.texto})
-        print(json.dumps(m, ensure_ascii=False) if a.json else f"#{a.id} comentario enviado a Diego ({m['autor']})")
+        destino = 'a Diego' if m.get('destinatario', 'diego') == 'diego' else 'al chief'
+        print(json.dumps(m, ensure_ascii=False) if a.json else f"#{a.id} comentario enviado {destino} ({m['autor']})")
     elif a.cmd == 'retirar':
         r = rpc('omc_retirar', p_token=E['HQ_TOKEN'], p_id=a.id, p_nota=a.nota)
         engram(f"[TARJETA #{a.id}] retirada", a.nota or '(sin nota)')
