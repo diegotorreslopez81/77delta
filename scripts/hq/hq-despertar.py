@@ -96,8 +96,12 @@ def main():
             print(f"sin ventana tmux para {ev['agente']} (#{ev['id']})", file=sys.stderr); continue
         texto = (ev.get('texto') or '').replace('\n', ' ').strip()
         if ev['tipo'] == 'comentario':
-            msg = (f"[HQ] Diego ha comentado en tu solicitud #{ev['id']} ({ev['titulo']}): «{texto}». Contesta AHORA por el hilo, corto y ejecutivo: "
-                   f"python3 {HQ} comentar {ev['id']} --texto \"...\" ; si te pide hacer algo reversible, hazlo y cuéntalo en el mismo comentario; si cambia el plan, retira la petición y abre otra.")
+            # 9-sep (doc 32 §5, encargo 42): el id del mensaje va explícito para poder vincularlo con
+            # `encargo alta --mensaje <id>` - sin esto no había forma de saber qué mensaje dio origen a qué
+            # encargo, y hq-test.py no puede avisar de mensajes sin encargo si no tiene el id a mano.
+            msg = (f"[HQ] Diego ha comentado en tu solicitud #{ev['id']} ({ev['titulo']}), mensaje #{ev.get('mensaje_id')}: «{texto}». Contesta AHORA por el hilo, corto y ejecutivo: "
+                   f"python3 {HQ} comentar {ev['id']} --texto \"...\" ; si te pide hacer algo reversible, hazlo y cuéntalo en el mismo comentario; si cambia el plan, retira la petición y abre otra. "
+                   f"Si esto se convierte en un encargo, vincúlalo: python3 {HQ} encargo alta --mensaje {ev.get('mensaje_id')} --texto \"...\" ...")
         elif ev['tipo'] == 'comentario_lic':
             imp = f"{ev['importe']} €" if ev.get('importe') is not None else '?'
             msg = (f"[HQ] Diego ha comentado en la licitación {ev['titulo']} ({ev.get('organo') or '?'}, {imp}): «{texto}». "
