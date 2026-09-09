@@ -514,14 +514,25 @@ end $$;
 -- es UNICO Y COMPARTIDO por todos los agentes, así que el token nunca dice quién llama de verdad.
 create or replace function public.omc_plan_kpi_actualizar(p_token text, p_id bigint, p_valor numeric, p_agente text default null, p_proximo_hito text default null, p_fecha_hito date default null)
 returns jsonb language plpgsql security definer set search_path = public as $$
-declare t public.omc_tokens; l public.omc_plan_lineas; v_agente text;
+declare t public.omc_tokens; l public.omc_plan_lineas; v_agente text; autorizado boolean;
 begin
   t := public.omc_tok(p_token);
   v_agente := case when t.rol = 'owner' then 'diego' else coalesce(nullif(p_agente, ''), 'agente') end;
   select * into l from public.omc_plan_lineas where empresa = t.empresa and id = p_id and activa;
   if not found then raise exception 'linea no encontrada' using errcode = 'P0001'; end if;
   if l.fuente <> 'manual' then raise exception 'linea de fuente %, no se actualiza a mano', l.fuente using errcode = 'P0001'; end if;
-  if t.rol <> 'owner' and position(lower(v_agente) in lower(l.responsable)) = 0 then
+  autorizado := t.rol = 'owner' or position(lower(v_agente) in lower(l.responsable)) > 0;
+  if not autorizado then
+    -- 9-sep (chief): 'responsable' es texto libre con nombres propios, no ids de puesto; comparar tambien
+    -- por el nombre real (primer segmento de cada sesion tmux del agente, patron Nombre-Puesto). Mismo
+    -- fix que omc_encargo_avance/estado/set.
+    select true into autorizado
+    from public.omc_agentes a, unnest(a.sesiones) s
+    where a.empresa = t.empresa and a.id = v_agente
+      and position(lower(split_part(s, '-', 1)) in lower(l.responsable)) > 0
+    limit 1;
+  end if;
+  if not coalesce(autorizado, false) then
     raise exception 'solo el responsable de esta linea (%) o Diego pueden actualizarla', l.responsable using errcode = '42501';
   end if;
   update public.omc_plan_lineas set valor_actual = p_valor, proximo_hito = coalesce(p_proximo_hito, proximo_hito),
@@ -599,7 +610,7 @@ end $$;
 -- funciones: el token de agente es compartido por todos y nunca dice quien llama de verdad.
 create or replace function public.omc_encargo_set(p_token text, p jsonb)
 returns jsonb language plpgsql security definer set search_path = public as $$
-declare t public.omc_tokens; e public.omc_encargos; v_id bigint; v_agente text; v_prioridad int;
+declare t public.omc_tokens; e public.omc_encargos; v_id bigint; v_agente text; v_prioridad int; autorizado boolean;
 begin
   t := public.omc_tok(p_token);
   v_id := nullif(p->>'id','')::bigint;
@@ -621,7 +632,18 @@ begin
   else
     select * into e from public.omc_encargos where empresa = t.empresa and id = v_id;
     if not found then raise exception 'encargo no encontrado' using errcode = 'P0001'; end if;
-    if t.rol <> 'owner' and lower(v_agente) <> lower(e.creado_por) and position(lower(v_agente) in lower(e.agente)) = 0 then
+    autorizado := t.rol = 'owner' or lower(v_agente) = lower(e.creado_por) or position(lower(v_agente) in lower(e.agente)) > 0;
+    if not autorizado then
+      -- 9-sep (chief): mismo fix que omc_encargo_avance/omc_encargo_estado - 'agente' es texto libre con
+      -- nombres propios, no ids de puesto; comparar tambien por el nombre real (primer segmento de cada
+      -- sesion tmux del agente).
+      select true into autorizado
+      from public.omc_agentes a, unnest(a.sesiones) s
+      where a.empresa = t.empresa and a.id = v_agente
+        and position(lower(split_part(s, '-', 1)) in lower(e.agente)) > 0
+      limit 1;
+    end if;
+    if not coalesce(autorizado, false) then
       raise exception 'solo Diego, quien lo creo o el responsable pueden editarlo' using errcode = '42501';
     end if;
     update public.omc_encargos set texto = coalesce(p->>'texto', texto), interpretacion = coalesce(p->>'interpretacion', interpretacion),
