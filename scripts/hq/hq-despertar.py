@@ -29,6 +29,23 @@ def ventanas():
     return set(out)
 
 
+def equipo_puesto_map():
+    """puesto (id de omc_agentes) -> ventana, leído del campo 6 de la LISTA de ~/bin/equipo (9-sep, chief:
+    fuente única puesto->ventana; omc_agentes.sesiones queda de respaldo si el puesto no está aquí todavía)."""
+    out = {}
+    try:
+        for l in (Path.home() / 'bin' / 'equipo').read_text(encoding='utf-8').splitlines():
+            l = l.strip()
+            if l.startswith('#') or l.count('|') < 4 or l.startswith('LISTA') or '$' in l:
+                continue
+            campos = [c.strip() for c in l.split('|')]
+            if len(campos) >= 6 and campos[5]:
+                out[campos[5]] = campos[0]
+    except Exception:
+        pass
+    return out
+
+
 def pane(ventana, lineas=12):
     try:
         return subprocess.run(['tmux', 'capture-pane', '-p', '-t', f'equipo:{ventana}', '-S', f'-{lineas}'], capture_output=True, text=True, timeout=5).stdout
@@ -68,11 +85,13 @@ def main():
     if not eventos:
         return
     agentes = {a['id']: a for a in rpc('omc_hq', p_token=e['HQ_OWNER_TOKEN'])['agentes']}
+    puesto_map = equipo_puesto_map()
     wins = ventanas(); ultimo = desde; n = 0
     for ev in eventos:
         ultimo = max(ultimo, ev['ts'])
         a = agentes.get(ev['agente']) or {}
-        ventana = next((s for s in (a.get('sesiones') or []) if s in wins), None)
+        candidata = puesto_map.get(ev['agente'])
+        ventana = candidata if candidata in wins else next((s for s in (a.get('sesiones') or []) if s in wins), None)
         if not ventana:
             print(f"sin ventana tmux para {ev['agente']} (#{ev['id']})", file=sys.stderr); continue
         texto = (ev.get('texto') or '').replace('\n', ' ').strip()
