@@ -251,6 +251,8 @@ def main():
     esub.add_parser('lista', help='ver todos los encargos')
     p = sub.add_parser('parte', help='parte de jornada del agente (Engram, proyecto 77delta): lo leen los demás al arrancar'); p.add_argument('texto', nargs='?'); p.add_argument('--agente')
     p = sub.add_parser('partes', help='partes de las últimas 48 h de todos los agentes'); p.add_argument('--horas', type=int, default=48)
+    p = sub.add_parser('historia', help='buscar en el histórico de Engram (título y contenido), en vez de fiarse de la memoria de la sesión')
+    p.add_argument('texto'); p.add_argument('--limite', type=int, default=15)
     p = sub.add_parser('escaladas', help='(chief) tarjetas respondidas por Diego con orden de escalar que nadie ha cerrado')
     p = sub.add_parser('alta-agente', help='alta de un agente nuevo: pasos 1,2,4,5 de docs/empresa/30-alta-de-agente.md (puesto en HQ, ventana en equipo + hq-agente, nivel de ahorro, tarjeta del alias). Pasos 3 (CLAUDE.md) y 6 (relanzar) se quedan a mano.')
     p.add_argument('--id', required=True, help='id del puesto en HQ, ej. delivery-x')
@@ -390,6 +392,25 @@ def main():
         rs = [x for x in rs if '[PARTE' in (x.get('title') or '') and norm(x.get('created_at')) >= norm(desde)]
         for x in sorted(rs, key=lambda x: x.get('created_at') or ''):
             print(f"{(x.get('created_at') or '')[:16]} {x.get('title')}\n  {(x.get('content') or '').strip()[:600]}")
+    elif a.cmd == 'historia':
+        # doc 32 (encargo 42): "chief, cuando necesita recordar: hq.py historia <texto>". /observations
+        # viene ordenado por fecha, no por relevancia (a diferencia de /search) - se pide un lote amplio y
+        # se filtra aquí por texto en título O contenido, sin distinguir mayúsculas/acentos exactos.
+        try:
+            rs = json.loads(urllib.request.urlopen(f'http://127.0.0.1:7437/observations?project=77delta&limit=2000', timeout=15).read() or b'[]') or []
+        except Exception as ex:
+            sys.exit(f'Engram local no responde: {ex}')
+        q = a.texto.lower()
+        rs = [x for x in rs if q in (x.get('title') or '').lower() or q in (x.get('content') or '').lower()]
+        rs = sorted(rs, key=lambda x: x.get('created_at') or '', reverse=True)[:a.limite]
+        if a.json:
+            print(json.dumps(rs, ensure_ascii=False))
+        elif not rs:
+            print(f'nada en Engram para "{a.texto}"')
+        else:
+            for x in rs:
+                primera = (x.get('content') or '').strip().splitlines()
+                print(f"{(x.get('created_at') or '')[:16]} · {x.get('title')} · {primera[0][:160] if primera else ''}")
         if not rs: print('(sin partes en ese periodo)')
     elif a.cmd == 'escaladas':
         import re as _re
