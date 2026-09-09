@@ -87,9 +87,33 @@ def to_html(text):
     return '<div style="font-family:IBM Plex Sans,Helvetica,Arial,sans-serif;font-size:15px;line-height:1.55;color:#0A1628">' + ''.join(out) + '</div>'
 
 
-def firma_agente(nombre_agente, sin_marca=False):
-    """Firma obligatoria de IA (AI Act art. 50). sin_marca=True para pruebas internas sin el pie de marca."""
-    linea = f"{nombre_agente} · asistente de IA de 77 Delta, supervisado por Diego Torres"
+# 9-sep (Jordi-COO): agentes conocidos con su género, para la concordancia de "supervisado/a" en el pie.
+# Nombres futuros no listados aquí caen en la heurística de genero_de() (termina en 'a' -> femenino).
+GENERO_AGENTE = {
+    'aina': 'f', 'ariadna': 'f', 'helena': 'f', 'marina': 'f', 'mireia': 'f', 'teresa': 'f',
+    'marc': 'm', 'guillem': 'm', 'quim': 'm', 'marti': 'm', 'martí': 'm', 'biel': 'm',
+    'ferran': 'm', 'roger': 'm', 'pol': 'm', 'jordi': 'm', 'diego': 'm',
+}
+
+
+def genero_de(nombre_agente):
+    n = (nombre_agente or '').strip().lower()
+    if n in GENERO_AGENTE:
+        return GENERO_AGENTE[n]
+    return 'f' if n.endswith('a') else 'm'
+
+
+def firma_agente(nombre_agente, sin_marca=False, idioma='es'):
+    """Firma obligatoria de IA (AI Act art. 50). 9-sep (Jordi-COO, incidente real): un correo en catalán
+    con el pie en castellano "cantaba" a una empresa catalana - el pie ahora se genera en el idioma del
+    cuerpo (--idioma es|ca) y con la concordancia de género correcta del alias que firma."""
+    genero = genero_de(nombre_agente)
+    if idioma == 'ca':
+        supervisado = 'supervisada' if genero == 'f' else 'supervisat'
+        linea = f"{nombre_agente} · assistent d'IA de 77 Delta, {supervisado} per Diego Torres"
+    else:
+        supervisado = 'supervisada' if genero == 'f' else 'supervisado'
+        linea = f"{nombre_agente} · asistente de IA de 77 Delta, {supervisado} por Diego Torres"
     txt = f"\n\n--\n{linea}\n77delta.com"
     h = (f'<div style="font-family:IBM Plex Sans,Helvetica,Arial,sans-serif;font-size:13px;'
          f'color:#5A6472;margin-top:18px;border-top:1px solid #E5E7EB;padding-top:10px">'
@@ -189,7 +213,7 @@ def construir_mensaje(a, remitente_addr):
     msg['Message-ID'] = make_msgid(domain='77delta.com')
     # 9-sep: cuando el correo sale como Diego desde su propio buzon, lo envia un humano que lo ha revisado: sin pie de IA.
     # La marca del AI Act va solo cuando escribe un agente con su nombre desde team@.
-    txt_sig, html_sig = ('', '') if (a.cuenta == 'diego' and not a.agente) else firma_agente(nombre_from)
+    txt_sig, html_sig = ('', '') if (a.cuenta == 'diego' and not a.agente) else firma_agente(nombre_from, idioma=getattr(a, 'idioma', 'es'))
     text = body + txt_sig
     h = to_html(body) + html_sig
     msg.set_content(text)
@@ -288,12 +312,14 @@ if __name__ == '__main__':
     q.add_argument('--to', required=True); q.add_argument('--cc'); q.add_argument('--subject', default='')
     q.add_argument('--body', required=True); q.add_argument('--reply-to'); q.add_argument('--sin-diego', action='store_true')
     q.add_argument('--forzar-cuerpo', dest='forzar_cuerpo', action='store_true', help='salta el chequeo de --body (markdown, >2 emails ajenos, >3000 caracteres) a propósito')
+    q.add_argument('--idioma', choices=('es', 'ca'), default='es', help='idioma del pie de firma (el mismo que el cuerpo del correo)')
 
     r = sp.add_parser('send'); comun(r)
     r.add_argument('--to', required=True); r.add_argument('--cc'); r.add_argument('--subject', default='')
     r.add_argument('--body', required=True); r.add_argument('--reply-to'); r.add_argument('--sin-diego', action='store_true')
     r.add_argument('--tarjeta', type=int, required=True); r.add_argument('--lote', action='store_true', help='varios envios bajo la misma tarjeta aprobada: no la cierra, solo comenta; cerrarla al final con hq.py hecho')
     r.add_argument('--forzar-cuerpo', dest='forzar_cuerpo', action='store_true', help='salta el chequeo de --body (markdown, >2 emails ajenos, >3000 caracteres) a propósito')
+    r.add_argument('--idioma', choices=('es', 'ca'), default='es', help='idioma del pie de firma (el mismo que el cuerpo del correo)')
 
     l = sp.add_parser('list'); comun(l, con_agente=False)
     d = sp.add_parser('delete'); comun(d, con_agente=False); d.add_argument('text')
