@@ -639,13 +639,24 @@ end $$;
 
 create or replace function public.omc_encargo_avance(p_token text, p_id bigint, p_texto text, p_agente text default null)
 returns jsonb language plpgsql security definer set search_path = public as $$
-declare t public.omc_tokens; e public.omc_encargos; v_agente text;
+declare t public.omc_tokens; e public.omc_encargos; v_agente text; autorizado boolean;
 begin
   t := public.omc_tok(p_token);
   v_agente := case when t.rol = 'owner' then 'diego' else coalesce(nullif(p_agente, ''), 'agente') end;
   select * into e from public.omc_encargos where empresa = t.empresa and id = p_id;
   if not found then raise exception 'encargo no encontrado' using errcode = 'P0001'; end if;
-  if t.rol <> 'owner' and lower(v_agente) <> lower(e.creado_por) and position(lower(v_agente) in lower(e.agente)) = 0 then
+  autorizado := t.rol = 'owner' or lower(v_agente) = lower(e.creado_por) or position(lower(v_agente) in lower(e.agente)) > 0;
+  if not autorizado then
+    -- 9-sep (chief): 'agente' es texto libre con nombres propios ("Pol", "Marc"), no ids de puesto; comparar
+    -- tambien por el nombre real (primer segmento de cada sesion tmux, patron "Nombre-Puesto") para no
+    -- depender de que el chief anote el avance por el responsable.
+    select true into autorizado
+    from public.omc_agentes a, unnest(a.sesiones) s
+    where a.empresa = t.empresa and a.id = v_agente
+      and position(lower(split_part(s, '-', 1)) in lower(e.agente)) > 0
+    limit 1;
+  end if;
+  if not coalesce(autorizado, false) then
     raise exception 'solo Diego, quien lo creo o el responsable pueden anotar avance' using errcode = '42501';
   end if;
   update public.omc_encargos set ultimo_avance = p_texto, fecha_avance = now(), updated_at = now() where id = p_id returning * into e;
@@ -654,14 +665,22 @@ end $$;
 
 create or replace function public.omc_encargo_estado(p_token text, p_id bigint, p_estado text, p_agente text default null)
 returns jsonb language plpgsql security definer set search_path = public as $$
-declare t public.omc_tokens; e public.omc_encargos; v_agente text;
+declare t public.omc_tokens; e public.omc_encargos; v_agente text; autorizado boolean;
 begin
   t := public.omc_tok(p_token);
   if p_estado not in ('encolado','en_curso','bloqueado_diego','hecho','descartado') then raise exception 'estado invalido' using errcode = 'P0001'; end if;
   v_agente := case when t.rol = 'owner' then 'diego' else coalesce(nullif(p_agente, ''), 'agente') end;
   select * into e from public.omc_encargos where empresa = t.empresa and id = p_id;
   if not found then raise exception 'encargo no encontrado' using errcode = 'P0001'; end if;
-  if t.rol <> 'owner' and lower(v_agente) <> lower(e.creado_por) and position(lower(v_agente) in lower(e.agente)) = 0 then
+  autorizado := t.rol = 'owner' or lower(v_agente) = lower(e.creado_por) or position(lower(v_agente) in lower(e.agente)) > 0;
+  if not autorizado then
+    select true into autorizado
+    from public.omc_agentes a, unnest(a.sesiones) s
+    where a.empresa = t.empresa and a.id = v_agente
+      and position(lower(split_part(s, '-', 1)) in lower(e.agente)) > 0
+    limit 1;
+  end if;
+  if not coalesce(autorizado, false) then
     raise exception 'solo Diego, quien lo creo o el responsable pueden cambiar el estado' using errcode = '42501';
   end if;
   update public.omc_encargos set estado = p_estado, updated_at = now() where id = p_id returning * into e;
