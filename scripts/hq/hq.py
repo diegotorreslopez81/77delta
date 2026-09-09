@@ -535,25 +535,55 @@ def main():
         for l in lineas:
             L.append(f"- **{l['linea']}** [{l['semaforo']}] {l.get('valor_actual', 0):g}/{l.get('meta', 0):g} {l.get('unidad', '')} "
                       f"({l.get('progreso_pct')}%) · responsable: {l.get('responsable', '')} · KPI: {l.get('kpi', '')}")
-        L += ['', '## 2. Encargos, con su hilo desde Engram', '']
+        # 9-sep (chief): orden por línea del plan (fuera de plan al final), dentro por estado en este orden
+        # concreto, luego por prioridad; nombre de la línea como subtítulo.
+        ORDEN_ESTADO = {'bloqueado_diego': 0, 'en_curso': 1, 'encolado': 2, 'hecho': 3, 'descartado': 4}
+        clave_orden = lambda e: (ORDEN_ESTADO.get(e.get('estado'), 9), e.get('prioridad') or 0)
+        por_linea = {}
         for e in encargos:
-            L.append(f"### #{e['id']} [{e['estado']}] {e['texto']}")
-            meta = [x for x in [f"depto {e['departamento']}" if e.get('departamento') else '', f"responsable {e['agente']}" if e.get('agente') else '',
-                                 f"espera: {e['espera']}" if e.get('espera') else ''] if x]
-            if meta:
-                L.append('- ' + ' · '.join(meta))
-            for o in por_prefijo(f"[ENCARGO #{e['id']}]"):
-                L.append(f"  - [{(o.get('created_at') or '')[:16]}] {o.get('title')}: {(o.get('content') or '').strip()[:200]}")
+            por_linea.setdefault(e.get('linea_id'), []).append(e)
+        L += ['', '## 2. Encargos, con su hilo desde Engram', '']
+        for l in lineas:
+            grupo = sorted(por_linea.pop(l['id'], []), key=clave_orden)
+            if not grupo:
+                continue
+            L.append(f"### {l['linea']}")
             L.append('')
+            for e in grupo:
+                L.append(f"#### #{e['id']} [{e['estado']}] {e['texto']}")
+                meta = [x for x in [f"depto {e['departamento']}" if e.get('departamento') else '', f"responsable {e['agente']}" if e.get('agente') else '',
+                                     f"espera: {e['espera']}" if e.get('espera') else ''] if x]
+                if meta:
+                    L.append('- ' + ' · '.join(meta))
+                for o in por_prefijo(f"[ENCARGO #{e['id']}]"):
+                    L.append(f"  - [{(o.get('created_at') or '')[:16]}] {o.get('title')}: {(o.get('content') or '').strip()[:200]}")
+                L.append('')
+        fuera = sorted(por_linea.pop(None, []), key=clave_orden)
+        if fuera:
+            L.append('### Fuera de plan')
+            L.append('')
+            for e in fuera:
+                L.append(f"#### #{e['id']} [{e['estado']}] {e['texto']}")
+                meta = [x for x in [f"depto {e['departamento']}" if e.get('departamento') else '', f"responsable {e['agente']}" if e.get('agente') else '',
+                                     f"espera: {e['espera']}" if e.get('espera') else ''] if x]
+                if meta:
+                    L.append('- ' + ' · '.join(meta))
+                for o in por_prefijo(f"[ENCARGO #{e['id']}]"):
+                    L.append(f"  - [{(o.get('created_at') or '')[:16]}] {o.get('title')}: {(o.get('content') or '').strip()[:200]}")
+                L.append('')
         L += ['## 3. Decisiones', '']
         for d in decisiones:
             L.append(f"- [{d['fecha'][:10]}] {d['decision']} ({d['quien']})" + (f" · línea #{d['linea_id']}" if d.get('linea_id') else ''))
-        L += ['', '## 4. [CORE] — reglas y hechos permanentes', '']
+        L += ['', '## 4. CORE - reglas y hechos permanentes', '']
         for o in por_prefijo('[CORE]'):
             L.append(f"- [{(o.get('created_at') or '')[:16]}] {o.get('title')}: {(o.get('content') or '').strip()[:300]}")
         L += ['', '## Pendiente (mañana)', '- Agentes y sus puestos', '- Scripts del sistema (crons, hq.py, latido)',
               '- Resumen de partes por día', '- Índice de docs/empresa', '']
-        out_path.write_text('\n'.join(L), encoding='utf-8')
+        # Regla dura (chief, 9-sep): nunca raya larga en nada que salga de aquí, ni siquiera lo que venga
+        # citado de Engram - una sola sustitución final cubre título, contenido y cualquier cosa que se
+        # nos olvide filtrar en origen.
+        texto_final = '\n'.join(L).replace('—', '-').replace('–', '-')
+        out_path.write_text(texto_final, encoding='utf-8')
         print(f"dossier generado: {out_path} ({len(encargos)} encargos, {len(lineas)} líneas, {len(decisiones)} decisiones, {len(por_prefijo('[CORE]'))} [CORE])")
     elif a.cmd == 'kpi':
         print(json.dumps(rpc('omc_kpi_set', p_token=E['HQ_TOKEN'], p_filas=[{'clave': a.clave, 'valor': a.valor, 'texto': a.texto, 'fuente': a.fuente or agente_actual(None)}]), ensure_ascii=False))
