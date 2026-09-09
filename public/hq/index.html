@@ -1050,11 +1050,20 @@ function renderPlanEstrategico(){
   app.appendChild(el('h2', { class: 'sec-t' }, ['Líneas ', el('small', { text: lineas.length })]));
   lineas.forEach(function(l){
     var enc = encargos.filter(function(e){ return e.linea_id === l.id && e.estado !== 'bloqueado_diego'; });
+    // % completado ponderado (9-sep, encargo de Diego): media del KPI (valor/meta) y de los encargos de la
+    // línea que están 'hecho' sobre el total (sin contar descartados). Con solo una de las dos señales, se
+    // usa esa; sin ninguna, sin dato (n/d), igual que antes.
+    var todosLinea = encargos.filter(function(e){ return e.linea_id === l.id && e.estado !== 'descartado'; });
+    var hechosLinea = todosLinea.filter(function(e){ return e.estado === 'hecho'; }).length;
+    var pctEncargos = todosLinea.length ? Math.round(100 * hechosLinea / todosLinea.length) : null;
+    var pctKpi = l.progreso_pct;
+    var pctLinea = (pctKpi != null && pctEncargos != null) ? Math.round((pctKpi + pctEncargos) / 2) : (pctEncargos != null ? pctEncargos : pctKpi);
     var box = el('div', { class: 'lineaP' });
     box.appendChild(el('div', { class: 'cab' }, [el('div', {}, [el('div', { class: 'nombre', text: l.linea }), el('p', { class: 'kpi-txt', text: l.kpi })]), el('div', { class: 'semaforo ' + l.semaforo })]));
     box.appendChild(el('div', { class: 'cifras' }, [el('span', { class: 'v', text: eurK(l.valor_actual) }), el('span', { class: 'm', text: '/ ' + eurK(l.meta) + (l.unidad !== 'EUR' ? ' ' + l.unidad : '') }),
-      l.progreso_pct != null ? el('span', { class: 'p ' + l.semaforo, text: l.progreso_pct + '%' }) : null]));
-    if (l.progreso_pct != null) box.appendChild(el('div', { class: 'barra' }, [el('i', { style: 'width:' + l.progreso_pct + '%;background:var(--' + (l.semaforo === 'verde' ? 'exito' : l.semaforo === 'amarillo' ? 'oro-luz' : l.semaforo === 'rojo' ? 'error' : 'pizarra-tenue') + ')' })]));
+      pctLinea != null ? el('span', { class: 'p ' + l.semaforo, text: pctLinea + '%' }) : null]));
+    if (pctLinea != null) box.appendChild(el('div', { class: 'barra' }, [el('i', { style: 'width:' + pctLinea + '%;background:var(--' + (l.semaforo === 'verde' ? 'exito' : l.semaforo === 'amarillo' ? 'oro-luz' : l.semaforo === 'rojo' ? 'error' : 'pizarra-tenue') + ')' })]));
+    if (todosLinea.length) box.appendChild(el('p', { class: 'kpi-txt', text: 'KPI ' + (pctKpi != null ? pctKpi + '%' : 'n/d') + ' · encargos ' + hechosLinea + '/' + todosLinea.length + ' hechos (' + pctEncargos + '%)' }));
     box.appendChild(el('div', { class: 'pie' }, [el('span', { class: 'resp', text: l.responsable }), el('span', { class: 'hito', text: l.proximo_hito })]));
     box.appendChild(el('span', { class: 'fuente', text: l.fuente === 'sql' ? '⚙ calculado' : 'manual' }));
     if (enc.length){ box.appendChild(el('div', { class: 'encargos-t', text: 'Encargos · ' + enc.length })); enc.forEach(function(e){ box.appendChild(filaEncargo(e, false)); }); }
