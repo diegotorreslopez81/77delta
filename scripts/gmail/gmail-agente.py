@@ -203,6 +203,10 @@ def draft(a):
 
 
 def send(a):
+    # 9-sep, politica de Diego: lo que sale de su cuenta personal (clientes con relacion) se queda SIEMPRE en borrador y lo
+    # envia el. Solo se envia directamente desde team@ con alias de agente verificado (outreach, partners, contactos nuevos).
+    if a.cuenta == 'diego':
+        sys.exit("NO ENVÍO: desde la cuenta de Diego los agentes solo dejan borradores (política del 9-sep). Usa 'draft'; Diego lo envía.")
     if not a.tarjeta:
         sys.exit("send exige --tarjeta <id>: correo real a un tercero necesita una solicitud de HQ aprobada. Usa 'draft' si no la tienes todavía.")
     tarjeta = exigir_tarjeta_aprobada(a.tarjeta)
