@@ -230,6 +230,18 @@ def main():
     p = sub.add_parser('parte', help='parte de jornada del agente (Engram, proyecto 77delta): lo leen los demás al arrancar'); p.add_argument('texto', nargs='?'); p.add_argument('--agente')
     p = sub.add_parser('partes', help='partes de las últimas 48 h de todos los agentes'); p.add_argument('--horas', type=int, default=48)
     p = sub.add_parser('escaladas', help='(chief) tarjetas respondidas por Diego con orden de escalar que nadie ha cerrado')
+    p = sub.add_parser('alta-agente', help='alta de un agente nuevo: pasos 1,2,4,5 de docs/empresa/30-alta-de-agente.md (puesto en HQ, ventana en equipo + hq-agente, nivel de ahorro, tarjeta del alias). Pasos 3 (CLAUDE.md) y 6 (relanzar) se quedan a mano.')
+    p.add_argument('--id', required=True, help='id del puesto en HQ, ej. delivery-x')
+    p.add_argument('--nombre', required=True, help='nombre de pila, ej. Marta')
+    p.add_argument('--depto', required=True)
+    p.add_argument('--nivel', type=int, choices=(1, 2, 3), default=3, help='nivel de ahorro (dict NIVEL de hq-ahorro.py)')
+    p.add_argument('--jefe', default='chief')
+    p.add_argument('--ventana', required=True, help='nombre de la ventana tmux, ej. Marta-Rol')
+    p.add_argument('--carpeta', required=True, help='ruta absoluta del repo del agente')
+    p.add_argument('--modelo', default='sonnet')
+    p.add_argument('--cuenta', choices=('a', 'b'), required=True, help='a = cuenta de Diego, b = segunda cuenta Max team@77delta.com')
+    p.add_argument('--alias', help='alias de correo para "enviar como", minúsculas sin acentos; por defecto se deriva de --nombre')
+    p.add_argument('--agente', help='quien pide la tarjeta del alias (por defecto quien ejecuta esto)')
     a = ap.parse_args()
 
     if a.cmd in ('pedir', 'duda'):
@@ -367,6 +379,83 @@ def main():
         else:
             for s in out: print(linea(s))
             if not out: print('(nada escalado pendiente)')
+    elif a.cmd == 'alta-agente':
+        import subprocess, unicodedata
+
+        def slug(s):
+            s = unicodedata.normalize('NFKD', s).encode('ascii', 'ignore').decode()
+            return ''.join(c for c in s.lower() if c.isalnum())
+
+        owner = E.get('HQ_OWNER_TOKEN')
+        if not owner:
+            sys.exit('falta HQ_OWNER_TOKEN en hq.env: el alta de agente necesita permiso de owner (omc_agente_set)')
+        alias = slug(a.alias or a.nombre)
+        cuenta_desc = 'Max · team@77delta.com' if a.cuenta == 'b' else 'Max 20x · Diego'
+
+        # 1) puesto en HQ (omc_agentes)
+        patch = {'nombre': a.nombre, 'depto': a.depto, 'nivel': a.nivel, 'jefe': a.jefe,
+                 'sesiones': [a.ventana], 'contrato': {'cuenta': cuenta_desc, 'modelo': a.modelo}}
+        ag = rpc('omc_agente_set', p_token=owner, p_id=a.id, p_patch=patch)
+        print(f"1/5 puesto en HQ: {ag['id']} · {ag['nombre']} ({ag['depto']}, nivel {ag['nivel']}, jefe {ag['jefe']})")
+
+        # 2) ventana en ~/bin/equipo (LISTA) + .claude/hq-agente en su carpeta
+        eq = Path.home() / 'bin' / 'equipo'
+        original = eq.read_text()
+        lineas = original.splitlines()
+        if any(l.split('|', 1)[0] == a.ventana for l in lineas if '|' in l):
+            print(f"2/5 ventana '{a.ventana}' ya está en ~/bin/equipo, no se toca")
+        else:
+            try:
+                idx = next(i for i, l in enumerate(lineas) if l.strip() == "LISTA='")
+            except StopIteration:
+                sys.exit("2/5 no encuentro \"LISTA='\" en ~/bin/equipo; añade la ventana a mano")
+            lineas.insert(idx + 1, f"{a.ventana}|{a.carpeta}||{a.modelo}|{a.cuenta}")
+            eq.write_text('\n'.join(lineas) + '\n')
+            r = subprocess.run(['bash', '-n', str(eq)], capture_output=True, text=True)
+            if r.returncode != 0:
+                eq.write_text(original)
+                sys.exit(f"2/5 el parche de ~/bin/equipo rompía la sintaxis, revertido sin tocar nada: {r.stderr.strip()[:300]}")
+            print(f"2/5 ventana '{a.ventana}' añadida a ~/bin/equipo ({a.carpeta}, cuenta {a.cuenta})")
+        carpeta = Path(a.carpeta)
+        if not carpeta.is_dir():
+            print(f"    aviso: {a.carpeta} no existe todavía; créala antes de 'relanzar {a.ventana}'")
+        else:
+            (carpeta / '.claude').mkdir(exist_ok=True)
+            (carpeta / '.claude' / 'hq-agente').write_text(a.id + '\n')
+            print(f"    .claude/hq-agente escrito con '{a.id}'")
+
+        # 3) CLAUDE.md del puesto: se queda a mano (rol, qué puede y qué no)
+        print(f"3/5 (manual) escribe {a.carpeta}/CLAUDE.md con el rol, qué puede y qué no")
+
+        # 4) nivel de ahorro en ~/bin/hq-ahorro.py (dict NIVEL)
+        ah = Path.home() / 'bin' / 'hq-ahorro.py'
+        txt = ah.read_text()
+        if f"'{a.id}':" in txt:
+            print(f"4/5 '{a.id}' ya tiene nivel de ahorro asignado en hq-ahorro.py, no se toca")
+        else:
+            marcador = 'NIVEL = {\n'
+            if marcador not in txt:
+                sys.exit("4/5 no encuentro 'NIVEL = {' en ~/bin/hq-ahorro.py; añade el nivel a mano")
+            ah.write_text(txt.replace(marcador, marcador + f"    '{a.id}': {a.nivel},\n", 1))
+            r = subprocess.run(['python3', '-m', 'py_compile', str(ah)], capture_output=True, text=True)
+            if r.returncode != 0:
+                ah.write_text(txt)
+                sys.exit(f"4/5 el parche de hq-ahorro.py no compilaba, revertido sin tocar nada: {r.stderr.strip()[:300]}")
+            print(f"4/5 nivel de ahorro {a.nivel} añadido para '{a.id}' en ~/bin/hq-ahorro.py")
+
+        # 5) tarjeta obligatoria a Diego con el alias propuesto (sin esto, gmail-agente.py send se niega)
+        detalle = (f"- Alias propuesto: {alias}@77delta.com\n"
+                   f"- Workspace Admin > Usuarios > team@ > Direcciones alternativas: añadir el alias\n"
+                   f"- Gmail de team@ > Ajustes > Cuentas > Enviar como > Añadir: nombre {a.nombre}, "
+                   f"dirección {alias}@77delta.com, Tratar como alias\n"
+                   f"- Al terminar, 'hecho' aquí; Pol lo añade a ALIAS_OK")
+        payload = {'agente': agente_actual(a.agente), 'tipo': 'accion',
+                   'titulo': f"Alias de correo para {a.nombre}: {alias}@77delta.com (Enviar como)", 'detalle': detalle}
+        s = rpc('omc_pedir', p_token=E['HQ_TOKEN'], p=payload)
+        avisar(s)
+        print(f"5/5 tarjeta #{s['id']} abierta a Diego pidiendo el alias {alias}@77delta.com")
+        print(f"\nPendiente a mano: 3) CLAUDE.md en {a.carpeta} · 6) '~/bin/relanzar {a.ventana}', comprobar el latido "
+              f"y 'hq.py parte --agente {a.id}'. El alias no funciona para enviar hasta que se cierre la tarjeta #{s['id']} y se rellene ALIAS_OK.")
     elif a.cmd == 'kpi':
         print(json.dumps(rpc('omc_kpi_set', p_token=E['HQ_TOKEN'], p_filas=[{'clave': a.clave, 'valor': a.valor, 'texto': a.texto, 'fuente': a.fuente or agente_actual(None)}]), ensure_ascii=False))
     elif a.cmd == 'plan':
