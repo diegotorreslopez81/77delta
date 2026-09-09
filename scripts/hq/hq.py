@@ -255,6 +255,7 @@ def main():
     p = sub.add_parser('historia', help='buscar en el histórico de Engram (título y contenido), en vez de fiarse de la memoria de la sesión')
     p.add_argument('texto'); p.add_argument('--limite', type=int, default=15)
     p = sub.add_parser('escaladas', help='(chief) tarjetas respondidas por Diego con orden de escalar que nadie ha cerrado')
+    p = sub.add_parser('omc-export', help='dossier docs/empresa/omc/dossier-<fecha>.md para un product owner de One Man Company (doc 32 §6)')
     p = sub.add_parser('alta-agente', help='alta de un agente nuevo: pasos 1,2,4,5 de docs/empresa/30-alta-de-agente.md (puesto en HQ, ventana en equipo + hq-agente, nivel de ahorro, tarjeta del alias). Pasos 3 (CLAUDE.md) y 6 (relanzar) se quedan a mano.')
     p.add_argument('--id', required=True, help='id del puesto en HQ, ej. delivery-x')
     p.add_argument('--nombre', required=True, help='nombre de pila, ej. Marta')
@@ -504,6 +505,56 @@ def main():
         print(f"5/5 tarjeta #{s['id']} abierta a Diego pidiendo el alias {alias}@77delta.com")
         print(f"\nPendiente a mano: 3) CLAUDE.md en {a.carpeta} · 6) '~/bin/relanzar {a.ventana}', comprobar el latido "
               f"y 'hq.py parte --agente {a.id}'. El alias no funciona para enviar hasta que se cierre la tarjeta #{s['id']} y se rellene ALIAS_OK.")
+    elif a.cmd == 'omc-export':
+        import datetime as _dt
+        hoy = _dt.date.today().isoformat()
+        out_dir = Path('/Users/diego/dev/77delta/docs/empresa/omc')
+        out_dir.mkdir(parents=True, exist_ok=True)
+        out_path = out_dir / f'dossier-{hoy}.md'
+
+        obj = rpc('omc_plan_objetivo', p_token=E['HQ_TOKEN'])
+        lineas = rpc('omc_plan_lineas_lista', p_token=E['HQ_TOKEN'])
+        encargos = rpc('omc_encargos_lista', p_token=E['HQ_TOKEN'])
+        decisiones = rpc('omc_decisiones_lista', p_token=E['HQ_TOKEN'])
+        try:
+            obs = json.loads(urllib.request.urlopen('http://127.0.0.1:7437/observations?project=77delta&limit=3000', timeout=20).read() or b'[]') or []
+        except Exception as ex:
+            obs = []
+            print(f'aviso: Engram local no responde ({ex}), el dossier sale sin hilos ni [CORE]', file=sys.stderr)
+
+        def por_prefijo(pref):
+            return sorted([o for o in obs if (o.get('title') or '').startswith(pref)], key=lambda o: o.get('created_at') or '')
+
+        L = [f"# Dossier One Man Company · {hoy}", '',
+             '> Generado por `hq.py omc-export` (doc 32 §6). Material para que un product owner defina', '> One Man Company como producto o servicio sin tener que leer el chat.', '',
+             '## 1. Objetivo y líneas del plan', '']
+        if obj:
+            L.append(f"**{obj.get('titulo')}**: {obj.get('valor_actual', 0):g} / {obj.get('meta', 0):g} {obj.get('unidad', '')} "
+                      f"({obj.get('progreso_pct')}%)" + (f" · límite {obj['fecha_limite']}" if obj.get('fecha_limite') else ''))
+            L.append('')
+        for l in lineas:
+            L.append(f"- **{l['linea']}** [{l['semaforo']}] {l.get('valor_actual', 0):g}/{l.get('meta', 0):g} {l.get('unidad', '')} "
+                      f"({l.get('progreso_pct')}%) · responsable: {l.get('responsable', '')} · KPI: {l.get('kpi', '')}")
+        L += ['', '## 2. Encargos, con su hilo desde Engram', '']
+        for e in encargos:
+            L.append(f"### #{e['id']} [{e['estado']}] {e['texto']}")
+            meta = [x for x in [f"depto {e['departamento']}" if e.get('departamento') else '', f"responsable {e['agente']}" if e.get('agente') else '',
+                                 f"espera: {e['espera']}" if e.get('espera') else ''] if x]
+            if meta:
+                L.append('- ' + ' · '.join(meta))
+            for o in por_prefijo(f"[ENCARGO #{e['id']}]"):
+                L.append(f"  - [{(o.get('created_at') or '')[:16]}] {o.get('title')}: {(o.get('content') or '').strip()[:200]}")
+            L.append('')
+        L += ['## 3. Decisiones', '']
+        for d in decisiones:
+            L.append(f"- [{d['fecha'][:10]}] {d['decision']} ({d['quien']})" + (f" · línea #{d['linea_id']}" if d.get('linea_id') else ''))
+        L += ['', '## 4. [CORE] — reglas y hechos permanentes', '']
+        for o in por_prefijo('[CORE]'):
+            L.append(f"- [{(o.get('created_at') or '')[:16]}] {o.get('title')}: {(o.get('content') or '').strip()[:300]}")
+        L += ['', '## Pendiente (mañana)', '- Agentes y sus puestos', '- Scripts del sistema (crons, hq.py, latido)',
+              '- Resumen de partes por día', '- Índice de docs/empresa', '']
+        out_path.write_text('\n'.join(L), encoding='utf-8')
+        print(f"dossier generado: {out_path} ({len(encargos)} encargos, {len(lineas)} líneas, {len(decisiones)} decisiones, {len(por_prefijo('[CORE]'))} [CORE])")
     elif a.cmd == 'kpi':
         print(json.dumps(rpc('omc_kpi_set', p_token=E['HQ_TOKEN'], p_filas=[{'clave': a.clave, 'valor': a.valor, 'texto': a.texto, 'fuente': a.fuente or agente_actual(None)}]), ensure_ascii=False))
     elif a.cmd == 'plan':
