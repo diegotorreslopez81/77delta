@@ -89,3 +89,22 @@ error meu de zona horària i no es podia corregir.
 > UTC**. Una hora local escrita tal qual aterra **dues hores tard** en horari d'estiu. Regla de
 > Jordi des d'ara: s'escriu la zona explícitament i **es comprova DESPRÉS a quina hora ha quedat de
 > debò**, no abans. El mateix que ja passava amb Engram.
+
+### Criteri de comprovació de l'enllaç · DECIDIT (Jordi, 10-09 23:51). No cal interpretar res
+
+- **Escriptori lliure:** l'obres, ho confirmes en pantalla (un minut) i **envies**.
+- **Escriptori ocupat:** **envies igual** amb el 200, i anotes a la targeta que la comprovació en
+  pantalla queda pendent. **No es perd la finestra esperant un escriptori.**
+
+**Per què el 200 ja cobreix el que cal cobrir:** a `meet.jit.si` **la sala es crea en entrar**, així
+que no existeix cap sala que pugui estar trencada. Això seria un risc amb un enllaç de Meet, on
+l'enllaç pot ser invàlid. L'únic risc real era que Jitsi exigís autenticació obligatòria, i està
+verificat que no la demana (10-09 nit: HTTP 200, `JitsiMeetJS` present, sense mur de registre).
+
+**Dues condicions:**
+
+1. **El caveat és INTERN.** A Joaquim **no** se li explica que no vam poder comprovar-ho en
+   pantalla: sembra un dubte sobre l'enllaç que no té motiu. Va a la targeta, **no al correu**.
+2. **La comprovació en pantalla queda pendent** per al primer forat d'escriptori. Si en obrir-lo
+   apareguera cap problema, encara queden el divendres a la tarda i el dilluns al matí per enviar un
+   altre enllaç: **l'enviament d'avui no tanca la porta a corregir.**
