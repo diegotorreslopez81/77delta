@@ -12,6 +12,9 @@
 - 08-09-2026 20:3x: correu de la campanya ACCIÓ Exploració enviat. Repte proposat: automatitzar la gestió de comandes i reposició per als seus clients d'hostaleria.
 - **10-09-2026: Nil truca a Diego** i demana ajuda amb la subvenció d'ACCIÓ. Diego li diu que escrigui. Esperem el seu correu: el vigia de correu avisa Jordi i Helena en entrar.
 
+## Briefing
+- `docs/empresa/41-briefing-llamada-triplet-minovi-accio.md` (Helena, 10-09). Pendent de verificar: forma jurídica (base 5.1.1: SL, SA, laboral o cooperativa).
+
 ## Següent pas
 - En rebre el correu: fitxa completa + briefing (mateix model que Cubic i Cíclica) + reunió de 15 min amb Diego abans del 16-09.
 
