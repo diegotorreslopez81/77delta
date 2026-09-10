@@ -8,9 +8,11 @@ DTSTAMP:20260910T213500Z
 DTSTART;TZID=Europe/Madrid:20260914T120000
 DTEND;TZID=Europe/Madrid:20260914T123000
 SUMMARY:Videotrucada Cíclica · 77 Delta (Ajut Exploració Tecnològica ACCIÓ)
-DESCRIPTION:Enllaç: {{ENLLAC}}
+DESCRIPTION:Enllaç: https://meet.jit.si/CiclicaNGA-2026-09-14
 ORGANIZER;CN=Aina (77 Delta):mailto:aina@77delta.com
 ATTENDEE;CN=Joaquim Arcas;RSVP=TRUE:mailto:joaquim.arcas@ciclica.eu
 ATTENDEE;CN=Diego Torres:mailto:diego@77delta.com
+ATTENDEE;CN=Ander Bilbao Figuero;RSVP=TRUE:mailto:ander.bilbao@ciclica.eu
+ATTENDEE;CN=Guillem Herrera;RSVP=TRUE:mailto:guillem.herrera@ciclica.eu
 END:VEVENT
 END:VCALENDAR
