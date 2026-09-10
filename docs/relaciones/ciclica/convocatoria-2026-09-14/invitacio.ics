@@ -1,0 +1,16 @@
+BEGIN:VCALENDAR
+VERSION:2.0
+PRODID:-//77 Delta//Convocatoria//CA
+METHOD:REQUEST
+BEGIN:VEVENT
+UID:ciclica-nga-20260914-1200@77delta.com
+DTSTAMP:20260910T213500Z
+DTSTART;TZID=Europe/Madrid:20260914T120000
+DTEND;TZID=Europe/Madrid:20260914T123000
+SUMMARY:Videotrucada Cíclica · 77 Delta (Ajut Exploració Tecnològica ACCIÓ)
+DESCRIPTION:Enllaç: {{ENLLAC}}
+ORGANIZER;CN=Aina (77 Delta):mailto:aina@77delta.com
+ATTENDEE;CN=Joaquim Arcas;RSVP=TRUE:mailto:joaquim.arcas@ciclica.eu
+ATTENDEE;CN=Diego Torres:mailto:diego@77delta.com
+END:VEVENT
+END:VCALENDAR
