@@ -46,3 +46,25 @@ no, **amb el 200 ja val**.
    debò i no un "Re:" enganxat), amb `cc diego@77delta.com` + `ander.bilbao@ciclica.eu` +
    `guillem.herrera@ciclica.eu`, i `invitacio.ics` adjunt.
 4. **Un sol emissor, mai els dos.**
+
+### Eslabó afegit per Jordi (10-09 23:41, targeta #417)
+
+**No s'envia una convocatòria sense enllaç.** Si a les 10:00 no hi ha enllaç de ningú, **no
+s'improvisa**: se li demana el seu a Joaquim i s'espera.
+
+Ara mateix **sí hi ha enllaç**: `https://meet.jit.si/CiclicaNGA-2026-09-14`, ja substituït als dos
+fitxers i comprovat per API (200, app de Jitsi, sense mur de registre). Així que la via B pot sortir.
+**Però si la comprovació en pantalla de divendres surt malament** i la sala no obre, aquest eslabó
+és el que aplica: demanar-li el seu enllaç, no enviar-ne un de trencat. Un enllaç que no obre a les
+09:00 del divendres no es pot arreglar fins dilluns.
+
+### Despertador
+
+**Targeta #417**, aprovada i posposada a **07:55 UTC = 09:55 CEST**, verificat convertint a local i
+no confiant en el literal. La #415 la va retirar Jordi: estava posposada a les 11:55 locals per un
+error meu de zona horària i no es podia corregir.
+
+> **Avís que val per a tothom, no només per aquí:** `pospuesta_hasta` i els crons **s'interpreten en
+> UTC**. Una hora local escrita tal qual aterra **dues hores tard** en horari d'estiu. Regla de
+> Jordi des d'ara: s'escriu la zona explícitament i **es comprova DESPRÉS a quina hora ha quedat de
+> debò**, no abans. El mateix que ja passava amb Engram.
