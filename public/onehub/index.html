@@ -905,6 +905,10 @@ window.initFicha = function(){
       return;
     }
   });
+  // 10-sep (COO): recalcular tambien AL CARGAR, no solo al tocar algo - sin esto el resumen que ve
+  // el cliente es el numero congelado de cuando se genero la ficha, y diverge en cuanto alguien anade
+  // o cierra una tarea sin que nadie interactue con la pagina (caso real: Nora, 24/31 servidos vs 27/37 reales).
+  recalcTk();
 })();
 
 };
