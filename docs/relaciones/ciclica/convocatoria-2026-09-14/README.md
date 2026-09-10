@@ -47,7 +47,28 @@ no, **amb el 200 ja val**.
    `guillem.herrera@ciclica.eu`, i `invitacio.ics` adjunt.
 4. **Un sol emissor, mai els dos.**
 
-### Eslabó afegit per Jordi (10-09 23:41, targeta #417)
+### ⚠️ SUPERAT · l'eslabó de demanar-li l'enllaç a Joaquim ja NO aplica
+
+**Ordre del chief, 11-09 matí (al fil de la #417).** Ahir a la nit vaig escriure aquí que si a les
+10:00 no hi havia enllaç de ningú, se li demanava el seu a Joaquim. **Oblida-ho.** Aquell pla era
+el de qui no pot posar la sala; resulta que sí podem: **Jitsi no depèn de cap compte de Google**, el
+muntem nosaltres i funciona sense que ningú instal·li res.
+
+**La via bona:**
+
+1. **08:30 · l'script de Pol** intenta l'OAuth. Si funciona, la invitació de Google és la
+   convocatòria i **Aina no escriu res**. Qui la creï ha d'incloure **els tres** de Cíclica.
+2. **10:00 · si l'script ha fallat, Aina envia l'enllaç de Jitsi.** No es demana res a Joaquim, no
+   s'espera i no s'improvisa. És l'hora exacta del despertador de la #417.
+
+La targeta de l'OAuth **surt de la llista de Diego**: està al mòbil i no pot entrar a la Google
+Cloud Console, així que l'enllaç no vindrà d'ell.
+
+**El que NO canvia:** comprovar que l'enllaç **obre** abans d'enviar-lo, no només que estigui
+generat. I els **tres** assistents amb Ander Bilbao i Guillem Herrera a les línies ATTENDEE, que si
+no, el briefing de tres es queda en un.
+
+### Eslabó original de Jordi (10-09 23:41) · conservat només com a rastre
 
 **No s'envia una convocatòria sense enllaç.** Si a les 10:00 no hi ha enllaç de ningú, **no
 s'improvisa**: se li demana el seu a Joaquim i s'espera.
