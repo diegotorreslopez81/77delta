@@ -5,6 +5,8 @@ export interface Producto {
   estado: 'En producció' | 'Beta' | 'Pre-MVP';
   categoria: string;
   descripcion: string;
+  /** true només a LeakAI: l'únic producte propi de NGA (doc 64). La resta és portfolio del grup. */
+  propio: boolean;
   /** Sense url quan el producte encara no és públic. */
   url?: string;
   /** Nom del fitxer dins de public/img/productos/. */
@@ -21,6 +23,7 @@ export const productos: Producto[] = [
     estado: 'En producció',
     categoria: 'Ciberseguretat',
     descripcion: 'Auditoria de seguretat per als chatbots amb IA de la teva web.',
+    propio: true,
     url: 'https://leakai.77delta.com',
     logo: 'leakai.svg',
     queHace:
@@ -33,6 +36,7 @@ export const productos: Producto[] = [
     estado: 'En producció',
     categoria: 'Compliance EU',
     descripcion: 'Compliance europeu automatitzat per a pimes.',
+    propio: false,
     url: 'https://regulia.app',
     logo: 'regulia.png',
     queHace:
@@ -45,6 +49,7 @@ export const productos: Producto[] = [
     estado: 'En producció',
     categoria: 'HealthTech',
     descripcion: 'Recepcionista virtual per WhatsApp per a clíniques.',
+    propio: false,
     url: 'https://contestia.co',
     logo: 'contestia.png',
     queHace:
@@ -57,6 +62,7 @@ export const productos: Producto[] = [
     estado: 'En producció',
     categoria: 'EdTech',
     descripcion: 'Generador d’exàmens amb IA en 30 segons.',
+    propio: false,
     url: 'https://instantexam.co',
     logo: 'instantexam.png',
     queHace:
@@ -69,6 +75,7 @@ export const productos: Producto[] = [
     estado: 'Pre-MVP',
     categoria: 'B2B SaaS',
     descripcion: 'Craftsmanship Score per a AI coding.',
+    propio: false,
     logo: 'scoreflow.svg',
     queHace:
       'Recull la telemetria de les eines de programació amb IA d’un equip i produeix una puntuació d’ofici per equip. Mètriques per bandes i agregats amb un mínim de cinc persones, per mesurar sense vigilar ningú.',
@@ -80,6 +87,7 @@ export const productos: Producto[] = [
     estado: 'Pre-MVP',
     categoria: 'FinTech',
     descripcion: 'Equip virtual de 5 agents per a autònoms espanyols.',
+    propio: false,
     logo: 'contablia.png',
     queHace:
       'Cinc agents que es reparteixen l’administració d’un autònom: pressupostos i seguiment comercial, captura d’ingressos i despeses, models fiscals, documentació i avisos de negoci. Es gestiona conversant.',
@@ -91,6 +99,7 @@ export const productos: Producto[] = [
     estado: 'Beta',
     categoria: 'Outreach',
     descripcion: 'Outreach IA multiplataforma.',
+    propio: false,
     url: 'https://swarmix.co',
     logo: 'swarmix.png',
     queHace:

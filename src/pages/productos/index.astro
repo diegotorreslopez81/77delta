@@ -12,20 +12,20 @@ const cuantos = enLetras[productos.length] ?? String(productos.length);
 
 <Base
   title="Productos"
-  description="Productos propios en producción y desarrollo, de la ciberseguridad de IA al compliance europeo. Construimos lo que implantamos: soluciones validadas con empresas activas."
+  description="LeakAI, nuestro producto propio de ciberseguridad de IA, y el portfolio de productos de nuestro grupo tecnológico: compliance europeo, atención al cliente, educación y más."
 >
   <!-- Hero -->
   <section class="wrap py-24 md:py-32">
-    <p class="eyebrow" data-reveal>Productos propios</p>
+    <p class="eyebrow" data-reveal>Nuestros productos</p>
     <h1
       class="mt-7 max-w-[20ch] font-display text-[clamp(38px,6vw,76px)] font-extralight leading-[1.04] tracking-[-0.035em]"
       data-reveal
     >
-      {cuantos} productos construidos por nosotros. En producción con clientes reales.
+      {cuantos} productos que aplicamos en proyectos. Uno propio, el resto del portfolio de nuestro grupo.
     </h1>
     <p class="mt-8 max-w-[56ch] text-[clamp(17px,1.6vw,20px)] text-pizarra" data-reveal>
-      Construimos lo que implantamos. Nuestros productos están validados con empresas activas y son el
-      laboratorio donde refinamos las metodologías que luego aplicamos a tu caso concreto.
+      LeakAI es nuestro producto propio. El resto forma parte del portfolio de nuestro grupo tecnológico y
+      lo integramos cuando encaja con tu caso, validado con empresas activas.
     </p>
   </section>
 
@@ -51,7 +51,9 @@ const cuantos = enLetras[productos.length] ?? String(productos.length);
                 {p.estado}
               </span>
               <h2 class="mt-3 font-display text-[22px] font-semibold leading-[1.2]">{p.nombre}</h2>
-              <p class="mt-2 font-mono text-[11px] uppercase tracking-[0.14em] text-pizarra">{p.categoria}</p>
+              <p class="mt-2 font-mono text-[11px] uppercase tracking-[0.14em] text-pizarra">
+                {p.categoria} · {p.propio ? 'Producto propio' : 'Portfolio del grupo'}
+              </p>
               <p class="mt-4 flex-1 text-[15px] text-pizarra">{p.descripcion}</p>
               <div class="mt-8 flex flex-wrap items-center gap-5">
                 <Boton href={href(`/productos/${p.slug}/`)} variante="linea" class="self-start">

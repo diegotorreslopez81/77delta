@@ -5,6 +5,8 @@ export interface Producto {
   estado: 'En producción' | 'Beta' | 'Pre-MVP';
   categoria: string;
   descripcion: string;
+  /** true solo en LeakAI: el único producto propio de NGA (doc 64). El resto es portfolio del grupo. */
+  propio: boolean;
   /** Sin url cuando el producto todavía no es público. */
   url?: string;
   /** Nombre del fichero dentro de public/img/productos/. */
@@ -21,6 +23,7 @@ export const productos: Producto[] = [
     estado: 'En producción',
     categoria: 'Ciberseguridad',
     descripcion: 'Auditoría de seguridad para los chatbots con IA de tu web.',
+    propio: true,
     url: 'https://leakai.77delta.com',
     logo: 'leakai.svg',
     queHace:
@@ -33,6 +36,7 @@ export const productos: Producto[] = [
     estado: 'En producción',
     categoria: 'Compliance EU',
     descripcion: 'Compliance europeo automatizado para pymes.',
+    propio: false,
     url: 'https://regulia.app',
     logo: 'regulia.png',
     queHace:
@@ -45,6 +49,7 @@ export const productos: Producto[] = [
     estado: 'En producción',
     categoria: 'HealthTech',
     descripcion: 'Recepcionista virtual por WhatsApp para clínicas.',
+    propio: false,
     url: 'https://contestia.co',
     logo: 'contestia.png',
     queHace:
@@ -57,6 +62,7 @@ export const productos: Producto[] = [
     estado: 'En producción',
     categoria: 'EdTech',
     descripcion: 'Generador de exámenes con IA en 30 segundos.',
+    propio: false,
     url: 'https://instantexam.co',
     logo: 'instantexam.png',
     queHace:
@@ -69,6 +75,7 @@ export const productos: Producto[] = [
     estado: 'Pre-MVP',
     categoria: 'B2B SaaS',
     descripcion: 'Craftsmanship Score para AI coding.',
+    propio: false,
     logo: 'scoreflow.svg',
     queHace:
       'Recoge la telemetría de las herramientas de programación con IA de un equipo y produce una puntuación de oficio por equipo. Métricas por bandas y agregados con mínimo de cinco personas, para medir sin vigilar a nadie.',
@@ -80,6 +87,7 @@ export const productos: Producto[] = [
     estado: 'Pre-MVP',
     categoria: 'FinTech',
     descripcion: 'Equipo virtual de 5 agentes para autónomos españoles.',
+    propio: false,
     logo: 'contablia.png',
     queHace:
       'Cinco agentes que se reparten la administración de un autónomo: presupuestos y seguimiento comercial, captura de ingresos y gastos, modelos fiscales, documentación y avisos de negocio. Se maneja conversando.',
@@ -91,6 +99,7 @@ export const productos: Producto[] = [
     estado: 'Beta',
     categoria: 'Outreach',
     descripcion: 'Outreach IA multi-plataforma.',
+    propio: false,
     url: 'https://swarmix.co',
     logo: 'swarmix.png',
     queHace:

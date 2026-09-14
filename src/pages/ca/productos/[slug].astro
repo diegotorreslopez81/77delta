@@ -22,7 +22,7 @@ const otros = productos.filter((p) => p.slug !== producto.slug).slice(0, 3);
 
 <Base
   title={producto.nombre}
-  description={`${producto.nombre}: ${producto.descripcion} Producte propi de 77 Delta, ${producto.estado.toLowerCase()}.`}
+  description={`${producto.nombre}: ${producto.descripcion} ${producto.propio ? 'Producte propi de 77 Delta' : 'Producte del portfolio del nostre grup tecnològic'}, ${producto.estado.toLowerCase()}.`}
 >
   <!-- Hero -->
   <section class="wrap py-24 md:py-32">
@@ -70,8 +70,9 @@ const otros = productos.filter((p) => p.slug !== producto.slug).slice(0, 3);
         <p class="eyebrow">Construït amb</p>
         <p class="mt-6 font-mono text-[13px] leading-[1.9] text-pizarra">{producto.stack}</p>
         <p class="mt-8 border-t border-linea pt-6 text-[15px] text-pizarra">
-          Infraestructura a la Unió Europea. El client conserva el codi, les claus i les dades en acabar el
-          projecte.
+          {producto.propio
+            ? "Infraestructura a la Unió Europea. El client conserva el codi, les claus i les dades en acabar el projecte."
+            : "Producte del portfolio del nostre grup tecnològic. L'integrem amb la teva marca, les teves dades i els teus fluxos quan encaixa amb el teu cas."}
         </p>
       </div>
     </div>
@@ -93,8 +94,9 @@ const otros = productos.filter((p) => p.slug !== producto.slug).slice(0, 3);
           teus fluxos.
         </p>
         <p>
-          Si no encaixa, construïm una altra cosa des de zero o combinem diverses peces. Aquesta és la diferència
-          entre un proveïdor amb tecnologia pròpia i una consultora que només integra eines de tercers.
+          {producto.propio
+            ? "Si no encaixa, construïm una altra cosa des de zero o combinem diverses peces. Aquesta és la diferència entre un proveïdor amb tecnologia pròpia i una consultora que només integra eines de tercers."
+            : "Si no encaixa, construïm una altra cosa des de zero, combinem diverses peces o recorrem al nostre producte propi, LeakAI, quan aporta més valor. Així triem la peça correcta per al teu cas, sigui nostra o del portfolio del nostre grup."}
         </p>
         <a
           href={href('/casos-de-uso/')}
@@ -109,7 +111,7 @@ const otros = productos.filter((p) => p.slug !== producto.slug).slice(0, 3);
   <!-- Otros productos -->
   <section class="hairline bg-panel">
     <div class="wrap py-20 md:py-24">
-      <p class="eyebrow" data-reveal>Altres productes propis</p>
+      <p class="eyebrow" data-reveal>Altres productes</p>
       <ul class="mt-10 grid gap-px overflow-hidden rounded-[4px] border border-linea bg-linea sm:grid-cols-3" role="list">
         {
           otros.map((o) => (
