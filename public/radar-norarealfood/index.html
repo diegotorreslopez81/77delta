@@ -32,37 +32,61 @@ window.RADAR_CFG = {url: 'https://supabase.infinitelabs.co', anon: 'eyJ0eXAiOiJK
 </script>
 <script>
 (function(){
+  function msg(t){ var d=document.createElement('div'); d.className='msg'; d.textContent=t; return d; }
+  function el(tag, cls, text){ var e=document.createElement(tag); if(cls) e.className=cls; if(text!=null) e.textContent=text; return e; }
   var CFG = window.RADAR_CFG;
   var sb = window.supabase.createClient(CFG.url, CFG.anon, {auth:{persistSession:false, autoRefreshToken:false}});
   var qs = new URLSearchParams(location.search);
   var token = qs.get('t');
   var root = document.getElementById('radar-root');
-  if(!token){ root.innerHTML = '<div class="msg">Falta el enlace con token.</div>'; return; }
+  if(!token){ root.appendChild(msg('Falta el enlace con token.')); return; }
   sb.rpc('radar_get_eventos', {p_token: token}).then(function(res){
-    if(res.error || !res.data){ root.innerHTML = '<div class="msg">Enlace no válido.</div>'; return; }
+    if(res.error || !res.data){ root.appendChild(msg('Enlace no valido.')); return; }
     var d = res.data;
     var p = d.perfil || {};
-    var html = '<header><h1>'+d.nombre+'</h1><div class="perfil">'
-      + (p.sector ? '<span>'+p.sector+'</span>' : '')
-      + (p.cpv ? '<span>CPV '+p.cpv.join(', ')+'</span>' : '')
-      + (p.nuts ? '<span>'+p.nuts.join(', ')+'</span>' : '')
-      + '</div></header>';
+    var header = el('header');
+    header.appendChild(el('h1', null, d.nombre));
+    var perfilDiv = el('div', 'perfil');
+    [p.sector, p.cpv ? ('CPV ' + p.cpv.join(', ')) : null, p.nuts ? p.nuts.join(', ') : null].forEach(function(t){
+      if(t) perfilDiv.appendChild(el('span', null, t));
+    });
+    header.appendChild(perfilDiv);
+    root.appendChild(header);
+
     var informes = d.eventos.filter(function(e){return e.tipo==='informe'});
     var alertas = d.eventos.filter(function(e){return e.tipo==='alerta'});
-    html += '<h2>Informes</h2>';
-    if(!informes.length) html += '<div class="msg">Todavía no hay informes.</div>';
+
+    root.appendChild(el('h2', null, 'Informes'));
+    if(!informes.length) root.appendChild(msg('Todavia no hay informes.'));
     informes.forEach(function(e){
-      html += '<div class="evento"><div class="fecha">'+e.fecha+'</div><div class="tit">'+(e.payload.titulo||e.payload.archivo)+'</div></div>';
+      var box = el('div', 'evento');
+      box.appendChild(el('div', 'fecha', e.fecha));
+      box.appendChild(el('div', 'tit', e.payload.titulo || e.payload.archivo));
+      root.appendChild(box);
     });
-    html += '<h2>Alertas</h2>';
-    if(!alertas.length) html += '<div class="msg">Todavía no hay alertas.</div>';
+
+    root.appendChild(el('h2', null, 'Alertas'));
+    if(!alertas.length) root.appendChild(msg('Todavia no hay alertas.'));
     alertas.forEach(function(e){
-      var lics = (e.payload.licitaciones||[]).slice(0,5).map(function(l){
-        return '<div class="lic">'+(l.title||'')+' &middot; '+(l.organo||'')+' &middot; '+(l.importe?l.importe.toLocaleString('es-ES')+' EUR':'')+(l.link?' &middot; <a href="'+l.link+'" target="_blank">ver</a>':'')+'</div>';
-      }).join('');
-      html += '<div class="evento"><div class="fecha">'+e.fecha+'</div><div class="tit">'+e.payload.n+' licitaciones encontradas</div>'+lics+'</div>';
+      var box = el('div', 'evento');
+      box.appendChild(el('div', 'fecha', e.fecha));
+      box.appendChild(el('div', 'tit', e.payload.n + ' licitaciones encontradas'));
+      (e.payload.licitaciones||[]).slice(0,5).forEach(function(l){
+        var row = el('div', 'lic');
+        var partes = [l.title||'', l.organo||''];
+        if(l.importe) partes.push(l.importe.toLocaleString('es-ES') + ' EUR');
+        row.appendChild(document.createTextNode(partes.filter(Boolean).join(' \u00b7 ')));
+        if(l.link){
+          row.appendChild(document.createTextNode(' \u00b7 '));
+          var a = document.createElement('a');
+          a.href = l.link; a.target = '_blank'; a.rel = 'noopener';
+          a.textContent = 'ver';
+          row.appendChild(a);
+        }
+        box.appendChild(row);
+      });
+      root.appendChild(box);
     });
-    root.innerHTML = html;
   });
 })();
 </script>
