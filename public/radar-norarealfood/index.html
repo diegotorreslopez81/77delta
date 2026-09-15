@@ -1,0 +1,70 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="robots" content="noindex,nofollow">
+<title>Radar de licitaciones</title>
+<style>
+:root{--marfil:#F7F5F0;--marino:#06101F;--tinta:#1B2430;--oro:#C6A15B;--oro-oscuro:#9C7C3E;--linea:#E4DFD3;--panel:#FFFFFF;--body:'Inter',system-ui,sans-serif;--mono:'JetBrains Mono',monospace;--radio:14px}
+html,body{margin:0;padding:0;background:var(--marfil);color:var(--tinta);font:15px/1.6 var(--body)}
+*{box-sizing:border-box} img{max-width:100%} [hidden]{display:none!important}
+.wrap{max-width:760px;margin:0 auto;padding:40px 20px 80px}
+header{border-bottom:1px solid var(--linea);padding-bottom:20px;margin-bottom:28px}
+header h1{font-size:22px;margin:0 0 6px}
+.perfil{font:500 12px/1.5 var(--mono);color:#6b7280;text-transform:uppercase;letter-spacing:.06em}
+.perfil span{display:inline-block;margin-right:14px}
+h2{font-size:15px;text-transform:uppercase;letter-spacing:.08em;color:var(--oro-oscuro);margin:32px 0 12px}
+.evento{background:var(--panel);border:1px solid var(--linea);border-radius:var(--radio);padding:16px 18px;margin-bottom:10px}
+.evento .fecha{font:600 12px var(--mono);color:#6b7280}
+.evento .tit{font-weight:600;margin:4px 0}
+.evento .meta{font-size:13px;color:#6b7280}
+.lic{border-top:1px solid var(--linea);padding-top:8px;margin-top:8px;font-size:13px}
+.lic a{color:var(--oro-oscuro)}
+.msg{max-width:560px;margin:80px auto;padding:28px 32px;background:var(--panel);border:1px solid var(--linea);border-radius:var(--radio);text-align:center}
+</style>
+</head>
+<body>
+<div class="wrap"><div id="radar-root"><div class="msg">Cargando…</div></div></div>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.js"></script>
+<script>
+window.RADAR_CFG = {url: 'https://supabase.infinitelabs.co', anon: 'eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJpc3MiOiJzdXBhYmFzZSIsImlhdCI6MTc3NzA1MjU4MCwiZXhwIjo0OTMyNzI2MTgwLCJyb2xlIjoiYW5vbiJ9.7AxJBfO3tqx1ltyhVsfovtVUAoydhNO1FBVteweuaU8'};
+</script>
+<script>
+(function(){
+  var CFG = window.RADAR_CFG;
+  var sb = window.supabase.createClient(CFG.url, CFG.anon, {auth:{persistSession:false, autoRefreshToken:false}});
+  var qs = new URLSearchParams(location.search);
+  var token = qs.get('t');
+  var root = document.getElementById('radar-root');
+  if(!token){ root.innerHTML = '<div class="msg">Falta el enlace con token.</div>'; return; }
+  sb.rpc('radar_get_eventos', {p_token: token}).then(function(res){
+    if(res.error || !res.data){ root.innerHTML = '<div class="msg">Enlace no válido.</div>'; return; }
+    var d = res.data;
+    var p = d.perfil || {};
+    var html = '<header><h1>'+d.nombre+'</h1><div class="perfil">'
+      + (p.sector ? '<span>'+p.sector+'</span>' : '')
+      + (p.cpv ? '<span>CPV '+p.cpv.join(', ')+'</span>' : '')
+      + (p.nuts ? '<span>'+p.nuts.join(', ')+'</span>' : '')
+      + '</div></header>';
+    var informes = d.eventos.filter(function(e){return e.tipo==='informe'});
+    var alertas = d.eventos.filter(function(e){return e.tipo==='alerta'});
+    html += '<h2>Informes</h2>';
+    if(!informes.length) html += '<div class="msg">Todavía no hay informes.</div>';
+    informes.forEach(function(e){
+      html += '<div class="evento"><div class="fecha">'+e.fecha+'</div><div class="tit">'+(e.payload.titulo||e.payload.archivo)+'</div></div>';
+    });
+    html += '<h2>Alertas</h2>';
+    if(!alertas.length) html += '<div class="msg">Todavía no hay alertas.</div>';
+    alertas.forEach(function(e){
+      var lics = (e.payload.licitaciones||[]).slice(0,5).map(function(l){
+        return '<div class="lic">'+(l.title||'')+' &middot; '+(l.organo||'')+' &middot; '+(l.importe?l.importe.toLocaleString('es-ES')+' EUR':'')+(l.link?' &middot; <a href="'+l.link+'" target="_blank">ver</a>':'')+'</div>';
+      }).join('');
+      html += '<div class="evento"><div class="fecha">'+e.fecha+'</div><div class="tit">'+e.payload.n+' licitaciones encontradas</div>'+lics+'</div>';
+    });
+    root.innerHTML = html;
+  });
+})();
+</script>
+</body>
+</html>
