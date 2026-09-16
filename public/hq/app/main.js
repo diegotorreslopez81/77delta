@@ -29,6 +29,6 @@ function pedirToken() {
 }
 window.addEventListener('hashchange', render);
 document.addEventListener('click', e => { if (e.target.closest('[data-salir]')) salir(); });
-if ('serviceWorker' in navigator) navigator.serviceWorker.getRegistrations().then(rs => rs.forEach(r => { if (!r.active || !r.active.scriptURL.endsWith('/hq/sw.js')) r.unregister(); }));
+if ('serviceWorker' in navigator) navigator.serviceWorker.getRegistrations().then(rs => rs.forEach(r => { if (new URL(r.scope).pathname === '/hq/') r.unregister(); }));
 if (!TOKEN) pedirToken();
 else conf().then(recargar).then(() => suscribir(S.datos.empresa, recargar)).catch(e => { raiz.innerHTML = ''; raiz.append(el('p', { class: 'error', text: 'No se pudo cargar HQ: ' + e.message })); });
