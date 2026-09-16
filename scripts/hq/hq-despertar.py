@@ -81,7 +81,7 @@ def escribir(ventana, texto):
 def main():
     est = json.loads(ESTADO.read_text()) if ESTADO.exists() else {}
     desde = est.get('desde') or (datetime.now(timezone.utc) - timedelta(minutes=10)).isoformat()
-    avisadas = set(est.get('sesiones_avisadas') or [])
+    avisadas = list(est.get('sesiones_avisadas') or [])
     eventos = rpc('omc_eventos', p_token=e['HQ_OWNER_TOKEN'], p_desde=desde) or []
     try:
         # HQ v2 (T11): sesiones solicitadas desde la ficha del expediente en HQ. Va en try/except propio
@@ -167,10 +167,10 @@ def main():
             print(f"sesión #{s['id']}: sin ventana para {s['agente']}", file=sys.stderr); continue
         try:
             escribir(v, f"[HQ] Diego quiere trabajar contigo en el expediente #{s['expediente_id']} ({s['nombre']}). Ejecuta ahora: python3 {HQ} sesion abrir --expediente {s['expediente_id']} --agente {s['agente']} y salúdale con el estado del expediente en tres líneas.")
-            avisadas.add(s['id']); n += 1
+            avisadas.append(s['id']); n += 1
         except Exception as ex:
             print(f"no se pudo escribir sesión #{s['id']} en {v}: {ex}", file=sys.stderr)
-    ESTADO.write_text(json.dumps({'desde': ultimo, 'sesiones_avisadas': list(avisadas)[-200:]}))
+    ESTADO.write_text(json.dumps({'desde': ultimo, 'sesiones_avisadas': avisadas[-200:]}))
     print(f"{n} agentes despertados")
 
 
