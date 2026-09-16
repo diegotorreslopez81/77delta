@@ -221,7 +221,7 @@ begin
                             creado_por, etiquetas, enlaces, origen, expediente_id, mensaje_id)
   values (t.empresa, now(), p->>'texto', coalesce(p->>'interpretacion', ''), v_linea,
           (select coalesce(b.nombre, 'sin bloque') from omc_plan_lineas l left join omc_plan_bloques b on b.id = l.bloque_id where l.id = v_linea),
-          coalesce(v_resp, ''), 'encolado', coalesce((p->>'prioridad')::int, 50), nullif(p->>'solicitud_id','')::bigint, coalesce(p->>'proximo_hito', ''), nullif(p->>'fecha_hito','')::date,
+          coalesce(v_resp, ''), 'encolado', coalesce((p->>'prioridad')::int, 0), nullif(p->>'solicitud_id','')::bigint, coalesce(p->>'proximo_hito', ''), nullif(p->>'fecha_hito','')::date,
           v_actor, coalesce(array(select jsonb_array_elements_text(p->'etiquetas')), '{}'), coalesce(p->'enlaces', '[]'::jsonb),
           coalesce(p->>'origen', initcap(v_actor) || ' ' || to_char(now(), 'DD-MM HH24:MI')), nullif(p->>'expediente_id','')::bigint, nullif(p->>'mensaje_id','')::bigint)
   returning * into r;
