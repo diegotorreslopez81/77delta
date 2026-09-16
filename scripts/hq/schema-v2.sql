@@ -704,17 +704,26 @@ grant execute on function omc_expediente_set(text, jsonb), omc_expediente_ficha(
 -- Postgres valida el cuerpo contra el catalogo en el momento de crear la funcion (mismo motivo que el
 -- esqueleto minimo de omc_kit/omc_contactos en T5), y omc_expedientes no existe todavia en ese punto del
 -- fichero. Mismo cuerpo que en T5, sustituyendo el 'expediente' fijo a null por el expediente real.
+-- T13 (revision, BLOCKING): la version anterior resolvia avances/contactos/frente/expediente contra
+-- p_id sin comprobar la empresa del encargo (solo 'kit' filtraba por p_empresa) - con security definer y
+-- grant a anon/authenticated (omc_encargo_ficha), un token de la empresa A podia leer el encargo, los
+-- avances, los contactos (PII) y el expediente de un id de la empresa B. Ahora todo cuelga de la CTE e0,
+-- que solo trae el encargo si es de p_empresa: con un id ajeno o inexistente e0 queda vacia, el FROM e0
+-- del select principal no devuelve filas y la funcion entera responde null (mismo patron que
+-- omc_contacto_ficha).
 create or replace function omc_encargo_contexto(p_empresa text, p_id bigint) returns jsonb
 language sql stable as $$
+  with e0 as (select * from omc_encargos where id = p_id and empresa = p_empresa)
   select jsonb_build_object(
-    'encargo', (select to_jsonb(e) || jsonb_build_object('codigo', l.codigo) from omc_encargos e left join omc_plan_lineas l on l.id = e.linea_id where e.id = p_id),
+    'encargo', (select to_jsonb(e) || jsonb_build_object('codigo', l.codigo) from e0 e left join omc_plan_lineas l on l.id = e.linea_id),
     'frente', (select jsonb_build_object('id', l.id, 'codigo', l.codigo, 'linea', l.linea, 'kpi', l.kpi, 'meta', l.meta, 'valor_actual', l.valor_actual, 'responsable', l.responsable,
-                 'bloque', b.letra || ' ' || b.nombre) from omc_encargos e join omc_plan_lineas l on l.id = e.linea_id left join omc_plan_bloques b on b.id = l.bloque_id where e.id = p_id),
+                 'bloque', b.letra || ' ' || b.nombre) from e0 e join omc_plan_lineas l on l.id = e.linea_id left join omc_plan_bloques b on b.id = l.bloque_id),
     'kit', (select coalesce(jsonb_agg(jsonb_build_object('id', k.id, 'tipo', k.tipo, 'nombre', k.nombre, 'url', k.url, 'texto', k.texto) order by k.tipo, k.nombre), '[]'::jsonb)
-              from omc_kit k where k.empresa = p_empresa and k.vigente and (k.linea_id is null or k.linea_id = (select linea_id from omc_encargos where id = p_id))),
-    'avances', (select coalesce(jsonb_agg(to_jsonb(a) order by a.fecha desc), '[]'::jsonb) from (select * from omc_encargo_avances where encargo_id = p_id order by fecha desc limit 10) a),
-    'contactos', (select coalesce(jsonb_agg(to_jsonb(c) order by c.fecha desc), '[]'::jsonb) from omc_contactos c where c.encargo_id = p_id),
-    'expediente', (select to_jsonb(x) from omc_expedientes x join omc_encargos e on e.expediente_id = x.id where e.id = p_id));
+              from omc_kit k where k.empresa = p_empresa and k.vigente and (k.linea_id is null or k.linea_id = (select linea_id from e0))),
+    'avances', (select coalesce(jsonb_agg(to_jsonb(a) order by a.fecha desc), '[]'::jsonb) from (select av.* from omc_encargo_avances av where av.encargo_id = (select id from e0) order by av.fecha desc limit 10) a),
+    'contactos', (select coalesce(jsonb_agg(to_jsonb(c) order by c.fecha desc), '[]'::jsonb) from omc_contactos c where c.encargo_id = (select id from e0)),
+    'expediente', (select to_jsonb(x) from omc_expedientes x where x.id = (select expediente_id from e0)))
+  from e0;
 $$;
 revoke execute on function omc_encargo_contexto(text, bigint) from public, anon, authenticated;
 
@@ -830,10 +839,20 @@ end $$;
 -- sin tomar el encargo. Concern (T13, se anota en el informe): el brief no pedía "security definer", pero
 -- sin ella la llamada de anon/authenticated a omc_tok y omc_encargo_contexto (ambas revocadas de esos
 -- roles) fallaría siempre; se resuelve del lado del patrón ya usado por omc_sesiones_solicitadas.
+-- T13 (revision, BLOCKING): omc_encargo_contexto ahora devuelve null si el id no es de la empresa del
+-- token (ver comentario mas arriba); language plpgsql en vez de sql para poder comprobarlo y lanzar
+-- excepcion en vez de devolver null en silencio, igual que "encargo no existe" en otros comandos.
 create or replace function omc_encargo_ficha(p_token text, p_id bigint) returns jsonb
-language sql security definer set search_path=public as $$
-  select omc_encargo_contexto((select empresa from omc_tok(p_token)), p_id);
-$$;
+language plpgsql security definer set search_path=public as $$
+declare v_empresa text; v_ctx jsonb;
+begin
+  select empresa into v_empresa from omc_tok(p_token);
+  v_ctx := omc_encargo_contexto(v_empresa, p_id);
+  if v_ctx is null then
+    raise exception 'encargo % no existe en esta empresa', p_id using errcode = 'P0002';
+  end if;
+  return v_ctx;
+end $$;
 grant execute on function omc_encargo_ficha(text, bigint) to anon, authenticated;
 
 notify pgrst, 'reload schema';
