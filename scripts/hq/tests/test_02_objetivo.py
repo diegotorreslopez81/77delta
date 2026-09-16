@@ -1,17 +1,6 @@
-import json, unittest, urllib.request
+import unittest
 from . import pg
-
-
-def rpc(token, fn, **args):
-    t = pg.preparar_tenant()
-    args['p_token'] = token
-    req = urllib.request.Request(t['url'] + '/rest/v1/rpc/' + fn, data=json.dumps(args).encode(), method='POST',
-                                 headers={'apikey': t['anon'], 'Authorization': 'Bearer ' + t['anon'], 'Content-Type': 'application/json'})
-    try:
-        with urllib.request.urlopen(req, timeout=30) as r:
-            return json.loads(r.read() or b'null')
-    except urllib.error.HTTPError as e:
-        raise RuntimeError(json.loads(e.read().decode()).get('message', '')) from None
+from .pg import rpc
 
 
 class TestObjetivo(unittest.TestCase):
