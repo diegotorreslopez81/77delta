@@ -453,15 +453,16 @@ begin
   select * into t from omc_tok(p_token);
   v_actor := case when t.rol = 'owner' then 'diego' else coalesce(p->>'agente', 'agente') end;
   if t.rol <> 'owner' and lower(v_actor) <> 'chief' then raise exception 'solo owner o chief editan el kit' using errcode='42501'; end if;
+  if (p->>'id') is not null then
+    update omc_kit set vigente = coalesce((p->>'vigente')::boolean, vigente), url = coalesce(p->>'url', url), texto = coalesce(p->>'texto', texto), actualizado_por = v_actor, fecha = now()
+    where id = (p->>'id')::bigint and empresa = t.empresa returning * into r;
+    if r.id is null then raise exception 'kit % no existe en esta empresa', p->>'id'; end if;
+    return to_jsonb(r);
+  end if;
   if coalesce(p->>'nombre','') = '' or coalesce(p->>'tipo','') = '' then raise exception 'falta nombre o tipo (plantilla|oficial|procedimiento|regla)'; end if;
   if coalesce(p->>'frente','') <> '' then
     v_linea := omc_frente_id(t.empresa, p->>'frente');
     if v_linea is null then raise exception 'frente % no existe', p->>'frente'; end if;
-  end if;
-  if (p->>'id') is not null then
-    update omc_kit set vigente = coalesce((p->>'vigente')::boolean, vigente), url = coalesce(p->>'url', url), texto = coalesce(p->>'texto', texto), actualizado_por = v_actor, fecha = now()
-    where id = (p->>'id')::bigint and empresa = t.empresa returning * into r;
-    return to_jsonb(r);
   end if;
   update omc_kit set vigente = false where empresa = t.empresa and vigente and nombre = p->>'nombre' and linea_id is not distinct from v_linea;
   insert into omc_kit (empresa, linea_id, tipo, nombre, url, texto, version, vigente, actualizado_por)

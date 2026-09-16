@@ -35,3 +35,21 @@ class TestKit(unittest.TestCase):
     def test_cli_kit_lista(self):
         p = subprocess.run([sys.executable, HQ, '--json', 'kit', 'lista', 'A3'], env=pg.entorno_cli('agente'), capture_output=True, text=True)
         self.assertEqual(p.returncode, 0, p.stderr); self.assertTrue(len(json.loads(p.stdout)) >= 1)
+
+    def test_vigente_por_id_retira_y_desaparece_de_lista(self):
+        k = rpc(self.t['owner'], 'omc_kit_set', p={'tipo': 'regla', 'nombre': 'Retirable', 'texto': 'temporal'})
+        self.assertIn('Retirable', [x['nombre'] for x in rpc(self.t['agente'], 'omc_kit_lista')])
+        r = rpc(self.t['owner'], 'omc_kit_set', p={'id': k['id'], 'vigente': False})
+        self.assertFalse(r['vigente'])
+        self.assertNotIn('Retirable', [x['nombre'] for x in rpc(self.t['agente'], 'omc_kit_lista')])
+
+    def test_cli_alta_general_aparece_en_lista_sin_frente_y_en_frente(self):
+        p = subprocess.run([sys.executable, HQ, '--json', 'kit', 'alta', '--general', '--tipo', 'regla', '--nombre', 'Regla general CLI', '--texto', 'texto de prueba'],
+                            env=pg.entorno_cli('owner'), capture_output=True, text=True)
+        self.assertEqual(p.returncode, 0, p.stderr)
+        p = subprocess.run([sys.executable, HQ, '--json', 'kit', 'lista'], env=pg.entorno_cli('agente'), capture_output=True, text=True)
+        self.assertEqual(p.returncode, 0, p.stderr)
+        self.assertIn('Regla general CLI', [x['nombre'] for x in json.loads(p.stdout)])
+        p = subprocess.run([sys.executable, HQ, '--json', 'kit', 'lista', 'A3'], env=pg.entorno_cli('agente'), capture_output=True, text=True)
+        self.assertEqual(p.returncode, 0, p.stderr)
+        self.assertIn('Regla general CLI', [x['nombre'] for x in json.loads(p.stdout)])
