@@ -62,6 +62,28 @@ def registrar(sub, esub):
     sa = ssub.add_parser('abrir'); sa.add_argument('--expediente', type=int, required=True); sa.add_argument('--agente')
     sc = ssub.add_parser('cerrar'); sc.add_argument('id', type=int); sc.add_argument('--resumen', required=True); sc.add_argument('--entregable', action='append', default=[]); sc.add_argument('--agente')
     ss = ssub.add_parser('solicitar'); ss.add_argument('--expediente', type=int, required=True)
+    g = sub.add_parser('agente', help='fichas de agentes: lista, ficha, frentes, avatar, sesion-url, alta')
+    gsub = g.add_subparsers(dest='sub', required=True)
+    gsub.add_parser('lista')
+    gf = gsub.add_parser('ficha'); gf.add_argument('id')
+    gr = gsub.add_parser('frentes'); gr.add_argument('id'); gr.add_argument('codigos', nargs='+')
+    gv = gsub.add_parser('avatar'); gv.add_argument('id')
+    gu = gsub.add_parser('sesion-url'); gu.add_argument('id'); gu.add_argument('url'); gu.add_argument('--cuenta', choices=('diego', 'team'))
+    ga = gsub.add_parser('alta'); ga.add_argument('--frentes', nargs='*', default=[])
+    # 'agente alta' es alias de 'alta-agente' (hq.py ya la registró antes de llamar a registrar(), ver
+    # comentario en hq.py junto a la llamada): se copian sus argumentos para no duplicarlos aquí.
+    for act in sub.choices['alta-agente']._actions:
+        if act.option_strings and act.dest not in ('help',):
+            ga._add_action(act)
+
+
+def ejecutar_frentes(agente_id, frentes, c):
+    """Aplica --frentes tras un 'agente alta' (hq.py la llama después de crear el puesto)."""
+    rpc, E = c['rpc'], c['E']
+    tok = E.get('HQ_OWNER_TOKEN') or E['HQ_TOKEN']
+    r = rpc('omc_agente_frentes_set', p_token=tok, p_agente=agente_id, p_frentes=frentes)
+    print(f"frentes de {r['id']}: {r['frentes']}")
+    return r
 
 
 def _linea_encargo(e):
@@ -158,6 +180,35 @@ def ejecutar(a, c):
             return True
         r = rpc('omc_sesion_solicitar', p_token=E.get('HQ_OWNER_TOKEN') or E['HQ_TOKEN'], p_expediente=a.expediente)
         salida(r, f"sesión #{r['id']} {r['estado']} para {r['agente']}; hq-despertar la abre en su ventana en menos de un minuto")
+        return True
+    if a.cmd == 'agente':
+        tok_owner = E.get('HQ_OWNER_TOKEN') or E['HQ_TOKEN']
+        if a.sub == 'lista':
+            xs = rpc('omc_agentes_lista', p_token=E['HQ_TOKEN'])
+            salida(xs, '\n'.join(f"{x['id']:<14} {x['nombre']:<10} {x['depto']:<14} n{x['nivel']} {'ON ' if x['activo'] else 'OFF'} {','.join(x['frentes'] or []) or '-':<10} {x.get('cuenta') or '-':<5} {x['encargos_abiertos']} abiertos" + (f" · sesión #{x['sesion_abierta']}" if x.get('sesion_abierta') else '') for x in xs))
+        elif a.sub == 'ficha':
+            xs = [x for x in rpc('omc_agentes_lista', p_token=E['HQ_TOKEN']) if x['id'] == a.id or x['nombre'].lower() == a.id.lower()]
+            if not xs: raise SystemExit(f'agente {a.id} no existe')
+            x = xs[0]; salida(x, '\n'.join(f'{k}: {v}' for k, v in x.items()))
+        elif a.sub == 'frentes':
+            r = rpc('omc_agente_frentes_set', p_token=tok_owner, p_agente=a.id, p_frentes=a.codigos)
+            salida(r, f"{r['id']}: frentes {r['frentes']}")
+        elif a.sub == 'avatar':
+            import pathlib
+            import urllib.request
+            destino = pathlib.Path(__file__).resolve().parents[2] / 'public' / 'hq' / 'avatares' / f'{a.id}.svg'
+            destino.parent.mkdir(parents=True, exist_ok=True)
+            with urllib.request.urlopen(f'https://api.dicebear.com/9.x/icons/svg?seed={a.id}&backgroundColor=0b1f3a&radius=50', timeout=20) as u:
+                destino.write_bytes(u.read())
+            url = f'https://77delta.com/hq/avatares/{a.id}.svg'
+            rpc('omc_agente_avatar_set', p_token=tok_owner, p_agente=a.id, p_url=url)
+            print(f'{destino} · {url} (commitea el svg)')
+        elif a.sub == 'sesion-url':
+            r = rpc('omc_agente_sesion_url', p_token=E['HQ_TOKEN'] if not a.cuenta else tok_owner, p_agente=a.id, p_url=a.url, p_cuenta=a.cuenta)
+            salida(r, f"{r['id']}: sesion_url actualizada ({r.get('cuenta') or '-'})")
+        else:  # alta: hq.py sigue con su rama alta-agente (mismos argumentos) y aplica --frentes después
+            a.cmd = 'alta-agente'; a.sub = None
+            return False
         return True
     if a.cmd != 'encargo':
         return False

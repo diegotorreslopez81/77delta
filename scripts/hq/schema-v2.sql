@@ -2,7 +2,7 @@
 -- Convención: cada sección lleva el número de tarea del plan 2026-09-16-hq-v2-plan-1-base.md.
 
 -- T1 · versión del esquema v2 (los tests la usan como centinela)
-create or replace function omc_v2_version() returns text language sql immutable as $$ select '2.0.2' $$;
+create or replace function omc_v2_version() returns text language sql immutable as $$ select '2.0.3' $$;
 grant execute on function omc_v2_version() to anon, authenticated;
 
 -- T2 · objetivo por horizonte
@@ -727,5 +727,74 @@ language sql security definer set search_path=public as $$
   where s.empresa = (select empresa from omc_tok(p_token)) and s.estado = 'solicitada' and s.created_at > now() - interval '2 hours';
 $$;
 grant execute on function omc_sesiones_solicitadas(text) to anon, authenticated;
+
+-- T12 · fichas de agentes: frentes, avatar y URL de sesión (Remote Control) para cambio de cuenta sin rotura
+alter table omc_agentes add column if not exists frentes text[] default '{}';
+alter table omc_agentes add column if not exists cuenta text check (cuenta in ('diego','team'));
+alter table omc_agentes add column if not exists avatar_url text;
+alter table omc_agentes add column if not exists sesion_url text;
+alter table omc_agentes add column if not exists sesion_url_fecha timestamptz;
+
+-- El propio agente por su token (rol 'agente', declarando p_agente) o el owner fijan la URL de la sesión
+-- de Remote Control en curso. Concern (T12, se anota en el informe): el brief de esta tarea proponía
+-- restringir "propio agente" comparando t.nombre (de omc_tokens) contra v_id, asumiendo nombre=''. En
+-- producción el token de rol 'agente' de 77delta tiene nombre='agentes' (comprobado en vivo contra el
+-- tenant pruebas, tabla omc_tokens: fila owner tiene nombre='Diego', la de agente nombre='agentes'), un
+-- valor fijo que nunca coincide con ningún id de agente real - esa comparación habría bloqueado SIEMPRE
+-- el camino "propio agente" en producción. Se resuelve del lado del código existente: igual que
+-- omc_kit_set (T8) y omc_encargo_tomar, la identidad la da p_agente declarado (validado contra
+-- omc_agente_valido, que exige activo=true en la empresa del token) y no hay comparación con t.nombre.
+create or replace function omc_agente_sesion_url(p_token text, p_agente text, p_url text, p_cuenta text default null) returns jsonb
+language plpgsql security definer set search_path=public as $$
+declare t record; v_id text; r omc_agentes;
+begin
+  select * into t from omc_tok(p_token);
+  v_id := omc_agente_valido(t.empresa, p_agente);
+  if v_id is null then raise exception 'agente % no existe', p_agente; end if;
+  if p_url !~ '^https://(claude\.ai|claude\.com)/' then raise exception 'sesion_url debe ser una URL de claude.ai (Remote Control)'; end if;
+  update omc_agentes set sesion_url = p_url, sesion_url_fecha = now(), cuenta = coalesce(p_cuenta, cuenta) where empresa = t.empresa and id = v_id returning * into r;
+  return jsonb_build_object('id', r.id, 'nombre', r.nombre, 'sesion_url', r.sesion_url, 'cuenta', r.cuenta, 'sesion_url_fecha', r.sesion_url_fecha);
+end $$;
+
+-- Solo owner: avatar_url no lo toca omc_agente_set (schema.sql 886, no admite ese campo; se deja así y se
+-- añade este setter pequeño para no tocar una RPC ya estable con más superficie de la necesaria).
+create or replace function omc_agente_avatar_set(p_token text, p_agente text, p_url text) returns jsonb
+language plpgsql security definer set search_path=public as $$
+declare t record; v_id text; r omc_agentes;
+begin
+  select * into t from omc_tok(p_token);
+  if t.rol <> 'owner' then raise exception 'solo owner' using errcode='42501'; end if;
+  v_id := omc_agente_valido(t.empresa, p_agente);
+  if v_id is null then raise exception 'agente % no existe', p_agente; end if;
+  update omc_agentes set avatar_url = p_url where empresa = t.empresa and id = v_id returning * into r;
+  return jsonb_build_object('id', r.id, 'avatar_url', r.avatar_url);
+end $$;
+
+create or replace function omc_agente_frentes_set(p_token text, p_agente text, p_frentes text[]) returns jsonb
+language plpgsql security definer set search_path=public as $$
+declare t record; v_id text; f text; r omc_agentes;
+begin
+  select * into t from omc_tok(p_token);
+  if t.rol <> 'owner' then raise exception 'solo owner' using errcode='42501'; end if;
+  v_id := omc_agente_valido(t.empresa, p_agente);
+  if v_id is null then raise exception 'agente % no existe', p_agente; end if;
+  foreach f in array p_frentes loop
+    if omc_frente_id(t.empresa, f) is null then raise exception 'frente % no existe', f; end if;
+  end loop;
+  update omc_agentes set frentes = (select coalesce(array_agg(upper(x)), '{}') from unnest(p_frentes) x) where empresa = t.empresa and id = v_id returning * into r;
+  return jsonb_build_object('id', r.id, 'frentes', r.frentes);
+end $$;
+
+create or replace function omc_agentes_lista(p_token text) returns jsonb
+language sql security definer set search_path=public as $$
+  select coalesce(jsonb_agg(jsonb_build_object('id', a.id, 'nombre', a.nombre, 'depto', a.depto, 'nivel', a.nivel, 'modelo', a.contrato->>'modelo', 'activo', a.activo,
+    'frentes', a.frentes, 'frentes_codigos', a.frentes, 'cuenta', a.cuenta, 'avatar_url', a.avatar_url, 'sesion_url', a.sesion_url, 'sesion_url_fecha', a.sesion_url_fecha,
+    'ultima_actividad', a.ultima_actividad,
+    'encargos_abiertos', (select count(*) from omc_encargos e where e.empresa = a.empresa and e.estado in ('encolado','en_curso','bloqueado_diego') and position(lower(a.id) in lower(coalesce(e.agente,''))) > 0),
+    'sesion_abierta', (select s.expediente_id from omc_sesiones s where s.empresa = a.empresa and s.agente = a.id and s.estado = 'abierta' limit 1)
+  ) order by a.depto, a.nivel, a.nombre), '[]'::jsonb)
+  from omc_agentes a where a.empresa = (select empresa from omc_tok(p_token));
+$$;
+grant execute on function omc_agente_sesion_url(text, text, text, text), omc_agente_avatar_set(text, text, text), omc_agente_frentes_set(text, text, text[]), omc_agentes_lista(text) to anon, authenticated;
 
 notify pgrst, 'reload schema';
