@@ -63,6 +63,49 @@ def decir(ventana, texto, dry):
     subprocess.run(['tmux-decir', ventana, texto], check=False)
 
 
+TOPE_LINEAS = 25
+
+
+def agrupar_escalados(lista):
+    """Un unico mensaje para Jordi-COO con todos los escalados (>=72 h): cabecera con el total y una
+    linea por encargo, con un tope de TOPE_LINEAS lineas y '... y M mas' si sobran. Antes cada encargo
+    escalado disparaba su propio tmux-decir: en produccion salieron 52 seguidos en la misma corrida y
+    saturaron la ventana de Jordi-COO. Lista vacia -> cadena vacia (nada que enviar)."""
+    if not lista:
+        return ''
+    lineas = [f"#{e['id']} {e.get('agente') or '-'} {e['horas_parado']}h: {e['texto'][:60]}" for e in lista]
+    cuerpo = lineas[:TOPE_LINEAS]
+    if len(lineas) > TOPE_LINEAS:
+        cuerpo.append(f"... y {len(lineas) - TOPE_LINEAS} mas")
+    cabecera = f"[HQ parados] {len(lista)} encargos sin avance 72 h o mas"
+    return cabecera + '\n' + '\n'.join(cuerpo)
+
+
+def agrupar_avisos(lista, agentes):
+    """Agrupa los avisos de 48 h por ventana de destino: un unico tmux-decir por ventana con todos los
+    encargos de ese responsable, en vez de uno por encargo. Los casos sin ventana (destino_aviso con
+    directo=False) se combinan todos en un unico mensaje bajo la clave 'Jordi-COO', por el mismo motivo
+    que agrupar_escalados: nunca un tmux-decir por encargo suelto. Devuelve {ventana: texto}."""
+    grupos = {}
+    for e in lista:
+        ventana, directo = destino_aviso(e.get('agente'), agentes)
+        grupos.setdefault(ventana, []).append((e, directo))
+    salida = {}
+    for ventana, items in grupos.items():
+        directo = items[0][1]
+        if directo:
+            lineas = [f"#{e['id']} {e['horas_parado']}h: {e['texto'][:60]}" for e, _ in items]
+            cabecera = f"[HQ parados] {len(items)} encargo(s) tuyos sin avance 48 h o mas"
+        else:
+            lineas = [f"#{e['id']} sin ventana para {e.get('agente')} ({e['horas_parado']}h): {e['texto'][:60]}" for e, _ in items]
+            cabecera = f"[HQ parados] {len(items)} encargo(s) sin ventana de agente, sin avance 48 h o mas. Reclama."
+        cuerpo = lineas[:TOPE_LINEAS]
+        if len(lineas) > TOPE_LINEAS:
+            cuerpo.append(f"... y {len(lineas) - TOPE_LINEAS} mas")
+        salida[ventana] = cabecera + '\n' + '\n'.join(cuerpo)
+    return salida
+
+
 def main():
     ap = argparse.ArgumentParser(); ap.add_argument('--dry-run', action='store_true'); ap.add_argument('--horas-aviso', type=int, default=48); ap.add_argument('--horas-escalado', type=int, default=72)
     a = ap.parse_args(); ahora = datetime.now(timezone.utc)
@@ -74,24 +117,19 @@ def main():
         sys.exit(f'HQ no responde: {type(ex).__name__}')
     estado = json.loads(ESTADO.read_text()) if ESTADO.exists() else {}
     r = clasificar_parados(encargos, ahora, a.horas_aviso, a.horas_escalado)
-    for e in r['avisar']:
-        if not toca_avisar(e['id'], 'avisado', estado, ahora): continue
-        ventana, directo = destino_aviso(e.get('agente'), agentes)
-        if directo:
-            decir(ventana, f"[HQ parados] encargo #{e['id']} lleva {e['horas_parado']} h sin avance: {e['texto'][:80]}. Escribe un avance hoy (hq.py encargo avance {e['id']} --texto ...) o cambia el estado con motivo.", a.dry_run)
-        else:
-            texto = f"[HQ parados] sin ventana para {e.get('agente')}: encargo #{e['id']} ({e['horas_parado']} h sin avance): {e['texto'][:80]}. Reclama tú."
-            if a.dry_run:
-                print(f"[dry] sin ventana para {e.get('agente')} -> Jordi-COO: {texto}")
-            else:
-                subprocess.run(['tmux-decir', 'Jordi-COO', texto], check=False)
-                print(f"aviso: sin ventana para {e.get('agente')}, enrutado a Jordi-COO")
+    avisos = [e for e in r['avisar'] if toca_avisar(e['id'], 'avisado', estado, ahora)]
+    escalados = [e for e in r['escalar'] if toca_avisar(e['id'], 'escalado', estado, ahora)]
+    grupos = agrupar_avisos(avisos, agentes)
+    for ventana, texto in grupos.items():
+        decir(ventana, texto, a.dry_run)
+    for e in avisos:
         estado.setdefault(str(e['id']), {})['avisado'] = ahora.isoformat()
-    for e in r['escalar']:
-        if not toca_avisar(e['id'], 'escalado', estado, ahora): continue
-        decir('Jordi-COO', f"[HQ parados] escalado: encargo #{e['id']} ({e.get('agente')}) {e['horas_parado']} h sin avance: {e['texto'][:80]}. Reclama hoy o ciérralo con motivo.", a.dry_run)
+    texto_escalados = agrupar_escalados(escalados)
+    if texto_escalados:
+        decir('Jordi-COO', texto_escalados, a.dry_run)
+    for e in escalados:
         estado.setdefault(str(e['id']), {})['escalado'] = ahora.isoformat()
-    print(f"parados: {len(r['avisar'])} avisados, {len(r['escalar'])} escalados, {sum(1 for e in encargos if e['estado'] == 'en_curso')} en curso")
+    print(f"parados: {len(avisos)} avisados en {len(grupos)} mensaje(s), {len(escalados)} escalados en {1 if texto_escalados else 0} mensaje(s), {sum(1 for e in encargos if e['estado'] == 'en_curso')} en curso")
     if not a.dry_run:
         ESTADO.parent.mkdir(parents=True, exist_ok=True); ESTADO.write_text(json.dumps(estado, indent=1)); ESTADO.chmod(0o600)
 

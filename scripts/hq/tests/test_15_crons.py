@@ -34,6 +34,31 @@ class TestParados(unittest.TestCase):
         self.assertIsNone(p.ventana_de('DevOps (alta hoy) + Pol', agentes))
         self.assertEqual(p.destino_aviso('DevOps (alta hoy) + Pol', agentes), ('Jordi-COO', False))
 
+    def test_agrupa_escalados_en_un_solo_mensaje(self):
+        p = cargar('hq-parados')
+        self.assertEqual(p.agrupar_escalados([]), '')
+        enc = [{'id': i, 'agente': 'Aina', 'horas_parado': 80, 'texto': 'x' * 80} for i in range(1, 31)]
+        texto = p.agrupar_escalados(enc)
+        lineas = texto.split('\n')
+        self.assertEqual(lineas[0], '[HQ parados] 30 encargos sin avance 72 h o mas')
+        self.assertEqual(len(lineas), 1 + 25 + 1)
+        self.assertTrue(lineas[-1].startswith('... y 5 mas'))
+        self.assertTrue(lineas[1].startswith('#1 Aina 80h:'))
+
+    def test_agrupa_avisos_por_ventana_y_sin_ventana_a_jordi_coo(self):
+        p = cargar('hq-parados')
+        agentes = [{'id': 'aina', 'nombre': 'Aina', 'sesiones': ['Aina-Comercial']}]
+        enc = [
+            {'id': 1, 'agente': 'Aina', 'horas_parado': 50, 'texto': 'a'},
+            {'id': 2, 'agente': 'Aina', 'horas_parado': 60, 'texto': 'b'},
+            {'id': 3, 'agente': 'DevOps (alta hoy) + Pol', 'horas_parado': 55, 'texto': 'c'},
+        ]
+        grupos = p.agrupar_avisos(enc, agentes)
+        self.assertEqual(set(grupos), {'Aina-Comercial', 'Jordi-COO'})
+        self.assertTrue(grupos['Aina-Comercial'].startswith('[HQ parados] 2 encargo(s) tuyos'))
+        self.assertIn('#1', grupos['Aina-Comercial']); self.assertIn('#2', grupos['Aina-Comercial'])
+        self.assertIn('#3', grupos['Jordi-COO'])
+
 
 class TestInforme(unittest.TestCase):
     def test_secciones_en_orden_y_peticiones_de_diego(self):
