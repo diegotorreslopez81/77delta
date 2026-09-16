@@ -35,6 +35,12 @@ def registrar(sub, esub):
     for k in ('--texto', '--interpretacion', '--frente', '--responsable', '--proximo-hito', '--fecha-hito', '--comentario'):
         ed.add_argument(k)
     ed.add_argument('--prioridad', type=int); ed.add_argument('--orden', type=int); ed.add_argument('--etiqueta', action='append')
+    k = sub.add_parser('kit', help='plantillas, oficiales, procedimientos y reglas por frente')
+    ksub = k.add_subparsers(dest='sub', required=True)
+    kl = ksub.add_parser('lista'); kl.add_argument('frente', nargs='?')
+    ka = ksub.add_parser('alta'); ka.add_argument('--frente'); ka.add_argument('--general', action='store_true'); ka.add_argument('--tipo', required=True, choices=('plantilla', 'oficial', 'procedimiento', 'regla'))
+    ka.add_argument('--nombre', required=True); ka.add_argument('--url'); ka.add_argument('--texto'); ka.add_argument('--version'); ka.add_argument('--agente')
+    kv = ksub.add_parser('vigente'); kv.add_argument('id', type=int); kv.add_argument('--no', action='store_true'); kv.add_argument('--agente')
 
 
 def _linea_encargo(e):
@@ -57,6 +63,19 @@ def ejecutar(a, c):
         if a.desde: args['p_desde'] = a.desde
         fs = rpc('omc_feed', **args)
         salida(fs, '\n'.join(f"{f['fecha'][:16]} #{f['encargo_id']} {_linea_encargo(f)}{f['autor']} {f['tipo']}: {f['texto'][:100]}" for f in fs))
+        return True
+    if a.cmd == 'kit':
+        if a.sub == 'lista':
+            ks = rpc('omc_kit_lista', p_token=E['HQ_TOKEN'], p_frente=a.frente)
+            salida(ks, '\n'.join(f"#{k['id']} [{k.get('codigo') or 'general'}] {k['tipo']}: {k['nombre']} v{k['version']} {k.get('url') or ''}\n    {(k.get('texto') or '')[:160]}".rstrip() for k in ks))
+        elif a.sub == 'alta':
+            if not a.frente and not a.general: raise SystemExit('kit alta: --frente A3 o --general')
+            p = {k: v for k, v in {'frente': a.frente, 'tipo': a.tipo, 'nombre': a.nombre, 'url': a.url, 'texto': a.texto, 'version': a.version, 'agente': agente_actual(a.agente)}.items() if v is not None}
+            r = rpc('omc_kit_set', p_token=E.get('HQ_OWNER_TOKEN') or E['HQ_TOKEN'], p=p)
+            salida(r, f"kit #{r['id']} {r['tipo']}: {r['nombre']} v{r['version']}")
+        else:
+            r = rpc('omc_kit_set', p_token=E.get('HQ_OWNER_TOKEN') or E['HQ_TOKEN'], p={'id': a.id, 'vigente': not a.no, 'agente': agente_actual(a.agente)})
+            salida(r, f"kit #{r['id']} vigente={r['vigente']}")
         return True
     if a.cmd != 'encargo':
         return False

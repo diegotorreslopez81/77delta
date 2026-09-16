@@ -33,3 +33,31 @@ from (values
 ) as f(codigo, orden, linea, kpi, meta, unidad, responsable)
 join omc_plan_bloques b on b.empresa='77delta' and b.letra = left(f.codigo,1)
 where not exists (select 1 from omc_plan_lineas x where x.empresa='77delta' and upper(x.codigo) = f.codigo);
+
+-- T8 · kit: reglas y procedimientos generales y por frente. Las URL de Drive de las plantillas las
+-- da de alta el chief el 17-sep con `kit alta` tras el inventario; aqui solo reglas y procedimientos
+-- del repo.
+insert into omc_kit (empresa, linea_id, tipo, nombre, url, texto, actualizado_por)
+select '77delta', null, k.tipo, k.nombre, k.url, k.texto, 'seed' from (values
+  ('regla', 'Ningún documento a cliente en HTML ni markdown', null, 'Todo entregable a cliente u órgano va en plantilla 77 Delta (Google Doc, PDF o DOCX). Regla 40, incidente #648.'),
+  ('regla', 'Documento por enlace, nunca adjunto (decisión 80)', null, 'Correos de impacto a cliente salen como borrador de diego@; el documento va por enlace de Google Doc. A un órgano de contratación sí va adjunto. Nunca datos de otro cliente, ni anonimizados.'),
+  ('regla', 'Cifras con etiqueta y fuente (decisión 81)', null, 'Toda cifra lleva "sin IVA" o "con IVA" y su fuente; bajas y márgenes sobre base sin IVA; si no se puede reconstruir, se escribe NO LO SÉ.'),
+  ('regla', 'Catalán con entidades catalanas', null, 'A entidades y empresas catalanas se escribe en catalán.'),
+  ('regla', 'Validar lo que llega de oídas (regla 36)', null, 'Antes de actuar sobre un dato verbal se contrasta en la fuente primaria.'),
+  ('regla', 'Prospección fría desde el alias de team@ (regla 37)', null, 'Nunca desde diego@. Remitente = agente con su alias verificado o Diego en persona; nunca "Equipo 77 Delta".'),
+  ('regla', 'Cronología completa antes de redactar (regla 38)', null, 'Antes de redactar a un tercero se reconstruye el hilo entero con él.'),
+  ('regla', 'Máximo dos toques (regla 39)', null, 'Segundo toque obligatorio antes de dar por perdido un contacto; nunca un tercero sin OK del chief.'),
+  ('procedimiento', 'Envío a terceros con candado', 'https://github.com/diegotorreslopez81/77delta/blob/main/scripts/gmail/enviar-con-lock.sh', 'Tarjeta HQ aprobada + fila de contacto + franja 08-20. Nada sale de otra forma.'),
+  ('procedimiento', 'Alta de agente', 'https://github.com/diegotorreslopez81/77delta/blob/main/docs/empresa/30-alta-de-agente.md', 'hq.py agente alta con frentes, ventana tmux y ficha.')
+) as k(tipo, nombre, url, texto)
+where not exists (select 1 from omc_kit x where x.empresa='77delta' and x.nombre = k.nombre);
+
+insert into omc_kit (empresa, linea_id, tipo, nombre, texto, actualizado_por)
+select '77delta', l.id, k.tipo, k.nombre, k.texto, 'seed' from (values
+  ('A2', 'regla', 'Medios personales del art. 76 antes de proponer', 'El bloque de medios a adscribir del pliego se lee y se cita ANTES de proponer un expediente (caso CVC).'),
+  ('A3', 'regla', 'Facturador en contratos públicos', 'Siempre Next Gen Academy SL (B44861649). Nunca Infinite Labs OÜ ni su solvencia externa.'),
+  ('A3', 'regla', 'Hosting con datos de la administración', 'Proveedor con conformidad ENS en el registro del CCN (OVHcloud por defecto). Nunca Hetzner, Vercel ni Supabase.'),
+  ('B4', 'regla', 'FUNDAE: solo áreas con formador acreditable', 'Inscritos en todas las áreas por decisión de Diego 16-sep, pero nunca se oferta ni acepta formación sin formador acreditable.'),
+  ('C5', 'regla', 'Seguimiento siempre en campañas', 'Toque 2 obligatorio antes de parar o escalar (Aina, Ona, Marina, 15-sep).')
+) as k(codigo, tipo, nombre, texto) join omc_plan_lineas l on l.empresa='77delta' and l.codigo = k.codigo
+where not exists (select 1 from omc_kit x where x.empresa='77delta' and x.nombre = k.nombre);

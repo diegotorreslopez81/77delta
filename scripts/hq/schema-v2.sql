@@ -445,4 +445,37 @@ do $$ begin
   end if;
 end $$;
 
+-- T8 · kit
+create or replace function omc_kit_set(p_token text, p jsonb) returns jsonb
+language plpgsql security definer set search_path=public as $$
+declare t record; v_linea bigint; v_actor text; r omc_kit;
+begin
+  select * into t from omc_tok(p_token);
+  v_actor := case when t.rol = 'owner' then 'diego' else coalesce(p->>'agente', 'agente') end;
+  if t.rol <> 'owner' and lower(v_actor) <> 'chief' then raise exception 'solo owner o chief editan el kit' using errcode='42501'; end if;
+  if coalesce(p->>'nombre','') = '' or coalesce(p->>'tipo','') = '' then raise exception 'falta nombre o tipo (plantilla|oficial|procedimiento|regla)'; end if;
+  if coalesce(p->>'frente','') <> '' then
+    v_linea := omc_frente_id(t.empresa, p->>'frente');
+    if v_linea is null then raise exception 'frente % no existe', p->>'frente'; end if;
+  end if;
+  if (p->>'id') is not null then
+    update omc_kit set vigente = coalesce((p->>'vigente')::boolean, vigente), url = coalesce(p->>'url', url), texto = coalesce(p->>'texto', texto), actualizado_por = v_actor, fecha = now()
+    where id = (p->>'id')::bigint and empresa = t.empresa returning * into r;
+    return to_jsonb(r);
+  end if;
+  update omc_kit set vigente = false where empresa = t.empresa and vigente and nombre = p->>'nombre' and linea_id is not distinct from v_linea;
+  insert into omc_kit (empresa, linea_id, tipo, nombre, url, texto, version, vigente, actualizado_por)
+  values (t.empresa, v_linea, p->>'tipo', p->>'nombre', p->>'url', p->>'texto', coalesce(p->>'version','1'), true, v_actor) returning * into r;
+  return to_jsonb(r);
+end $$;
+
+create or replace function omc_kit_lista(p_token text, p_frente text default null) returns jsonb
+language sql security definer set search_path=public as $$
+  with e as (select empresa from omc_tok(p_token)), f as (select omc_frente_id((select empresa from e), p_frente) as id)
+  select coalesce(jsonb_agg(to_jsonb(k) || jsonb_build_object('codigo', l.codigo) order by k.linea_id nulls first, k.tipo, k.nombre), '[]'::jsonb)
+  from omc_kit k left join omc_plan_lineas l on l.id = k.linea_id
+  where k.empresa = (select empresa from e) and k.vigente and (p_frente is null or k.linea_id is null or k.linea_id = (select id from f));
+$$;
+grant execute on function omc_kit_set(text, jsonb), omc_kit_lista(text, text) to anon, authenticated;
+
 notify pgrst, 'reload schema';
