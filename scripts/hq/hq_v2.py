@@ -196,13 +196,25 @@ def ejecutar(a, c):
         elif a.sub == 'avatar':
             import pathlib
             import urllib.request
+            # HQ_AVATARES_URL (opcional en hq.env): base donde se sirven los SVG de public/hq/avatares/;
+            # por defecto el dominio de producción de 77delta, único sitio que hoy los sirve.
+            base = (E.get('HQ_AVATARES_URL') or 'https://77delta.com/hq/avatares/').rstrip('/')
             destino = pathlib.Path(__file__).resolve().parents[2] / 'public' / 'hq' / 'avatares' / f'{a.id}.svg'
-            destino.parent.mkdir(parents=True, exist_ok=True)
-            with urllib.request.urlopen(f'https://api.dicebear.com/9.x/icons/svg?seed={a.id}&backgroundColor=0b1f3a&radius=50', timeout=20) as u:
-                destino.write_bytes(u.read())
-            url = f'https://77delta.com/hq/avatares/{a.id}.svg'
-            rpc('omc_agente_avatar_set', p_token=tok_owner, p_agente=a.id, p_url=url)
-            print(f'{destino} · {url} (commitea el svg)')
+            url = f'{base}/{a.id}.svg'
+            if destino.exists():
+                # No se toca red ni disco si el SVG ya existe (revisión T12, ronda 1): un id repetido no
+                # debe pisar un avatar ya commiteado. Si al agente le falta avatar_url, se deja fijada.
+                print(f'{destino} ya existe, no se sobrescribe')
+                xs = [x for x in rpc('omc_agentes_lista', p_token=E['HQ_TOKEN']) if x['id'] == a.id]
+                if xs and not xs[0].get('avatar_url'):
+                    rpc('omc_agente_avatar_set', p_token=tok_owner, p_agente=a.id, p_url=url)
+                    print(f'avatar_url fijada a {url} (no tenía ninguna)')
+            else:
+                destino.parent.mkdir(parents=True, exist_ok=True)
+                with urllib.request.urlopen(f'https://api.dicebear.com/9.x/icons/svg?seed={a.id}&backgroundColor=0b1f3a&radius=50', timeout=20) as u:
+                    destino.write_bytes(u.read())
+                rpc('omc_agente_avatar_set', p_token=tok_owner, p_agente=a.id, p_url=url)
+                print(f'{destino} · {url} (commitea el svg)')
         elif a.sub == 'sesion-url':
             r = rpc('omc_agente_sesion_url', p_token=E['HQ_TOKEN'] if not a.cuenta else tok_owner, p_agente=a.id, p_url=a.url, p_cuenta=a.cuenta)
             salida(r, f"{r['id']}: sesion_url actualizada ({r.get('cuenta') or '-'})")

@@ -1,6 +1,11 @@
+import subprocess
+import sys
 import unittest
+from pathlib import Path
 from . import pg
 from .pg import rpc
+
+HQ = str(Path(__file__).resolve().parents[1] / 'hq.py')
 
 
 class TestAgentes(unittest.TestCase):
@@ -30,7 +35,7 @@ class TestAgentes(unittest.TestCase):
         r2 = rpc(self.t['owner'], 'omc_agente_sesion_url', p_agente='otro', p_url='https://claude.ai/code/session_y', p_cuenta='diego')
         self.assertEqual(r2['id'], 'otro')
         with self.assertRaisesRegex(RuntimeError, 'sesion_url debe ser una URL de claude.ai'):
-            rpc(self.t['owner'], 'omc_agente_sesion_url', p_agente='otro', p_url='https://evil.example/x')
+            rpc(self.t['owner'], 'omc_agente_sesion_url', p_agente='otro', p_url='https://example.test/no-es-claude')
         with self.assertRaisesRegex(RuntimeError, 'agente fantasma no existe'):
             rpc(self.t['owner'], 'omc_agente_sesion_url', p_agente='fantasma', p_url='https://claude.ai/code/session_z')
 
@@ -49,3 +54,23 @@ class TestAgentes(unittest.TestCase):
         self.assertEqual(r['avatar_url'], 'https://77delta.com/hq/avatares/probador.svg')
         with self.assertRaisesRegex(RuntimeError, 'solo owner'):
             rpc(self.t['agente'], 'omc_agente_avatar_set', p_agente='probador', p_url='https://77delta.com/hq/avatares/otro.svg')
+
+    def test_avatar_no_sobrescribe_si_ya_existe(self):
+        # Revision T12 ronda 1 (BLOCKING): 'agente avatar' no debe tocar red ni disco si el SVG ya
+        # existe. Se deja un SVG previo con contenido y mtime conocidos, se llama al CLI (que es quien
+        # de verdad decide si descarga o no) y se comprueba que ni el contenido ni el mtime cambian:
+        # si hubiera hecho la descarga real de DiceBear, el contenido no coincidiria con el previo.
+        destino = Path(__file__).resolve().parents[3] / 'public' / 'hq' / 'avatares' / 'probador.svg'
+        destino.parent.mkdir(parents=True, exist_ok=True)
+        previo = '<svg>t12-no-tocar</svg>'
+        destino.write_text(previo)
+        mtime_previo = destino.stat().st_mtime
+        try:
+            p = subprocess.run([sys.executable, HQ, 'agente', 'avatar', 'probador'],
+                                env=pg.entorno_cli('owner'), capture_output=True, text=True, timeout=30)
+            self.assertEqual(p.returncode, 0, p.stderr)
+            self.assertIn('ya existe, no se sobrescribe', p.stdout)
+            self.assertEqual(destino.read_text(), previo)
+            self.assertEqual(destino.stat().st_mtime, mtime_previo)
+        finally:
+            destino.unlink(missing_ok=True)
