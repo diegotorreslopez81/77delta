@@ -905,3 +905,78 @@ end $$;
 grant execute on function omc_encargos_lista(text) to anon, authenticated;
 
 notify pgrst, 'reload schema';
+
+-- T16 · omc_hq_v2: lectura unica para la interfaz nueva (cascada objetivo -> bloque -> frente -> encargo).
+-- Reutiliza omc_hq(p_token) para 'pendientes' y 'licitaciones' (no se duplica esa consulta), pero omc_hq
+-- y omc_hq_uso son "solo owner" (schema.sql 337 y 778): para un token de agente se saltan esas llamadas y
+-- se devuelve '[]'/'{}' en esas claves, en vez de dejar que la excepcion tumbe todo omc_hq_v2.
+-- Columnas verificadas en schema.sql antes de escribir esto (el brief traia nombres que no existen):
+-- omc_plan_objetivo es (empresa, horizonte, titulo, meta, unidad, fecha_limite), no (meta_eur, kpi, texto).
+-- omc_licitaciones no tiene fecha_presentada ni fecha_limite: la fecha de cierre es 'cierre' y la decision
+-- de Diego es 'OK'/'No'/'Pendiente' (omc_licitacion_decidir, schema.sql 1063), no 'presentar'.
+create or replace function omc_columna_kanban(p_estado text, p_prioridad int, p_fecha_hito date) returns text
+language sql immutable as $$
+  select case p_estado
+    when 'en_curso' then 'en_curso' when 'bloqueado_diego' then 'bloqueado'
+    when 'hecho' then 'hecho' when 'descartado' then 'hecho'
+    else case when p_fecha_hito is null or coalesce(p_prioridad, 0) >= 8 then 'backlog' else 'por_hacer' end end; -- prioridad es int (0 alta ... 9 baja) en omc_encargos
+$$;
+
+create or replace function omc_hq_v2(p_token text) returns jsonb
+language plpgsql security definer set search_path=public as $$
+declare t record; base jsonb; ahora timestamptz := now(); es_owner boolean;
+begin
+  select * into t from omc_tok(p_token); es_owner := t.rol = 'owner';
+  if es_owner then base := omc_hq(p_token); else base := '{}'::jsonb; end if;
+  return jsonb_build_object(
+    'version', omc_v2_version(), 'ahora', ahora, 'rol', t.rol,
+    'objetivos', (select coalesce(jsonb_agg(jsonb_build_object('horizonte', o.horizonte, 'titulo', o.titulo, 'meta', o.meta, 'unidad', o.unidad, 'fecha_limite', o.fecha_limite,
+        'contratado_eur', (select coalesce(sum(i.importe),0) from omc_ingresos i where i.empresa = t.empresa and i.estado in ('contratado','facturado','cobrado') and extract(year from i.fecha) = o.horizonte),
+        'presentado_eur', (select coalesce(sum(l.importe),0) from omc_licitaciones l where l.empresa = t.empresa and l.decision = 'OK' and extract(year from coalesce(l.fecha_decision, l.cierre)) = o.horizonte)) order by o.horizonte), '[]'::jsonb)
+      from omc_plan_objetivo o where o.empresa = t.empresa),
+    'bloques', (select coalesce(jsonb_agg(jsonb_build_object('id', b.id, 'letra', b.letra, 'nombre', b.nombre, 'meta_eur', b.meta_eur, 'director', b.director, 'orden', b.orden,
+        'frentes_n', (select count(*) from omc_plan_lineas l where l.bloque_id = b.id and l.activa),
+        'encargos_abiertos', (select count(*) from omc_encargos e join omc_plan_lineas l on l.id = e.linea_id where l.bloque_id = b.id and e.estado in ('encolado','en_curso','bloqueado_diego')),
+        'contratado_eur', 0) order by b.orden), '[]'::jsonb) -- sin vinculo omc_ingresos-bloque en el esquema actual (omc_ingresos no tiene linea_id ni bloque_id): siempre 0 hasta que exista esa columna
+      from omc_plan_bloques b where b.empresa = t.empresa and b.activo),
+    'frentes', omc_frentes_lista(p_token),
+    'encargos', (select coalesce(jsonb_agg(jsonb_build_object('id', e.id, 'codigo', l.codigo, 'bloque_letra', b.letra, 'texto', e.texto, 'interpretacion', e.interpretacion, 'estado', e.estado,
+        'columna', omc_columna_kanban(e.estado, e.prioridad, e.fecha_hito), 'prioridad', e.prioridad, 'agente', e.agente, 'responsable', e.agente, 'departamento', e.departamento,
+        'fecha_hito', e.fecha_hito, 'proximo_hito', e.proximo_hito, 'ultimo_avance', e.ultimo_avance, 'fecha_avance', e.fecha_avance,
+        'rojo', (e.estado = 'en_curso' and coalesce(e.fecha_avance, e.fecha) < ahora - interval '48 hours'),
+        'etiquetas', e.etiquetas, 'enlaces', e.enlaces, 'orden_kanban', e.orden_kanban, 'origen', e.origen, 'expediente_id', e.expediente_id,
+        'fuente_cierre', e.fuente_cierre, 'entregable_url', e.entregable_url, 'motivo_descarte', e.motivo_descarte, 'fecha', e.fecha,
+        'avances_n', (select count(*) from omc_encargo_avances a where a.encargo_id = e.id)) order by e.orden_kanban nulls last, e.fecha_hito nulls last, e.id), '[]'::jsonb)
+      from omc_encargos e left join omc_plan_lineas l on l.id = e.linea_id left join omc_plan_bloques b on b.id = l.bloque_id
+      where e.empresa = t.empresa and (e.estado in ('encolado','en_curso','bloqueado_diego') or coalesce(e.fecha_avance, e.fecha) > ahora - interval '14 days')),
+    'avances', omc_feed(p_token, ahora - interval '3 days'), -- T16 Step 4: recortado de 7 a 3 dias, medido en produccion (3,84 MB con 7 dias, ver informe)
+    'kit', omc_kit_lista(p_token),
+    'contactos', (select coalesce(jsonb_agg(c), '[]'::jsonb) from jsonb_array_elements(omc_contactos_lista(p_token, '{}'::jsonb)) c
+        where (c->>'fecha')::timestamptz >= ahora - interval '14 days' or ((c->>'estado') = 'enviado' and (c->>'proximo_toque')::date <= current_date)), -- T16 Step 4: 14 dias + pendientes reales de toque, ya no historial completo
+    'expedientes', omc_expedientes_lista(p_token, '{}'::jsonb),
+    'sesiones', (select coalesce(jsonb_agg(jsonb_build_object('id', s.id, 'expediente_id', s.expediente_id, 'nombre', x.nombre, 'agente', s.agente, 'estado', s.estado, 'abierta', s.abierta, 'created_at', s.created_at) order by s.created_at desc), '[]'::jsonb)
+      from omc_sesiones s join omc_expedientes x on x.id = s.expediente_id where s.empresa = t.empresa and s.estado in ('abierta','solicitada')),
+    'agentes', (select coalesce(jsonb_agg(case when es_owner or a->>'id' = t.nombre then a else a - 'sesion_url' end), '[]'::jsonb) from jsonb_array_elements(omc_agentes_lista(p_token)) a),
+    'pendientes', case when es_owner then coalesce(base->'pendientes', '[]'::jsonb) else '[]'::jsonb end,
+    -- T16 Step 4: 'licitaciones' es, con mucho, la clave mas pesada (3,36 MB de 3,84 MB medidos en
+    -- produccion con 1641 filas, el 90% en decision='Pendiente': no es estacional, es el pipeline de
+    -- ventas completo y no se puede recortar por fecha sin ocultar pendientes reales). Se recorta a los
+    -- campos que necesita la vista de plan 2 (cae a ~1,8 MB); el listado completo con los campos largos
+    -- (resumen, comentarios, pcap, ppt, motivo_auto, solvencia) sigue disponible via omc_licitaciones_lista
+    -- u omc_hq para quien lo necesite. Bajar de 1,5 MB exige paginar o limitar filas: decision de plan 2,
+    -- no de esta RPC (ver informe de la tarea 16 y el contrato).
+    'licitaciones', case when es_owner then (
+        select coalesce(jsonb_agg(jsonb_build_object(
+          'expediente', x->>'expediente', 'organo', x->>'organo', 'provincia', x->>'provincia', 'objeto', x->>'objeto',
+          'resumen_corto', x->>'resumen_corto', 'importe', (x->>'importe')::numeric, 'tipo', x->>'tipo', 'procedimiento', x->>'procedimiento',
+          'elegible', x->>'elegible', 'cierre', (x->>'cierre')::date, 'detectada', (x->>'detectada')::date, 'enlace', x->>'enlace',
+          'estado', x->>'estado', 'decision', x->>'decision', 'fecha_decision', (x->>'fecha_decision')::date, 'progreso', (x->>'progreso')::numeric
+        )), '[]'::jsonb)
+        from jsonb_array_elements(coalesce(base->'licitaciones', '[]'::jsonb)) x
+      ) else '[]'::jsonb end,
+    'uso', case when es_owner and exists (select 1 from pg_proc where proname = 'omc_hq_uso') then omc_hq_uso(p_token) else '{}'::jsonb end
+  );
+end $$;
+grant execute on function omc_columna_kanban(text, int, date), omc_hq_v2(text) to anon, authenticated;
+
+notify pgrst, 'reload schema';

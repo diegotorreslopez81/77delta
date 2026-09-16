@@ -1,0 +1,254 @@
+# Contrato de datos: `omc_hq_v2(p_token)`
+
+Tarea 16 del plan `2026-09-16-hq-v2-plan-1-base`. Lectura única para la interfaz nueva (plan 2): una llamada
+RPC devuelve toda la cascada objetivo -> bloque -> frente -> encargo, más los datos auxiliares (kit, contactos,
+expedientes, sesiones, agentes, pendientes, licitaciones, uso). Quien construya la UI puede trabajar entero
+desde este documento, sin leer `scripts/hq/schema-v2.sql`.
+
+Definida en `scripts/hq/schema-v2.sql` (sección "T16"), junto con la función auxiliar `omc_columna_kanban`.
+
+## Cómo se llama
+
+```
+POST /rest/v1/rpc/omc_hq_v2
+{ "p_token": "<token del owner o de un agente>" }
+```
+
+Devuelve un único objeto JSON. No hay paginación ni filtros: siempre trae todo lo que le corresponde ver a
+ese token.
+
+## Owner vs agente
+
+- **`pendientes`**, **`licitaciones`** y **`uso`**: solo owner. Con token de agente llegan `[]`, `[]` y `{}`
+  (la función interna `omc_hq(p_token)` y `omc_hq_uso(p_token)` son "solo owner" y lanzarían excepción si se
+  llamaran con un token de agente; `omc_hq_v2` las evita en ese caso en vez de fallar entera).
+- **`agentes[].sesion_url`** y **`sesion_url_fecha`**: un agente solo ve su propia `sesion_url` (comparando por
+  `nombre` del token contra el `id` del agente); las de los demás agentes llegan sin esa clave. El owner ve
+  todas.
+- El resto de claves (`objetivos`, `bloques`, `frentes`, `encargos`, `avances`, `kit`, `contactos`,
+  `expedientes`, `sesiones`) son iguales para owner y agente.
+
+## Claves de la respuesta
+
+### `version` (string) y `rol` (string) y `ahora` (timestamptz)
+`version` = `omc_v2_version()` (ej. `"2.0.3"`). `rol` = `'owner'` o `'agente'`, el del token usado. `ahora` es
+el instante del servidor en el momento de la llamada (úsalo para calcular "hace cuánto" en el cliente en vez
+de `Date.now()` del navegador).
+
+### `objetivos[]` (de `omc_plan_objetivo`, uno por horizonte/año)
+
+| Campo | Tipo | Origen | Notas |
+|---|---|---|---|
+| `horizonte` | int | `omc_plan_objetivo.horizonte` | año objetivo, ej. `2026` |
+| `titulo` | text | `omc_plan_objetivo.titulo` | ej. "Contratado a 31 de diciembre" |
+| `meta` | numeric | `omc_plan_objetivo.meta` | la meta, en la unidad de `unidad` |
+| `unidad` | text | `omc_plan_objetivo.unidad` | normalmente `'EUR'` |
+| `fecha_limite` | date o null | `omc_plan_objetivo.fecha_limite` | |
+| `contratado_eur` | numeric | calculado | suma de `omc_ingresos.importe` con `estado` en `('contratado','facturado','cobrado')` y `extract(year from fecha) = horizonte` |
+| `presentado_eur` | numeric | calculado | suma de `omc_licitaciones.importe` con `decision = 'OK'` y año de `coalesce(fecha_decision, cierre)` = `horizonte` |
+
+Nota: el brief original de la tarea nombraba estas columnas `meta_eur`, `kpi` y `texto`; no existen en el
+esquema real (es `meta`, `unidad`, `titulo`). Se usan los nombres reales.
+
+### `bloques[]` (de `omc_plan_bloques`, T3)
+
+| Campo | Tipo | Origen | Notas |
+|---|---|---|---|
+| `id` | bigint | `omc_plan_bloques.id` | |
+| `letra` | text | `omc_plan_bloques.letra` | ej. `'A'` |
+| `nombre` | text | `omc_plan_bloques.nombre` | |
+| `meta_eur` | numeric | `omc_plan_bloques.meta_eur` | |
+| `director` | text o null | `omc_plan_bloques.director` | |
+| `orden` | int | `omc_plan_bloques.orden` | |
+| `frentes_n` | int | calculado | nº de `omc_plan_lineas` activas con `bloque_id` = este bloque |
+| `encargos_abiertos` | int | calculado | nº de `omc_encargos` en `('encolado','en_curso','bloqueado_diego')` cuyo frente cuelga de este bloque |
+| `contratado_eur` | numeric | **siempre `0`** | **limitación conocida**: `omc_ingresos` no tiene `linea_id` ni `bloque_id`, no hay forma de atribuir un ingreso a un bloque con el esquema actual. La clave existe para que la UI no rompa, pero no lleva dato real hasta que se añada esa columna. El `contratado_eur` real por año está en `objetivos[]`. |
+
+Solo bloques con `activo = true`.
+
+### `frentes[]`
+Es literalmente `omc_frentes_lista(p_token)` (T3), sin cambios: `id`, `codigo`, `linea`, `kpi`, `valor_actual`,
+`meta`, `unidad`, `responsable`, `proximo_hito`, `fecha_hito`, `etiquetas`, `orden`, más lo que esa función
+ya agregue (bloque, semáforo, progreso: ver su definición en `schema-v2.sql`).
+
+### `encargos[]`
+
+Incluye los vivos (`encolado`, `en_curso`, `bloqueado_diego`) más los `hecho`/`descartado` de los últimos 14
+días (por `fecha_avance`, o `fecha` si no hay avance).
+
+| Campo | Tipo | Origen | Notas |
+|---|---|---|---|
+| `id` | bigint | `omc_encargos.id` | |
+| `codigo` | text o null | `omc_plan_lineas.codigo` (join por `linea_id`) | código del frente, ej. `'A1'` |
+| `bloque_letra` | text o null | `omc_plan_bloques.letra` (join por `bloque_id` del frente) | |
+| `texto` | text | `omc_encargos.texto` | |
+| `interpretacion` | text | `omc_encargos.interpretacion` | |
+| `estado` | text | `omc_encargos.estado` | `encolado`\|`en_curso`\|`bloqueado_diego`\|`hecho`\|`descartado` |
+| `columna` | text | calculado, `omc_columna_kanban` | ver mapeo Kanban abajo. **Única fuente de verdad: la UI no lo recalcula.** |
+| `prioridad` | int | `omc_encargos.prioridad` | 0 = alta ... valores altos = baja (convención, no hay tope duro) |
+| `agente` / `responsable` | text | `omc_encargos.agente` | mismo valor en ambas claves (compatibilidad con nombres usados en distintos sitios de la UI) |
+| `departamento` | text | `omc_encargos.departamento` | |
+| `fecha_hito` | date o null | `omc_encargos.fecha_hito` | |
+| `proximo_hito` | text | `omc_encargos.proximo_hito` | |
+| `ultimo_avance` | text | `omc_encargos.ultimo_avance` | |
+| `fecha_avance` | timestamptz o null | `omc_encargos.fecha_avance` | |
+| `rojo` | bool | calculado | `true` solo si `estado = 'en_curso'` y `coalesce(fecha_avance, fecha) < ahora - 48h` |
+| `etiquetas` | text[] | `omc_encargos.etiquetas` | |
+| `enlaces` | jsonb | `omc_encargos.enlaces` | |
+| `orden_kanban` | int | `omc_encargos.orden_kanban` | posición manual dentro de su columna |
+| `origen` | text o null | `omc_encargos.origen` | |
+| `expediente_id` | bigint o null | `omc_encargos.expediente_id` | |
+| `fuente_cierre` | text o null | `omc_encargos.fuente_cierre` | |
+| `entregable_url` | text o null | `omc_encargos.entregable_url` | |
+| `motivo_descarte` | text o null | `omc_encargos.motivo_descarte` | solo relevante si `estado = 'descartado'` |
+| `fecha` | timestamptz | `omc_encargos.fecha` | fecha de alta |
+| `avances_n` | int | calculado | nº de filas en `omc_encargo_avances` para este encargo |
+
+#### Mapeo Kanban (única definición: `omc_columna_kanban(estado, prioridad, fecha_hito)`)
+
+| `estado` | condición extra | `columna` |
+|---|---|---|
+| `en_curso` | - | `en_curso` |
+| `bloqueado_diego` | - | `bloqueado` |
+| `hecho` | - | `hecho` |
+| `descartado` | - | `hecho` |
+| `encolado` | `fecha_hito is null` o `prioridad >= 8` | `backlog` |
+| `encolado` | `fecha_hito` fijada y `prioridad < 8` | `por_hacer` |
+
+### `avances[]`
+= `omc_feed(p_token, ahora - 3 días)`. Cada item: `id`, `encargo_id`, `texto_encargo` (primeros 80 caracteres),
+`codigo` (frente), `agente`, `autor`, `tipo`, `texto`, `fecha`. Ventana recortada de 7 a 3 días en esta tarea
+por tamaño de respuesta (ver "Tamaño de la respuesta" más abajo).
+
+### `kit[]`
+= `omc_kit_lista(p_token)`: solo kit vigente (`vigente = true`), con `codigo` del frente si tiene `linea_id`.
+
+### `contactos[]`
+Basado en `omc_contactos_lista(p_token, {})`, filtrado a: `fecha` en los últimos 14 días, **o** pendiente de
+toque real (`estado = 'enviado'` y `proximo_toque <= hoy`). Recortado en esta tarea (antes devolvía el
+historial completo sin límite) para acotar tamaño; incluye `codigo` y `texto_encargo` que añade esa función.
+
+### `expedientes[]`
+= `omc_expedientes_lista(p_token, {})`, sin filtro adicional (todos los `activo = true`).
+
+### `sesiones[]`
+Sesiones en `('abierta', 'solicitada')`: `id`, `expediente_id`, `nombre` (del expediente), `agente`, `estado`,
+`abierta` (timestamptz o null), `created_at`.
+
+### `agentes[]`
+= `omc_agentes_lista(p_token)`, con `sesion_url`/`sesion_url_fecha` ocultas a un agente si no son las suyas
+(ver "Owner vs agente" arriba).
+
+### `pendientes[]`
+Solo owner (agente: `[]`). = `omc_hq(p_token).pendientes`: solicitudes de `omc_solicitudes` pendientes para
+Diego. Fecha límite en la clave `vence`, no `fecha_limite`.
+
+### `licitaciones[]`
+Solo owner (agente: `[]`). Basado en `omc_hq(p_token).licitaciones`, recortado a estos campos (se quitan los
+de texto largo: `resumen`, `comentarios`, `motivo_auto`, `solvencia`, `pcap`, `ppt`, `carpeta`,
+`motivo_texto`, `progreso_nota`, `decidido_por`, `motivos`, `sincronizado`, `pestana`):
+
+| Campo | Tipo | Notas |
+|---|---|---|
+| `expediente` | text | identificador (PK junto a empresa) |
+| `organo` | text | |
+| `provincia` | text | |
+| `objeto` | text | título largo original |
+| `resumen_corto` | text | **título a mostrar en tarjeta/lista** (preferir sobre `objeto` si no está vacío) |
+| `importe` | numeric o null | |
+| `tipo` | text | |
+| `procedimiento` | text | |
+| `elegible` | text | |
+| `cierre` | date o null | **fecha límite de la licitación** (no hay `fecha_limite`) |
+| `detectada` | date o null | fecha en que el motor la detectó |
+| `enlace` | text | |
+| `estado` | text | estado del expediente en el proceso (texto libre del motor) |
+| `decision` | text | `'OK'` \| `'No'` \| `'Pendiente'` (no `'presentar'`) |
+| `fecha_decision` | date o null | |
+| `progreso` | numeric o null | |
+
+Si la UI necesita los campos de texto largo (resumen completo, comentarios, pliegos) para la ficha de detalle
+de una licitación concreta, pedirlos aparte con `omc_licitaciones_lista(p_token, boolean)` o el hilo de
+`omc_lic_comentar`/`omc_lic_hilo`, no están en `omc_hq_v2`.
+
+### `uso`
+Solo owner (agente: `{}`). = `omc_hq_uso(p_token)` si la función existe (comprobado con
+`exists (select 1 from pg_proc where proname = 'omc_hq_uso')`, no `to_regproc`, porque una sobrecarga futura
+haría fallar `to_regproc`). Estructura: ver `omc_hq_uso` en `schema.sql` (mes, mes_anterior, por_agente,
+por_sesion, por_agente_modelo, dias, plan, plan_serie).
+
+## Tamaño de la respuesta (medido en producción, empresa `77delta`, owner)
+
+| Momento | Bytes totales |
+|---|---|
+| Antes de recortar (T16 sin Step 4) | 3 840 539 (~3,84 MB) |
+| Después de recortar `licitaciones`, `avances` (3 días) y `contactos` (14 días + pendientes) | 2 404 741 (~2,40 MB) |
+
+Desglose tras el recorte (bytes de `json.dumps` de cada clave, empresa `77delta`, 1641 licitaciones, 258
+encargos, 225 avances, 78 contactos):
+
+| Clave | Bytes | Items |
+|---|---:|---:|
+| `licitaciones` | 1 867 731 | 1641 |
+| `encargos` | 352 252 | 258 |
+| `uso` | 137 234 | - |
+| `avances` | 75 366 | 225 |
+| `contactos` | 50 938 | 78 |
+| `agentes` | 13 759 | 40 |
+| resto | < 20 000 | - |
+
+**Sigue por encima del objetivo de 1,5 MB del brief**, y la causa no es estacional: el 90% de las 1641
+licitaciones está en `decision = 'Pendiente'` (1476 de 1641), así que ningún recorte por fecha las reduce sin
+ocultar pendientes reales del pipeline de ventas. Ya se recortaron los campos largos de cada fila (ver
+arriba), lo que bajó `licitaciones` de 3,36 MB a 1,87 MB. Bajar de ahí exige una decisión de producto que no
+toca a esta RPC de lectura: paginar `licitaciones` en una llamada aparte (ya existe
+`omc_licitaciones_lista(p_token, boolean)` para eso), o limitar filas (por ejemplo top-N por `cierre`) y que
+la vista completa del pipeline de ventas se pida por separado. Queda para quien diseñe la pantalla de
+licitaciones en plan 2.
+
+## RPC de escritura que usará la interfaz (firmas)
+
+Todas `security definer`, primer argumento siempre `p_token text`.
+
+Firmas verificadas literalmente contra `scripts/hq/schema.sql` y `scripts/hq/schema-v2.sql` (no copiadas del
+brief, que traía varias equivocadas: sin `p_tipo` en `omc_encargo_avance`, otro orden de argumentos en
+`omc_encargo_hecho`/`omc_encargo_estado`, otros nombres de parámetro en `omc_resolver`/`omc_comentar`).
+
+| Función | Firma | Para qué |
+|---|---|---|
+| `omc_encargo_alta` | `(p_token text, p jsonb)` | crear un encargo (`texto`, `frente`, `responsable`, `prioridad`, `fecha_hito`, `etiquetas`, `enlaces`, `origen`...) |
+| `omc_encargo_editar` | `(p_token text, p_id bigint, p jsonb)` | editar campos de un encargo existente |
+| `omc_encargo_tomar` | `(p_token text, p_id bigint, p_agente text default null)` | pasar un encargo de `encolado`/`bloqueado_diego` a `en_curso` |
+| `omc_encargo_hecho` | `(p_token text, p_id bigint, p_fuente text, p_entregable text default '', p_agente text default null)` | cerrar un encargo como `hecho` (`p_fuente` = `fuente_cierre`, `p_entregable` = `entregable_url`) |
+| `omc_encargo_estado` | `(p_token text, p_id bigint, p_estado text, p_agente text default null, p_motivo text default '')` | cambio de estado explícito (ej. `bloqueado_diego`, `descartado` con `p_motivo`) |
+| `omc_encargo_avance` | `(p_token text, p_id bigint, p_texto text, p_agente text default null)` | anotar un avance de texto libre (aparece en `avances[]` vía `omc_feed`); no tiene parámetro de tipo, siempre inserta tipo `'avance'` |
+| `omc_comentar` | `(p_token text, p_id bigint, p_texto text, p_agente text default null)` | comentario en el hilo de una solicitud |
+| `omc_resolver` | `(p_token text, p_id bigint, p_estado text, p_respuesta text default '')` | resolver una solicitud/pendiente |
+| `omc_licitacion_decidir` | `(p_token text, p_expediente text, p_decision text, p_motivos jsonb default '[]', p_texto text default '')` | decidir una licitación; `p_decision` en `('OK','No','Pendiente')`, nunca `'presentar'` |
+| `omc_sesion_solicitar` | `(p_token text, p_expediente bigint)` | pedir abrir una sesión de agente sobre un expediente |
+| `omc_expediente_set` | `(p_token text, p jsonb)` | crear/editar un expediente |
+| `omc_kit_set` | `(p_token text, p jsonb)` | crear/editar/retirar una pieza de kit |
+| `omc_contacto_alta` | `(p_token text, p jsonb)` | registrar un contacto/envío |
+| `omc_contacto_estado` | `(p_token text, p_id bigint, p_estado text, p_ref text default null, p_proximo date default null)` | actualizar estado de un contacto (`p_proximo` = próximo toque) |
+| `omc_agente_set` | `(p_token text, p_id text, p_patch jsonb)` | crear/editar un agente |
+| `omc_guardar_push` | `(p_token text, p_sub jsonb)` | registrar suscripción push |
+
+## Realtime
+
+**Corrección sobre el brief de la tarea 16**: el brief pedía documentar "el canal realtime `omc:<empresa>`
+evento `cambio`", pero ese canal no existe en el esquema: no hay ningún `pg_notify` ni broadcast de Supabase
+con ese nombre en `schema.sql` ni `schema-v2.sql`. La tarea 14 (T14, comentario en `schema-v2.sql` ~línea
+868) ya dejó anotado que la interfaz v1 se refresca con el realtime de tabla nativo de Supabase
+(`postgres_changes`) sobre `omc_solicitudes`/`omc_mensajes`, sin `pg_notify` a mano, y que ninguna RPC de
+este fichero lo usa.
+
+Para plan 2, dos caminos, ninguno construido en esta tarea:
+1. Igual que v1: suscribirse con `postgres_changes` a las tablas relevantes (`omc_encargos`,
+   `omc_encargo_avances`, `omc_solicitudes`, `omc_licitaciones`...) y, al recibir un cambio, volver a pedir
+   `omc_hq_v2` para refrescar la vista completa.
+2. Si se quiere un canal único `omc:<empresa>` con evento `cambio` como pide el brief, hay que crearlo:
+   trigger(s) que hagan `pg_notify` o `realtime.broadcast_changes` en las tablas que cambian, tarea aparte
+   no cubierta por T16.
+
+Mientras no exista ninguno de los dos, la única forma fiable de refrescar es re-llamar a `omc_hq_v2` por
+polling o tras cada acción de escritura propia.
