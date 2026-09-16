@@ -151,4 +151,159 @@ language sql security definer set search_path=public as $$
 $$;
 grant execute on function omc_bloque_set(text, jsonb), omc_frente_set(text, jsonb), omc_bloques_lista(text), omc_frentes_lista(text, text) to anon, authenticated;
 
+-- T4 · encargos v2: columnas, avances append-only y alta con frente obligatorio
+alter table omc_encargos add column if not exists etiquetas text[] default '{}';
+alter table omc_encargos add column if not exists enlaces jsonb default '[]'::jsonb;
+alter table omc_encargos add column if not exists fuente_cierre text;
+alter table omc_encargos add column if not exists entregable_url text;
+alter table omc_encargos add column if not exists orden_kanban int default 0;
+alter table omc_encargos add column if not exists origen text;
+alter table omc_encargos add column if not exists expediente_id bigint;
+alter table omc_encargos add column if not exists motivo_descarte text;
+
+create table if not exists omc_encargo_avances (
+  id bigserial primary key, empresa text not null references omc_empresas(id), encargo_id bigint not null references omc_encargos(id) on delete cascade,
+  autor text not null, tipo text not null check (tipo in ('alta','avance','comentario_diego','estado','cierre','sistema')), texto text not null,
+  fecha timestamptz default now());
+create index if not exists omc_encargo_avances_enc on omc_encargo_avances (encargo_id, fecha desc);
+create index if not exists omc_encargo_avances_emp on omc_encargo_avances (empresa, fecha desc);
+alter table omc_encargo_avances enable row level security;
+create or replace function omc_avances_inmutables() returns trigger language plpgsql as $$
+begin raise exception 'omc_encargo_avances es append-only'; end $$;
+drop trigger if exists omc_avances_inmutables on omc_encargo_avances;
+create trigger omc_avances_inmutables before update or delete on omc_encargo_avances for each row execute function omc_avances_inmutables();
+
+-- Inserta la fila de historial y refresca la cache ultimo_avance/fecha_avance en omc_encargos. Interno:
+-- se llama solo desde funciones security definer (omc_encargo_alta, omc_encargo_avance).
+create or replace function omc_avance_insertar(p_empresa text, p_encargo bigint, p_autor text, p_tipo text, p_texto text) returns void
+language sql as $$
+  insert into omc_encargo_avances (empresa, encargo_id, autor, tipo, texto) values (p_empresa, p_encargo, coalesce(p_autor,'sistema'), p_tipo, p_texto);
+  update omc_encargos set ultimo_avance = case when p_tipo in ('avance','cierre') then p_texto else ultimo_avance end,
+    fecha_avance = case when p_tipo in ('avance','cierre') then now() else fecha_avance end, updated_at = now() where id = p_encargo;
+$$;
+revoke execute on function omc_avance_insertar(text, bigint, text, text, text) from public, anon, authenticated;
+
+-- Regla de autorizacion compartida por avance/estado/hecho/tomar: owner, chief o sistema, quien lo creo,
+-- o el responsable del encargo (por id, por nombre o por sesion tmux, via omc_agente_valido) - ademas del
+-- fallback historico de v1 por substring/sesion para no romper encargos que ya llevan meses en produccion
+-- con el campo agente como nombre libre en vez de id canonico. Interno: solo desde security definer.
+create or replace function omc_encargo_puede(t omc_tokens, e omc_encargos, v_agente text) returns boolean
+language sql stable as $$
+  select t.rol = 'owner'
+    or lower(v_agente) in ('chief', 'sistema')
+    or lower(v_agente) = lower(coalesce(e.creado_por, ''))
+    or position(lower(v_agente) in lower(coalesce(e.agente, ''))) > 0
+    or (omc_agente_valido(t.empresa, v_agente) is not null
+        and omc_agente_valido(t.empresa, v_agente) = omc_agente_valido(t.empresa, e.agente))
+    or exists (
+      select 1 from omc_agentes a, unnest(a.sesiones) s
+      where a.empresa = t.empresa and a.id = v_agente
+        and position(lower(split_part(s, '-', 1)) in lower(coalesce(e.agente, ''))) > 0
+    );
+$$;
+revoke execute on function omc_encargo_puede(omc_tokens, omc_encargos, text) from public, anon, authenticated;
+
+create or replace function omc_encargo_alta(p_token text, p jsonb) returns jsonb
+language plpgsql security definer set search_path=public as $$
+declare t record; v_linea bigint; v_resp text; v_actor text; r omc_encargos;
+begin
+  select * into t from omc_tok(p_token);
+  if coalesce(p->>'texto','') = '' then raise exception 'falta texto'; end if;
+  if coalesce(p->>'frente','') = '' then raise exception 'falta frente: pasa --frente A3 (hq.py frentes)'; end if;
+  v_linea := omc_frente_id(t.empresa, p->>'frente');
+  if v_linea is null then raise exception 'frente % no existe o no está activo (hq.py frentes)', p->>'frente'; end if;
+  v_actor := case when t.rol = 'owner' then 'diego' else coalesce(p->>'agente', 'agente') end;
+  if coalesce(p->>'responsable','') <> '' then
+    v_resp := omc_agente_valido(t.empresa, p->>'responsable');
+    if v_resp is null then raise exception 'responsable % no es un agente activo (hq.py agente lista)', p->>'responsable'; end if;
+  end if;
+  insert into omc_encargos (empresa, fecha, texto, interpretacion, linea_id, departamento, agente, estado, prioridad, solicitud_id, proximo_hito, fecha_hito,
+                            creado_por, etiquetas, enlaces, origen, expediente_id, mensaje_id)
+  values (t.empresa, now(), p->>'texto', coalesce(p->>'interpretacion', ''), v_linea,
+          (select coalesce(b.nombre, 'sin bloque') from omc_plan_lineas l left join omc_plan_bloques b on b.id = l.bloque_id where l.id = v_linea),
+          coalesce(v_resp, ''), 'encolado', coalesce((p->>'prioridad')::int, 50), (p->>'solicitud_id')::bigint, coalesce(p->>'proximo_hito', ''), (p->>'fecha_hito')::date,
+          v_actor, coalesce(array(select jsonb_array_elements_text(p->'etiquetas')), '{}'), coalesce(p->'enlaces', '[]'::jsonb),
+          coalesce(p->>'origen', initcap(v_actor) || ' ' || to_char(now(), 'DD-MM HH24:MI')), (p->>'expediente_id')::bigint, (p->>'mensaje_id')::bigint)
+  returning * into r;
+  perform omc_avance_insertar(t.empresa, r.id, v_actor, 'alta', left(r.texto, 200));
+  return to_jsonb(r) || jsonb_build_object('codigo', (select codigo from omc_plan_lineas where id = v_linea));
+end $$;
+
+-- omc_encargo_set: ruling del controlador (task-4, 2026-09-16) sobre el brief. El brief pedia que un
+-- alta sin id lanzara 'usa omc_encargo_alta (frente obligatorio)', pero hq.py de main (linea 845) todavia
+-- llama a omc_encargo_set sin id para 'hq.py encargo alta' y main no se actualiza hasta el merge tras la
+-- tarea 6. Mientras tanto: con 'frente' en p, delega en omc_encargo_alta; sin 'frente', mantiene el alta
+-- v1 (linea_id puede quedar null) marcando origen='legado'. El frente sera obligatorio de verdad en la
+-- tarea 7, con el check constraint tras migrar los encargos existentes.
+create or replace function omc_encargo_set(p_token text, p jsonb)
+returns jsonb language plpgsql security definer set search_path = public as $$
+declare t omc_tokens; e omc_encargos; v_id bigint; v_agente text; v_prioridad int; autorizado boolean;
+begin
+  t := omc_tok(p_token);
+  v_id := nullif(p->>'id','')::bigint;
+  v_agente := case when t.rol = 'owner' then 'diego' else coalesce(nullif(p->>'agente',''), 'agente') end;
+  if v_id is null then
+    if coalesce(p->>'frente','') <> '' then
+      return omc_encargo_alta(p_token, p);
+    end if;
+    if coalesce(p->>'texto','') = '' then raise exception 'falta texto'; end if;
+    v_prioridad := (p->>'prioridad')::int;
+    if v_prioridad is null then
+      select coalesce(max(prioridad), 0) + 1 into v_prioridad from omc_encargos
+        where empresa = t.empresa and coalesce(linea_id, -1) = coalesce(nullif(p->>'linea_id','')::bigint, -1);
+    end if;
+    insert into omc_encargos (empresa, texto, interpretacion, linea_id, departamento, agente, estado, prioridad,
+        solicitud_id, proximo_hito, fecha_hito, creado_por, espera, mensaje_id, origen)
+      values (t.empresa, p->>'texto', coalesce(p->>'interpretacion',''), nullif(p->>'linea_id','')::bigint, coalesce(p->>'departamento',''),
+              coalesce(p->>'agente_responsable', p->>'agente', ''), coalesce(nullif(p->>'estado',''), 'encolado'), v_prioridad,
+              nullif(p->>'solicitud_id','')::bigint, coalesce(p->>'proximo_hito',''), nullif(p->>'fecha_hito','')::date, v_agente,
+              coalesce(p->>'espera',''), nullif(p->>'mensaje_id','')::bigint, 'legado')
+      returning * into e;
+  else
+    select * into e from omc_encargos where empresa = t.empresa and id = v_id;
+    if not found then raise exception 'encargo no encontrado' using errcode = 'P0001'; end if;
+    autorizado := t.rol = 'owner' or lower(v_agente) = lower(e.creado_por) or position(lower(v_agente) in lower(e.agente)) > 0;
+    if not autorizado then
+      -- 9-sep (chief): mismo fix que omc_encargo_avance/omc_encargo_estado - 'agente' es texto libre con
+      -- nombres propios, no ids de puesto; comparar tambien por el nombre real (primer segmento de cada
+      -- sesion tmux del agente).
+      select true into autorizado
+      from omc_agentes a, unnest(a.sesiones) s
+      where a.empresa = t.empresa and a.id = v_agente
+        and position(lower(split_part(s, '-', 1)) in lower(e.agente)) > 0
+      limit 1;
+    end if;
+    if not coalesce(autorizado, false) then
+      raise exception 'solo Diego, quien lo creo o el responsable pueden editarlo' using errcode = '42501';
+    end if;
+    update omc_encargos set texto = coalesce(p->>'texto', texto), interpretacion = coalesce(p->>'interpretacion', interpretacion),
+      linea_id = case when p ? 'linea_id' then nullif(p->>'linea_id','')::bigint else linea_id end,
+      departamento = coalesce(p->>'departamento', departamento), agente = coalesce(p->>'agente_responsable', p->>'agente', agente),
+      estado = coalesce(nullif(p->>'estado',''), estado), proximo_hito = coalesce(p->>'proximo_hito', proximo_hito),
+      fecha_hito = coalesce(nullif(p->>'fecha_hito','')::date, fecha_hito), solicitud_id = coalesce(nullif(p->>'solicitud_id','')::bigint, solicitud_id),
+      espera = case when p ? 'espera' then p->>'espera' else espera end,
+      mensaje_id = case when p ? 'mensaje_id' then nullif(p->>'mensaje_id','')::bigint else mensaje_id end,
+      updated_at = now()
+      where id = v_id returning * into e;
+  end if;
+  return to_jsonb(e);
+end $$;
+
+drop function if exists omc_encargo_avance(text, bigint, text, text);
+create or replace function omc_encargo_avance(p_token text, p_id bigint, p_texto text, p_agente text default null) returns jsonb
+language plpgsql security definer set search_path=public as $$
+declare t omc_tokens; e omc_encargos; v_agente text;
+begin
+  t := omc_tok(p_token);
+  select * into e from omc_encargos where id = p_id and empresa = t.empresa;
+  if e.id is null then raise exception 'encargo % no existe', p_id; end if;
+  v_agente := case when t.rol = 'owner' then 'diego' else coalesce(nullif(p_agente, ''), 'agente') end;
+  if not omc_encargo_puede(t, e, v_agente) then raise exception 'no autorizado: el encargo es de %', coalesce(nullif(e.agente,''), e.creado_por) using errcode='42501'; end if;
+  if coalesce(trim(p_texto),'') = '' then raise exception 'falta texto'; end if;
+  perform omc_avance_insertar(t.empresa, e.id, v_agente, 'avance', p_texto);
+  select * into e from omc_encargos where id = p_id;
+  return to_jsonb(e);
+end $$;
+grant execute on function omc_encargo_alta(text, jsonb), omc_encargo_avance(text, bigint, text, text) to anon, authenticated;
+
 notify pgrst, 'reload schema';

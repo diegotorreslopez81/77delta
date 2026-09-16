@@ -61,7 +61,18 @@ def limpiar_tenant():
     for tabla in ('omc_sesiones', 'omc_contactos', 'omc_encargo_avances', 'omc_kit', 'omc_expedientes', 'omc_encargos',
                   'omc_decisiones', 'omc_plan_lineas', 'omc_plan_bloques', 'omc_plan_objetivo', 'omc_agentes', 'omc_solicitudes'):
         existe = sql("select 1 from information_schema.tables where table_name='{0}'", tabla)
-        if existe:
+        if not existe:
+            continue
+        if tabla == 'omc_encargo_avances':
+            # T4: omc_encargo_avances es append-only (trigger omc_avances_inmutables bloquea update y
+            # delete siempre, sin excepcion). Para poder limpiar el tenant de pruebas entre tests se
+            # desactiva el trigger solo dentro de esta misma transaccion de borrado y se reactiva acto
+            # seguido; no cambia el comportamiento append-only real, que sigue bloqueando cualquier
+            # borrado hecho fuera de esta rutina de limpieza.
+            sql("alter table omc_encargo_avances disable trigger omc_avances_inmutables; "
+                "delete from omc_encargo_avances where empresa='{0}'; "
+                "alter table omc_encargo_avances enable trigger omc_avances_inmutables;", EMPRESA)
+        else:
             sql("delete from {0} where empresa='{1}'", tabla, EMPRESA)
 
 
