@@ -145,7 +145,9 @@ De cero, sobre la misma base, en `public/hq/` como módulos ES separados por vis
 6. **Decisiones**: la bandeja actual (aprobar, rechazar, dudas), ordenada por vencimiento.
 7. **Equipo**: fichas, organigrama, onboarding, consumo por cuenta.
 8. **Clientes** (fase 2): funnel de cupones y consultoría con su carpeta de Drive.
-9. Botón "Hablar con el chief": abre la sesión activa; el chief actualiza el enlace al cambiar de cuenta.
+9. Botón "Hablar con el chief": abre la sesión activa; el chief actualiza el enlace al cambiar de cuenta. El chat embebido no entra en la v1 (Diego, 16-sep).
+
+**Cambio de cuenta Max (diego@ ↔ team@) sin rotura, requisito de la v1:** todo el estado vive en HQ, nunca en la sesión; los hooks, la configuración de `hq.env` y las reglas son idénticos en los dos `CLAUDE_CONFIG_DIR`; `chief-cuenta.sh` actualiza en HQ el enlace de la sesión activa y deja un avance en el encargo abierto antes de cambiar; al arrancar en la otra cuenta el latido carga los encargos abiertos con kit. Criterio del checkpoint: un cambio de cuenta en mitad de un encargo no pierde ni una tarjeta ni un avance.
 
 Producto: la base ya es multiempresa (`omc_empresas`, `omc_tokens`); la interfaz lee bloques y frentes de la base, sin nada de 77 Delta en el código salvo el tema visual.
 
