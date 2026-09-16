@@ -25,6 +25,13 @@ class TestEncargoFlujo(unittest.TestCase):
         with self.assertRaisesRegex(RuntimeError, 'no autorizado'):
             rpc(self.t['agente'], 'omc_encargo_tomar', p_id=e['id'], p_agente='intruso')
 
+    def test_tomar_sin_responsable_asigna_al_agente_que_toma(self):
+        e = rpc(self.t['owner'], 'omc_encargo_alta', p={'texto': 'Sin responsable', 'frente': 'A3'})
+        self.assertEqual(e['agente'], '')
+        ctx = rpc(self.t['agente'], 'omc_encargo_tomar', p_id=e['id'], p_agente='Guillem')
+        self.assertEqual(ctx['encargo']['estado'], 'en_curso')
+        self.assertEqual(ctx['encargo']['agente'], 'sales-licita')
+
     def test_tomar_pasa_a_en_curso_y_devuelve_contexto(self):
         e = self.nuevo()
         ctx = rpc(self.t['agente'], 'omc_encargo_tomar', p_id=e['id'], p_agente='Guillem')

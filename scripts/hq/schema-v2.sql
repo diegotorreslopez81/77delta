@@ -392,7 +392,7 @@ begin
   v_agente := case when t.rol = 'owner' then 'diego' else coalesce(nullif(p_agente, ''), 'agente') end;
   if not omc_encargo_puede(t, e, v_agente) then raise exception 'no autorizado: el encargo es de %', coalesce(nullif(e.agente,''), e.creado_por) using errcode='42501'; end if;
   if e.estado in ('encolado','bloqueado_diego') then
-    update omc_encargos set estado = 'en_curso', agente = coalesce(agente, omc_agente_valido(t.empresa, v_agente), v_agente) where id = e.id;
+    update omc_encargos set estado = 'en_curso', agente = coalesce(nullif(agente, ''), omc_agente_valido(t.empresa, v_agente), v_agente) where id = e.id;
     perform omc_avance_insertar(t.empresa, e.id, v_agente, 'estado', e.estado || ' -> en_curso (tomado)');
   end if;
   return omc_encargo_contexto(t.empresa, e.id);
