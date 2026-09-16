@@ -738,6 +738,7 @@ begin
   return jsonb_build_object('cambiado', true);
 end $$;
 
+-- sustituida por schema-v2.sql (T15): no editar aquí.
 create or replace function public.omc_encargos_lista(p_token text)
 returns jsonb language plpgsql security definer set search_path = public as $$
 declare t public.omc_tokens;

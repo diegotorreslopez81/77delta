@@ -883,4 +883,25 @@ begin
 end $$;
 grant execute on function omc_escalar(text, bigint, text) to anon, authenticated;
 
+-- T15 · omc_encargos_lista añade los campos v2 (origen, motivo_descarte, codigo) que ya tiene
+-- omc_encargo_ficha desde T13/T14: hq-informe.py y hq-parados.py los necesitan para agrupar "lo que
+-- pediste esta semana" por origen y mostrar el frente (codigo) de cada encargo. Misma firma que
+-- schema.sql (no se dropea: create or replace basta y conserva los grants ya existentes).
+create or replace function public.omc_encargos_lista(p_token text)
+returns jsonb language plpgsql security definer set search_path = public as $$
+declare t public.omc_tokens;
+begin
+  t := public.omc_tok(p_token);
+  return (select coalesce(jsonb_agg(jsonb_build_object(
+      'id', e.id, 'fecha', e.fecha, 'texto', e.texto, 'interpretacion', e.interpretacion, 'linea_id', e.linea_id,
+      'departamento', e.departamento, 'agente', e.agente, 'estado', e.estado, 'prioridad', e.prioridad,
+      'solicitud_id', e.solicitud_id, 'proximo_hito', e.proximo_hito, 'fecha_hito', e.fecha_hito,
+      'ultimo_avance', e.ultimo_avance, 'fecha_avance', e.fecha_avance, 'creado_por', e.creado_por, 'updated_at', e.updated_at, 'espera', e.espera, 'mensaje_id', e.mensaje_id,
+      'antiguo', e.estado not in ('hecho','descartado') and coalesce(e.fecha_avance, e.fecha) < now() - interval '48 hours',
+      'origen', e.origen, 'motivo_descarte', e.motivo_descarte, 'codigo', l.codigo
+    ) order by e.linea_id nulls last, e.prioridad), '[]'::jsonb)
+    from public.omc_encargos e left join public.omc_plan_lineas l on l.id = e.linea_id where e.empresa = t.empresa);
+end $$;
+grant execute on function omc_encargos_lista(text) to anon, authenticated;
+
 notify pgrst, 'reload schema';
