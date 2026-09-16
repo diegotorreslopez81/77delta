@@ -112,6 +112,18 @@ Cliente y cupón: ficha con estado del funnel B2, carpeta de Drive, actas, próx
 
 Ficha por agente: nombre, rol, bloque y frentes que sirve, jefe, modelo, cuenta, avatar (estilo icono, no logo), contrato, kit que lee, encargos abiertos, coste del mes, latido, enlace a su sesión. Onboarding por comando: `hq agente alta` crea ficha, avatar, ventana, reglas y sitio en el organigrama; ningún agente existe sin ficha. Los avatares con logo se regeneran.
 
+### 2.8 Expedientes y sesiones de trabajo (Diego, 16-sep 15:10)
+
+Hay trabajo que no cabe en tarjetas autónomas: avanzar Regulia, cerrar los entregables de un cliente de cupones, redactar una memoria de ACCIÓ. Eso se hace chateando con el responsable, y la solución es que el contexto venga de HQ, no de la memoria del chat.
+
+**Expediente**: objeto de HQ que agrupa todo lo de un cliente, producto o convocatoria. Campos: tipo (cliente, producto, convocatoria, licitación), nombre, frente, responsable, ficha en Drive (enlace; para cupones, la ficha del Cupó IA que ya existe), carpeta de Drive, estado del funnel, entregables pendientes (lista con fecha), encargos ligados, contactos ligados, decisiones, último resumen de estado (escrito por el agente al cerrar la sesión) y fecha.
+
+**Sesión de trabajo**: desde la ficha del expediente en la web, el botón "Trabajar en esto" envía al responsable `hq sesion abrir --expediente <id>`; el agente carga ficha, entregables, encargos, avances, contactos y kit del frente, escribe "al día con <expediente>: N entregables pendientes" y Diego abre su chat (enlace de la sesión desde la ficha del agente). Cambiar de expediente es `hq sesion abrir` con otro id en la misma ventana.
+
+**Cierre obligatorio**: `hq sesion cerrar` exige avance en cada encargo tocado, alta de los encargos nuevos con su frente, actualización del resumen de estado y de los entregables del expediente; si la sesión anterior no se cerró, la nueva no abre. El chief se entera por el feed. Responsables iniciales: Martí en cupones y clientes, Marina en Regulia, Helena en ACCIÓ, Guillem en licitaciones.
+
+Tabla nueva `omc_expedientes` y `omc_sesiones` (expediente, agente, abierta, cerrada, resumen). Vista web: Expedientes (fase 1 para clientes de cupones y ACCIÓ, porque hay entregables esta semana; producto en fase 2).
+
 ## 3. Datos (migración sobre el esquema actual, sin romper lo que funciona)
 
 - `omc_plan_objetivo`: añadir `horizonte` (2026, 2027) y dos filas.
@@ -123,13 +135,14 @@ Ficha por agente: nombre, rol, bloque y frentes que sirve, jefe, modelo, cuenta,
 - Nueva `omc_contactos`: campos del punto 2.5.
 - `omc_licitaciones`: estados tras Presentada, `medios_art76`, `etiquetas`, `proximo_hito`, `responsable`.
 - `omc_agentes`: `frentes text[]`, `cuenta`, `avatar_url`, `sesion_url`.
+- Nuevas `omc_expedientes` y `omc_sesiones` (punto 2.8); `omc_encargos.expediente_id` y `omc_contactos.expediente_id` opcionales.
 - Funciones RPC nuevas o cambiadas: `omc_encargo_alta` rechaza sin línea; `omc_encargo_hecho` exige fuente; `omc_contacto_alta`; `omc_encargo_tomar` devuelve kit + avances + contactos; `omc_feed` (novedades desde una fecha, para el chief).
 
 Migración de los 224 encargos sin línea: el chief los asigna a frente con un script asistido el 17-sep (lote por palabras clave y responsable, revisión manual de los dudosos, descarte con motivo de los muertos). Objetivo: 0 fuera de plan el 18-sep.
 
 ## 4. CLI (`hq.py`)
 
-Nuevos o cambiados: `encargo alta --frente` (obligatorio), `encargo tomar <id>`, `encargo hecho <id> --fuente <url> [--entregable <url>]`, `contacto alta|estado|lista`, `kit lista <frente>|alta|vigente`, `bloques`, `frentes`, `feed --desde`, `agente alta` (onboarding). `enviar-con-lock.sh` exige `--contacto <id>` y rechaza adjuntos .html y .md salvo destinatario órgano de contratación. El latido de arranque inyecta a cada agente sus encargos abiertos con kit y próximos hitos.
+Nuevos o cambiados: `encargo alta --frente` (obligatorio), `encargo tomar <id>`, `encargo hecho <id> --fuente <url> [--entregable <url>]`, `contacto alta|estado|lista`, `kit lista <frente>|alta|vigente`, `bloques`, `frentes`, `feed --desde`, `agente alta` (onboarding), `expediente alta|ficha|lista`, `sesion abrir --expediente <id>` y `sesion cerrar`. `enviar-con-lock.sh` exige `--contacto <id>` y rechaza adjuntos .html y .md salvo destinatario órgano de contratación. El latido de arranque inyecta a cada agente sus encargos abiertos con kit y próximos hitos.
 
 Lo que hoy hace el chief a mano y pasa a script: `hq-parados` (07:00 y 15:00: reclamo a 48 h, escalado a 72 h), informe de las 07:00 generado desde HQ (primero lo pedido por Diego esta semana con estado, luego lo que depende de él con hora, la actividad al final), casado de respuestas entrantes con contactos.
 
@@ -144,7 +157,7 @@ De cero, sobre la misma base, en `public/hq/` como módulos ES separados por vis
 5. **Contactos**: por frente, "12 contactados, 3 respondieron, 1 reunión", próximos toques.
 6. **Decisiones**: la bandeja actual (aprobar, rechazar, dudas), ordenada por vencimiento.
 7. **Equipo**: fichas, organigrama, onboarding, consumo por cuenta.
-8. **Clientes** (fase 2): funnel de cupones y consultoría con su carpeta de Drive.
+8. **Expedientes**: clientes de cupones y ACCIÓ en fase 1 (ficha, entregables, botón "Trabajar en esto"); productos y consultoría en fase 2.
 9. Botón "Hablar con el chief": abre la sesión activa; el chief actualiza el enlace al cambiar de cuenta. El chat embebido no entra en la v1 (Diego, 16-sep).
 
 **Cambio de cuenta Max (diego@ ↔ team@) sin rotura, requisito de la v1:** todo el estado vive en HQ, nunca en la sesión; los hooks, la configuración de `hq.env` y las reglas son idénticos en los dos `CLAUDE_CONFIG_DIR`; `chief-cuenta.sh` actualiza en HQ el enlace de la sesión activa y deja un avance en el encargo abierto antes de cambiar; al arrancar en la otra cuenta el latido carga los encargos abiertos con kit. Criterio del checkpoint: un cambio de cuenta en mitad de un encargo no pierde ni una tarjeta ni un avance.
