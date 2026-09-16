@@ -383,6 +383,9 @@ create table if not exists omc_contactos (
   proximo_toque date, respuesta_ref text, respuesta_fecha timestamptz, updated_at timestamptz default now());
 create index if not exists omc_contactos_emp on omc_contactos (empresa, fecha desc);
 create index if not exists omc_contactos_email on omc_contactos (empresa, lower(email));
+-- T10: idempotencia de la migracion de envios historicos (respuesta_ref = 'migracion:<tarjeta>'); evita duplicados
+-- si migrar-envios-contactos.py --aplicar se ejecuta mas de una vez, sin depender solo del SELECT previo del script.
+create unique index if not exists omc_contactos_respuesta_ref_migracion on omc_contactos (empresa, respuesta_ref) where respuesta_ref like 'migracion:%';
 alter table omc_contactos enable row level security;
 
 create or replace function omc_encargo_contexto(p_empresa text, p_id bigint) returns jsonb

@@ -8,6 +8,7 @@ caso 2 --tarjeta "$TARJETA" --to nil@example.com --simular
 caso 6 --tarjeta "$TARJETA" --to nil@example.com --contacto 999999 --simular
 caso 6 --tarjeta "$TARJETA" --to nil@example.com --contacto "$CONTACTO_OTRO_EMAIL" --simular
 caso 7 --tarjeta "$TARJETA" --to nil@example.com --contacto "$CONTACTO" --simular -- --adjunto acta.html
+caso 7 --tarjeta "$TARJETA" --to nil@example.com --contacto "$CONTACTO" --simular -- --adjunto INFORME.HTML
 caso 0 --tarjeta "$TARJETA" --to nil@example.com --contacto "$CONTACTO" --organo --simular -- --adjunto acta.html
 caso 0 --tarjeta "$TARJETA" --to nil@example.com --contacto "$CONTACTO" --simular -- --subject hola
 exit $FALLOS

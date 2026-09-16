@@ -68,7 +68,7 @@ case "$C_ESTADO" in previsto|enviado) ;; *) echo "ABORTA (6): el contacto #$CONT
 
 # 2c. ningún .html ni .md a un tercero (regla 40); a un órgano de contratación sí van adjuntos
 if [ "$ORGANO" != "1" ]; then
-  for arg in "$@"; do case "$arg" in *.html|*.htm|*.md) echo "ABORTA (7): adjunto '$arg' en HTML o markdown. Conviértelo a la plantilla 77 Delta (PDF o Google Doc por enlace). Si el destinatario es un órgano de contratación, pasa --organo."; exit 7 ;; esac; done
+  for arg in "$@"; do arg_lc="${arg,,}"; case "$arg_lc" in *.html|*.htm|*.md) echo "ABORTA (7): adjunto '$arg' en HTML o markdown. Conviértelo a la plantilla 77 Delta (PDF o Google Doc por enlace). Si el destinatario es un órgano de contratación, pasa --organo."; exit 7 ;; esac; done
 fi
 
 # 3. ventana horaria obligatoria 8-20, encargo #213 / incidente #609

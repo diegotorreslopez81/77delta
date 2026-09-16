@@ -27,6 +27,8 @@ def main():
     ya = {(r['email'], r['respuesta_ref']) for r in _sql(f"select lower(email) as email, respuesta_ref from omc_contactos where empresa={q(EMPRESA)} and respuesta_ref like 'migracion:%'")}
     c5 = _sql(f"select id from omc_encargos where empresa={q(EMPRESA)} and linea_id = omc_frente_id({q(EMPRESA)}, 'C5') and estado <> 'descartado' order by id desc limit 1")
     fallback = c5[0]['id'] if c5 else None
+    if fallback is None:
+        sys.exit("ABORTA: no hay encargo del frente C5 para colgar los envíos sin tarjeta. Da de alta uno (hq.py encargo alta --frente C5 ...) antes de migrar.")
     filas = []
     for e in envios:
         ref = f"migracion:{e['tarjeta']}"
@@ -41,7 +43,8 @@ def main():
         toque = 2 if e['asunto'].lower().startswith('re:') else 1
         _sql(f"insert into omc_contactos (empresa, persona, email, canal, motivo, linea_id, encargo_id, solicitud_id, agente, fecha, toque, estado, proximo_toque, respuesta_ref) "
              f"select {q(EMPRESA)}, null, {q(e['destinatario'].lower())}, 'correo', {q(e['asunto'][:200])}, x.linea_id, x.id, {e['tarjeta']}, {q(e['agente'])}, {q(e['fecha'])}, {toque}, 'enviado', "
-             f"({q(e['fecha'])}::timestamptz + interval '7 days')::date, {q(ref)} from omc_encargos x where x.id = {enc}")
+             f"({q(e['fecha'])}::timestamptz + interval '7 days')::date, {q(ref)} from omc_encargos x where x.id = {enc} "
+             f"on conflict (empresa, respuesta_ref) where respuesta_ref like 'migracion:%' do nothing")
     print('aplicado')
 
 
