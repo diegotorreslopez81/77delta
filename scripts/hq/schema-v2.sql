@@ -797,4 +797,43 @@ language sql security definer set search_path=public as $$
 $$;
 grant execute on function omc_agente_sesion_url(text, text, text, text), omc_agente_avatar_set(text, text, text), omc_agente_frentes_set(text, text, text[]), omc_agentes_lista(text) to anon, authenticated;
 
+-- T13 · latido con encargos abiertos y sesión: sobrescribe la omc_latido de schema.sql (misma firma, para
+-- que "create or replace" reemplace la implementación sin tocar los grants ya concedidos allí). La rama
+-- "no existe" y el bloque "base" son literales de schema.sql 1153-1163: hq.py y hq-latido.sh dependen de
+-- esas claves exactas (incluida 'agente' en la rama "no existe", que hq.py imprime cuando existe=false).
+create or replace function public.omc_latido(p_token text, p_agente text)
+returns jsonb language plpgsql security definer set search_path = public as $$
+declare t public.omc_tokens; a public.omc_agentes; base jsonb;
+begin
+  t := public.omc_tok(p_token);
+  select * into a from public.omc_agentes where empresa = t.empresa and (id = p_agente or p_agente = any(sesiones)) order by (id = p_agente) desc limit 1;
+  if not found then return jsonb_build_object('existe', false, 'activo', true, 'agente', p_agente); end if;
+  update public.omc_agentes set ultima_actividad = now() where empresa = t.empresa and id = a.id;
+  base := jsonb_build_object('existe', true, 'activo', a.activo, 'agente', a.id, 'nombre', a.nombre, 'depto', a.depto, 'nivel', a.nivel,
+                            'modelo', a.contrato->>'modelo', 'subagentes', a.contrato->>'subagentes',
+                            'pendientes', (select count(*) from public.omc_solicitudes s where s.empresa = t.empresa and s.agente = a.id and s.estado in ('aprobada','respondida')),
+                            'comentarios', (select coalesce(jsonb_agg(distinct s.id), '[]'::jsonb) from public.omc_mensajes m join public.omc_solicitudes s on s.id = m.solicitud_id
+                                            where s.empresa = t.empresa and s.agente = a.id and s.estado = 'pendiente' and m.autor = 'diego'
+                                              and m.ts > coalesce((select max(m2.ts) from public.omc_mensajes m2 where m2.solicitud_id = s.id and m2.autor <> 'diego'), s.created_at)));
+  return base || jsonb_build_object(
+    'encargos', (select coalesce(jsonb_agg(jsonb_build_object('id', e.id, 'codigo', l.codigo, 'texto', left(e.texto, 90), 'estado', e.estado, 'fecha_hito', e.fecha_hito,
+        'kit_n', (select count(*) from public.omc_kit k where k.empresa = e.empresa and k.vigente and (k.linea_id = e.linea_id or k.linea_id is null)))
+        order by case e.estado when 'en_curso' then 0 when 'bloqueado_diego' then 1 else 2 end, e.fecha_hito nulls last, e.id), '[]'::jsonb)
+      from public.omc_encargos e left join public.omc_plan_lineas l on l.id = e.linea_id
+      where e.empresa = t.empresa and e.estado in ('encolado','en_curso','bloqueado_diego') and position(lower(a.id) in lower(coalesce(e.agente,''))) > 0),
+    'sesion', (select jsonb_build_object('id', s.id, 'expediente_id', s.expediente_id, 'nombre', x.nombre, 'estado', s.estado) from public.omc_sesiones s join public.omc_expedientes x on x.id = s.expediente_id
+      where s.empresa = t.empresa and s.agente = a.id and s.estado in ('solicitada','abierta') order by s.estado limit 1));
+end $$;
+
+-- omc_encargo_ficha: alias publico de omc_encargo_contexto (interna, revocada de anon/authenticated más
+-- arriba en este fichero) para que "hq.py encargo ficha ID" muestre kit, avances, contactos y expediente
+-- sin tomar el encargo. Concern (T13, se anota en el informe): el brief no pedía "security definer", pero
+-- sin ella la llamada de anon/authenticated a omc_tok y omc_encargo_contexto (ambas revocadas de esos
+-- roles) fallaría siempre; se resuelve del lado del patrón ya usado por omc_sesiones_solicitadas.
+create or replace function omc_encargo_ficha(p_token text, p_id bigint) returns jsonb
+language sql security definer set search_path=public as $$
+  select omc_encargo_contexto((select empresa from omc_tok(p_token)), p_id);
+$$;
+grant execute on function omc_encargo_ficha(text, bigint) to anon, authenticated;
+
 notify pgrst, 'reload schema';

@@ -28,6 +28,8 @@ def registrar(sub, esub):
     ee.add_argument('--motivo', default='', help='obligatorio al descartar')
     et = esub.add_parser('tomar', help='pasar a en_curso y recibir el contexto (frente, kit, avances, contactos, expediente)')
     et.add_argument('id', type=int); et.add_argument('--agente')
+    ef = esub.add_parser('ficha', help='ver el contexto de un encargo sin tomarlo (frente, kit, avances, contactos, expediente)')
+    ef.add_argument('id', type=int)
     eh = esub.add_parser('hecho', help='cerrar con fuente citada (url del kit o Google Doc)')
     eh.add_argument('id', type=int); eh.add_argument('--fuente', required=True); eh.add_argument('--entregable', default=''); eh.add_argument('--agente')
     ed = esub.add_parser('editar', help='(Diego) editar la tarjeta del tablero')
@@ -242,6 +244,16 @@ def ejecutar(a, c):
         txt += [f"avance {x['fecha'][:16]} {x['autor']} {x['tipo']}: {x['texto'][:100]}" for x in r['avances']]
         if r.get('expediente'): txt.append(f"expediente: #{r['expediente']['id']} {r['expediente']['nombre']} · ficha {r['expediente'].get('ficha_url') or '-'}")
         engram(f"[ENCARGO #{a.id}] tomado", agente_actual(a.agente))
+        salida(r, '\n'.join(txt))
+        return True
+    if a.sub == 'ficha':
+        r = rpc('omc_encargo_ficha', p_token=E['HQ_TOKEN'], p_id=a.id)
+        e, fr = r['encargo'], r.get('frente') or {}
+        txt = [f"#{e['id']} [{e['estado']}] {_linea_encargo(e)}{e['texto']}", f"frente: {fr.get('codigo')} {fr.get('linea')} · KPI {fr.get('kpi')} {fr.get('valor_actual')}/{fr.get('meta')} · bloque {fr.get('bloque')}"]
+        txt += [f"kit · {k['tipo']}: {k['nombre']} {k.get('url') or ''}".rstrip() for k in r['kit']] or ['kit · (vacío: pide al chief la plantilla antes de producir nada)']
+        txt += [f"avance {x['fecha'][:16]} {x['autor']} {x['tipo']}: {x['texto'][:100]}" for x in (r['avances'] or [])[:5]]
+        txt += [f"contacto #{c['id']} [{c['estado']}] {c.get('persona') or c.get('organizacion')} · {c['canal']} t{c['toque']} · {c['fecha'][:10]}" for c in r['contactos']]
+        if r.get('expediente'): txt.append(f"expediente: #{r['expediente']['id']} {r['expediente']['nombre']} · ficha {r['expediente'].get('ficha_url') or '-'}")
         salida(r, '\n'.join(txt))
         return True
     if a.sub == 'hecho':

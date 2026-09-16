@@ -1150,6 +1150,8 @@ begin
 end $$;
 
 -- Latido: el agente pregunta si está activo (hook de arranque) y deja constancia de actividad.
+-- T13 (schema-v2.sql): sustituida por una versión que además devuelve 'encargos' y 'sesion'; se deja el
+-- cuerpo de aquí sin tocar porque schema-v2.sql aplica un "create or replace" con la misma firma después.
 create or replace function public.omc_latido(p_token text, p_agente text)
 returns jsonb language plpgsql security definer set search_path = public as $$
 declare t public.omc_tokens; a public.omc_agentes;

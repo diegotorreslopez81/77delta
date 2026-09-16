@@ -610,6 +610,14 @@ def main():
             com = r.get('comentarios') or []
             aviso = f" · DIEGO HA COMENTADO en {', '.join('#' + str(x) for x in com)}: léelo con 'hq hilo <id>' y contesta con 'hq comentar <id> --texto ...'" if com else ''
             print(f"{r['agente']} ({r['depto']}): {'ACTIVO' if r['activo'] else 'DESACTIVADO'} · {r['pendientes']} aprobadas por ejecutar{modelo}{aviso}")
+            for x in r.get('encargos') or []:
+                hito = f" · hito {x['fecha_hito']}" if x.get('fecha_hito') else ''
+                print(f"  encargo #{x['id']} [{x['codigo'] or 'sin frente'}] {x['estado']}: {x['texto']}{hito} · kit {x['kit_n']}")
+            if r.get('encargos'):
+                print("  antes de trabajar: python3 scripts/hq/hq.py encargo tomar ID --agente <tu agente>; contexto: hq.py encargo ficha ID; al cerrar: encargo hecho ID --fuente <url>")
+            if r.get('sesion'):
+                s = r['sesion']
+                print(f"  SESIÓN {s['estado'].upper()} con Diego sobre el expediente #{s['expediente_id']} {s['nombre']}: " + ("python3 scripts/hq/hq.py sesion abrir --expediente %d" % s['expediente_id'] if s['estado'] == 'solicitada' else "ciérrala con hq.py sesion cerrar %d --resumen ..." % s['id']))
         sys.exit(0 if not r['existe'] and False else (3 if not r['existe'] else (0 if r['activo'] else 2)))
     elif a.cmd == 'pendientes':
         salida(rpc('omc_mis_solicitudes', p_token=E['HQ_TOKEN'], p_agente=agente_actual(a.agente)), a.json)
@@ -852,7 +860,7 @@ def main():
         if a.json: print(json.dumps(ds, ensure_ascii=False))
         else:
             for d in ds: print(f"[{d['fecha'][:10]}] {d['decision']} · {d['quien']}" + (f" · línea #{d['linea_id']}" if d.get('linea_id') else ''))
-    elif a.cmd in ('frentes', 'bloques', 'feed', 'kit', 'contacto', 'expediente', 'sesion', 'agente') or (a.cmd == 'encargo' and (a.sub in ('tomar', 'hecho', 'editar', 'estado') or (a.sub == 'alta' and a.id is None and getattr(a, 'frente', None)))):
+    elif a.cmd in ('frentes', 'bloques', 'feed', 'kit', 'contacto', 'expediente', 'sesion', 'agente') or (a.cmd == 'encargo' and (a.sub in ('tomar', 'hecho', 'editar', 'estado', 'ficha') or (a.sub == 'alta' and a.id is None and getattr(a, 'frente', None)))):
         if hq_v2 is None:
             sys.exit('CLI v2 no disponible: hq_v2.py no se pudo cargar.')
         contexto_v2 = {'rpc': rpc, 'E': E, 'agente_actual': agente_actual, 'engram': engram, 'json': json}
