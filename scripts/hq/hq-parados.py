@@ -82,27 +82,31 @@ def agrupar_escalados(lista):
 
 
 def agrupar_avisos(lista, agentes):
-    """Agrupa los avisos de 48 h por ventana de destino: un unico tmux-decir por ventana con todos los
-    encargos de ese responsable, en vez de uno por encargo. Los casos sin ventana (destino_aviso con
-    directo=False) se combinan todos en un unico mensaje bajo la clave 'Jordi-COO', por el mismo motivo
-    que agrupar_escalados: nunca un tmux-decir por encargo suelto. Devuelve {ventana: texto}."""
+    """Agrupa los avisos de 48 h por la TUPLA (ventana, directo), no solo por ventana: un agente con
+    ventana propia (caso real encargo #204, agente 'coo' -> ventana literal 'Jordi-COO', directo=True)
+    puede compartir el mismo destino de tmux que los encargos sin ventana reconocible (directo=False,
+    tambien enrutados a 'Jordi-COO' de forma fija, caso #75). Agrupar solo por ventana mezclaba ambos
+    casos en un unico grupo y usaba el 'directo' del primer encargo insertado para formatear TODas las
+    lineas: un aviso directo a un responsable real podia salir con el texto 'sin ventana', que es falso.
+    Con la clave (ventana, directo) cada grupo conserva su propio 'directo' y su propia cabecera; si
+    ambos casos comparten ventana, se generan dos mensajes tmux-decir distintos a esa misma ventana, uno
+    por cada cabecera, en vez de mezclarlos. Devuelve {(ventana, directo): texto}."""
     grupos = {}
     for e in lista:
-        ventana, directo = destino_aviso(e.get('agente'), agentes)
-        grupos.setdefault(ventana, []).append((e, directo))
+        clave = destino_aviso(e.get('agente'), agentes)
+        grupos.setdefault(clave, []).append(e)
     salida = {}
-    for ventana, items in grupos.items():
-        directo = items[0][1]
+    for (ventana, directo), items in grupos.items():
         if directo:
-            lineas = [f"#{e['id']} {e['horas_parado']}h: {e['texto'][:60]}" for e, _ in items]
+            lineas = [f"#{e['id']} {e['horas_parado']}h: {e['texto'][:60]}" for e in items]
             cabecera = f"[HQ parados] {len(items)} encargo(s) tuyos sin avance 48 h o mas"
         else:
-            lineas = [f"#{e['id']} sin ventana para {e.get('agente')} ({e['horas_parado']}h): {e['texto'][:60]}" for e, _ in items]
+            lineas = [f"#{e['id']} sin ventana para {e.get('agente')} ({e['horas_parado']}h): {e['texto'][:60]}" for e in items]
             cabecera = f"[HQ parados] {len(items)} encargo(s) sin ventana de agente, sin avance 48 h o mas. Reclama."
         cuerpo = lineas[:TOPE_LINEAS]
         if len(lineas) > TOPE_LINEAS:
             cuerpo.append(f"... y {len(lineas) - TOPE_LINEAS} mas")
-        salida[ventana] = cabecera + '\n' + '\n'.join(cuerpo)
+        salida[(ventana, directo)] = cabecera + '\n' + '\n'.join(cuerpo)
     return salida
 
 
@@ -120,7 +124,7 @@ def main():
     avisos = [e for e in r['avisar'] if toca_avisar(e['id'], 'avisado', estado, ahora)]
     escalados = [e for e in r['escalar'] if toca_avisar(e['id'], 'escalado', estado, ahora)]
     grupos = agrupar_avisos(avisos, agentes)
-    for ventana, texto in grupos.items():
+    for (ventana, _), texto in grupos.items():
         decir(ventana, texto, a.dry_run)
     for e in avisos:
         estado.setdefault(str(e['id']), {})['avisado'] = ahora.isoformat()

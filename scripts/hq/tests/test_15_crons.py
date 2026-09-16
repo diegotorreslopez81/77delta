@@ -54,10 +54,33 @@ class TestParados(unittest.TestCase):
             {'id': 3, 'agente': 'DevOps (alta hoy) + Pol', 'horas_parado': 55, 'texto': 'c'},
         ]
         grupos = p.agrupar_avisos(enc, agentes)
-        self.assertEqual(set(grupos), {'Aina-Comercial', 'Jordi-COO'})
-        self.assertTrue(grupos['Aina-Comercial'].startswith('[HQ parados] 2 encargo(s) tuyos'))
-        self.assertIn('#1', grupos['Aina-Comercial']); self.assertIn('#2', grupos['Aina-Comercial'])
-        self.assertIn('#3', grupos['Jordi-COO'])
+        self.assertEqual(set(grupos), {('Aina-Comercial', True), ('Jordi-COO', False)})
+        directo = grupos[('Aina-Comercial', True)]
+        self.assertTrue(directo.startswith('[HQ parados] 2 encargo(s) tuyos'))
+        self.assertIn('#1', directo); self.assertIn('#2', directo)
+        self.assertIn('#3', grupos[('Jordi-COO', False)])
+
+    def test_agrupa_avisos_agente_con_ventana_jordi_coo_no_se_confunde_con_sin_ventana(self):
+        """Caso real encargo #204: el agente 'coo' tiene ventana propia registrada 'Jordi-COO'
+        (directo=True). Esa misma cadena 'Jordi-COO' es tambien el destino fijo de los encargos sin
+        ventana reconocible (directo=False, caso #75). Agrupar solo por ventana mezclaba ambos casos y
+        el #204 podia salir con el texto 'sin ventana', que es falso: agrupar por (ventana, directo)
+        evita la mezcla."""
+        p = cargar('hq-parados')
+        agentes = [{'id': 'coo', 'nombre': 'Jordi', 'sesiones': ['Jordi-COO']}]
+        enc = [
+            {'id': 204, 'agente': 'coo', 'horas_parado': 58, 'texto': 'Montar la estructura de directores'},
+            {'id': 75, 'agente': 'DevOps (alta hoy) + Pol', 'horas_parado': 56, 'texto': 'Vigia externo del VPS'},
+        ]
+        grupos = p.agrupar_avisos(enc, agentes)
+        self.assertEqual(set(grupos), {('Jordi-COO', True), ('Jordi-COO', False)})
+        directo = grupos[('Jordi-COO', True)]
+        sin_ventana = grupos[('Jordi-COO', False)]
+        self.assertIn('#204', directo)
+        self.assertNotIn('sin ventana', directo)
+        self.assertTrue(directo.startswith('[HQ parados] 1 encargo(s) tuyos'))
+        self.assertIn('#75', sin_ventana)
+        self.assertIn('sin ventana', sin_ventana)
 
 
 class TestInforme(unittest.TestCase):
