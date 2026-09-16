@@ -221,9 +221,9 @@ begin
                             creado_por, etiquetas, enlaces, origen, expediente_id, mensaje_id)
   values (t.empresa, now(), p->>'texto', coalesce(p->>'interpretacion', ''), v_linea,
           (select coalesce(b.nombre, 'sin bloque') from omc_plan_lineas l left join omc_plan_bloques b on b.id = l.bloque_id where l.id = v_linea),
-          coalesce(v_resp, ''), 'encolado', coalesce((p->>'prioridad')::int, 50), (p->>'solicitud_id')::bigint, coalesce(p->>'proximo_hito', ''), (p->>'fecha_hito')::date,
+          coalesce(v_resp, ''), 'encolado', coalesce((p->>'prioridad')::int, 50), nullif(p->>'solicitud_id','')::bigint, coalesce(p->>'proximo_hito', ''), nullif(p->>'fecha_hito','')::date,
           v_actor, coalesce(array(select jsonb_array_elements_text(p->'etiquetas')), '{}'), coalesce(p->'enlaces', '[]'::jsonb),
-          coalesce(p->>'origen', initcap(v_actor) || ' ' || to_char(now(), 'DD-MM HH24:MI')), (p->>'expediente_id')::bigint, (p->>'mensaje_id')::bigint)
+          coalesce(p->>'origen', initcap(v_actor) || ' ' || to_char(now(), 'DD-MM HH24:MI')), nullif(p->>'expediente_id','')::bigint, nullif(p->>'mensaje_id','')::bigint)
   returning * into r;
   perform omc_avance_insertar(t.empresa, r.id, v_actor, 'alta', left(r.texto, 200));
   return to_jsonb(r) || jsonb_build_object('codigo', (select codigo from omc_plan_lineas where id = v_linea));
@@ -289,7 +289,6 @@ begin
   return to_jsonb(e);
 end $$;
 
-drop function if exists omc_encargo_avance(text, bigint, text, text);
 create or replace function omc_encargo_avance(p_token text, p_id bigint, p_texto text, p_agente text default null) returns jsonb
 language plpgsql security definer set search_path=public as $$
 declare t omc_tokens; e omc_encargos; v_agente text;
@@ -301,7 +300,7 @@ begin
   if not omc_encargo_puede(t, e, v_agente) then raise exception 'no autorizado: el encargo es de %', coalesce(nullif(e.agente,''), e.creado_por) using errcode='42501'; end if;
   if coalesce(trim(p_texto),'') = '' then raise exception 'falta texto'; end if;
   perform omc_avance_insertar(t.empresa, e.id, v_agente, 'avance', p_texto);
-  select * into e from omc_encargos where id = p_id;
+  select * into e from omc_encargos where id = p_id and empresa = t.empresa;
   return to_jsonb(e);
 end $$;
 grant execute on function omc_encargo_alta(text, jsonb), omc_encargo_avance(text, bigint, text, text) to anon, authenticated;
