@@ -83,6 +83,13 @@ def utc_a_local_str(utc_iso):
     convierte ese nombre en variable local para toda la función, y pisaría el 'datetime' de clase
     importado arriba si se usara directamente ahí."""
     return datetime.fromisoformat(utc_iso).astimezone(TZ_LOCAL).strftime('%Y-%m-%d %H:%M')
+
+
+def marca_de_diego():
+    """I4 (revisión final plan 1): igual que utc_a_local_str, esta función vive fuera de main() a
+    propósito para poder usar el 'datetime' de clase importado arriba sin que los 'import datetime'
+    locales de main() (líneas ~692/709) lo conviertan en variable local antes de tiempo."""
+    return 'Diego ' + datetime.now().strftime('%d-%m %H:%M')
 TIPOS = ('gasto', 'contacto', 'publicacion', 'estrategia', 'duda', 'accion', 'otro')
 # Valor especial para .claude/hq-agente en repos que consulta gente de varios puestos (p.ej. 77delta,
 # docs/empresa): en vez de atribuir en silencio al dueño nominal del repo, exige --agente explícito.
@@ -443,10 +450,11 @@ def main():
     esub = p.add_subparsers(dest='sub', required=True)
     ea = esub.add_parser('alta', help='registrar un encargo nuevo (o editarlo si pasas --id)')
     ea.add_argument('--id', type=int); ea.add_argument('--texto'); ea.add_argument('--interpretacion'); ea.add_argument('--linea', type=int, help='id de línea del plan; sin esto, fuera de plan')
-    ea.add_argument('--departamento'); ea.add_argument('--responsable'); ea.add_argument('--estado', choices=('encolado', 'en_curso', 'bloqueado_diego', 'hecho', 'descartado'))
+    ea.add_argument('--departamento'); ea.add_argument('--responsable'); ea.add_argument('--estado', choices=('encolado', 'en_curso', 'bloqueado_diego'))
     ea.add_argument('--prioridad', type=int); ea.add_argument('--tarjeta', type=int); ea.add_argument('--proximo-hito', dest='proximo_hito'); ea.add_argument('--fecha-hito', dest='fecha_hito'); ea.add_argument('--agente')
     ea.add_argument('--espera', help='en qué espera un encargo EN_CURSO, corto: "2 referees", "tu decisión"... (registro vivo, encargo 43)')
     ea.add_argument('--mensaje', type=int, help='id del mensaje de Diego (tarjeta 193) del que nace este encargo (encargo 42)')
+    ea.add_argument('--de-diego', dest='de_diego', action='store_true', help="lo pidió Diego: aparece en 'Lo que pediste esta semana' del informe de las 07:00 (si no pasas --origen, fija origen = 'Diego DD-MM HH:MM')")
     ev = esub.add_parser('avance', help='anotar el último avance de un encargo')
     ev.add_argument('id', type=int); ev.add_argument('--texto', required=True); ev.add_argument('--agente')
     ee = esub.add_parser('estado', help='cambiar el estado de un encargo')
@@ -488,6 +496,12 @@ def main():
         hq_v2.registrar(sub, esub)
     a = ap.parse_args()
     exigir_sin_credenciales(a)
+
+    # I4 (revisión final plan 1): --de-diego marca el origen para que 'Lo que pediste esta semana'
+    # (hq-informe.py) lo detecte, sin que quien da el alta tenga que teclear --origen a mano.
+    # Si se pasan los dos, gana --origen explícito.
+    if a.cmd == 'encargo' and getattr(a, 'sub', None) == 'alta' and getattr(a, 'de_diego', False) and not getattr(a, 'origen', None):
+        a.origen = marca_de_diego()
 
     if a.cmd in ('pedir', 'duda'):
         cuerpo = a.cuerpo
@@ -877,10 +891,11 @@ def main():
         def linea_encargo(e):
             return f"línea #{e['linea_id']}" if e.get('linea_id') else 'fuera de plan'
         if a.sub == 'alta':
+            # a.origen ya viene resuelto por --de-diego (ver normalización en main(), tras parse_args).
             p = {k: v for k, v in {'id': a.id, 'texto': a.texto, 'interpretacion': a.interpretacion, 'linea_id': a.linea, 'departamento': a.departamento,
                                    'agente_responsable': a.responsable, 'estado': a.estado, 'prioridad': a.prioridad, 'solicitud_id': a.tarjeta,
                                    'proximo_hito': a.proximo_hito, 'fecha_hito': a.fecha_hito, 'agente': agente_actual(a.agente), 'espera': a.espera,
-                                   'mensaje_id': a.mensaje}.items() if v is not None}
+                                   'mensaje_id': a.mensaje, 'origen': getattr(a, 'origen', None)}.items() if v is not None}
             r = rpc('omc_encargo_set', p_token=E['HQ_TOKEN'], p=p)
             engram(f"[ENCARGO #{r['id']}] alta", f"{r['texto']} · {linea_encargo(r)} · {r.get('departamento') or 'sin depto'} · {r.get('agente') or 'sin responsable'} · estado {r['estado']}")
             print(json.dumps(r, ensure_ascii=False) if a.json else f"#{r['id']} [{r['estado']}] {r['texto'][:60]} · {linea_encargo(r)} · prioridad {r['prioridad']}")

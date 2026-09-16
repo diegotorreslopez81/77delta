@@ -58,6 +58,32 @@ class TestCli(unittest.TestCase):
         rc, out, err = cli('owner', 'encargo', 'estado', str(e['id']), 'descartado', '--motivo', 'duplicado')
         self.assertEqual(rc, 0, err)
 
+    def test_alta_con_id_no_permite_estado_hecho(self):
+        # I1 (revisión final plan 1): 'encargo alta --id N --estado hecho' iba directo a omc_encargo_set,
+        # que no validaba nada, saltándose las puertas de omc_encargo_estado/omc_encargo_hecho a una
+        # opción de distancia en el mismo CLI. 'hecho' y 'descartado' ya no son choices válidas de
+        # '--estado' en 'encargo alta', así que esto falla en el propio parser (rc de argparse), antes
+        # de llegar a la base.
+        rc, out, err = cli('owner', 'encargo', 'alta', '--texto', 'CLI cierre por alta', '--frente', 'A3', '--responsable', 'Guillem')
+        self.assertEqual(rc, 0, err); e = json.loads(out)
+        rc, out, err = cli('owner', 'encargo', 'alta', '--id', str(e['id']), '--estado', 'hecho')
+        self.assertNotEqual(rc, 0, out + err)
+        actual = pg.sql("select estado from omc_encargos where id={0}", e['id'])[0]['estado']
+        self.assertEqual(actual, 'encolado')
+
+    def test_alta_de_diego_marca_origen(self):
+        # I4 (revisión final plan 1): --de-diego evita que quien da el alta (chief/COO, no Diego en
+        # persona) tenga que teclear --origen a mano para que 'Lo que pediste esta semana' del informe
+        # de las 07:00 (hq-informe.py) lo detecte.
+        rc, out, err = cli('owner', 'encargo', 'alta', '--texto', 'Pedido de Diego', '--frente', 'A3', '--de-diego')
+        self.assertEqual(rc, 0, err); e = json.loads(out)
+        self.assertTrue(e['origen'].startswith('Diego '), e['origen'])
+
+    def test_alta_de_diego_no_pisa_origen_explicito(self):
+        rc, out, err = cli('owner', 'encargo', 'alta', '--texto', 'Origen explícito', '--frente', 'A3', '--de-diego', '--origen', 'Aina 17-09 10:00')
+        self.assertEqual(rc, 0, err); e = json.loads(out)
+        self.assertEqual(e['origen'], 'Aina 17-09 10:00')
+
     def test_escalar_cli(self):
         # T14: hq.py escalar pasa --motivo a omc_escalar (p_motivo), sin --agente (la firma vieja de 3
         # args con p_agente ya no existe). Requiere rol owner: escalar necesita HQ_OWNER_TOKEN.

@@ -60,6 +60,18 @@ class TestEncargoFlujo(unittest.TestCase):
         r = rpc(self.t['owner'], 'omc_encargo_estado', p_id=e['id'], p_estado='descartado', p_motivo='duplicado de #1')
         self.assertEqual(r['motivo_descarte'], 'duplicado de #1')
 
+    def test_encargo_set_no_deja_cerrar_saltando_las_puertas(self):
+        # I1 (revision final plan 1): omc_encargo_set (la funcion detras de 'hq.py encargo alta --id N')
+        # aceptaba estado='hecho'/'descartado' en su rama de update sin exigir fuente ni motivo, saltandose
+        # las puertas de omc_encargo_hecho/omc_encargo_estado por una via distinta a la misma columna.
+        e = self.nuevo()
+        with self.assertRaisesRegex(RuntimeError, 'usa encargo hecho'):
+            rpc(self.t['owner'], 'omc_encargo_set', p={'id': e['id'], 'estado': 'hecho'})
+        with self.assertRaisesRegex(RuntimeError, 'usa encargo hecho'):
+            rpc(self.t['owner'], 'omc_encargo_set', p={'id': e['id'], 'estado': 'descartado'})
+        actual = pg.sql("select estado from omc_encargos where id={0}", e['id'])[0]['estado']
+        self.assertEqual(actual, 'encolado')
+
     def test_editar_solo_owner_y_comentario_queda_en_feed(self):
         e = self.nuevo('Editable')
         with self.assertRaisesRegex(RuntimeError, 'solo owner'):

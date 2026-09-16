@@ -44,3 +44,31 @@ class TestExpedientes(unittest.TestCase):
         a = rpc(self.t['agente'], 'omc_sesion_abrir', p_expediente=x['id'], p_agente='Martí')
         self.assertEqual(a['sesion']['id'], s['id']); self.assertEqual(a['sesion']['estado'], 'abierta')
         rpc(self.t['agente'], 'omc_sesion_cerrar', p_sesion=s['id'], p_resumen='sin encargos', p_agente='Martí')
+
+    def test_expediente_ficha_id_ajeno_no_filtra_datos(self):
+        # C1 (revisión final plan 1): el CTE x de omc_expediente_ficha sí filtraba por empresa, pero las
+        # subconsultas de encargos/contactos/sesiones sólo filtraban por p_id, sin correlar con x. Un
+        # token de OTRA empresa pidiendo el id de un expediente de 'pruebas' con hijos recibía
+        # 'expediente': null pero 'encargos': [...] con los datos reales. Fixture propio, como el de T13
+        # (test_encargo_ficha_id_ajeno_no_filtra_datos) y T16 (test_omc_hq_v2_no_filtra_datos_de_otra_empresa):
+        # aquí se crea un tenant sintético 'pruebas-otra-c1' (nunca 77delta) sólo para tener un token de
+        # otra empresa.
+        x = rpc(self.t['owner'], 'omc_expediente_set', p={'nombre': 'Fuga C1', 'tipo': 'cliente', 'frente': 'B2', 'responsable': 'Martí'})
+        e = rpc(self.t['owner'], 'omc_encargo_alta', p={'texto': 'Hijo de Fuga C1', 'frente': 'B2', 'responsable': 'Martí', 'expediente_id': x['id']})
+        otra = 'pruebas-otra-c1'
+        try:
+            pg.sql("insert into omc_empresas (id, nombre, plan_usd) values ('{0}', 'Tenant ajeno C1', 0) on conflict (id) do nothing", otra)
+            pg.sql("insert into omc_tokens (empresa, rol, nombre) values ('{0}', 'agente', 'otra-c1')", otra)
+            token_otro = pg.sql("select token from omc_tokens where empresa = '{0}' and rol = 'agente'", otra)[0]['token']
+            try:
+                r = rpc(token_otro, 'omc_expediente_ficha', p_id=x['id'])
+            except RuntimeError:
+                r = None  # una excepción también es un resultado correcto (fail-closed)
+            self.assertIsNone(r, 'un token ajeno no debe ver un objeto (ni con listas vacías) del expediente de otra empresa')
+        finally:
+            pg.sql("delete from omc_empresas where id = '{0}'", otra)
+            pg.sql("alter table omc_encargo_avances disable trigger omc_avances_inmutables; "
+                   "delete from omc_encargo_avances where encargo_id = {0}; "
+                   "alter table omc_encargo_avances enable trigger omc_avances_inmutables;", e['id'])
+            pg.sql("delete from omc_encargos where id = {0}", e['id'])
+            pg.sql("delete from omc_expedientes where id = {0}", x['id'])

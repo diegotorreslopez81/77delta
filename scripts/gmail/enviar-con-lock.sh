@@ -71,6 +71,18 @@ if [ "$ORGANO" != "1" ]; then
   for arg in "$@"; do arg_lc="${arg,,}"; case "$arg_lc" in *.html|*.htm|*.md) echo "ABORTA (7): adjunto '$arg' en HTML o markdown. Conviértelo a la plantilla 77 Delta (PDF o Google Doc por enlace). Si el destinatario es un órgano de contratación, pasa --organo."; exit 7 ;; esac; done
 fi
 
+# 2d. un solo destinatario por invocación (I2, revisión final plan 1): gmail-agente.py send acepta
+# --cc, y argparse resuelve un --to repetido con "gana el último", así que un --cc o un segundo --to
+# colado en el passthrough (todo lo que va tras --) llega a un tercero sin pasar por las
+# comprobaciones de arriba (contacto, candado): esas sólo miran $TO. Cada destinatario necesita su
+# propia fila de contacto y su propia invocación de este script.
+for arg in "$@"; do
+  case "$arg" in
+    --to|--to=*|--cc|--cc=*|--bcc|--bcc=*)
+      echo "ABORTA (8): un destinatario por invocación, cada uno con su fila de contacto (--cc/--bcc/--to extra no permitidos)."; exit 8 ;;
+  esac
+done
+
 # 3. ventana horaria obligatoria 8-20, encargo #213 / incidente #609
 FRANJA_INICIO_DEFECTO="08:00"
 FRANJA_FIN_DEFECTO="20:00"

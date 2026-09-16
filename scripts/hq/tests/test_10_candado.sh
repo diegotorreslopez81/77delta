@@ -22,4 +22,8 @@ caso 7 --tarjeta "$TARJETA" --to nil@example.com --contacto "$CONTACTO" --simula
 caso 0 --tarjeta "$TARJETA" --to nil@example.com --contacto "$CONTACTO" --organo --simular -- --adjunto acta.html
 caso 0 --tarjeta "$TARJETA" --to nil@example.com --contacto "$CONTACTO" --simular -- --subject hola
 CANDADO_HORA_FAKE=22:00 caso 3 --tarjeta "$TARJETA" --to nil@example.com --contacto "$CONTACTO" --simular -- --subject hola
+# I2 (revision final plan 1): --cc o un segundo --to en el passthrough no deben poder saltarse la
+# puerta de contacto ni el candado, que solo miran $TO.
+caso 8 --tarjeta "$TARJETA" --to nil@example.com --contacto "$CONTACTO" --simular -- --cc x@example.com
+caso 8 --tarjeta "$TARJETA" --to nil@example.com --contacto "$CONTACTO" --simular -- --to otro@example.com
 exit $FALLOS

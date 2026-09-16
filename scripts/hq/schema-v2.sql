@@ -2,7 +2,7 @@
 -- Convención: cada sección lleva el número de tarea del plan 2026-09-16-hq-v2-plan-1-base.md.
 
 -- T1 · versión del esquema v2 (los tests la usan como centinela)
-create or replace function omc_v2_version() returns text language sql immutable as $$ select '2.0.3' $$;
+create or replace function omc_v2_version() returns text language sql immutable as $$ select '2.0.4' $$;
 grant execute on function omc_v2_version() to anon, authenticated;
 
 -- T2 · objetivo por horizonte
@@ -278,6 +278,9 @@ begin
     end if;
     if not coalesce(autorizado, false) then
       raise exception 'solo Diego, quien lo creo o el responsable pueden editarlo' using errcode = '42501';
+    end if;
+    if coalesce(p->>'estado','') in ('hecho','descartado') then
+      raise exception 'usa encargo hecho --fuente o encargo estado descartado --motivo';
     end if;
     update omc_encargos set texto = coalesce(p->>'texto', texto), interpretacion = coalesce(p->>'interpretacion', interpretacion),
       linea_id = case when p ? 'linea_id' then nullif(p->>'linea_id','')::bigint else linea_id end,
@@ -622,14 +625,15 @@ create or replace function omc_expediente_ficha(p_token text, p_id bigint) retur
 language sql security definer set search_path=public as $$
   with e as (select empresa from omc_tok(p_token)), x as (select * from omc_expedientes where id = p_id and empresa = (select empresa from e))
   select jsonb_build_object(
-    'expediente', (select to_jsonb(x) from x),
+    'expediente', to_jsonb(x),
     'frente', (select jsonb_build_object('id', l.id, 'codigo', l.codigo, 'linea', l.linea, 'kpi', l.kpi) from x join omc_plan_lineas l on l.id = x.linea_id),
-    'encargos', (select coalesce(jsonb_agg(to_jsonb(en) order by en.estado, en.fecha_hito nulls last), '[]'::jsonb) from omc_encargos en where en.expediente_id = p_id and en.estado <> 'descartado'),
-    'contactos', (select coalesce(jsonb_agg(to_jsonb(c) order by c.fecha desc), '[]'::jsonb) from omc_contactos c where c.expediente_id = p_id),
+    'encargos', (select coalesce(jsonb_agg(to_jsonb(en) order by en.estado, en.fecha_hito nulls last), '[]'::jsonb) from omc_encargos en join x on x.id = en.expediente_id and en.empresa = x.empresa where en.estado <> 'descartado'),
+    'contactos', (select coalesce(jsonb_agg(to_jsonb(c) order by c.fecha desc), '[]'::jsonb) from omc_contactos c join x on x.id = c.expediente_id and c.empresa = x.empresa),
     'decisiones', (select coalesce(jsonb_agg(to_jsonb(d) order by d.fecha desc), '[]'::jsonb) from omc_decisiones d join x on d.linea_id = x.linea_id and d.empresa = x.empresa),
-    'sesiones', (select coalesce(jsonb_agg(to_jsonb(s) order by s.created_at desc), '[]'::jsonb) from (select * from omc_sesiones where expediente_id = p_id order by created_at desc limit 5) s),
+    'sesiones', (select coalesce(jsonb_agg(to_jsonb(s) order by s.created_at desc), '[]'::jsonb) from (select se.* from omc_sesiones se join x on x.id = se.expediente_id and se.empresa = x.empresa order by se.created_at desc limit 5) s),
     'kit', (select coalesce(jsonb_agg(jsonb_build_object('id', k.id, 'tipo', k.tipo, 'nombre', k.nombre, 'url', k.url) order by k.tipo, k.nombre), '[]'::jsonb)
-            from omc_kit k join x on k.empresa = x.empresa where k.vigente and (k.linea_id is null or k.linea_id = x.linea_id)));
+            from omc_kit k join x on k.empresa = x.empresa where k.vigente and (k.linea_id is null or k.linea_id = x.linea_id))
+  ) from x;
 $$;
 
 create or replace function omc_expedientes_lista(p_token text, p_filtro jsonb default '{}'::jsonb) returns jsonb
