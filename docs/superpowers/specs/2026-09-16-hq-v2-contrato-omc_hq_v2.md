@@ -45,10 +45,16 @@ de `Date.now()` del navegador).
 | `unidad` | text | `omc_plan_objetivo.unidad` | normalmente `'EUR'` |
 | `fecha_limite` | date o null | `omc_plan_objetivo.fecha_limite` | |
 | `contratado_eur` | numeric | calculado | suma de `omc_ingresos.importe` con `estado` en `('contratado','facturado','cobrado')` y `extract(year from fecha) = horizonte` |
-| `presentado_eur` | numeric | calculado | suma de `omc_licitaciones.importe` con `decision = 'OK'` y año de `coalesce(fecha_decision, cierre)` = `horizonte` |
+| `presentado_eur` | numeric | calculado | suma de `omc_licitaciones.importe` con `upper(decision) in ('OK','APROBADA')` y año de `coalesce(fecha_decision, cierre)` = `horizonte` |
 
 Nota: el brief original de la tarea nombraba estas columnas `meta_eur`, `kpi` y `texto`; no existen en el
 esquema real (es `meta`, `unidad`, `titulo`). Se usan los nombres reales.
+
+Fix round 1 (revisor T16): en producción hay legado `'Aprobada'` (3 filas, 66.255 EUR) además de `'OK'`, y
+también `'Descartada'`/`'Descartado'`/`'NOK'` que no son `'No'`. Parche mínimo en `presentado_eur`:
+`upper(decision) in ('OK','APROBADA')`, sin normalizar la columna ni añadir un check (eso tocaría datos de
+producción sin autorización). Pendiente plan 2: normalizar `omc_licitaciones.decision` y validar en
+`omc_licitaciones_subir`.
 
 ### `bloques[]` (de `omc_plan_bloques`, T3)
 
@@ -69,9 +75,29 @@ Pendiente plan 2: `omc_ingresos.linea_id`.
 Solo bloques con `activo = true`.
 
 ### `frentes[]`
-Es literalmente `omc_frentes_lista(p_token)` (T3), sin cambios: `id`, `codigo`, `linea`, `kpi`, `valor_actual`,
-`meta`, `unidad`, `responsable`, `proximo_hito`, `fecha_hito`, `etiquetas`, `orden`, más lo que esa función
-ya agregue (bloque, semáforo, progreso: ver su definición en `schema-v2.sql`).
+Es literalmente `omc_frentes_lista(p_token)` (T3, `schema-v2.sql:141-151`), sin cambios. Corregido en este
+fix: la versión anterior de este contrato citaba campos que no existen (`bloque`, `semáforo`, `progreso`).
+
+| Campo | Tipo | Origen | Notas |
+|---|---|---|---|
+| `id` | bigint | `omc_plan_lineas.id` | |
+| `codigo` | text | `omc_plan_lineas.codigo` | ej. `'A1'` |
+| `linea` | text | `omc_plan_lineas.linea` | |
+| `kpi` | text | `omc_plan_lineas.kpi` | |
+| `valor_actual` | numeric o null | `omc_plan_lineas.valor_actual` | |
+| `meta` | numeric o null | `omc_plan_lineas.meta` | |
+| `unidad` | text o null | `omc_plan_lineas.unidad` | |
+| `responsable` | text o null | `omc_plan_lineas.responsable` | |
+| `proximo_hito` | text o null | `omc_plan_lineas.proximo_hito` | |
+| `fecha_hito` | date o null | `omc_plan_lineas.fecha_hito` | |
+| `etiquetas` | text[] | `omc_plan_lineas.etiquetas` | |
+| `orden` | int | `omc_plan_lineas.orden` | |
+| `bloque_id` | bigint o null | `omc_plan_bloques.id` (join por `bloque_id`) | |
+| `bloque_letra` | text o null | `omc_plan_bloques.letra` | |
+| `bloque_nombre` | text o null | `omc_plan_bloques.nombre` | |
+| `encargos_abiertos` | int | calculado | nº de `omc_encargos` en `('encolado','en_curso','bloqueado_diego')` con `linea_id` = este frente |
+
+Solo frentes con `activa = true`.
 
 ### `encargos[]`
 
@@ -123,23 +149,113 @@ días (por `fecha_avance`, o `fecha` si no hay avance).
 por tamaño de respuesta (ver "Tamaño de la respuesta" más abajo).
 
 ### `kit[]`
-= `omc_kit_lista(p_token)`: solo kit vigente (`vigente = true`), con `codigo` del frente si tiene `linea_id`.
+= `omc_kit_lista(p_token)`: solo kit vigente (`vigente = true`).
+
+| Campo | Tipo | Origen | Notas |
+|---|---|---|---|
+| `id` | bigint | `omc_kit.id` | |
+| `empresa` | text | `omc_kit.empresa` | siempre la del token; no filtrar por esto en el cliente |
+| `linea_id` | bigint o null | `omc_kit.linea_id` | null = kit general, no atado a un frente |
+| `tipo` | text | `omc_kit.tipo` | `'plantilla'`\|`'oficial'`\|`'procedimiento'`\|`'regla'` |
+| `nombre` | text | `omc_kit.nombre` | |
+| `url` | text o null | `omc_kit.url` | |
+| `texto` | text o null | `omc_kit.texto` | |
+| `version` | text | `omc_kit.version` | |
+| `vigente` | bool | `omc_kit.vigente` | siempre `true` en esta clave (la función ya filtra) |
+| `actualizado_por` | text o null | `omc_kit.actualizado_por` | |
+| `fecha` | timestamptz | `omc_kit.fecha` | |
+| `codigo` | text o null | `omc_plan_lineas.codigo` (join por `linea_id`) | solo si `linea_id` no es null |
 
 ### `contactos[]`
 Basado en `omc_contactos_lista(p_token, {})`, filtrado a: `fecha` en los últimos 14 días, **o** pendiente de
 toque real (`estado = 'enviado'` y `proximo_toque <= hoy`). Recortado en esta tarea (antes devolvía el
-historial completo sin límite) para acotar tamaño; incluye `codigo` y `texto_encargo` que añade esa función.
+historial completo sin límite) para acotar tamaño.
+
+| Campo | Tipo | Origen | Notas |
+|---|---|---|---|
+| `id` | bigint | `omc_contactos.id` | |
+| `empresa` | text | `omc_contactos.empresa` | |
+| `persona` | text o null | `omc_contactos.persona` | |
+| `email` | text o null | `omc_contactos.email` | |
+| `organizacion` | text o null | `omc_contactos.organizacion` | |
+| `canal` | text | `omc_contactos.canal` | `'correo'`\|`'linkedin'`\|`'formulario'`\|`'telefono'`\|`'plataforma'` |
+| `motivo` | text | `omc_contactos.motivo` | |
+| `linea_id` | bigint o null | `omc_contactos.linea_id` | |
+| `encargo_id` | bigint o null | `omc_contactos.encargo_id` | |
+| `expediente_id` | bigint o null | `omc_contactos.expediente_id` | |
+| `solicitud_id` | bigint o null | `omc_contactos.solicitud_id` | |
+| `agente` | text o null | `omc_contactos.agente` | |
+| `fecha` | timestamptz | `omc_contactos.fecha` | |
+| `toque` | int | `omc_contactos.toque` | número de toque (1, 2, ...) |
+| `estado` | text | `omc_contactos.estado` | `'previsto'`\|`'enviado'`\|`'respondido'`\|`'reunion'`\|`'cerrado'`\|`'sin_respuesta'` |
+| `proximo_toque` | date o null | `omc_contactos.proximo_toque` | |
+| `respuesta_ref` | text o null | `omc_contactos.respuesta_ref` | |
+| `respuesta_fecha` | timestamptz o null | `omc_contactos.respuesta_fecha` | |
+| `updated_at` | timestamptz | `omc_contactos.updated_at` | |
+| `codigo` | text o null | `omc_plan_lineas.codigo` (join por `linea_id`) | |
+| `texto_encargo` | text o null | primeros 60 caracteres de `omc_encargos.texto` (join por `encargo_id`) | |
 
 ### `expedientes[]`
 = `omc_expedientes_lista(p_token, {})`, sin filtro adicional (todos los `activo = true`).
 
+| Campo | Tipo | Origen | Notas |
+|---|---|---|---|
+| `id` | bigint | `omc_expedientes.id` | |
+| `empresa` | text | `omc_expedientes.empresa` | |
+| `tipo` | text | `omc_expedientes.tipo` | `'cliente'`\|`'producto'`\|`'convocatoria'`\|`'licitacion'` |
+| `nombre` | text | `omc_expedientes.nombre` | |
+| `linea_id` | bigint o null | `omc_expedientes.linea_id` | |
+| `responsable` | text o null | `omc_expedientes.responsable` | |
+| `ficha_url` | text o null | `omc_expedientes.ficha_url` | |
+| `carpeta_url` | text o null | `omc_expedientes.carpeta_url` | |
+| `estado_funnel` | text o null | `omc_expedientes.estado_funnel` | |
+| `entregables` | jsonb | `omc_expedientes.entregables` | |
+| `importe` | numeric o null | `omc_expedientes.importe` | |
+| `resumen_estado` | text o null | `omc_expedientes.resumen_estado` | |
+| `resumen_fecha` | timestamptz o null | `omc_expedientes.resumen_fecha` | |
+| `licitacion_expediente` | text o null | `omc_expedientes.licitacion_expediente` | |
+| `activo` | bool | `omc_expedientes.activo` | siempre `true` en esta clave |
+| `created_at` | timestamptz | `omc_expedientes.created_at` | |
+| `updated_at` | timestamptz | `omc_expedientes.updated_at` | |
+| `codigo` | text o null | `omc_plan_lineas.codigo` (join por `linea_id`) | |
+| `encargos_abiertos` | int | calculado | nº de `omc_encargos` en `('encolado','en_curso','bloqueado_diego')` con `expediente_id` = este expediente |
+| `sesion_abierta` | text o null | calculado | `agente` de la sesión abierta de este expediente, si hay una |
+
 ### `sesiones[]`
-Sesiones en `('abierta', 'solicitada')`: `id`, `expediente_id`, `nombre` (del expediente), `agente`, `estado`,
-`abierta` (timestamptz o null), `created_at`.
+Sesiones en `('abierta', 'solicitada')`, construidas dentro de `omc_hq_v2` (no llama a una función `_lista`
+propia):
+
+| Campo | Tipo | Origen | Notas |
+|---|---|---|---|
+| `id` | bigint | `omc_sesiones.id` | |
+| `expediente_id` | bigint | `omc_sesiones.expediente_id` | |
+| `nombre` | text | `omc_expedientes.nombre` (join por `expediente_id`) | |
+| `agente` | text | `omc_sesiones.agente` | |
+| `estado` | text | `omc_sesiones.estado` | `'solicitada'`\|`'abierta'` (nunca `'cerrada'`, no entran en el filtro) |
+| `abierta` | timestamptz o null | `omc_sesiones.abierta` | |
+| `created_at` | timestamptz | `omc_sesiones.created_at` | |
 
 ### `agentes[]`
 = `omc_agentes_lista(p_token)`, con `sesion_url`/`sesion_url_fecha` ocultas a un agente si no son las suyas
 (ver "Owner vs agente" arriba).
+
+| Campo | Tipo | Origen | Notas |
+|---|---|---|---|
+| `id` | text | `omc_agentes.id` | |
+| `nombre` | text | `omc_agentes.nombre` | |
+| `depto` | text | `omc_agentes.depto` | |
+| `nivel` | int | `omc_agentes.nivel` | |
+| `modelo` | text o null | `omc_agentes.contrato->>'modelo'` | |
+| `activo` | bool | `omc_agentes.activo` | |
+| `frentes` | text[] | `omc_agentes.frentes` | |
+| `frentes_codigos` | text[] | `omc_agentes.frentes` | mismo valor que `frentes`, clave duplicada por compatibilidad con la UI |
+| `cuenta` | text o null | `omc_agentes.cuenta` | |
+| `avatar_url` | text o null | `omc_agentes.avatar_url` | |
+| `sesion_url` | text o null | `omc_agentes.sesion_url` | **oculta (clave ausente) para un agente que consulta otro agente distinto de sí mismo** |
+| `sesion_url_fecha` | timestamptz o null | `omc_agentes.sesion_url_fecha` | misma ocultación que `sesion_url` |
+| `ultima_actividad` | timestamptz o null | `omc_agentes.ultima_actividad` | |
+| `encargos_abiertos` | int | calculado | nº de `omc_encargos` en `('encolado','en_curso','bloqueado_diego')` cuyo `agente` contiene el `id` de este agente |
+| `sesion_abierta` | bigint o null | calculado | `expediente_id` de la sesión abierta de este agente, si hay una |
 
 ### `pendientes[]`
 Solo owner (agente: `[]`). = `omc_hq(p_token).pendientes`: solicitudes de `omc_solicitudes` pendientes para
