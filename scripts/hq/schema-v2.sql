@@ -305,4 +305,131 @@ begin
 end $$;
 grant execute on function omc_encargo_alta(text, jsonb), omc_encargo_avance(text, bigint, text, text) to anon, authenticated;
 
+-- T5 · puertas de cierre (hecho con fuente, estado con motivo), tomar, editar y feed
+-- Esqueleto minimo de omc_kit: ruling del controlador (task-5, 2026-09-16) sobre el brief, que
+-- decia "se crea en T7". La tabla se crea aqui, con las mismas columnas; T7 solo anade RPC y semilla.
+create table if not exists omc_kit (
+  id bigserial primary key, empresa text not null references omc_empresas(id), linea_id bigint references omc_plan_lineas(id) on delete set null,
+  tipo text not null check (tipo in ('plantilla','oficial','procedimiento','regla')), nombre text not null, url text, texto text,
+  version text default '1', vigente boolean default true, actualizado_por text, fecha timestamptz default now());
+create index if not exists omc_kit_emp on omc_kit (empresa, linea_id) where vigente;
+alter table omc_kit enable row level security;
+
+-- Fuente valida para cerrar un encargo: una url que ya esta en el kit vigente de la empresa, o un
+-- Google Doc/Drive (docs.google.com o drive.google.com). Interno: lo usa solo omc_encargo_hecho.
+create or replace function omc_fuente_valida(p_empresa text, p_fuente text) returns boolean
+language sql stable as $$
+  select p_fuente ~ '^https://(docs|drive)\.google\.com/'
+      or exists (select 1 from omc_kit k where k.empresa = p_empresa and k.vigente and k.url is not null and k.url = trim(p_fuente));
+$$;
+revoke execute on function omc_fuente_valida(text, text) from public, anon, authenticated;
+
+create or replace function omc_encargo_hecho(p_token text, p_id bigint, p_fuente text, p_entregable text default '', p_agente text default null) returns jsonb
+language plpgsql security definer set search_path=public as $$
+declare t omc_tokens; e omc_encargos; v_agente text;
+begin
+  t := omc_tok(p_token);
+  select * into e from omc_encargos where id = p_id and empresa = t.empresa;
+  if e.id is null then raise exception 'encargo % no existe', p_id; end if;
+  v_agente := case when t.rol = 'owner' then 'diego' else coalesce(nullif(p_agente, ''), 'agente') end;
+  if not omc_encargo_puede(t, e, v_agente) then raise exception 'no autorizado: el encargo es de %', coalesce(nullif(e.agente,''), e.creado_por) using errcode='42501'; end if;
+  if not omc_fuente_valida(t.empresa, coalesce(p_fuente,'')) then
+    raise exception 'fuente no válida: cita una entrada del kit (hq.py kit lista %) o un Google Doc', coalesce((select codigo from omc_plan_lineas where id = e.linea_id), '<frente>');
+  end if;
+  -- espera es text not null default '' (schema.sql): no puede quedar a null al cerrar.
+  update omc_encargos set estado = 'hecho', fuente_cierre = trim(p_fuente), entregable_url = nullif(trim(coalesce(p_entregable,'')), ''), espera = '' where id = e.id;
+  perform omc_avance_insertar(t.empresa, e.id, v_agente, 'cierre', 'hecho · fuente ' || trim(p_fuente) || case when coalesce(p_entregable,'') <> '' then ' · entregable ' || p_entregable else '' end);
+  select * into e from omc_encargos where id = p_id and empresa = t.empresa;
+  return to_jsonb(e);
+end $$;
+
+-- El drop cambia la firma de 4 a 5 argumentos (se anade p_motivo). Un drop borra el ACL de la
+-- funcion vieja (revoke/grant de schema.sql, seccion final): se restaura justo debajo. Las llamadas
+-- de 4 argumentos con nombre (hq.py de main, sin --motivo) siguen resolviendo a esta funcion nueva
+-- porque PostgREST llama por argumentos nombrados y p_motivo tiene default ''.
+drop function if exists omc_encargo_estado(text, bigint, text, text);
+create or replace function omc_encargo_estado(p_token text, p_id bigint, p_estado text, p_agente text default null, p_motivo text default '') returns jsonb
+language plpgsql security definer set search_path=public as $$
+declare t omc_tokens; e omc_encargos; v_agente text;
+begin
+  t := omc_tok(p_token);
+  select * into e from omc_encargos where id = p_id and empresa = t.empresa;
+  if e.id is null then raise exception 'encargo % no existe', p_id; end if;
+  v_agente := case when t.rol = 'owner' then 'diego' else coalesce(nullif(p_agente, ''), 'agente') end;
+  if not omc_encargo_puede(t, e, v_agente) then raise exception 'no autorizado: el encargo es de %', coalesce(nullif(e.agente,''), e.creado_por) using errcode='42501'; end if;
+  if p_estado = 'hecho' then raise exception 'usa omc_encargo_hecho --fuente <url del kit o Google Doc>'; end if;
+  if p_estado not in ('encolado','en_curso','bloqueado_diego','descartado') then raise exception 'estado % no válido', p_estado; end if;
+  if p_estado = 'descartado' and coalesce(trim(p_motivo),'') = '' then raise exception 'falta motivo: --motivo "por qué se descarta"'; end if;
+  update omc_encargos set estado = p_estado, motivo_descarte = case when p_estado = 'descartado' then trim(p_motivo) else motivo_descarte end where id = e.id;
+  perform omc_avance_insertar(t.empresa, e.id, v_agente, 'estado', e.estado || ' -> ' || p_estado || case when coalesce(p_motivo,'') <> '' then ' · ' || p_motivo else '' end);
+  select * into e from omc_encargos where id = p_id and empresa = t.empresa;
+  return to_jsonb(e);
+end $$;
+revoke all on function omc_encargo_estado(text, bigint, text, text, text) from public;
+grant execute on function omc_encargo_estado(text, bigint, text, text, text) to anon, authenticated, service_role;
+
+create or replace function omc_encargo_contexto(p_empresa text, p_id bigint) returns jsonb
+language sql stable as $$
+  select jsonb_build_object(
+    'encargo', (select to_jsonb(e) || jsonb_build_object('codigo', l.codigo) from omc_encargos e left join omc_plan_lineas l on l.id = e.linea_id where e.id = p_id),
+    'frente', (select jsonb_build_object('id', l.id, 'codigo', l.codigo, 'linea', l.linea, 'kpi', l.kpi, 'meta', l.meta, 'valor_actual', l.valor_actual, 'responsable', l.responsable,
+                 'bloque', b.letra || ' ' || b.nombre) from omc_encargos e join omc_plan_lineas l on l.id = e.linea_id left join omc_plan_bloques b on b.id = l.bloque_id where e.id = p_id),
+    'kit', (select coalesce(jsonb_agg(jsonb_build_object('id', k.id, 'tipo', k.tipo, 'nombre', k.nombre, 'url', k.url, 'texto', k.texto) order by k.tipo, k.nombre), '[]'::jsonb)
+              from omc_kit k where k.empresa = p_empresa and k.vigente and (k.linea_id is null or k.linea_id = (select linea_id from omc_encargos where id = p_id))),
+    'avances', (select coalesce(jsonb_agg(to_jsonb(a) order by a.fecha desc), '[]'::jsonb) from (select * from omc_encargo_avances where encargo_id = p_id order by fecha desc limit 10) a),
+    'contactos', '[]'::jsonb,
+    'expediente', null);
+$$;
+revoke execute on function omc_encargo_contexto(text, bigint) from public, anon, authenticated;
+
+create or replace function omc_encargo_tomar(p_token text, p_id bigint, p_agente text default null) returns jsonb
+language plpgsql security definer set search_path=public as $$
+declare t omc_tokens; e omc_encargos; v_agente text;
+begin
+  t := omc_tok(p_token);
+  select * into e from omc_encargos where id = p_id and empresa = t.empresa;
+  if e.id is null then raise exception 'encargo % no existe', p_id; end if;
+  v_agente := case when t.rol = 'owner' then 'diego' else coalesce(nullif(p_agente, ''), 'agente') end;
+  if not omc_encargo_puede(t, e, v_agente) then raise exception 'no autorizado: el encargo es de %', coalesce(nullif(e.agente,''), e.creado_por) using errcode='42501'; end if;
+  if e.estado in ('encolado','bloqueado_diego') then
+    update omc_encargos set estado = 'en_curso', agente = coalesce(agente, omc_agente_valido(t.empresa, v_agente), v_agente) where id = e.id;
+    perform omc_avance_insertar(t.empresa, e.id, v_agente, 'estado', e.estado || ' -> en_curso (tomado)');
+  end if;
+  return omc_encargo_contexto(t.empresa, e.id);
+end $$;
+
+create or replace function omc_encargo_editar(p_token text, p_id bigint, p jsonb) returns jsonb
+language plpgsql security definer set search_path=public as $$
+declare t omc_tokens; e omc_encargos; v_linea bigint; v_resp text;
+begin
+  t := omc_tok(p_token);
+  if t.rol <> 'owner' then raise exception 'solo owner' using errcode='42501'; end if;
+  select * into e from omc_encargos where id = p_id and empresa = t.empresa;
+  if e.id is null then raise exception 'encargo % no existe', p_id; end if;
+  if p ? 'frente' then v_linea := omc_frente_id(t.empresa, p->>'frente'); if v_linea is null then raise exception 'frente % no existe', p->>'frente'; end if; end if;
+  if p ? 'responsable' then v_resp := omc_agente_valido(t.empresa, p->>'responsable'); if v_resp is null then raise exception 'responsable % no es un agente activo', p->>'responsable'; end if; end if;
+  update omc_encargos set
+    texto = coalesce(p->>'texto', texto), interpretacion = coalesce(p->>'interpretacion', interpretacion),
+    prioridad = coalesce(nullif(p->>'prioridad','')::int, prioridad),
+    etiquetas = case when p ? 'etiquetas' then array(select jsonb_array_elements_text(p->'etiquetas')) else etiquetas end,
+    enlaces = coalesce(p->'enlaces', enlaces), proximo_hito = coalesce(p->>'proximo_hito', proximo_hito),
+    fecha_hito = coalesce(nullif(p->>'fecha_hito','')::date, fecha_hito),
+    linea_id = coalesce(v_linea, linea_id), agente = coalesce(v_resp, agente),
+    orden_kanban = coalesce(nullif(p->>'orden_kanban','')::int, orden_kanban),
+    expediente_id = coalesce(nullif(p->>'expediente_id','')::bigint, expediente_id), updated_at = now()
+  where id = e.id returning * into e;
+  if coalesce(p->>'comentario','') <> '' then perform omc_avance_insertar(t.empresa, e.id, 'diego', 'comentario_diego', p->>'comentario'); end if;
+  return to_jsonb(e) || jsonb_build_object('codigo', (select codigo from omc_plan_lineas where id = e.linea_id));
+end $$;
+
+create or replace function omc_feed(p_token text, p_desde timestamptz default now() - interval '24 hours') returns jsonb
+language sql security definer set search_path=public as $$
+  select coalesce(jsonb_agg(jsonb_build_object('id', a.id, 'encargo_id', a.encargo_id, 'texto_encargo', left(e.texto, 80), 'codigo', l.codigo, 'agente', e.agente,
+    'autor', a.autor, 'tipo', a.tipo, 'texto', a.texto, 'fecha', a.fecha) order by a.fecha desc), '[]'::jsonb)
+  from omc_encargo_avances a join omc_encargos e on e.id = a.encargo_id left join omc_plan_lineas l on l.id = e.linea_id
+  where a.empresa = (select empresa from omc_tok(p_token)) and a.fecha >= p_desde;
+$$;
+grant execute on function omc_encargo_hecho(text, bigint, text, text, text), omc_encargo_tomar(text, bigint, text),
+  omc_encargo_editar(text, bigint, jsonb), omc_feed(text, timestamptz) to anon, authenticated;
+
 notify pgrst, 'reload schema';
