@@ -27,6 +27,13 @@ class TestParados(unittest.TestCase):
         self.assertFalse(p.toca_avisar('1', 'avisado', estado, ahora))
         self.assertTrue(p.toca_avisar('1', 'avisado', {'1': {'avisado': (ahora - timedelta(hours=30)).isoformat()}}, ahora))
 
+    def test_destino_aviso_ventana_directa_o_jordi_coo(self):
+        p = cargar('hq-parados')
+        agentes = [{'id': 'aina', 'nombre': 'Aina', 'sesiones': ['Aina-Comercial']}]
+        self.assertEqual(p.destino_aviso('Aina', agentes), ('Aina-Comercial', True))
+        self.assertIsNone(p.ventana_de('DevOps (alta hoy) + Pol', agentes))
+        self.assertEqual(p.destino_aviso('DevOps (alta hoy) + Pol', agentes), ('Jordi-COO', False))
+
 
 class TestInforme(unittest.TestCase):
     def test_secciones_en_orden_y_peticiones_de_diego(self):

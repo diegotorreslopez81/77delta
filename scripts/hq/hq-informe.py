@@ -51,9 +51,12 @@ def main():
     ap = argparse.ArgumentParser(); ap.add_argument('--dry-run', action='store_true'); ap.add_argument('--fecha')
     a = ap.parse_args(); hoy = datetime.now(timezone.utc) if not a.fecha else datetime.fromisoformat(a.fecha).replace(tzinfo=timezone.utc)
     owner = hq.E.get('HQ_OWNER_TOKEN') or sys.exit('falta HQ_OWNER_TOKEN (solo lectura)')
-    datos = hq.rpc('omc_hq', p_token=owner)
-    feed = hq.rpc('omc_feed', p_token=owner, p_desde=(hoy - timedelta(hours=24)).isoformat())
-    encargos = hq.rpc('omc_encargos_lista', p_token=owner)  # devuelve todos los encargos de la empresa; secciones() filtra por fecha y origen
+    try:
+        datos = hq.rpc('omc_hq', p_token=owner)
+        feed = hq.rpc('omc_feed', p_token=owner, p_desde=(hoy - timedelta(hours=24)).isoformat())
+        encargos = hq.rpc('omc_encargos_lista', p_token=owner)  # devuelve todos los encargos de la empresa; secciones() filtra por fecha y origen
+    except Exception as ex:
+        sys.exit(f'HQ no responde: {type(ex).__name__}')
     md = [f"# Informe HQ {hoy.strftime('%d-%m-%Y')} 07:00", '']
     for titulo, lineas in secciones(datos, feed, encargos, hoy):
         md += [f'## {titulo}', ''] + [f'- {l}' for l in lineas] + ['']

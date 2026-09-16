@@ -49,8 +49,17 @@ def ventana_de(agente, agentes):
     return None
 
 
+def destino_aviso(agente, agentes):
+    """(ventana, directo) para el aviso de 48 h: la ventana del responsable si se encuentra
+    (directo=True), o Jordi-COO si el agente no casa con ninguna ventana registrada (directo=False,
+    caso real encargo #75 'DevOps (alta hoy) + Pol'): sin esto un tmux-decir a None se queda mudo y
+    el encargo se marca avisado igualmente, un aviso fantasma."""
+    v = ventana_de(agente, agentes)
+    return (v, True) if v else ('Jordi-COO', False)
+
+
 def decir(ventana, texto, dry):
-    if dry or not ventana: print(f'[dry] tmux-decir {ventana}: {texto}'); return
+    if dry: print(f'[dry] tmux-decir {ventana}: {texto}'); return
     subprocess.run(['tmux-decir', ventana, texto], check=False)
 
 
@@ -58,13 +67,25 @@ def main():
     ap = argparse.ArgumentParser(); ap.add_argument('--dry-run', action='store_true'); ap.add_argument('--horas-aviso', type=int, default=48); ap.add_argument('--horas-escalado', type=int, default=72)
     a = ap.parse_args(); ahora = datetime.now(timezone.utc)
     owner = hq.E.get('HQ_OWNER_TOKEN') or sys.exit('falta HQ_OWNER_TOKEN en hq.env (solo lectura)')
-    encargos = hq.rpc('omc_encargos_lista', p_token=owner)  # sin filtros: clasificar_parados se queda con los en_curso
-    agentes = hq.rpc('omc_hq', p_token=owner)['agentes']
+    try:
+        encargos = hq.rpc('omc_encargos_lista', p_token=owner)  # sin filtros: clasificar_parados se queda con los en_curso
+        agentes = hq.rpc('omc_hq', p_token=owner)['agentes']
+    except Exception as ex:
+        sys.exit(f'HQ no responde: {type(ex).__name__}')
     estado = json.loads(ESTADO.read_text()) if ESTADO.exists() else {}
     r = clasificar_parados(encargos, ahora, a.horas_aviso, a.horas_escalado)
     for e in r['avisar']:
         if not toca_avisar(e['id'], 'avisado', estado, ahora): continue
-        decir(ventana_de(e.get('agente'), agentes), f"[HQ parados] encargo #{e['id']} lleva {e['horas_parado']} h sin avance: {e['texto'][:80]}. Escribe un avance hoy (hq.py encargo avance {e['id']} --texto ...) o cambia el estado con motivo.", a.dry_run)
+        ventana, directo = destino_aviso(e.get('agente'), agentes)
+        if directo:
+            decir(ventana, f"[HQ parados] encargo #{e['id']} lleva {e['horas_parado']} h sin avance: {e['texto'][:80]}. Escribe un avance hoy (hq.py encargo avance {e['id']} --texto ...) o cambia el estado con motivo.", a.dry_run)
+        else:
+            texto = f"[HQ parados] sin ventana para {e.get('agente')}: encargo #{e['id']} ({e['horas_parado']} h sin avance): {e['texto'][:80]}. Reclama tú."
+            if a.dry_run:
+                print(f"[dry] sin ventana para {e.get('agente')} -> Jordi-COO: {texto}")
+            else:
+                subprocess.run(['tmux-decir', 'Jordi-COO', texto], check=False)
+                print(f"aviso: sin ventana para {e.get('agente')}, enrutado a Jordi-COO")
         estado.setdefault(str(e['id']), {})['avisado'] = ahora.isoformat()
     for e in r['escalar']:
         if not toca_avisar(e['id'], 'escalado', estado, ahora): continue
