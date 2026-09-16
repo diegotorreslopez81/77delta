@@ -66,3 +66,13 @@ class TestCli(unittest.TestCase):
         self.assertEqual(rc, 0, err)
         r = json.loads(out)
         self.assertEqual(r['destinatario'], 'diego')
+
+    def test_escalar_cli_sin_motivo_cae_en_sin_motivo(self):
+        # Ronda 1 (revisor T14): --motivo default='' llegaba a omc_escalar como cadena vacía, que no
+        # activa el coalesce(p_motivo, 'sin motivo') de la RPC (solo NULL lo activa). Con default=None
+        # el CLI sin --motivo debe dejar el mensaje '[escalado a Diego] sin motivo'.
+        s = rpc(self.t['agente'], 'omc_pedir', p={'tipo': 'duda', 'titulo': 'Escalar sin motivo CLI', 'detalle': 'detalle'})
+        rc, out, err = cli('owner', 'escalar', str(s['id']))
+        self.assertEqual(rc, 0, err)
+        msg = pg.sql(f"select texto from omc_mensajes where solicitud_id = {s['id']} order by id desc limit 1")
+        self.assertEqual(msg[0]['texto'], '[escalado a Diego] sin motivo')

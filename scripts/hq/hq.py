@@ -388,7 +388,7 @@ def main():
 
     p = sub.add_parser('pedir'); comun(p); p.add_argument('--tipo', choices=TIPOS, default='otro')
     p = sub.add_parser('duda'); comun(p)
-    p = sub.add_parser('escalar', help='(coo/chief/Diego) subir una tarjeta a Diego, con motivo para el hilo'); p.add_argument('id', type=int); p.add_argument('--motivo', default='')
+    p = sub.add_parser('escalar', help='(coo/chief/Diego) subir una tarjeta a Diego, con motivo para el hilo'); p.add_argument('id', type=int); p.add_argument('--motivo', default=None)
     p = sub.add_parser('pendientes-chief', help='(chief) cola de solicitudes escaladas por el coo, con destinatario=chief, pendientes de resolver por chat')
     p = sub.add_parser('pendientes-coo', help='(coo) cola general de dudas del dia a dia, con destinatario=coo, pendientes de resolver por chat')
     p = sub.add_parser('posponer', help='(coo/chief/Diego) posponer una solicitud pendiente hasta una fecha: sale de la bandeja y vuelve sola, con push, cuando llegue (hq-recordatorios.py la revisa cada 5 min)')
