@@ -937,6 +937,7 @@ begin
   return to_jsonb(s);
 end $$;
 
+-- sustituida por schema-v2.sql (T14): no editar aquí.
 -- El chief sube una solicitud de su cola a la de Diego (encargo 56): solo owner o el propio chief.
 -- Solo owner (el token de agente normal es único y compartido por todos - "agentes" - no distingue
 -- quién llama; igual que omc_agente_set, esto exige HQ_OWNER_TOKEN. El chief ya lo usa para sus scripts

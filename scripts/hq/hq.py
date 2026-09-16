@@ -388,7 +388,7 @@ def main():
 
     p = sub.add_parser('pedir'); comun(p); p.add_argument('--tipo', choices=TIPOS, default='otro')
     p = sub.add_parser('duda'); comun(p)
-    p = sub.add_parser('escalar', help='(coo/chief) subir una solicitud: desde coo sube a chief, desde cualquier otro sube a coo'); p.add_argument('id', type=int); p.add_argument('--agente')
+    p = sub.add_parser('escalar', help='(coo/chief/Diego) subir una tarjeta a Diego, con motivo para el hilo'); p.add_argument('id', type=int); p.add_argument('--motivo', default='')
     p = sub.add_parser('pendientes-chief', help='(chief) cola de solicitudes escaladas por el coo, con destinatario=chief, pendientes de resolver por chat')
     p = sub.add_parser('pendientes-coo', help='(coo) cola general de dudas del dia a dia, con destinatario=coo, pendientes de resolver por chat')
     p = sub.add_parser('posponer', help='(coo/chief/Diego) posponer una solicitud pendiente hasta una fecha: sale de la bandeja y vuelve sola, con push, cuando llegue (hq-recordatorios.py la revisa cada 5 min)')
@@ -533,7 +533,7 @@ def main():
             import subprocess as _sp
             _sp.run([str(Path.home() / 'bin' / 'tmux-decir'), 'Jordi-COO',
                      f"[hq.py {a.cmd}] #{s['id']} de {s['agente']}: {s['titulo']}" + (f" - {a.detalle[:200]}" if a.detalle else '') +
-                     f" · resuelve con: hq.py comentar {s['id']} --texto \"...\" (o hq.py escalar {s['id']} --agente coo si hace falta subirlo al chief)"],
+                     f" · resuelve con: hq.py comentar {s['id']} --texto \"...\" (o hq.py escalar {s['id']} --motivo \"...\" si hace falta subirlo a Diego)"],
                     capture_output=True, text=True, timeout=40)
         if a.esperar:
             sys.exit(esperar(s['id'], a.esperar, a.intervalo, a.json))
@@ -545,7 +545,7 @@ def main():
         # que cumplir el límite antes de subir, no después.
         actual = rpc('omc_estado', p_token=owner, p_id=a.id)
         exigir_limite_diego(actual.get('titulo'), actual.get('detalle'))
-        salida(rpc('omc_escalar', p_token=owner, p_id=a.id, p_agente=agente_actual(a.agente)), a.json)
+        salida(rpc('omc_escalar', p_token=owner, p_id=a.id, p_motivo=a.motivo), a.json)
     elif a.cmd == 'pendientes-chief':
         owner = E.get('HQ_OWNER_TOKEN')
         if not owner:

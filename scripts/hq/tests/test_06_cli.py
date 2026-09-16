@@ -57,3 +57,12 @@ class TestCli(unittest.TestCase):
         self.assertNotEqual(rc, 0); self.assertIn('falta motivo', out + err)
         rc, out, err = cli('owner', 'encargo', 'estado', str(e['id']), 'descartado', '--motivo', 'duplicado')
         self.assertEqual(rc, 0, err)
+
+    def test_escalar_cli(self):
+        # T14: hq.py escalar pasa --motivo a omc_escalar (p_motivo), sin --agente (la firma vieja de 3
+        # args con p_agente ya no existe). Requiere rol owner: escalar necesita HQ_OWNER_TOKEN.
+        s = rpc(self.t['agente'], 'omc_pedir', p={'tipo': 'duda', 'titulo': 'Escalar por CLI', 'detalle': 'detalle'})
+        rc, out, err = cli('owner', 'escalar', str(s['id']), '--motivo', 'prueba de firma unica')
+        self.assertEqual(rc, 0, err)
+        r = json.loads(out)
+        self.assertEqual(r['destinatario'], 'diego')

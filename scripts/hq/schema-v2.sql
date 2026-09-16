@@ -855,4 +855,32 @@ begin
 end $$;
 grant execute on function omc_encargo_ficha(text, bigint) to anon, authenticated;
 
+-- T14 · omc_escalar: una sola firma, siempre a Diego, con motivo en el hilo. Sustituye las dos firmas de
+-- schema.sql (2 args) y la anadida en caliente en produccion (3er parametro p_agente, nunca llego a
+-- schema.sql) por una unica omc_escalar(p_token, p_id, p_motivo default null). Se filtra por t.empresa
+-- (igual que el resto de RPC v2, T13) para que no se pueda escalar una tarjeta de otra empresa.
+-- Concern (T14, se anota en el informe): la interfaz pedia restringir a "owner, chief o el agente autor
+-- de la tarjeta", pero omc_tokens solo distingue rol owner/agente (un unico token "agente" compartido
+-- por todo el equipo, sin id de agente); con ese modelo no hay forma de comprobar autoria ni un rol
+-- "chief" aparte, asi que cualquier token valido de la empresa puede escalar cualquier tarjeta de esa
+-- empresa. Se deja sin ese control, igual que hacia ya omc_comentar con p_agente de solo etiqueta.
+-- Sin pg_notify (a diferencia del borrador del brief): ninguna otra RPC de este fichero lo usa: la UI
+-- v1 se refresca con el realtime de tabla de Supabase sobre omc_solicitudes/omc_mensajes, no con
+-- pg_notify a mano.
+drop function if exists omc_escalar(text, bigint);
+drop function if exists omc_escalar(text, bigint, text);
+create or replace function omc_escalar(p_token text, p_id bigint, p_motivo text default null) returns jsonb
+language plpgsql security definer set search_path=public as $$
+declare t record; s omc_solicitudes; v_actor text;
+begin
+  select * into t from omc_tok(p_token);
+  select * into s from omc_solicitudes where id = p_id and empresa = t.empresa;
+  if s.id is null then raise exception 'tarjeta % no existe', p_id; end if;
+  v_actor := case when t.rol = 'owner' then 'diego' else 'agente' end;
+  update omc_solicitudes set destinatario = 'diego' where id = s.id returning * into s;
+  insert into omc_mensajes (empresa, solicitud_id, autor, texto) values (t.empresa, s.id, v_actor, '[escalado a Diego] ' || coalesce(p_motivo, 'sin motivo'));
+  return jsonb_build_object('id', s.id, 'destinatario', s.destinatario, 'estado', s.estado);
+end $$;
+grant execute on function omc_escalar(text, bigint, text) to anon, authenticated;
+
 notify pgrst, 'reload schema';
