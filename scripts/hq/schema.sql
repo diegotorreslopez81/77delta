@@ -451,6 +451,7 @@ end $$;
 -- Plan estrategico: objetivo global (solo owner lo fija/cambia), lineas (owner crea/edita la
 -- definicion; el responsable solo toca su valor_actual con omc_plan_kpi_actualizar) y decisiones
 -- (cualquier token anota, para poder registrarlas desde el hilo de una tarjeta).
+-- sustituida en schema-v2.sql (T2); se conserva para instalaciones sin v2
 create or replace function public.omc_plan_objetivo_set(p_token text, p jsonb)
 returns jsonb language plpgsql security definer set search_path = public as $$
 declare t public.omc_tokens; o public.omc_plan_objetivo;
