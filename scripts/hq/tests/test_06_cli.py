@@ -44,14 +44,12 @@ class TestCli(unittest.TestCase):
         rc, out, err = cli('agente', 'feed', '--desde', '2026-01-01')
         self.assertEqual(rc, 0, err); self.assertEqual(json.loads(out)[0]['tipo'], 'cierre')
 
-    def test_alta_sin_frente_usa_v1_legado(self):
+    def test_alta_sin_frente_se_rechaza(self):
         rc, out, err = cli('owner', 'encargo', 'alta', '--texto', 'Legado CLI')
-        self.assertEqual(rc, 0, err)
-        e = json.loads(out)
-        filas = pg.sql("select origen, linea_id from omc_encargos where id={0}", e['id'])
-        self.assertEqual(filas[0]['origen'], 'legado')
-        self.assertIsNone(filas[0]['linea_id'])
-        pg.sql("delete from omc_encargos where id={0}", e['id'])
+        self.assertNotEqual(rc, 0)
+        self.assertIn('falta frente', out + err)
+        n = pg.sql("select count(*) as n from omc_encargos where texto='Legado CLI'")[0]['n']
+        self.assertEqual(int(n), 0)
 
     def test_estado_descartado_pide_motivo(self):
         rc, out, _ = cli('owner', 'encargo', 'alta', '--texto', 'Para descartar', '--frente', 'A3'); e = json.loads(out)

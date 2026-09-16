@@ -247,6 +247,9 @@ begin
       return omc_encargo_alta(p_token, p);
     end if;
     if coalesce(p->>'texto','') = '' then raise exception 'falta texto'; end if;
+    if nullif(p->>'linea_id','') is null then
+      raise exception 'falta frente: usa encargo alta --frente CODIGO (lista: hq.py frentes)' using errcode = '23514';
+    end if;
     v_prioridad := (p->>'prioridad')::int;
     if v_prioridad is null then
       select coalesce(max(prioridad), 0) + 1 into v_prioridad from omc_encargos
@@ -431,5 +434,15 @@ language sql security definer set search_path=public as $$
 $$;
 grant execute on function omc_encargo_hecho(text, bigint, text, text, text), omc_encargo_tomar(text, bigint, text),
   omc_encargo_editar(text, bigint, jsonb), omc_feed(text, timestamptz) to anon, authenticated;
+
+-- T7 - sin encargos vivos fuera de plan (se activa tras la migracion; si falla, aun hay huerfanos)
+do $$ begin
+  if not exists (select 1 from omc_encargos where linea_id is null and estado <> 'descartado') then
+    alter table omc_encargos drop constraint if exists omc_encargos_frente_obligatorio;
+    alter table omc_encargos add constraint omc_encargos_frente_obligatorio check (linea_id is not null or estado = 'descartado');
+  else
+    raise notice 'omc_encargos: quedan encargos vivos sin frente, constraint no aplicada';
+  end if;
+end $$;
 
 notify pgrst, 'reload schema';

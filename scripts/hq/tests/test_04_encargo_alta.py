@@ -35,14 +35,11 @@ class TestEncargoAlta(unittest.TestCase):
         with self.assertRaisesRegex(RuntimeError, 'responsable nadie no es un agente'):
             rpc(self.t['owner'], 'omc_encargo_alta', p={'texto': 'x', 'frente': 'A3', 'responsable': 'nadie'})
 
-    def test_encargo_set_sin_id_sin_frente_conserva_alta_legado(self):
-        # Ruling del controlador (task-4): el bloqueo "usa omc_encargo_alta" del brief no se activa aun
-        # porque hq.py de main sigue llamando omc_encargo_set sin id y sin frente. Ese camino v1 se
-        # mantiene igual, solo con origen='legado' para poder distinguirlo despues.
-        r = rpc(self.t['owner'], 'omc_encargo_set', p={'texto': 'Aviso legado sin frente'})
-        self.assertIsNone(r['linea_id'])
-        self.assertEqual(r['origen'], 'legado')
-        self.assertEqual(r['estado'], 'encolado')
+    def test_encargo_set_sin_id_sin_frente_se_rechaza(self):
+        # T7: migracion aplicada el 16-sep y constraint omc_encargos_frente_obligatorio activa.
+        # La ventana de compatibilidad v1 (alta legado sin frente) queda cerrada con error claro.
+        with self.assertRaisesRegex(RuntimeError, 'falta frente'):
+            rpc(self.t['owner'], 'omc_encargo_set', p={'texto': 'Aviso legado sin frente'})
 
     def test_encargo_set_sin_id_con_frente_delega_en_alta(self):
         r = rpc(self.t['owner'], 'omc_encargo_set', p={'texto': 'Via set con frente', 'frente': 'A3'})
