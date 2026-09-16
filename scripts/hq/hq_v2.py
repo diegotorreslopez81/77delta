@@ -50,6 +50,18 @@ def registrar(sub, esub):
     cl = csub.add_parser('lista'); cl.add_argument('--encargo', type=int); cl.add_argument('--frente'); cl.add_argument('--estado'); cl.add_argument('--agente'); cl.add_argument('--pendientes', action='store_true')
     cf = csub.add_parser('ficha'); cf.add_argument('id', type=int)
     cr = csub.add_parser('respondido'); cr.add_argument('--email', required=True); cr.add_argument('--ref', required=True)
+    x = sub.add_parser('expediente', help='clientes, productos, convocatorias y licitaciones con su ficha, encargos, contactos y sesiones')
+    xsub = x.add_subparsers(dest='sub', required=True)
+    xa = xsub.add_parser('alta'); xa.add_argument('--id', type=int); xa.add_argument('--nombre'); xa.add_argument('--tipo', choices=('cliente', 'producto', 'convocatoria', 'licitacion')); xa.add_argument('--frente')
+    xa.add_argument('--responsable'); xa.add_argument('--ficha'); xa.add_argument('--carpeta'); xa.add_argument('--estado-funnel', dest='estado_funnel'); xa.add_argument('--importe', type=float); xa.add_argument('--agente')
+    xl = xsub.add_parser('lista'); xl.add_argument('--tipo'); xl.add_argument('--frente'); xl.add_argument('--responsable')
+    xf = xsub.add_parser('ficha'); xf.add_argument('id', type=int)
+    xe = xsub.add_parser('entregable'); xe.add_argument('id', type=int); xe.add_argument('--nombre', required=True); xe.add_argument('--fecha', required=True); xe.add_argument('--agente')
+    s = sub.add_parser('sesion', help='sesión de trabajo sobre un expediente (abrir carga el contexto; cerrar exige avances)')
+    ssub = s.add_subparsers(dest='sub', required=True)
+    sa = ssub.add_parser('abrir'); sa.add_argument('--expediente', type=int, required=True); sa.add_argument('--agente')
+    sc = ssub.add_parser('cerrar'); sc.add_argument('id', type=int); sc.add_argument('--resumen', required=True); sc.add_argument('--entregable', action='append', default=[]); sc.add_argument('--agente')
+    ss = ssub.add_parser('solicitar'); ss.add_argument('--expediente', type=int, required=True)
 
 
 def _linea_encargo(e):
@@ -108,6 +120,44 @@ def ejecutar(a, c):
         elif a.sub == 'respondido':
             r = rpc('omc_contacto_casar', p_token=E['HQ_TOKEN'], p_email=a.email, p_ref=a.ref)
             salida(r, f"casado con contacto #{r['id']} ({r.get('persona')})" if r else 'sin contacto enviado para ese email')
+        return True
+    if a.cmd == 'expediente':
+        tok = E.get('HQ_OWNER_TOKEN') or E['HQ_TOKEN']
+        if a.sub == 'alta':
+            p = {k: v for k, v in {'id': a.id, 'nombre': a.nombre, 'tipo': a.tipo, 'frente': a.frente, 'responsable': a.responsable, 'ficha_url': a.ficha, 'carpeta_url': a.carpeta,
+                                   'estado_funnel': a.estado_funnel, 'importe': a.importe, 'agente': agente_actual(a.agente)}.items() if v is not None}
+            r = rpc('omc_expediente_set', p_token=tok, p=p); salida(r, f"expediente #{r['id']} {r['tipo']} {r['nombre']} · {r.get('estado_funnel') or '-'} · {r.get('responsable') or '-'}")
+        elif a.sub == 'entregable':
+            r = rpc('omc_expediente_set', p_token=tok, p={'id': a.id, 'entregable': {'nombre': a.nombre, 'fecha': a.fecha, 'hecho': False}, 'agente': agente_actual(a.agente)})
+            salida(r, f"expediente #{r['id']}: {len(r['entregables'])} entregables")
+        elif a.sub == 'lista':
+            f = {k: v for k, v in {'tipo': a.tipo, 'frente': a.frente, 'responsable': a.responsable}.items() if v}
+            xs = rpc('omc_expedientes_lista', p_token=E['HQ_TOKEN'], p_filtro=f)
+            salida(xs, '\n'.join(f"#{x['id']} {x['tipo']:<12} {x['nombre']:<32} {x.get('codigo')} · {x.get('estado_funnel') or '-'} · {x.get('responsable') or '-'} · {x['encargos_abiertos']} abiertos" + (f" · sesión abierta: {x['sesion_abierta']}" if x.get('sesion_abierta') else '') for x in xs))
+        else:
+            r = rpc('omc_expediente_ficha', p_token=E['HQ_TOKEN'], p_id=a.id); x = r['expediente']
+            txt = [f"#{x['id']} {x['tipo']} {x['nombre']} · {x.get('estado_funnel') or '-'} · {x.get('responsable') or '-'} · ficha {x.get('ficha_url') or '-'} · carpeta {x.get('carpeta_url') or '-'}",
+                   f"estado ({(x.get('resumen_fecha') or '')[:10]}): {x.get('resumen_estado') or 'sin resumen'}"]
+            txt += [f"entregable {'[x]' if n.get('hecho') else '[ ]'} {n['nombre']} {n.get('fecha')}" for n in x.get('entregables') or []]
+            txt += [f"encargo #{en['id']} [{en['estado']}] {en['texto'][:70]} · hito {en.get('fecha_hito') or '-'}" for en in r['encargos']]
+            txt += [f"contacto #{c['id']} [{c['estado']}] {c.get('persona') or c.get('organizacion')} · {c['canal']} t{c['toque']} · {c['fecha'][:10]}" for c in r['contactos']]
+            txt += [f"kit · {k['tipo']}: {k['nombre']} {k.get('url') or ''}".rstrip() for k in r['kit']]
+            salida(r, '\n'.join(txt))
+        return True
+    if a.cmd == 'sesion':
+        if a.sub == 'abrir':
+            r = rpc('omc_sesion_abrir', p_token=E['HQ_TOKEN'], p_expediente=a.expediente, p_agente=agente_actual(a.agente))
+            engram(f"[SESION #{r['sesion']['id']}] abierta", f"expediente #{a.expediente} {r['ficha']['expediente']['nombre']} · {agente_actual(a.agente)}")
+            a.id = a.expediente; a.sub = 'ficha'; a.cmd = 'expediente'
+            print(f"sesión #{r['sesion']['id']} abierta. Al terminar: hq.py sesion cerrar {r['sesion']['id']} --resumen \"...\" (exige avance en cada encargo en curso)")
+            return ejecutar(a, c)
+        if a.sub == 'cerrar':
+            r = rpc('omc_sesion_cerrar', p_token=E['HQ_TOKEN'], p_sesion=a.id, p_resumen=a.resumen, p_entregables=[{'nombre': n} for n in a.entregable], p_agente=agente_actual(a.agente))
+            engram(f"[SESION #{a.id}] cerrada", a.resumen)
+            salida(r, f"sesión #{r['id']} cerrada · encargos tocados {r['encargos_tocados']}")
+            return True
+        r = rpc('omc_sesion_solicitar', p_token=E.get('HQ_OWNER_TOKEN') or E['HQ_TOKEN'], p_expediente=a.expediente)
+        salida(r, f"sesión #{r['id']} {r['estado']} para {r['agente']}; hq-despertar la abre en su ventana en menos de un minuto")
         return True
     if a.cmd != 'encargo':
         return False

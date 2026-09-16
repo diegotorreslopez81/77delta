@@ -81,17 +81,28 @@ def escribir(ventana, texto):
 def main():
     est = json.loads(ESTADO.read_text()) if ESTADO.exists() else {}
     desde = est.get('desde') or (datetime.now(timezone.utc) - timedelta(minutes=10)).isoformat()
+    avisadas = set(est.get('sesiones_avisadas') or [])
     eventos = rpc('omc_eventos', p_token=e['HQ_OWNER_TOKEN'], p_desde=desde) or []
-    if not eventos:
+    try:
+        # HQ v2 (T11): sesiones solicitadas desde la ficha del expediente en HQ. Va en try/except propio
+        # para que un fallo de este RPC nuevo nunca detenga el aviso de los eventos de arriba.
+        sesiones = [s for s in (rpc('omc_sesiones_solicitadas', p_token=e['HQ_OWNER_TOKEN']) or []) if s['id'] not in avisadas]
+    except Exception as ex:
+        print(f"omc_sesiones_solicitadas: {ex}", file=sys.stderr); sesiones = []
+    if not eventos and not sesiones:
         return
     agentes = {a['id']: a for a in rpc('omc_hq', p_token=e['HQ_OWNER_TOKEN'])['agentes']}
     puesto_map = equipo_puesto_map()
     wins = ventanas(); ultimo = desde; n = 0
+
+    def ventana_de(agente_id):
+        a = agentes.get(agente_id) or {}
+        candidata = puesto_map.get(agente_id)
+        return candidata if candidata in wins else next((s for s in (a.get('sesiones') or []) if s in wins), None)
+
     for ev in eventos:
         ultimo = max(ultimo, ev['ts'])
-        a = agentes.get(ev['agente']) or {}
-        candidata = puesto_map.get(ev['agente'])
-        ventana = candidata if candidata in wins else next((s for s in (a.get('sesiones') or []) if s in wins), None)
+        ventana = ventana_de(ev['agente'])
         if not ventana:
             print(f"sin ventana tmux para {ev['agente']} (#{ev['id']})", file=sys.stderr); continue
         texto = (ev.get('texto') or '').replace('\n', ' ').strip()
@@ -150,7 +161,16 @@ def main():
             escribir(ventana, msg); n += 1
         except Exception as ex:
             print(f"no se pudo escribir en {ventana}: {ex}", file=sys.stderr)
-    ESTADO.write_text(json.dumps({'desde': ultimo}))
+    for s in sesiones:
+        v = ventana_de(s['agente'])
+        if not v:
+            print(f"sesión #{s['id']}: sin ventana para {s['agente']}", file=sys.stderr); continue
+        try:
+            escribir(v, f"[HQ] Diego quiere trabajar contigo en el expediente #{s['expediente_id']} ({s['nombre']}). Ejecuta ahora: python3 {HQ} sesion abrir --expediente {s['expediente_id']} --agente {s['agente']} y salúdale con el estado del expediente en tres líneas.")
+            avisadas.add(s['id']); n += 1
+        except Exception as ex:
+            print(f"no se pudo escribir sesión #{s['id']} en {v}: {ex}", file=sys.stderr)
+    ESTADO.write_text(json.dumps({'desde': ultimo, 'sesiones_avisadas': list(avisadas)[-200:]}))
     print(f"{n} agentes despertados")
 
 

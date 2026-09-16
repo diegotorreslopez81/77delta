@@ -573,4 +573,159 @@ begin
 end $$;
 grant execute on function omc_contacto_alta(text, jsonb), omc_contacto_estado(text, bigint, text, text, date), omc_contactos_lista(text, jsonb), omc_contacto_ficha(text, bigint), omc_contacto_casar(text, text, text, timestamptz) to anon, authenticated;
 
+-- T11 · expedientes y sesiones de trabajo
+create table if not exists omc_expedientes (
+  id bigserial primary key, empresa text not null references omc_empresas(id), tipo text not null check (tipo in ('cliente','producto','convocatoria','licitacion')),
+  nombre text not null, linea_id bigint references omc_plan_lineas(id) on delete set null, responsable text, ficha_url text, carpeta_url text, estado_funnel text,
+  entregables jsonb default '[]'::jsonb, importe numeric, resumen_estado text, resumen_fecha timestamptz, licitacion_expediente text, activo boolean default true,
+  created_at timestamptz default now(), updated_at timestamptz default now(), unique (empresa, nombre));
+alter table omc_expedientes enable row level security;
+create table if not exists omc_sesiones (
+  id bigserial primary key, empresa text not null references omc_empresas(id), expediente_id bigint not null references omc_expedientes(id) on delete cascade,
+  agente text not null, solicitada_por text, estado text not null default 'abierta' check (estado in ('solicitada','abierta','cerrada')),
+  abierta timestamptz, cerrada timestamptz, resumen text, encargos_tocados bigint[] default '{}', created_at timestamptz default now());
+alter table omc_sesiones enable row level security;
+do $$ begin
+  if not exists (select 1 from pg_constraint where conname = 'omc_encargos_expediente_fk') then
+    alter table omc_encargos add constraint omc_encargos_expediente_fk foreign key (expediente_id) references omc_expedientes(id) on delete set null; end if;
+  if not exists (select 1 from pg_constraint where conname = 'omc_contactos_expediente_fk') then
+    alter table omc_contactos add constraint omc_contactos_expediente_fk foreign key (expediente_id) references omc_expedientes(id) on delete set null; end if;
+end $$;
+
+create or replace function omc_expediente_set(p_token text, p jsonb) returns jsonb
+language plpgsql security definer set search_path=public as $$
+declare t record; v_actor text; v_linea bigint; v_resp text; r omc_expedientes; existente bigint;
+begin
+  select * into t from omc_tok(p_token);
+  v_actor := case when t.rol = 'owner' then 'diego' else coalesce(p->>'agente','agente') end;
+  if t.rol <> 'owner' and lower(v_actor) <> 'chief' then raise exception 'solo owner o chief' using errcode='42501'; end if;
+  if p ? 'frente' then v_linea := omc_frente_id(t.empresa, p->>'frente'); if v_linea is null then raise exception 'frente % no existe', p->>'frente'; end if; end if;
+  if p ? 'responsable' then v_resp := omc_agente_valido(t.empresa, p->>'responsable'); if v_resp is null then raise exception 'responsable % no es un agente activo', p->>'responsable'; end if; end if;
+  select id into existente from omc_expedientes where empresa = t.empresa and (id = (p->>'id')::bigint or lower(nombre) = lower(p->>'nombre'));
+  if existente is null then
+    if coalesce(p->>'nombre','') = '' or coalesce(p->>'tipo','') = '' or v_linea is null then raise exception 'alta de expediente: faltan nombre, tipo o frente'; end if;
+    insert into omc_expedientes (empresa, tipo, nombre, linea_id, responsable, ficha_url, carpeta_url, estado_funnel, entregables, importe, licitacion_expediente)
+    values (t.empresa, p->>'tipo', p->>'nombre', v_linea, v_resp, p->>'ficha_url', p->>'carpeta_url', p->>'estado_funnel', coalesce(p->'entregables','[]'::jsonb), (p->>'importe')::numeric, p->>'licitacion_expediente')
+    returning * into r;
+  else
+    update omc_expedientes set tipo = coalesce(p->>'tipo', tipo), nombre = coalesce(p->>'nombre', nombre), linea_id = coalesce(v_linea, linea_id), responsable = coalesce(v_resp, responsable),
+      ficha_url = coalesce(p->>'ficha_url', ficha_url), carpeta_url = coalesce(p->>'carpeta_url', carpeta_url), estado_funnel = coalesce(p->>'estado_funnel', estado_funnel),
+      entregables = case when p ? 'entregable' then entregables || jsonb_build_array(p->'entregable') else coalesce(p->'entregables', entregables) end,
+      importe = coalesce((p->>'importe')::numeric, importe), licitacion_expediente = coalesce(p->>'licitacion_expediente', licitacion_expediente),
+      activo = coalesce((p->>'activo')::boolean, activo), updated_at = now()
+    where id = existente returning * into r;
+  end if;
+  return to_jsonb(r);
+end $$;
+
+create or replace function omc_expediente_ficha(p_token text, p_id bigint) returns jsonb
+language sql security definer set search_path=public as $$
+  with e as (select empresa from omc_tok(p_token)), x as (select * from omc_expedientes where id = p_id and empresa = (select empresa from e))
+  select jsonb_build_object(
+    'expediente', (select to_jsonb(x) from x),
+    'frente', (select jsonb_build_object('id', l.id, 'codigo', l.codigo, 'linea', l.linea, 'kpi', l.kpi) from x join omc_plan_lineas l on l.id = x.linea_id),
+    'encargos', (select coalesce(jsonb_agg(to_jsonb(en) order by en.estado, en.fecha_hito nulls last), '[]'::jsonb) from omc_encargos en where en.expediente_id = p_id and en.estado <> 'descartado'),
+    'contactos', (select coalesce(jsonb_agg(to_jsonb(c) order by c.fecha desc), '[]'::jsonb) from omc_contactos c where c.expediente_id = p_id),
+    'decisiones', (select coalesce(jsonb_agg(to_jsonb(d) order by d.fecha desc), '[]'::jsonb) from omc_decisiones d join x on d.linea_id = x.linea_id and d.empresa = x.empresa),
+    'sesiones', (select coalesce(jsonb_agg(to_jsonb(s) order by s.created_at desc), '[]'::jsonb) from (select * from omc_sesiones where expediente_id = p_id order by created_at desc limit 5) s),
+    'kit', (select coalesce(jsonb_agg(jsonb_build_object('id', k.id, 'tipo', k.tipo, 'nombre', k.nombre, 'url', k.url) order by k.tipo, k.nombre), '[]'::jsonb)
+            from omc_kit k join x on k.empresa = x.empresa where k.vigente and (k.linea_id is null or k.linea_id = x.linea_id)));
+$$;
+
+create or replace function omc_expedientes_lista(p_token text, p_filtro jsonb default '{}'::jsonb) returns jsonb
+language sql security definer set search_path=public as $$
+  select coalesce(jsonb_agg(to_jsonb(x) || jsonb_build_object('codigo', l.codigo,
+    'encargos_abiertos', (select count(*) from omc_encargos en where en.expediente_id = x.id and en.estado in ('encolado','en_curso','bloqueado_diego')),
+    'sesion_abierta', (select s.agente from omc_sesiones s where s.expediente_id = x.id and s.estado = 'abierta' limit 1)) order by x.tipo, x.nombre), '[]'::jsonb)
+  from omc_expedientes x left join omc_plan_lineas l on l.id = x.linea_id
+  where x.empresa = (select empresa from omc_tok(p_token)) and x.activo = coalesce((p_filtro->>'activo')::boolean, true)
+    and (p_filtro->>'tipo' is null or x.tipo = p_filtro->>'tipo') and (p_filtro->>'frente' is null or x.linea_id = omc_frente_id(x.empresa, p_filtro->>'frente'))
+    and (p_filtro->>'responsable' is null or lower(x.responsable) = lower(omc_agente_valido(x.empresa, p_filtro->>'responsable')));
+$$;
+
+create or replace function omc_sesion_solicitar(p_token text, p_expediente bigint) returns jsonb
+language plpgsql security definer set search_path=public as $$
+declare t record; x omc_expedientes; s omc_sesiones;
+begin
+  select * into t from omc_tok(p_token);
+  if t.rol <> 'owner' then raise exception 'solo owner' using errcode='42501'; end if;
+  select * into x from omc_expedientes where id = p_expediente and empresa = t.empresa;
+  if x.id is null then raise exception 'expediente % no existe', p_expediente; end if;
+  if x.responsable is null then raise exception 'el expediente % no tiene responsable', x.nombre; end if;
+  select * into s from omc_sesiones where expediente_id = x.id and agente = x.responsable and estado in ('solicitada','abierta') order by created_at desc limit 1;
+  if s.id is not null then return to_jsonb(s); end if;
+  insert into omc_sesiones (empresa, expediente_id, agente, solicitada_por, estado) values (t.empresa, x.id, x.responsable, 'diego', 'solicitada') returning * into s;
+  return to_jsonb(s);
+end $$;
+
+create or replace function omc_sesion_abrir(p_token text, p_expediente bigint, p_agente text default null) returns jsonb
+language plpgsql security definer set search_path=public as $$
+declare t record; v_agente text; abierta_id bigint; s omc_sesiones;
+begin
+  select * into t from omc_tok(p_token);
+  v_agente := coalesce(omc_agente_valido(t.empresa, case when t.rol = 'owner' then 'diego' else coalesce(p_agente,'agente') end), case when t.rol = 'owner' then 'diego' else coalesce(p_agente,'agente') end);
+  if not exists (select 1 from omc_expedientes where id = p_expediente and empresa = t.empresa) then raise exception 'expediente % no existe', p_expediente; end if;
+  select id into abierta_id from omc_sesiones where empresa = t.empresa and agente = v_agente and estado = 'abierta';
+  if abierta_id is not null then raise exception 'cierra antes la sesión #% (hq.py sesion cerrar % --resumen "...")', abierta_id, abierta_id; end if;
+  update omc_sesiones set estado = 'abierta', abierta = now() where empresa = t.empresa and expediente_id = p_expediente and agente = v_agente and estado = 'solicitada' returning * into s;
+  if s.id is null then
+    insert into omc_sesiones (empresa, expediente_id, agente, estado, abierta) values (t.empresa, p_expediente, v_agente, 'abierta', now()) returning * into s;
+  end if;
+  return jsonb_build_object('sesion', to_jsonb(s), 'ficha', omc_expediente_ficha(p_token, p_expediente));
+end $$;
+
+create or replace function omc_sesion_cerrar(p_token text, p_sesion bigint, p_resumen text, p_entregables jsonb default '[]'::jsonb, p_agente text default null) returns jsonb
+language plpgsql security definer set search_path=public as $$
+declare t record; s omc_sesiones; v_agente text; pendiente record; tocados bigint[];
+begin
+  select * into t from omc_tok(p_token);
+  select * into s from omc_sesiones where id = p_sesion and empresa = t.empresa;
+  if s.id is null then raise exception 'sesión % no existe', p_sesion; end if;
+  if s.estado <> 'abierta' then raise exception 'la sesión #% está %', s.id, s.estado; end if;
+  v_agente := case when t.rol = 'owner' then 'diego' else coalesce(p_agente,'agente') end;
+  if t.rol <> 'owner' and lower(v_agente) <> 'chief' and coalesce(omc_agente_valido(t.empresa, v_agente), v_agente) <> s.agente then raise exception 'la sesión #% es de %', s.id, s.agente using errcode='42501'; end if;
+  if coalesce(trim(p_resumen),'') = '' then raise exception 'falta resumen: --resumen "estado en una o dos frases"'; end if;
+  for pendiente in select e.id from omc_encargos e where e.expediente_id = s.expediente_id and e.estado in ('en_curso','bloqueado_diego') and position(lower(s.agente) in lower(coalesce(e.agente,''))) > 0
+    and not exists (select 1 from omc_encargo_avances a where a.encargo_id = e.id and a.fecha >= s.abierta and a.tipo in ('avance','cierre','estado')) loop
+    raise exception 'falta avance en #%: hq.py encargo avance % --texto "..." (o hecho --fuente)', pendiente.id, pendiente.id;
+  end loop;
+  select coalesce(array_agg(distinct a.encargo_id), '{}') into tocados from omc_encargo_avances a join omc_encargos e on e.id = a.encargo_id where e.expediente_id = s.expediente_id and a.fecha >= s.abierta;
+  update omc_sesiones set estado = 'cerrada', cerrada = now(), resumen = p_resumen, encargos_tocados = tocados where id = s.id returning * into s;
+  update omc_expedientes set resumen_estado = p_resumen, resumen_fecha = now(), updated_at = now(),
+    entregables = (select coalesce(jsonb_agg(case when exists (select 1 from jsonb_array_elements(p_entregables) n where n->>'nombre' = x->>'nombre') then x || '{"hecho": true}'::jsonb else x end), '[]'::jsonb) from jsonb_array_elements(entregables) x)
+                  || (select coalesce(jsonb_agg(n || '{"hecho": true}'::jsonb), '[]'::jsonb) from jsonb_array_elements(p_entregables) n where not exists (select 1 from jsonb_array_elements(entregables) x where x->>'nombre' = n->>'nombre'))
+  where id = s.expediente_id;
+  return to_jsonb(s);
+end $$;
+grant execute on function omc_expediente_set(text, jsonb), omc_expediente_ficha(text, bigint), omc_expedientes_lista(text, jsonb), omc_sesion_solicitar(text, bigint),
+  omc_sesion_abrir(text, bigint, text), omc_sesion_cerrar(text, bigint, text, jsonb, text) to anon, authenticated;
+
+-- omc_encargo_contexto (T5, mas arriba en el fichero) se redefine aqui, no alli: es "language sql" y
+-- Postgres valida el cuerpo contra el catalogo en el momento de crear la funcion (mismo motivo que el
+-- esqueleto minimo de omc_kit/omc_contactos en T5), y omc_expedientes no existe todavia en ese punto del
+-- fichero. Mismo cuerpo que en T5, sustituyendo el 'expediente' fijo a null por el expediente real.
+create or replace function omc_encargo_contexto(p_empresa text, p_id bigint) returns jsonb
+language sql stable as $$
+  select jsonb_build_object(
+    'encargo', (select to_jsonb(e) || jsonb_build_object('codigo', l.codigo) from omc_encargos e left join omc_plan_lineas l on l.id = e.linea_id where e.id = p_id),
+    'frente', (select jsonb_build_object('id', l.id, 'codigo', l.codigo, 'linea', l.linea, 'kpi', l.kpi, 'meta', l.meta, 'valor_actual', l.valor_actual, 'responsable', l.responsable,
+                 'bloque', b.letra || ' ' || b.nombre) from omc_encargos e join omc_plan_lineas l on l.id = e.linea_id left join omc_plan_bloques b on b.id = l.bloque_id where e.id = p_id),
+    'kit', (select coalesce(jsonb_agg(jsonb_build_object('id', k.id, 'tipo', k.tipo, 'nombre', k.nombre, 'url', k.url, 'texto', k.texto) order by k.tipo, k.nombre), '[]'::jsonb)
+              from omc_kit k where k.empresa = p_empresa and k.vigente and (k.linea_id is null or k.linea_id = (select linea_id from omc_encargos where id = p_id))),
+    'avances', (select coalesce(jsonb_agg(to_jsonb(a) order by a.fecha desc), '[]'::jsonb) from (select * from omc_encargo_avances where encargo_id = p_id order by fecha desc limit 10) a),
+    'contactos', (select coalesce(jsonb_agg(to_jsonb(c) order by c.fecha desc), '[]'::jsonb) from omc_contactos c where c.encargo_id = p_id),
+    'expediente', (select to_jsonb(x) from omc_expedientes x join omc_encargos e on e.expediente_id = x.id where e.id = p_id));
+$$;
+revoke execute on function omc_encargo_contexto(text, bigint) from public, anon, authenticated;
+
+-- HQ v2 (T11): sesiones solicitadas desde la ficha del expediente en HQ, para que hq-despertar.py
+-- escriba la orden en la ventana tmux del agente sin esperar a que alguien lo arranque a mano.
+create or replace function omc_sesiones_solicitadas(p_token text) returns jsonb
+language sql security definer set search_path=public as $$
+  select coalesce(jsonb_agg(jsonb_build_object('id', s.id, 'expediente_id', s.expediente_id, 'nombre', x.nombre, 'agente', s.agente, 'created_at', s.created_at) order by s.created_at), '[]'::jsonb)
+  from omc_sesiones s join omc_expedientes x on x.id = s.expediente_id
+  where s.empresa = (select empresa from omc_tok(p_token)) and s.estado = 'solicitada' and s.created_at > now() - interval '2 hours';
+$$;
+grant execute on function omc_sesiones_solicitadas(text) to anon, authenticated;
+
 notify pgrst, 'reload schema';

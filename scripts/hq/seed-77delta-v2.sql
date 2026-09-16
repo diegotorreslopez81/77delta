@@ -61,3 +61,18 @@ select '77delta', l.id, k.tipo, k.nombre, k.texto, 'seed' from (values
   ('C5', 'regla', 'Seguimiento siempre en campañas', 'Toque 2 obligatorio antes de parar o escalar (Aina, Ona, Marina, 15-sep).')
 ) as k(codigo, tipo, nombre, texto) join omc_plan_lineas l on l.empresa='77delta' and l.codigo = k.codigo
 where not exists (select 1 from omc_kit x where x.empresa='77delta' and x.nombre = k.nombre);
+
+-- T11 · expedientes. responsable se resuelve con omc_agente_valido: 'Helena' y 'Marina' casan con la
+-- sesion tmux de su puesto (Helena-Grants, Marina-Regulia) y quedan con responsable relleno; 'Martí'
+-- NO casa (el puesto tiene la sesion 'Marti-Cupones' sin tilde y omc_agente_valido compara en
+-- minusculas sin quitar acentos) y 'Diego' tampoco (es el owner, no un agente de omc_agentes), asi que
+-- esos expedientes quedan con responsable NULL hasta que alguien con permiso corrija el nombre de la
+-- sesion o el registro de agentes; omc_sesion_solicitar exige responsable no nulo, asi que esos
+-- expedientes no podran pedir sesion desde HQ hasta entonces.
+insert into omc_expedientes (empresa, tipo, nombre, linea_id, responsable, estado_funnel)
+select '77delta', x.tipo, x.nombre, omc_frente_id('77delta', x.codigo), omc_agente_valido('77delta', x.resp), x.funnel from (values
+  ('cliente','Nora Fuchs','B2','Martí','diagnóstico'), ('cliente','One Hub','B2','Martí','propuesta'), ('cliente','Aresa','B2','Martí','ejecución'), ('cliente','Zimeron','B2','Martí','ejecución'),
+  ('cliente','Epic','B2','Martí','ejecución'), ('cliente','IPAE','B2','Martí','ejecución'), ('cliente','Peninsula','C3','Diego','activo'),
+  ('convocatoria','ACCIÓ Exploració Tecnològica 2026','B1','Helena','redacción'), ('producto','Regulia','D2','Marina','beta')
+) as x(tipo, nombre, codigo, resp, funnel)
+where not exists (select 1 from omc_expedientes e where e.empresa='77delta' and e.nombre = x.nombre);
