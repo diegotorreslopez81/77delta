@@ -3,8 +3,11 @@
 """Asigna frente (omc_plan_lineas.codigo) a los encargos de 77delta sin linea_id y normaliza departamentos.
 Uso: --dry-run (CSV en scratchpad) | --aplicar [--asignar 123=A3,124=E4]. Usa la service key del portal (como pgq.py); no imprime claves."""
 import argparse, csv, json, os, re, sys, urllib.request
+from datetime import date
 
 EMPRESA = os.environ.get('HQ_EMPRESA', '77delta')
+MESES_ES = {1: 'ene', 2: 'feb', 3: 'mar', 4: 'abr', 5: 'may', 6: 'jun', 7: 'jul', 8: 'ago', 9: 'sep', 10: 'oct', 11: 'nov', 12: 'dic'}
+FECHA_HOY = f'{date.today().day:02d}-{MESES_ES[date.today().month]}'
 # orden importa: la primera regla que casa gana. Específicas antes que genéricas.
 REGLAS = [
     ('A2', r'crib|elegib|art\.? ?76|rolece|reli\b|checklist de (elegib|viab)'), ('A1', r'fuentes?\b.*(ccaa|licitaci|feed)|placsp|detecci[oó]n|motor de licitaciones|scraper'),
@@ -71,6 +74,10 @@ def main():
     manual = dict(x.split('=') for x in a.asignar.split(',') if '=' in x)
     frentes = {f['codigo'].upper(): f['id'] for f in _sql(f"select id, upper(codigo) as codigo from omc_plan_lineas where empresa={q(EMPRESA)} and activa and codigo is not null")}
     encargos = _sql(f"select id, texto, agente, departamento, estado, linea_id from omc_encargos where empresa={q(EMPRESA)} order by id")
+    existentes = {str(e['id']) for e in encargos}
+    desconocidos = sorted(set(manual) - existentes)
+    if desconocidos:
+        sys.exit(f'--asignar con ids que no existen en el tenant {EMPRESA}: {",".join(desconocidos)}')
     filas = []
     for e in encargos:
         if e['linea_id']:
@@ -94,10 +101,10 @@ def main():
         sys.exit(f'{len(sin)} encargos vivos sin frente; pásalos con --asignar id=CODIGO')
     for f in filas:
         if f['motivo'] == 'ya tenía' or not f['codigo']:
-            _sql(f"update omc_encargos set departamento={q(f['depto'])} where id={f['id']} and departamento is distinct from {q(f['depto'])}")
+            _sql(f"update omc_encargos set departamento={q(f['depto'])} where id={f['id']} and empresa={q(EMPRESA)} and departamento is distinct from {q(f['depto'])}")
             continue
-        _sql(f"update omc_encargos set linea_id={frentes[f['codigo']]}, departamento={q(f['depto'])}, updated_at=now() where id={f['id']}")
-        _sql(f"insert into omc_encargo_avances (empresa, encargo_id, autor, tipo, texto) values ({q(EMPRESA)}, {f['id']}, 'sistema', 'sistema', {q('frente ' + f['codigo'] + ' asignado por migración 17-sep (' + f['motivo'] + ')')})")
+        _sql(f"update omc_encargos set linea_id={frentes[f['codigo']]}, departamento={q(f['depto'])}, updated_at=now() where id={f['id']} and empresa={q(EMPRESA)}")
+        _sql(f"insert into omc_encargo_avances (empresa, encargo_id, autor, tipo, texto) values ({q(EMPRESA)}, {f['id']}, 'sistema', 'sistema', {q('frente ' + f['codigo'] + ' asignado por migración ' + FECHA_HOY + ' (' + f['motivo'] + ')')})")
     print(f'aplicado: {sum(1 for f in filas if f["motivo"] not in ("ya tenía",) and f["codigo"])} encargos con frente nuevo')
 
 
