@@ -31,7 +31,7 @@ def main():
         sys.exit("ABORTA: no hay encargo del frente C5 para colgar los envíos sin tarjeta. Da de alta uno (hq.py encargo alta --frente C5 ...) antes de migrar.")
     filas = []
     for e in envios:
-        ref = f"migracion:{e['tarjeta']}"
+        ref = f"migracion:{e['tarjeta']}:{e['destinatario'].lower()}"  # por destinatario: un lote de N correos bajo una tarjeta son N toques
         if (e['destinatario'].lower(), ref) in ya: continue
         encargo = por_tarjeta.get(int(e['tarjeta'])) or fallback
         filas.append((e, encargo, ref))
