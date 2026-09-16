@@ -109,8 +109,43 @@ def main():
                    f"anótalo en reglas.md como regla aprendida y dilo en el hilo.")
         else:
             verbo = {'aprobada': 'APROBADO', 'rechazada': 'RECHAZADO', 'respondida': 'RESPONDIDO'}.get(ev['estado'], ev['estado'])
-            msg = (f"[HQ] Diego ha {verbo} tu solicitud #{ev['id']} ({ev['titulo']})" + (f": «{texto}»" if texto else '') +
-                   f". Actúa ahora: si está aprobada, ejecútala y cierra con python3 {HQ} hecho {ev['id']} --nota \"...\"; si es una respuesta, aplícala y cierra igual; si te pide escalar o fichar, reenvíalo al chief (sesión Chief OMC) y cierra con hecho.")
+            if ev.get('lote'):
+                verbo += ' (lote)'
+            # 10-sep (COO, incidente real: Aina ejecutó la #380 creyendo que Diego la había aprobado, cuando
+            # la aprobó el propio COO con dos condiciones escritas en el hilo - "Diego ha aprobado" y "Jordi
+            # ha aprobado" no pesan igual, y el resumen no distinguía). quien_resolvio_de_verdad viene de la
+            # columna resuelto_por (la deja omc_aprobar cuando es coo/chief; null = Diego, que no pasa por
+            # esa función).
+            quien = {'coo': 'Jordi (coo)', 'chief': 'el chief', 'diego': 'Diego'}.get(ev.get('resuelto_por') or 'diego', ev.get('resuelto_por'))
+            # 10-sep (regla 7b, caso real de Aina x2): una tarjeta puede quedar APROBADA y seguir POSPUESTA
+            # a la vez (no son excluyentes) - decirle "actúa ahora" a quien tiene escrito que espere hasta
+            # una fecha es contradictorio, y es justo lo que le rompe el "deja escrito y para" de la regla.
+            pospuesta = ev.get('pospuesta_hasta')
+            pospuesta_futura = False
+            if pospuesta:
+                try:
+                    pospuesta_futura = datetime.fromisoformat(pospuesta.replace('Z', '+00:00')) > datetime.now(timezone.utc)
+                except ValueError:
+                    pass
+            if pospuesta_futura:
+                accion = (f"Sigue POSPUESTA hasta {pospuesta[:16].replace('T', ' ')} UTC: no actúes todavía, eso sigue en pie. "
+                          f"Si esta resolución cambia lo que había que esperar, dilo en el hilo con python3 {HQ} comentar {ev['id']} --texto \"...\" y decide si hay que adelantar la fecha.")
+            else:
+                accion = (f"Actúa ahora: si está aprobada, ejecútala y cierra con python3 {HQ} hecho {ev['id']} --nota \"...\"; si es una respuesta, aplícala y cierra igual; "
+                          "si te pide escalar o fichar, reenvíalo al coo (sesión Jordi-COO) y cierra con hecho.")
+            msg = (f"[HQ] {quien} ha {verbo} tu solicitud #{ev['id']} ({ev['titulo']})" + (f": «{texto}»" if texto else '') + f". {accion}")
+            # Segunda parte del mismo incidente: la #380 llevaba condiciones en el hilo que el resumen no
+            # mostraba. Si hay comentarios con fecha posterior a esta resolución, se avisa explícitamente en
+            # vez de dejar que el resumen parezca completo.
+            n_post = ev.get('comentarios_posteriores') or 0
+            if n_post:
+                msg += f" APROBADA CON {n_post} COMENTARIO(S) POSTERIOR(ES): lee el hilo antes de ejecutar (python3 {HQ} hilo {ev['id']})."
+            if ev.get('lote'):
+                # 9-sep (chief, via Jordi-COO, incidente real 266/261: resueltas con 3s de diferencia,
+                # sin texto, y la 266 contradecia una orden de Diego dada por chat una hora antes).
+                msg += (" AVISO 'aprobada (lote)': se resolvió sin texto y a menos de 10s de otra resolución, puede que Diego "
+                        "no la haya leído con calma. Contrástala con las órdenes que te haya dado por chat hoy ANTES de ejecutar; "
+                        f"si contradice una orden reciente, NO la ejecutes: mándala a la cola del coo con python3 {HQ} duda --titulo \"...\" --detalle \"...\".")
         try:
             escribir(ventana, msg); n += 1
         except Exception as ex:

@@ -217,12 +217,14 @@ create table if not exists public.omc_push (
 -- omc_licitaciones/omc_ingresos por una CLAVE FIJA (sql_metrica), nunca SQL libre de nadie: la clave
 -- solo elige entre calculos ya escritos y revisados en el script, cero riesgo de inyeccion.
 create table if not exists public.omc_plan_objetivo (
-  empresa text primary key references public.omc_empresas(id) on delete cascade,
+  empresa text not null references public.omc_empresas(id) on delete cascade,
+  horizonte int not null default 2026,
   titulo text not null default 'Contratado a 31 de diciembre',
   meta numeric not null,
   unidad text not null default 'EUR',
   fecha_limite date,
-  updated_at timestamptz not null default now()
+  updated_at timestamptz not null default now(),
+  primary key (empresa, horizonte)
 );
 
 create table if not exists public.omc_plan_lineas (
@@ -379,7 +381,7 @@ begin
     'plan_objetivo', (select jsonb_build_object('titulo', o.titulo, 'meta', o.meta, 'unidad', o.unidad, 'fecha_limite', o.fecha_limite,
                         'valor_actual', (select coalesce(sum(l.valor_actual), 0) from public.omc_plan_lineas l where l.empresa = e.id and l.activa and l.unidad = o.unidad),
                         'progreso_pct', case when o.meta <= 0 then null else round(least((select coalesce(sum(l.valor_actual), 0) from public.omc_plan_lineas l where l.empresa = e.id and l.activa and l.unidad = o.unidad) / o.meta, 1) * 100) end)
-                      from public.omc_plan_objetivo o where o.empresa = e.id),
+                      from public.omc_plan_objetivo o where o.empresa = e.id order by o.horizonte limit 1),
     'plan_lineas', (select coalesce(jsonb_agg(jsonb_build_object(
                         'id', l.id, 'orden', l.orden, 'linea', l.linea, 'kpi', l.kpi, 'valor_actual', l.valor_actual, 'meta', l.meta,
                         'unidad', l.unidad, 'responsable', l.responsable, 'proximo_hito', l.proximo_hito, 'fecha_hito', l.fecha_hito,
@@ -454,23 +456,24 @@ end $$;
 -- sustituida en schema-v2.sql (T2); se conserva para instalaciones sin v2
 create or replace function public.omc_plan_objetivo_set(p_token text, p jsonb)
 returns jsonb language plpgsql security definer set search_path = public as $$
-declare t public.omc_tokens; o public.omc_plan_objetivo;
+declare t public.omc_tokens; o public.omc_plan_objetivo; v_horizonte int := coalesce((p->>'horizonte')::int, 2026);
 begin
   t := public.omc_tok(p_token);
   if t.rol <> 'owner' then raise exception 'solo owner' using errcode = '42501'; end if;
-  insert into public.omc_plan_objetivo (empresa, titulo, meta, unidad, fecha_limite, updated_at)
-    values (t.empresa, coalesce(nullif(p->>'titulo',''), 'Contratado a 31 de diciembre'), (p->>'meta')::numeric, coalesce(nullif(p->>'unidad',''),'EUR'), nullif(p->>'fecha_limite','')::date, now())
-    on conflict (empresa) do update set titulo = excluded.titulo, meta = excluded.meta, unidad = excluded.unidad, fecha_limite = excluded.fecha_limite, updated_at = now()
+  insert into public.omc_plan_objetivo (empresa, horizonte, titulo, meta, unidad, fecha_limite, updated_at)
+    values (t.empresa, v_horizonte, coalesce(nullif(p->>'titulo',''), 'Contratado a 31 de diciembre'), (p->>'meta')::numeric, coalesce(nullif(p->>'unidad',''),'EUR'), nullif(p->>'fecha_limite','')::date, now())
+    on conflict (empresa, horizonte) do update set titulo = excluded.titulo, meta = excluded.meta, unidad = excluded.unidad, fecha_limite = excluded.fecha_limite, updated_at = now()
     returning * into o;
   return to_jsonb(o);
 end $$;
 
+-- Varios horizontes posibles por empresa (2026, 2027...); sin p_horizonte se coge el mas proximo.
 create or replace function public.omc_plan_objetivo(p_token text)
 returns jsonb language plpgsql security definer set search_path = public as $$
 declare t public.omc_tokens; o public.omc_plan_objetivo; actual numeric;
 begin
   t := public.omc_tok(p_token);
-  select * into o from public.omc_plan_objetivo where empresa = t.empresa;
+  select * into o from public.omc_plan_objetivo where empresa = t.empresa order by horizonte limit 1;
   if not found then return null; end if;
   select coalesce(sum(l.valor_actual), 0) into actual from public.omc_plan_lineas l where l.empresa = t.empresa and l.activa and l.unidad = o.unidad;
   return jsonb_build_object('titulo', o.titulo, 'meta', o.meta, 'unidad', o.unidad, 'fecha_limite', o.fecha_limite, 'valor_actual', actual,
