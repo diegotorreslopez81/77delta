@@ -24,8 +24,10 @@ begin
   select * into t from omc_tok(p_token);
   if t.rol <> 'owner' then raise exception 'solo owner' using errcode='42501'; end if;
   insert into omc_plan_objetivo (empresa, horizonte, titulo, meta, unidad, fecha_limite)
-  values (t.empresa, h, p->>'titulo', (p->>'meta')::numeric, coalesce(p->>'unidad','EUR'), (p->>'fecha_limite')::date)
-  on conflict (empresa, horizonte) do update set titulo=excluded.titulo, meta=excluded.meta, unidad=excluded.unidad, fecha_limite=excluded.fecha_limite
+  values (t.empresa, h, coalesce(nullif(p->>'titulo',''), 'Contratado a 31 de diciembre'), (p->>'meta')::numeric,
+          coalesce(nullif(p->>'unidad',''),'EUR'), nullif(p->>'fecha_limite','')::date)
+  on conflict (empresa, horizonte) do update set titulo=excluded.titulo, meta=excluded.meta, unidad=excluded.unidad,
+    fecha_limite=excluded.fecha_limite, updated_at=now()
   returning * into r;
   return to_jsonb(r);
 end $$;
