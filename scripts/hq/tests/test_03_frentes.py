@@ -43,6 +43,8 @@ class TestFrentes(unittest.TestCase):
         self.assertEqual(int(pg.sql("select omc_frente_id('pruebas','b1') as id")[0]['id']), f['id'])
         self.assertEqual(int(pg.sql("select omc_frente_id('pruebas','{0}') as id", f['id'])[0]['id']), f['id'])
         self.assertIsNone(pg.sql("select omc_frente_id('pruebas','Z9') as id")[0]['id'])
+        rpc(self.t['owner'], 'omc_frente_set', p={'codigo': 'B1', 'activa': False})
+        self.assertIsNone(pg.sql("select omc_frente_id('pruebas','B1') as id")[0]['id'])
         for nombre in ('sales-licita', 'Guillem', 'guillem', 'Guillem-Licitaciones'):
             self.assertEqual(pg.sql("select omc_agente_valido('pruebas','{0}') as a", nombre)[0]['a'], 'sales-licita')
         self.assertIsNone(pg.sql("select omc_agente_valido('pruebas','nadie') as a")[0]['a'])

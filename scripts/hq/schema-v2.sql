@@ -71,6 +71,7 @@ language sql stable as $$
   select l.id from omc_plan_lineas l where l.empresa = p_empresa and l.activa
     and (upper(l.codigo) = upper(trim(p_ref)) or (p_ref ~ '^[0-9]+$' and l.id = p_ref::bigint)) limit 1;
 $$;
+revoke execute on function omc_frente_id(text, text) from public, anon, authenticated;
 
 create or replace function omc_agente_valido(p_empresa text, p_nombre text) returns text
 language sql stable as $$
@@ -79,6 +80,7 @@ language sql stable as $$
          or exists (select 1 from unnest(a.sesiones) s where lower(split_part(s,'-',1)) = lower(trim(p_nombre)) or lower(s) = lower(trim(p_nombre))))
   order by a.orden nulls last, a.id limit 1;
 $$;
+revoke execute on function omc_agente_valido(text, text) from public, anon, authenticated;
 
 create or replace function omc_bloque_set(p_token text, p jsonb) returns jsonb
 language plpgsql security definer set search_path=public as $$
