@@ -1,6 +1,6 @@
 /* HQ · service worker: shell offline y avisos push. */
-var CACHE = 'hq-v12';
-var SHELL = ['/hq/', '/hq/manifest.webmanifest', '/hq/icon-192.png', '/hq/icon-512.png'];
+var CACHE = 'hq-v1-legado';
+var SHELL = ['/hq/v1/', '/hq/manifest.webmanifest', '/hq/icon-192.png', '/hq/icon-512.png'];
 
 self.addEventListener('install', function (e) {
   e.waitUntil(caches.open(CACHE).then(function (c) { return c.addAll(SHELL); }).then(function () { return self.skipWaiting(); }));

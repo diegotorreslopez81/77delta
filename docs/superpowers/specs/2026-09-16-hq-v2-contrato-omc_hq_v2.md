@@ -30,10 +30,12 @@ ese token.
 
 ## Claves de la respuesta
 
-### `version` (string) y `rol` (string) y `ahora` (timestamptz)
+### `version` (string), `rol` (string), `ahora` (timestamptz) y `empresa` (text)
 `version` = `omc_v2_version()` (ej. `"2.0.3"`). `rol` = `'owner'` o `'agente'`, el del token usado. `ahora` es
 el instante del servidor en el momento de la llamada (úsalo para calcular "hace cuánto" en el cliente en vez
-de `Date.now()` del navegador).
+de `Date.now()` del navegador). `empresa` = `t.empresa` (id de la empresa del token, de `omc_tokens.empresa`,
+FK a `omc_empresas.id`); lo usa el cliente para el canal realtime `omc:<empresa>` (Tarea 1 de plan 2, esquema
+2.0.5).
 
 ### `objetivos[]` (de `omc_plan_objetivo`, uno por horizonte/año)
 

@@ -2,7 +2,7 @@
 -- Convención: cada sección lleva el número de tarea del plan 2026-09-16-hq-v2-plan-1-base.md.
 
 -- T1 · versión del esquema v2 (los tests la usan como centinela)
-create or replace function omc_v2_version() returns text language sql immutable as $$ select '2.0.4' $$;
+create or replace function omc_v2_version() returns text language sql immutable as $$ select '2.0.5' $$;
 grant execute on function omc_v2_version() to anon, authenticated;
 
 -- T2 · objetivo por horizonte
@@ -933,7 +933,7 @@ begin
   select * into t from omc_tok(p_token); es_owner := t.rol = 'owner';
   if es_owner then base := omc_hq(p_token); else base := '{}'::jsonb; end if;
   return jsonb_build_object(
-    'version', omc_v2_version(), 'ahora', ahora, 'rol', t.rol,
+    'version', omc_v2_version(), 'ahora', ahora, 'rol', t.rol, 'empresa', t.empresa,
     'objetivos', (select coalesce(jsonb_agg(jsonb_build_object('horizonte', o.horizonte, 'titulo', o.titulo, 'meta', o.meta, 'unidad', o.unidad, 'fecha_limite', o.fecha_limite,
         'contratado_eur', (select coalesce(sum(i.importe),0) from omc_ingresos i where i.empresa = t.empresa and i.estado in ('contratado','facturado','cobrado') and extract(year from i.fecha) = o.horizonte),
         -- Fix round 1 (revisor T16): en produccion hay legado 'Aprobada' ademas de 'OK' (3 filas, 66.255 EUR),
