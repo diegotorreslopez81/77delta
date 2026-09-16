@@ -35,7 +35,7 @@
 # CODIGOS DE SALIDA
 #   2 argumentos invalidos o incompletos · 3 fuera de franja horaria · 4 ya enviado (candado) ·
 #   5 tarjeta no aprobada · 6 contacto invalido (no existe, estado distinto de previsto/enviado, o
-#   email distinto de --to) · 7 adjunto .html/.md sin --organo
+#   email distinto de --to) · 7 adjunto .html/.md sin --organo · 8 --to/--cc/--bcc extra en el passthrough
 
 set -uo pipefail
 HQ=/Users/diego/dev/77delta/scripts/hq/hq.py
