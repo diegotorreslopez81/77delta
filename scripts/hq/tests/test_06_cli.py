@@ -28,9 +28,9 @@ class TestCli(unittest.TestCase):
         rc, out, _ = cli('agente', 'frentes')
         self.assertEqual(rc, 0); self.assertEqual(json.loads(out)[0]['codigo'], 'A3')
 
-    def test_alta_sin_frente_falla_con_pista(self):
-        rc, out, err = cli('owner', 'encargo', 'alta', '--texto', 'Sin frente')
-        self.assertNotEqual(rc, 0); self.assertIn('falta frente', out + err)
+    def test_alta_frente_inexistente_falla_con_pista(self):
+        rc, out, err = cli('owner', 'encargo', 'alta', '--texto', 'Frente que no existe', '--frente', 'Z9')
+        self.assertNotEqual(rc, 0); self.assertIn('no existe', out + err)
 
     def test_alta_tomar_hecho(self):
         rc, out, err = cli('owner', 'encargo', 'alta', '--texto', 'Oferta CLI', '--frente', 'A3', '--responsable', 'Guillem', '--etiqueta', 'oferta', '--enlace', 'pliego=https://docs.google.com/document/d/1')
@@ -43,6 +43,15 @@ class TestCli(unittest.TestCase):
         self.assertEqual(rc, 0, err); self.assertEqual(json.loads(out)['estado'], 'hecho')
         rc, out, err = cli('agente', 'feed', '--desde', '2026-01-01')
         self.assertEqual(rc, 0, err); self.assertEqual(json.loads(out)[0]['tipo'], 'cierre')
+
+    def test_alta_sin_frente_usa_v1_legado(self):
+        rc, out, err = cli('owner', 'encargo', 'alta', '--texto', 'Legado CLI')
+        self.assertEqual(rc, 0, err)
+        e = json.loads(out)
+        filas = pg.sql("select origen, linea_id from omc_encargos where id={0}", e['id'])
+        self.assertEqual(filas[0]['origen'], 'legado')
+        self.assertIsNone(filas[0]['linea_id'])
+        pg.sql("delete from omc_encargos where id={0}", e['id'])
 
     def test_estado_descartado_pide_motivo(self):
         rc, out, _ = cli('owner', 'encargo', 'alta', '--texto', 'Para descartar', '--frente', 'A3'); e = json.loads(out)

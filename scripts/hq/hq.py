@@ -17,7 +17,10 @@ from pathlib import Path
 from zoneinfo import ZoneInfo
 
 sys.path.insert(0, str(Path(__file__).parent))
-import hq_v2
+try:
+    import hq_v2
+except Exception:
+    hq_v2 = None
 
 CONF = Path.home() / '.config' / '77delta' / 'hq.env'
 # 10-sep (regla 7b, caso real de Aina): un --hasta sin zona se guardaba literal como si fuera UTC, así que
@@ -376,7 +379,8 @@ def main():
     pa.add_argument('--fecha-revision', dest='fecha_revision', required=True, help='YYYY-MM-DD; el primero de cada tipo se revisa a los 30 dias, no mas')
     pa.add_argument('--agente', required=True, choices=('coo', 'chief'), help='quien lo aprueba de verdad: coo o chief, nadie mas puede crear un patron')
     pl = psub.add_parser('lista', help='listado de un vistazo: id, para quien, alias, tipo, condiciones resumidas, activo, usos')
-    hq_v2.registrar(sub, esub)
+    if hq_v2:
+        hq_v2.registrar(sub, esub)
     p = sub.add_parser('parte', help='parte de jornada del agente (Engram, proyecto 77delta): lo leen los demás al arrancar'); p.add_argument('texto', nargs='?'); p.add_argument('--agente')
     p = sub.add_parser('partes', help='partes de las últimas 48 h de todos los agentes'); p.add_argument('--horas', type=int, default=48)
     p = sub.add_parser('historia', help='buscar en el histórico de Engram (título y contenido), en vez de fiarse de la memoria de la sesión')
@@ -840,8 +844,9 @@ def main():
         if a.json: print(json.dumps(ds, ensure_ascii=False))
         else:
             for d in ds: print(f"[{d['fecha'][:10]}] {d['decision']} · {d['quien']}" + (f" · línea #{d['linea_id']}" if d.get('linea_id') else ''))
-    elif a.cmd in ('frentes', 'bloques', 'feed') or (a.cmd == 'encargo' and (a.sub in ('tomar', 'hecho', 'editar', 'estado') or (a.sub == 'alta' and a.id is None))):
-        hq_v2.ejecutar(a, {'rpc': rpc, 'E': E, 'agente_actual': agente_actual, 'engram': engram})
+    elif a.cmd in ('frentes', 'bloques', 'feed') or (a.cmd == 'encargo' and (a.sub in ('tomar', 'hecho', 'editar', 'estado') or (a.sub == 'alta' and a.id is None and getattr(a, 'frente', None)))):
+        if hq_v2 is None or not hq_v2.ejecutar(a, {'rpc': rpc, 'E': E, 'agente_actual': agente_actual, 'engram': engram, 'json': json}):
+            sys.exit('CLI v2 no disponible: hq_v2.py no se pudo cargar.')
     elif a.cmd == 'encargo':
         def linea_encargo(e):
             return f"línea #{e['linea_id']}" if e.get('linea_id') else 'fuera de plan'

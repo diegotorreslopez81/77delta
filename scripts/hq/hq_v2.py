@@ -2,8 +2,6 @@
 Plan: docs/superpowers/plans/2026-09-16-hq-v2-plan-1-base.md"""
 import json
 
-ESTADOS_ESTADO = ('encolado', 'en_curso', 'bloqueado_diego', 'descartado')
-
 
 def _enlaces(lista):
     out = []
@@ -48,7 +46,7 @@ def ejecutar(a, c):
     salida = lambda r, txt: print(json.dumps(r, ensure_ascii=False) if a.json else txt)
     if a.cmd == 'frentes':
         fs = rpc('omc_frentes_lista', p_token=E['HQ_TOKEN'], p_bloque=a.bloque)
-        salida(fs, '\n'.join(f"{f['codigo']:<4} {f['linea']} · {f['kpi']} {f['valor_actual']}/{f['meta']} {f['unidad']} · {f.get('responsable') or '-'} · {f['encargos_abiertos']} abiertos" for f in fs))
+        salida(fs, '\n'.join(f"{f['codigo']:<4} {f['linea']} · {f['kpi']} {f['valor_actual']}/{f['meta']} · {f.get('responsable') or '-'} · {f['encargos_abiertos']} abiertos" for f in fs))
         return True
     if a.cmd == 'bloques':
         bs = rpc('omc_bloques_lista', p_token=E['HQ_TOKEN'])
