@@ -14,6 +14,9 @@ El agente se resuelve por --agente, HQ_AGENTE, el fichero .claude/hq-agente del 
 import shutil, argparse, json, os, subprocess, sys, time, urllib.request, urllib.error
 from pathlib import Path
 
+sys.path.insert(0, str(Path(__file__).parent))
+import hq_v2
+
 CONF = Path.home() / '.config' / '77delta' / 'hq.env'
 TIPOS = ('gasto', 'contacto', 'publicacion', 'estrategia', 'duda', 'accion', 'otro')
 
@@ -119,6 +122,8 @@ def engram(titulo, texto, tipo='context'):
     'cómo está', Engram dice 'qué pasó y por qué'. Nunca debe romper la operación de HQ si Engram no
     responde - si el guardado falla, se encola en ~/.config/77delta/engram-cola.jsonl y hq-test.py
     (cada 10 min) la vacía."""
+    if os.environ.get('HQ_ENGRAM_OFF'):
+        return
     eng = shutil.which('engram') or os.path.expanduser('~/.local/bin/engram')
     try:
         r = subprocess.run([eng, 'save', titulo, texto, '--project', '77delta', '--type', tipo], capture_output=True, text=True, timeout=15)
@@ -250,10 +255,11 @@ def main():
     ev = esub.add_parser('avance', help='anotar el último avance de un encargo')
     ev.add_argument('id', type=int); ev.add_argument('--texto', required=True); ev.add_argument('--agente')
     ee = esub.add_parser('estado', help='cambiar el estado de un encargo')
-    ee.add_argument('id', type=int); ee.add_argument('valor', choices=('encolado', 'en_curso', 'bloqueado_diego', 'hecho', 'descartado')); ee.add_argument('--agente')
+    ee.add_argument('id', type=int); ee.add_argument('valor', choices=('encolado', 'en_curso', 'bloqueado_diego', 'descartado')); ee.add_argument('--agente')
     ep = esub.add_parser('prioridad', help='(Diego) subir o bajar un encargo en su línea')
     ep.add_argument('id', type=int); ep.add_argument('direccion', choices=('subir', 'bajar'))
     esub.add_parser('lista', help='ver todos los encargos')
+    hq_v2.registrar(sub, esub)
     p = sub.add_parser('parte', help='parte de jornada del agente (Engram, proyecto 77delta): lo leen los demás al arrancar'); p.add_argument('texto', nargs='?'); p.add_argument('--agente')
     p = sub.add_parser('partes', help='partes de las últimas 48 h de todos los agentes'); p.add_argument('--horas', type=int, default=48)
     p = sub.add_parser('historia', help='buscar en el histórico de Engram (título y contenido), en vez de fiarse de la memoria de la sesión')
@@ -640,6 +646,8 @@ def main():
         if a.json: print(json.dumps(ds, ensure_ascii=False))
         else:
             for d in ds: print(f"[{d['fecha'][:10]}] {d['decision']} · {d['quien']}" + (f" · línea #{d['linea_id']}" if d.get('linea_id') else ''))
+    elif a.cmd in ('frentes', 'bloques', 'feed') or (a.cmd == 'encargo' and (a.sub in ('tomar', 'hecho', 'editar', 'estado') or (a.sub == 'alta' and a.id is None))):
+        hq_v2.ejecutar(a, {'rpc': rpc, 'E': E, 'agente_actual': agente_actual, 'engram': engram})
     elif a.cmd == 'encargo':
         def linea_encargo(e):
             return f"línea #{e['linea_id']}" if e.get('linea_id') else 'fuera de plan'
@@ -655,10 +663,6 @@ def main():
             r = rpc('omc_encargo_avance', p_token=E['HQ_TOKEN'], p_id=a.id, p_texto=a.texto, p_agente=agente_actual(a.agente))
             engram(f"[ENCARGO #{a.id}] avance", a.texto)
             print(json.dumps(r, ensure_ascii=False) if a.json else f"#{r['id']} avance anotado: {r['ultimo_avance'][:80]}")
-        elif a.sub == 'estado':
-            r = rpc('omc_encargo_estado', p_token=E['HQ_TOKEN'], p_id=a.id, p_estado=a.valor, p_agente=agente_actual(a.agente))
-            engram(f"[ENCARGO #{a.id}] estado", f"-> {a.valor}")
-            print(json.dumps(r, ensure_ascii=False) if a.json else f"#{r['id']} -> {r['estado']}")
         elif a.sub == 'prioridad':
             r = rpc('omc_encargo_prioridad', p_token=E['HQ_TOKEN'], p_id=a.id, p_direccion=a.direccion)
             print(json.dumps(r, ensure_ascii=False))
