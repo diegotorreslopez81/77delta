@@ -41,6 +41,15 @@ def registrar(sub, esub):
     ka = ksub.add_parser('alta'); ka.add_argument('--frente'); ka.add_argument('--general', action='store_true'); ka.add_argument('--tipo', required=True, choices=('plantilla', 'oficial', 'procedimiento', 'regla'))
     ka.add_argument('--nombre', required=True); ka.add_argument('--url'); ka.add_argument('--texto'); ka.add_argument('--version'); ka.add_argument('--agente')
     kv = ksub.add_parser('vigente'); kv.add_argument('id', type=int); kv.add_argument('--no', action='store_true'); kv.add_argument('--agente')
+    c = sub.add_parser('contacto', help='registro de contactos y envíos a terceros (una fila por toque)')
+    csub = c.add_subparsers(dest='sub', required=True)
+    ca = csub.add_parser('alta'); ca.add_argument('--encargo', type=int, required=True); ca.add_argument('--persona'); ca.add_argument('--email'); ca.add_argument('--organizacion')
+    ca.add_argument('--canal', required=True, choices=('correo', 'linkedin', 'formulario', 'telefono', 'plataforma')); ca.add_argument('--motivo', required=True)
+    ca.add_argument('--proximo-toque', dest='proximo_toque'); ca.add_argument('--tarjeta', type=int); ca.add_argument('--agente')
+    ce = csub.add_parser('estado'); ce.add_argument('id', type=int); ce.add_argument('valor', choices=('enviado', 'respondido', 'reunion', 'cerrado', 'sin_respuesta')); ce.add_argument('--ref'); ce.add_argument('--proximo-toque', dest='proximo_toque')
+    cl = csub.add_parser('lista'); cl.add_argument('--encargo', type=int); cl.add_argument('--frente'); cl.add_argument('--estado'); cl.add_argument('--agente'); cl.add_argument('--pendientes', action='store_true')
+    cf = csub.add_parser('ficha'); cf.add_argument('id', type=int)
+    cr = csub.add_parser('respondido'); cr.add_argument('--email', required=True); cr.add_argument('--ref', required=True)
 
 
 def _linea_encargo(e):
@@ -76,6 +85,29 @@ def ejecutar(a, c):
         else:
             r = rpc('omc_kit_set', p_token=E.get('HQ_OWNER_TOKEN') or E['HQ_TOKEN'], p={'id': a.id, 'vigente': not a.no, 'agente': agente_actual(a.agente)})
             salida(r, f"kit #{r['id']} vigente={r['vigente']}")
+        return True
+    if a.cmd == 'contacto':
+        if a.sub == 'alta':
+            p = {k: v for k, v in {'encargo': a.encargo, 'persona': a.persona, 'email': a.email, 'organizacion': a.organizacion, 'canal': a.canal, 'motivo': a.motivo,
+                                   'proximo_toque': a.proximo_toque, 'solicitud_id': a.tarjeta, 'agente': agente_actual(a.agente)}.items() if v is not None}
+            r = rpc('omc_contacto_alta', p_token=E['HQ_TOKEN'], p=p)
+            salida(r, f"contacto #{r['id']} [{r['estado']}] {r.get('persona') or r.get('organizacion')} · {r['canal']} · toque {r['toque']} · encargo #{r['encargo_id']}")
+        elif a.sub == 'estado':
+            args = {'p_token': E['HQ_TOKEN'], 'p_id': a.id, 'p_estado': a.valor}
+            if a.ref: args['p_ref'] = a.ref
+            if a.proximo_toque: args['p_proximo'] = a.proximo_toque
+            r = rpc('omc_contacto_estado', **args)
+            salida(r, f"contacto #{r['id']} -> {r['estado']} · próximo toque {r.get('proximo_toque') or '-'}")
+        elif a.sub == 'lista':
+            f = {k: v for k, v in {'encargo': a.encargo, 'frente': a.frente, 'estado': a.estado, 'agente': a.agente, 'pendientes': a.pendientes or None}.items() if v is not None}
+            cs = rpc('omc_contactos_lista', p_token=E['HQ_TOKEN'], p_filtro=f)
+            salida(cs, '\n'.join(f"#{c['id']} {c['fecha'][:10]} [{c['estado']}] {c.get('persona') or ''} {c.get('organizacion') or ''} · {c['canal']} t{c['toque']} · {c.get('codigo')} #{c.get('encargo_id')} · {c.get('agente')} · próximo {c.get('proximo_toque') or '-'}" for c in cs))
+        elif a.sub == 'ficha':
+            r = rpc('omc_contacto_ficha', p_token=E['HQ_TOKEN'], p_id=a.id)
+            salida(r, json.dumps(r, ensure_ascii=False, indent=1))
+        elif a.sub == 'respondido':
+            r = rpc('omc_contacto_casar', p_token=E['HQ_TOKEN'], p_email=a.email, p_ref=a.ref)
+            salida(r, f"casado con contacto #{r['id']} ({r.get('persona')})" if r else 'sin contacto enviado para ese email')
         return True
     if a.cmd != 'encargo':
         return False

@@ -2,7 +2,7 @@
 -- Convención: cada sección lleva el número de tarea del plan 2026-09-16-hq-v2-plan-1-base.md.
 
 -- T1 · versión del esquema v2 (los tests la usan como centinela)
-create or replace function omc_v2_version() returns text language sql immutable as $$ select '2.0.1' $$;
+create or replace function omc_v2_version() returns text language sql immutable as $$ select '2.0.2' $$;
 grant execute on function omc_v2_version() to anon, authenticated;
 
 -- T2 · objetivo por horizonte
@@ -371,6 +371,20 @@ end $$;
 revoke all on function omc_encargo_estado(text, bigint, text, text, text) from public;
 grant execute on function omc_encargo_estado(text, bigint, text, text, text) to anon, authenticated, service_role;
 
+-- Esqueleto minimo de omc_contactos (mismo patron que omc_kit mas arriba): omc_encargo_contexto,
+-- justo debajo, es "language sql" y por tanto exige que la tabla ya exista en el momento de crear
+-- la funcion. La tabla se crea aqui; T9 (al final del fichero) solo anade las RPC.
+create table if not exists omc_contactos (
+  id bigserial primary key, empresa text not null references omc_empresas(id), persona text, email text, organizacion text,
+  canal text not null check (canal in ('correo','linkedin','formulario','telefono','plataforma')), motivo text not null,
+  linea_id bigint references omc_plan_lineas(id) on delete set null, encargo_id bigint references omc_encargos(id) on delete set null, expediente_id bigint, solicitud_id bigint,
+  agente text, fecha timestamptz default now(), toque int default 1,
+  estado text not null default 'previsto' check (estado in ('previsto','enviado','respondido','reunion','cerrado','sin_respuesta')),
+  proximo_toque date, respuesta_ref text, respuesta_fecha timestamptz, updated_at timestamptz default now());
+create index if not exists omc_contactos_emp on omc_contactos (empresa, fecha desc);
+create index if not exists omc_contactos_email on omc_contactos (empresa, lower(email));
+alter table omc_contactos enable row level security;
+
 create or replace function omc_encargo_contexto(p_empresa text, p_id bigint) returns jsonb
 language sql stable as $$
   select jsonb_build_object(
@@ -380,7 +394,7 @@ language sql stable as $$
     'kit', (select coalesce(jsonb_agg(jsonb_build_object('id', k.id, 'tipo', k.tipo, 'nombre', k.nombre, 'url', k.url, 'texto', k.texto) order by k.tipo, k.nombre), '[]'::jsonb)
               from omc_kit k where k.empresa = p_empresa and k.vigente and (k.linea_id is null or k.linea_id = (select linea_id from omc_encargos where id = p_id))),
     'avances', (select coalesce(jsonb_agg(to_jsonb(a) order by a.fecha desc), '[]'::jsonb) from (select * from omc_encargo_avances where encargo_id = p_id order by fecha desc limit 10) a),
-    'contactos', '[]'::jsonb,
+    'contactos', (select coalesce(jsonb_agg(to_jsonb(c) order by c.fecha desc), '[]'::jsonb) from omc_contactos c where c.encargo_id = p_id),
     'expediente', null);
 $$;
 revoke execute on function omc_encargo_contexto(text, bigint) from public, anon, authenticated;
@@ -478,5 +492,82 @@ language sql security definer set search_path=public as $$
   where k.empresa = (select empresa from e) and k.vigente and (p_frente is null or k.linea_id is null or k.linea_id = (select id from f));
 $$;
 grant execute on function omc_kit_set(text, jsonb), omc_kit_lista(text, text) to anon, authenticated;
+
+-- T9 · contactos (tabla creada en T5, mas arriba, por la exigencia de omc_encargo_contexto)
+create or replace function omc_contacto_alta(p_token text, p jsonb) returns jsonb
+language plpgsql security definer set search_path=public as $$
+declare t record; e omc_encargos; v_actor text; v_toque int; r omc_contactos;
+begin
+  select * into t from omc_tok(p_token);
+  v_actor := case when t.rol = 'owner' then 'diego' else coalesce(p->>'agente', 'agente') end;
+  if (p->>'encargo') is null then raise exception 'falta encargo: --encargo <id> (todo contacto cuelga de un encargo con frente)'; end if;
+  select * into e from omc_encargos where id = (p->>'encargo')::bigint and empresa = t.empresa;
+  if e.id is null then raise exception 'encargo % no existe', p->>'encargo'; end if;
+  if coalesce(p->>'persona','') = '' and coalesce(p->>'organizacion','') = '' then raise exception 'falta persona u organizacion'; end if;
+  if coalesce(p->>'canal','') = '' or coalesce(p->>'motivo','') = '' then raise exception 'falta canal o motivo'; end if;
+  if p->>'canal' = 'correo' and coalesce(p->>'email','') = '' then raise exception 'falta email (canal correo)'; end if;
+  -- Cuenta TODO contacto previo del mismo email/persona en este encargo, este o no ya enviado: si solo
+  -- contara los ya "enviado" (estado <> 'previsto'), un segundo alta sin marcar antes su estado dejaria
+  -- colar un tercero sin bloquear (visto en la primera ejecucion de estos tests).
+  select count(*) + 1 into v_toque from omc_contactos c where c.empresa = t.empresa and c.encargo_id = e.id
+    and ((p->>'email') is not null and lower(c.email) = lower(p->>'email') or (p->>'email') is null and lower(c.persona) = lower(p->>'persona'));
+  if v_toque > 2 then raise exception 'máximo dos toques (regla 39): pide OK al chief con hq.py pedir antes de un tercero'; end if;
+  insert into omc_contactos (empresa, persona, email, organizacion, canal, motivo, linea_id, encargo_id, expediente_id, solicitud_id, agente, toque, proximo_toque)
+  values (t.empresa, p->>'persona', lower(nullif(trim(p->>'email'),'')), p->>'organizacion', p->>'canal', p->>'motivo', e.linea_id, e.id, e.expediente_id, (p->>'solicitud_id')::bigint,
+          coalesce(omc_agente_valido(t.empresa, v_actor), v_actor), coalesce((p->>'toque')::int, v_toque), (p->>'proximo_toque')::date)
+  returning * into r;
+  perform omc_avance_insertar(t.empresa, e.id, v_actor, 'sistema', 'contacto #' || r.id || ' previsto: ' || coalesce(r.persona, r.organizacion) || ' por ' || r.canal || ' (toque ' || r.toque || ')');
+  return to_jsonb(r);
+end $$;
+
+create or replace function omc_contacto_estado(p_token text, p_id bigint, p_estado text, p_ref text default null, p_proximo date default null) returns jsonb
+language plpgsql security definer set search_path=public as $$
+declare t record; r omc_contactos;
+begin
+  select * into t from omc_tok(p_token);
+  update omc_contactos set estado = p_estado, respuesta_ref = coalesce(p_ref, respuesta_ref),
+    respuesta_fecha = case when p_estado in ('respondido','reunion') then now() else respuesta_fecha end,
+    fecha = case when p_estado = 'enviado' then now() else fecha end,
+    proximo_toque = coalesce(p_proximo, case when p_estado = 'enviado' then (now() + interval '7 days')::date else proximo_toque end), updated_at = now()
+  where id = p_id and empresa = t.empresa returning * into r;
+  if r.id is null then raise exception 'contacto % no existe', p_id; end if;
+  if r.encargo_id is not null then perform omc_avance_insertar(t.empresa, r.encargo_id, coalesce(r.agente,'sistema'), 'sistema', 'contacto #' || r.id || ' ' || p_estado || ': ' || coalesce(r.persona, r.organizacion)); end if;
+  return to_jsonb(r);
+end $$;
+
+create or replace function omc_contactos_lista(p_token text, p_filtro jsonb default '{}'::jsonb) returns jsonb
+language sql security definer set search_path=public as $$
+  select coalesce(jsonb_agg(to_jsonb(c) || jsonb_build_object('codigo', l.codigo, 'texto_encargo', left(e.texto, 60)) order by c.fecha desc), '[]'::jsonb)
+  from omc_contactos c left join omc_plan_lineas l on l.id = c.linea_id left join omc_encargos e on e.id = c.encargo_id
+  where c.empresa = (select empresa from omc_tok(p_token))
+    and (p_filtro->>'encargo' is null or c.encargo_id = (p_filtro->>'encargo')::bigint)
+    and (p_filtro->>'frente' is null or c.linea_id = omc_frente_id(c.empresa, p_filtro->>'frente'))
+    and (p_filtro->>'estado' is null or c.estado = p_filtro->>'estado')
+    and (p_filtro->>'agente' is null or lower(c.agente) = lower(p_filtro->>'agente'))
+    and (coalesce((p_filtro->>'pendientes')::boolean, false) = false or (c.estado = 'enviado' and c.proximo_toque <= current_date));
+$$;
+
+create or replace function omc_contacto_ficha(p_token text, p_id bigint) returns jsonb
+language sql security definer set search_path=public as $$
+  select to_jsonb(c) || jsonb_build_object('codigo', l.codigo, 'texto_encargo', e.texto,
+    'historial', (select coalesce(jsonb_agg(jsonb_build_object('id', h.id, 'fecha', h.fecha, 'toque', h.toque, 'estado', h.estado, 'canal', h.canal, 'motivo', h.motivo) order by h.fecha), '[]'::jsonb)
+                  from omc_contactos h where h.empresa = c.empresa and (lower(h.email) = lower(c.email) or (c.email is null and lower(h.persona) = lower(c.persona)))))
+  from omc_contactos c left join omc_plan_lineas l on l.id = c.linea_id left join omc_encargos e on e.id = c.encargo_id
+  where c.id = p_id and c.empresa = (select empresa from omc_tok(p_token));
+$$;
+
+create or replace function omc_contacto_casar(p_token text, p_email text, p_ref text, p_fecha timestamptz default now()) returns jsonb
+language plpgsql security definer set search_path=public as $$
+declare t record; r omc_contactos;
+begin
+  select * into t from omc_tok(p_token);
+  select * into r from omc_contactos c where c.empresa = t.empresa and lower(c.email) = lower(trim(p_email)) and c.estado = 'enviado' and c.fecha >= p_fecha - interval '60 days'
+  order by c.fecha desc limit 1;
+  if r.id is null then return null; end if;
+  update omc_contactos set estado = 'respondido', respuesta_ref = p_ref, respuesta_fecha = p_fecha, updated_at = now() where id = r.id returning * into r;
+  if r.encargo_id is not null then perform omc_avance_insertar(t.empresa, r.encargo_id, 'sistema', 'sistema', 'respuesta de ' || coalesce(r.persona, r.email) || ' casada con el contacto #' || r.id); end if;
+  return to_jsonb(r);
+end $$;
+grant execute on function omc_contacto_alta(text, jsonb), omc_contacto_estado(text, bigint, text, text, date), omc_contactos_lista(text, jsonb), omc_contacto_ficha(text, bigint), omc_contacto_casar(text, text, text, timestamptz) to anon, authenticated;
 
 notify pgrst, 'reload schema';
