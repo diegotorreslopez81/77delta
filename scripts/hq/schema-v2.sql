@@ -958,21 +958,24 @@ begin
       from omc_sesiones s join omc_expedientes x on x.id = s.expediente_id where s.empresa = t.empresa and s.estado in ('abierta','solicitada')),
     'agentes', (select coalesce(jsonb_agg(case when es_owner or a->>'id' = t.nombre then a else a - 'sesion_url' end), '[]'::jsonb) from jsonb_array_elements(omc_agentes_lista(p_token)) a),
     'pendientes', case when es_owner then coalesce(base->'pendientes', '[]'::jsonb) else '[]'::jsonb end,
-    -- T16 Step 4: 'licitaciones' es, con mucho, la clave mas pesada (3,36 MB de 3,84 MB medidos en
-    -- produccion con 1641 filas, el 90% en decision='Pendiente': no es estacional, es el pipeline de
-    -- ventas completo y no se puede recortar por fecha sin ocultar pendientes reales). Se recorta a los
-    -- campos que necesita la vista de plan 2 (cae a ~1,8 MB); el listado completo con los campos largos
-    -- (resumen, comentarios, pcap, ppt, motivo_auto, solvencia) sigue disponible via omc_licitaciones_lista
-    -- u omc_hq para quien lo necesite. Bajar de 1,5 MB exige paginar o limitar filas: decision de plan 2,
-    -- no de esta RPC (ver informe de la tarea 16 y el contrato).
+    -- Ajuste por rulings del controlador (tarea 16): 'licitaciones' es, con mucho, la clave mas pesada
+    -- (3,36 MB de 3,84 MB medidos en produccion con 1641 filas, el 90% en decision='Pendiente'). Ruling
+    -- paso 1: lo cerrado hace mas de una semana no va al tablero (el historico se sirve en el plan 2 con
+    -- una RPC paginada aparte); medido en produccion, esto solo baja de 1641 a 1603 filas (la mayoria de
+    -- 'Pendiente' tiene cierre futuro o nulo, no pasado) y deja el total en 2,37 MB, seguia por encima de
+    -- 1,5 MB. Ruling paso 2 (aplicado): se recorta a solo los campos minimos que pide el controlador
+    -- (resumen_corto, objeto, organo, importe, cierre, decision, expediente como id, enlace como url);
+    -- fuera quedan provincia, tipo, procedimiento, elegible, detectada, estado, fecha_decision, progreso.
+    -- El listado completo con esos campos y los de texto largo (resumen, comentarios, pcap, ppt,
+    -- motivo_auto, solvencia) sigue disponible via omc_licitaciones_lista u omc_hq para quien lo necesite.
     'licitaciones', case when es_owner then (
         select coalesce(jsonb_agg(jsonb_build_object(
-          'expediente', x->>'expediente', 'organo', x->>'organo', 'provincia', x->>'provincia', 'objeto', x->>'objeto',
-          'resumen_corto', x->>'resumen_corto', 'importe', (x->>'importe')::numeric, 'tipo', x->>'tipo', 'procedimiento', x->>'procedimiento',
-          'elegible', x->>'elegible', 'cierre', (x->>'cierre')::date, 'detectada', (x->>'detectada')::date, 'enlace', x->>'enlace',
-          'estado', x->>'estado', 'decision', x->>'decision', 'fecha_decision', (x->>'fecha_decision')::date, 'progreso', (x->>'progreso')::numeric
+          'expediente', x->>'expediente', 'organo', x->>'organo', 'objeto', x->>'objeto',
+          'resumen_corto', x->>'resumen_corto', 'importe', (x->>'importe')::numeric,
+          'cierre', (x->>'cierre')::date, 'enlace', x->>'enlace', 'decision', x->>'decision'
         )), '[]'::jsonb)
         from jsonb_array_elements(coalesce(base->'licitaciones', '[]'::jsonb)) x
+        where (x->>'cierre') is null or (x->>'cierre')::date >= (ahora - interval '7 days')::date
       ) else '[]'::jsonb end,
     'uso', case when es_owner and exists (select 1 from pg_proc where proname = 'omc_hq_uso') then omc_hq_uso(p_token) else '{}'::jsonb end
   );

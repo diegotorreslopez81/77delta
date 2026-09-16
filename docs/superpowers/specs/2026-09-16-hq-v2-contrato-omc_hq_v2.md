@@ -64,6 +64,8 @@ esquema real (es `meta`, `unidad`, `titulo`). Se usan los nombres reales.
 | `encargos_abiertos` | int | calculado | nº de `omc_encargos` en `('encolado','en_curso','bloqueado_diego')` cuyo frente cuelga de este bloque |
 | `contratado_eur` | numeric | **siempre `0`** | **limitación conocida**: `omc_ingresos` no tiene `linea_id` ni `bloque_id`, no hay forma de atribuir un ingreso a un bloque con el esquema actual. La clave existe para que la UI no rompa, pero no lleva dato real hasta que se añada esa columna. El `contratado_eur` real por año está en `objetivos[]`. |
 
+Pendiente plan 2: `omc_ingresos.linea_id`.
+
 Solo bloques con `activo = true`.
 
 ### `frentes[]`
@@ -144,32 +146,33 @@ Solo owner (agente: `[]`). = `omc_hq(p_token).pendientes`: solicitudes de `omc_s
 Diego. Fecha límite en la clave `vence`, no `fecha_limite`.
 
 ### `licitaciones[]`
-Solo owner (agente: `[]`). Basado en `omc_hq(p_token).licitaciones`, recortado a estos campos (se quitan los
-de texto largo: `resumen`, `comentarios`, `motivo_auto`, `solvencia`, `pcap`, `ppt`, `carpeta`,
-`motivo_texto`, `progreso_nota`, `decidido_por`, `motivos`, `sincronizado`, `pestana`):
+Solo owner (agente: `[]`). Basado en `omc_hq(p_token).licitaciones`, con dos recortes por ruling del
+controlador (tarea 16, ajuste tras el informe):
+
+1. **Filtro por fecha**: solo filas con `cierre` nulo o `cierre >= hace 7 días`. Lo cerrado hace más de una
+   semana no va al tablero; el histórico completo se sirve en plan 2 con una RPC paginada aparte (todavía
+   no existe, ver más abajo). Medido en producción: esto solo baja de 1641 a 1603 filas, porque la mayoría
+   de las `'Pendiente'` tiene `cierre` futuro o nulo, no pasado.
+2. **Campos mínimos**: se quitan todos los campos salvo los ocho siguientes (no solo los de texto largo).
 
 | Campo | Tipo | Notas |
 |---|---|---|
-| `expediente` | text | identificador (PK junto a empresa) |
+| `expediente` | text | identificador (PK junto a empresa); hace de `id` |
 | `organo` | text | |
-| `provincia` | text | |
 | `objeto` | text | título largo original |
 | `resumen_corto` | text | **título a mostrar en tarjeta/lista** (preferir sobre `objeto` si no está vacío) |
 | `importe` | numeric o null | |
-| `tipo` | text | |
-| `procedimiento` | text | |
-| `elegible` | text | |
 | `cierre` | date o null | **fecha límite de la licitación** (no hay `fecha_limite`) |
-| `detectada` | date o null | fecha en que el motor la detectó |
-| `enlace` | text | |
-| `estado` | text | estado del expediente en el proceso (texto libre del motor) |
+| `enlace` | text | hace de `url` |
 | `decision` | text | `'OK'` \| `'No'` \| `'Pendiente'` (no `'presentar'`) |
-| `fecha_decision` | date o null | |
-| `progreso` | numeric o null | |
 
-Si la UI necesita los campos de texto largo (resumen completo, comentarios, pliegos) para la ficha de detalle
-de una licitación concreta, pedirlos aparte con `omc_licitaciones_lista(p_token, boolean)` o el hilo de
-`omc_lic_comentar`/`omc_lic_hilo`, no están en `omc_hq_v2`.
+Campos que **ya no están** en `omc_hq_v2` (estaban en la primera versión de esta clave): `provincia`, `tipo`,
+`procedimiento`, `elegible`, `detectada`, `estado`, `fecha_decision`, `progreso`, además de los de texto
+largo (`resumen`, `comentarios`, `motivo_auto`, `solvencia`, `pcap`, `ppt`, `carpeta`, `motivo_texto`,
+`progreso_nota`, `decidido_por`, `motivos`, `sincronizado`, `pestana`). Si la UI necesita cualquiera de estos
+(para filtrar, para la ficha de detalle, o para el histórico de lo cerrado hace más de 7 días), pedirlos
+aparte con `omc_licitaciones_lista(p_token, boolean)` o el hilo de `omc_lic_comentar`/`omc_lic_hilo`; no
+están en `omc_hq_v2`.
 
 ### `uso`
 Solo owner (agente: `{}`). = `omc_hq_uso(p_token)` si la función existe (comprobado con
@@ -182,29 +185,21 @@ por_sesion, por_agente_modelo, dias, plan, plan_serie).
 | Momento | Bytes totales |
 |---|---|
 | Antes de recortar (T16 sin Step 4) | 3 840 539 (~3,84 MB) |
-| Después de recortar `licitaciones`, `avances` (3 días) y `contactos` (14 días + pendientes) | 2 404 741 (~2,40 MB) |
+| Tras recortar `licitaciones` (campos), `avances` (3 días) y `contactos` (14 días + pendientes) | 2 404 741 (~2,40 MB) |
+| Ajuste por ruling, paso 1: `licitaciones` filtrada por `cierre` nulo o `>= hace 7 días` (1641 → 1603 filas) | 2 373 381 (~2,37 MB) |
+| Ajuste por ruling, paso 2: `licitaciones` recortada a 8 campos mínimos | **2 042 555 (~2,04 MB)** |
 
-Desglose tras el recorte (bytes de `json.dumps` de cada clave, empresa `77delta`, 1641 licitaciones, 258
-encargos, 225 avances, 78 contactos):
+El paso 1 (filtro por fecha) apenas movió el número: de 1641 a 1603 filas, porque la inmensa mayoría de las
+`'Pendiente'` tiene `cierre` futuro o nulo, no pasado (no es un histórico estacional, es pipeline abierto).
+El paso 2 (campos mínimos) sí importó: `licitaciones` sola bajó de 1,87 MB a 1,49 MB, ya por debajo de 1,5
+MB.
 
-| Clave | Bytes | Items |
-|---|---:|---:|
-| `licitaciones` | 1 867 731 | 1641 |
-| `encargos` | 352 252 | 258 |
-| `uso` | 137 234 | - |
-| `avances` | 75 366 | 225 |
-| `contactos` | 50 938 | 78 |
-| `agentes` | 13 759 | 40 |
-| resto | < 20 000 | - |
-
-**Sigue por encima del objetivo de 1,5 MB del brief**, y la causa no es estacional: el 90% de las 1641
-licitaciones está en `decision = 'Pendiente'` (1476 de 1641), así que ningún recorte por fecha las reduce sin
-ocultar pendientes reales del pipeline de ventas. Ya se recortaron los campos largos de cada fila (ver
-arriba), lo que bajó `licitaciones` de 3,36 MB a 1,87 MB. Bajar de ahí exige una decisión de producto que no
-toca a esta RPC de lectura: paginar `licitaciones` en una llamada aparte (ya existe
-`omc_licitaciones_lista(p_token, boolean)` para eso), o limitar filas (por ejemplo top-N por `cierre`) y que
-la vista completa del pipeline de ventas se pida por separado. Queda para quien diseñe la pantalla de
-licitaciones en plan 2.
+**El total sigue por encima de 1,5 MB (2,04 MB) pese a aplicar los dos pasos del ruling**, porque con
+`licitaciones` ya en 1,49 MB el resto de claves no cabe en los ~10 KB que quedarían: `encargos` (352 KB, 258
+filas) y `uso` (137 KB) son ahora los siguientes bloques más pesados. Ninguno de los dos estaba dentro del
+alcance del ruling (que solo tocaba `licitaciones`), así que no se han recortado; queda anotado aquí para
+quien decida si el objetivo de 1,5 MB sigue siendo el límite a perseguir o si 2,04 MB es aceptable para
+plan 2.
 
 ## RPC de escritura que usará la interfaz (firmas)
 

@@ -1,3 +1,4 @@
+import datetime
 import unittest
 from . import pg
 from .pg import rpc
@@ -25,6 +26,21 @@ class TestHqV2(unittest.TestCase):
         self.assertEqual(col[e1['id']]['columna'], 'backlog'); self.assertEqual(col[e2['id']]['columna'], 'por_hacer')
         self.assertEqual(col[e3['id']]['columna'], 'en_curso'); self.assertTrue(col[e3['id']]['rojo']); self.assertFalse(col[e1['id']]['rojo'])
         self.assertEqual(d['objetivos'][0]['horizonte'], 2026); self.assertEqual(d['bloques'][0]['encargos_abiertos'], 3)
+
+    def test_licitaciones_filtra_cierre_a_7_dias(self):
+        limite = (datetime.date.today() - datetime.timedelta(days=7)).isoformat()
+        pg.sql("insert into omc_licitaciones (empresa, expediente, organo, objeto, resumen_corto, cierre, decision) "
+               "values ('pruebas','EXP-VIEJO','Organo pruebas','Objeto viejo','Resumen viejo', current_date - 30, 'Pendiente')")
+        pg.sql("insert into omc_licitaciones (empresa, expediente, organo, objeto, resumen_corto, cierre, decision) "
+               "values ('pruebas','EXP-SIN-CIERRE','Organo pruebas','Objeto sin cierre','Resumen sin cierre', null, 'Pendiente')")
+        d = rpc(self.t['owner'], 'omc_hq_v2')
+        expedientes = {x['expediente'] for x in d['licitaciones']}
+        self.assertNotIn('EXP-VIEJO', expedientes)
+        self.assertIn('EXP-SIN-CIERRE', expedientes)
+        for x in d['licitaciones']:
+            self.assertTrue(x['cierre'] is None or x['cierre'] >= limite, x)
+        campos = set(d['licitaciones'][0].keys()) if d['licitaciones'] else set()
+        self.assertEqual(campos, {'expediente', 'organo', 'objeto', 'resumen_corto', 'importe', 'cierre', 'enlace', 'decision'})
 
     def test_agente_no_ve_sesion_url_ajena(self):
         rpc(self.t['owner'], 'omc_agente_sesion_url', p_agente='probador', p_url='https://claude.ai/code/session_zzz')

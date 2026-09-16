@@ -59,7 +59,8 @@ def entorno_cli(rol='agente'):
 
 def limpiar_tenant():
     for tabla in ('omc_sesiones', 'omc_contactos', 'omc_encargo_avances', 'omc_kit', 'omc_expedientes', 'omc_encargos',
-                  'omc_decisiones', 'omc_plan_lineas', 'omc_plan_bloques', 'omc_plan_objetivo', 'omc_agentes', 'omc_solicitudes'):
+                  'omc_decisiones', 'omc_plan_lineas', 'omc_plan_bloques', 'omc_plan_objetivo', 'omc_agentes', 'omc_solicitudes',
+                  'omc_licitaciones'):
         existe = sql("select 1 from information_schema.tables where table_name='{0}'", tabla)
         if not existe:
             continue
