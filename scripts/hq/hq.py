@@ -11,11 +11,93 @@ El agente se resuelve por --agente, HQ_AGENTE, el fichero .claude/hq-agente del 
   hq.py activo [agente]        (código 0 activo, 2 desactivado, 3 no existe)
   hq.py pendientes [agente]
 """
-import shutil, argparse, json, os, subprocess, sys, time, urllib.request, urllib.error
+import shutil, argparse, json, os, re, subprocess, sys, time, urllib.request, urllib.error
+from datetime import datetime
 from pathlib import Path
+from zoneinfo import ZoneInfo
 
 CONF = Path.home() / '.config' / '77delta' / 'hq.env'
+# 10-sep (regla 7b, caso real de Aina): un --hasta sin zona se guardaba literal como si fuera UTC, así que
+# "09:55" (hora de Madrid, donde vive el equipo) quedaba a las 11:55 CEST - casi dos horas tarde en un
+# mecanismo que la nueva regla de "nadie espera en bucle" convierte en la infraestructura de todos.
+TZ_LOCAL = ZoneInfo('Europe/Madrid')
+
+
+# 11-sep (COO, incidente de seguridad real): una contraseña de aplicación de Gmail, la que está EN USO,
+# llevaba 5 días en texto plano en un mensaje de HQ (omc_mensajes #52) - la regla "no pegues credenciales
+# en HQ" existe desde el primer día y aun así pasó. Una regla que hay que recordar no funciona; una que
+# corta al escribir, sí. No hace falta que sea lista: tres patrones bastan y se afinan si hace falta.
+RE_APP_PASSWORD = re.compile(r'\b[a-zA-Z]{4} [a-zA-Z]{4} [a-zA-Z]{4} [a-zA-Z]{4}\b')
+RE_CLAVE_SECRETA = re.compile(r'\b(sk-[A-Za-z0-9_-]{10,}|AKIA[A-Z0-9]{10,})\b')
+# 11-sep (COO, falso positivo real en el primer uso): "password" en prosa normal ("siete apps compartiendo
+# tu contraseña personal es el problema") no debe saltar - "personal" tiene 8 letras y sin más filtro
+# activa igual el patrón de "cadena larga sin espacios". Una palabra normal es solo letras; una credencial
+# casi siempre mezcla algún dígito. Por eso esto va en dos pasos (regex + comprobación en Python) en vez
+# de meterlo todo en una regex más enrevesada: más fácil de leer y de volver a ajustar si hace falta.
+RE_PASSWORD_SEGUIDA = re.compile(r'(?i)\b(?:password|contrase[ñn]a)\b(?:\s+(?:es|is|:|=))?\s+(\S{6,})')
+
+
+def motivo_si_parece_credencial(texto):
+    if not texto:
+        return None
+    if RE_APP_PASSWORD.search(texto):
+        return "parece una contraseña de aplicación de Google (cuatro grupos de 4 letras separados por espacios)"
+    if RE_CLAVE_SECRETA.search(texto):
+        return "parece una clave secreta (empieza por sk- o AKIA)"
+    m = RE_PASSWORD_SEGUIDA.search(texto)
+    if m and any(c.isdigit() for c in m.group(1)):
+        return "tiene 'password'/'contraseña' seguida de algo con dígitos - probable credencial pegada sin querer"
+    return None
+
+
+def exigir_sin_credenciales(a):
+    for campo, valor in vars(a).items():
+        if isinstance(valor, str) and valor:
+            motivo = motivo_si_parece_credencial(valor)
+            if motivo:
+                sys.exit(f"NO SE GUARDA: --{campo.replace('_', '-')} {motivo}. Si es un falso positivo real "
+                         "quítalo de aquí; si es una credencial de verdad, va a un .env con permisos 600, nunca a HQ.")
+
+
+def hora_local_a_utc(s):
+    """Interpreta un ISO sin zona como hora de Madrid y lo convierte a UTC explícito. Si el texto ya trae
+    zona (Z o ±HH:MM), se respeta tal cual - no se reinterpreta lo que ya es inequívoco."""
+    s = s.strip()
+    if s.endswith('Z') or re.search(r'[+-]\d{2}:?\d{2}$', s):
+        return s
+    try:
+        dt = datetime.fromisoformat(s)
+    except ValueError:
+        sys.exit(f"--hasta '{s}' no es una fecha ISO válida (2026-09-18 o 2026-09-18T08:00)")
+    return dt.replace(tzinfo=TZ_LOCAL).isoformat()
+
+
+def utc_a_local_str(utc_iso):
+    """Aparte de hora_local_a_utc() a propósito: main() tiene un 'import datetime' local mas abajo que
+    convierte ese nombre en variable local para toda la función, y pisaría el 'datetime' de clase
+    importado arriba si se usara directamente ahí."""
+    return datetime.fromisoformat(utc_iso).astimezone(TZ_LOCAL).strftime('%Y-%m-%d %H:%M')
 TIPOS = ('gasto', 'contacto', 'publicacion', 'estrategia', 'duda', 'accion', 'otro')
+# Valor especial para .claude/hq-agente en repos que consulta gente de varios puestos (p.ej. 77delta,
+# docs/empresa): en vez de atribuir en silencio al dueño nominal del repo, exige --agente explícito.
+# Encargo del coo 9-sep, tras dos atribuciones reales equivocadas (ver docs/empresa/11-runbook-operaciones.md §8b).
+AGENTE_COMPARTIDO = 'COMPARTIDO: repo de varios puestos, exige --agente explícito'
+
+
+def exigir_limite_diego(titulo, detalle):
+    """Encargo #129 (Núria/po-hq, 12-sep, tarjeta #447): título y detalle de lo que llega a Diego tienen
+    un límite duro, no una recomendación en la memoria de los agentes. Se rechaza aquí, antes de crear o
+    escalar la tarjeta, para que no dependa de que cada agente se acuerde."""
+    alternativa = ('El detalle largo va a un MD o a un doc y se enlaza con --enlace. Formato: pregunta o '
+                   'acción en la primera línea, después máximo 5 bullets de una línea.')
+    tit, det = (titulo or ''), (detalle or '')
+    if len(tit) > 120:
+        sys.exit(f'Título de {len(tit)} caracteres para Diego: el máximo son 120. {alternativa}')
+    if len(det) > 600:
+        sys.exit(f'Detalle de {len(det)} caracteres para Diego: el máximo son 600. {alternativa}')
+    bullets = sum(1 for l in det.splitlines() if l.startswith('- '))
+    if bullets > 5:
+        sys.exit(f'Detalle con {bullets} bullets para Diego: el máximo son 5. {alternativa}')
 
 
 def env():
@@ -60,7 +142,12 @@ def agente_actual(explicito=None):
     for p in [d, *d.parents]:
         f = p / '.claude' / 'hq-agente'
         if f.exists():
-            return f.read_text().strip()
+            valor = f.read_text().strip()
+            if valor == AGENTE_COMPARTIDO:
+                sys.exit(f"hq.py: {p} es un repo de varios puestos (marcador COMPARTIDO en {f}), no hay dueño por defecto. Añade --agente <id>.")
+            if p != d:
+                print(f"hq.py: aviso, agente resuelto como '{valor}' desde {f} (carpeta padre {p}, no tu cwd {d}). Si no eres ese puesto, usa --agente.", file=sys.stderr)
+            return valor
     return E.get('HQ_AGENTE') or d.name
 
 
@@ -191,7 +278,7 @@ def main():
 
     def comun(p):
         p.add_argument('--titulo', required=True)
-        p.add_argument('--detalle', default='')
+        p.add_argument('--detalle', default='', help='máximo 700 caracteres, en bullets con "- " si pasa de 220; el texto largo va en --cuerpo o --cuerpo-archivo')
         p.add_argument('--importe', type=float)
         p.add_argument('--riesgo', default='')
         p.add_argument('--enlace', default='')
@@ -208,9 +295,16 @@ def main():
 
     p = sub.add_parser('pedir'); comun(p); p.add_argument('--tipo', choices=TIPOS, default='otro')
     p = sub.add_parser('duda'); comun(p)
-    p = sub.add_parser('escalar', help='(chief) subir una solicitud de la cola del chief a la de Diego'); p.add_argument('id', type=int)
-    p = sub.add_parser('pendientes-chief', help='(chief) cola de solicitudes con destinatario=chief, pendientes de resolver por chat')
+    p = sub.add_parser('escalar', help='(coo/chief) subir una solicitud: desde coo sube a chief, desde cualquier otro sube a coo'); p.add_argument('id', type=int); p.add_argument('--agente')
+    p = sub.add_parser('pendientes-chief', help='(chief) cola de solicitudes escaladas por el coo, con destinatario=chief, pendientes de resolver por chat')
+    p = sub.add_parser('pendientes-coo', help='(coo) cola general de dudas del dia a dia, con destinatario=coo, pendientes de resolver por chat')
+    p = sub.add_parser('posponer', help='(coo/chief/Diego) posponer una solicitud pendiente hasta una fecha: sale de la bandeja y vuelve sola, con push, cuando llegue (hq-recordatorios.py la revisa cada 5 min)')
+    p.add_argument('id', type=int)
+    p.add_argument('--hasta', required=True, help='ISO: 2026-09-18 o 2026-09-18T08:00. Sobrevive a sesiones y reinicios: no depende de que nadie esté despierto')
     p = sub.add_parser('estado'); p.add_argument('id', type=int)
+    p = sub.add_parser('aprobar', help='(coo/chief) aprobar una tarjeta cuyo destinatario seas tú mismo - nunca las de Diego'); p.add_argument('id', type=int); p.add_argument('--agente', required=True, choices=('coo', 'chief'))
+    p = sub.add_parser('titulo', help='(coo/chief) editar el título de una tarjeta cuyo destinatario seas tú mismo - nunca las de Diego; deja comentario automático con el título anterior')
+    p.add_argument('id', type=int); p.add_argument('--texto', required=True); p.add_argument('--agente', required=True, choices=('coo', 'chief'))
     p = sub.add_parser('esperar'); p.add_argument('id', type=int); p.add_argument('--timeout', type=int, default=21600); p.add_argument('--intervalo', type=int, default=30); p.add_argument('--vistos', type=int, help='comentarios de Diego ya leídos')
     p = sub.add_parser('comentar', help='responder en el hilo de una solicitud sin cerrarla'); p.add_argument('id', type=int); p.add_argument('--texto', required=True); p.add_argument('--agente')
     p = sub.add_parser('hilo', help='ver el hilo de una solicitud'); p.add_argument('id', type=int)
@@ -228,6 +322,19 @@ def main():
     p = sub.add_parser('licitaciones', help='licitaciones con la decisión y los motivos de Diego (para Sales)'); p.add_argument('--todas', action='store_true'); p.add_argument('--decididas', action='store_true')
     p = sub.add_parser('lic-hilo', help='ver el hilo de conversación de una licitación'); p.add_argument('id', help='expediente')
     p = sub.add_parser('lic-comentar', help='comentar en el hilo de una licitación sin resolverla'); p.add_argument('id', help='expediente'); p.add_argument('--texto', required=True); p.add_argument('--agente')
+    p = sub.add_parser('lic-cierre-propuesto', help='(coo/chief) etiqueta informativa: hay una tarjeta con propuesta de cierre pendiente de firma - NO toca estado ni decision, esas siguen siendo de Diego')
+    p.add_argument('id', help='expediente'); p.add_argument('--tarjeta', type=int, help='id de la tarjeta con la propuesta; sin esto, quita la etiqueta'); p.add_argument('--agente', required=True, choices=('coo', 'chief'))
+    p = sub.add_parser('lic-cribar', help='cribado de Sales: Nueva -> Por decidir/Descartada/Pausada/Cerrada sin presentar. La decision OK/No sigue siendo de Diego, esto no la toca')
+    p.add_argument('id', help='expediente'); p.add_argument('estado', choices=('Nueva', 'Por decidir', 'Descartada', 'Pausada', 'Cerrada sin presentar'))
+    p.add_argument('--motivo'); p.add_argument('--resumen-corto', dest='resumen_corto')
+    p = sub.add_parser('lic-editar-cierre', help='corrige la fecha de cierre de una licitacion, con rastro en el hilo de quien y desde que valor - una fecha mal no puede cambiar en silencio')
+    p.add_argument('id', help='expediente'); p.add_argument('--cierre', required=True, help='ISO: 2026-09-13 (solo fecha, el campo no guarda hora)'); p.add_argument('--agente')
+    p = sub.add_parser('lic-nueva', help='da de alta una candidata nueva (Ariadna); admite un JSON de varias filas con --json-file para altas en lote')
+    p.add_argument('expediente', nargs='?'); p.add_argument('--organo'); p.add_argument('--provincia'); p.add_argument('--objeto')
+    p.add_argument('--importe', type=float); p.add_argument('--cierre', help='YYYY-MM-DD'); p.add_argument('--tipo'); p.add_argument('--procedimiento')
+    p.add_argument('--enlace'); p.add_argument('--pcap'); p.add_argument('--ppt'); p.add_argument('--motivo-auto', dest='motivo_auto')
+    p.add_argument('--estado', default='Nueva', choices=('Nueva', 'Por decidir', 'Pausada'))
+    p.add_argument('--json-file', dest='json_file', help='fichero con una lista de objetos igual que los flags de arriba, para dar de alta varias a la vez')
     p = sub.add_parser('lic-esperar', help='esperar a que Diego comente en el hilo de una licitación'); p.add_argument('id', help='expediente'); p.add_argument('--timeout', type=int, default=21600); p.add_argument('--intervalo', type=int, default=30); p.add_argument('--vistos', type=int, help='comentarios de Diego ya leídos')
     p = sub.add_parser('plan', help='pestaña Plan: objetivo global y líneas con KPI, meta y semáforo')
     p = sub.add_parser('plan-linea', help='(Diego) crear o editar una línea del plan estratégico')
@@ -254,6 +361,16 @@ def main():
     ep = esub.add_parser('prioridad', help='(Diego) subir o bajar un encargo en su línea')
     ep.add_argument('id', type=int); ep.add_argument('direccion', choices=('subir', 'bajar'))
     esub.add_parser('lista', help='ver todos los encargos')
+    p = sub.add_parser('patron', help='patrones de accion: trafico rutinario ya autorizado, sin tarjeta por cada envio pero con rastro completo (9-sep, gmail-agente.py)')
+    psub = p.add_subparsers(dest='sub', required=True)
+    pa = psub.add_parser('alta', help='(SOLO coo o chief) dar de alta un patron nuevo')
+    pa.add_argument('--para', required=True, help='id del agente al que se le concede el patron, ej. marti')
+    pa.add_argument('--alias', required=True, help='alias de correo que usa ese agente, ej. marti')
+    pa.add_argument('--tipo-accion', dest='tipo_accion', required=True, help='texto libre corto, ej. "envio-cupones-marti"; se repite tal cual al usar --patron en gmail-agente.py')
+    pa.add_argument('--condiciones', required=True, help='las condiciones ya escritas y aprobadas, en bullets, tal cual quedan para auditoria')
+    pa.add_argument('--fecha-revision', dest='fecha_revision', required=True, help='YYYY-MM-DD; el primero de cada tipo se revisa a los 30 dias, no mas')
+    pa.add_argument('--agente', required=True, choices=('coo', 'chief'), help='quien lo aprueba de verdad: coo o chief, nadie mas puede crear un patron')
+    pl = psub.add_parser('lista', help='listado de un vistazo: id, para quien, alias, tipo, condiciones resumidas, activo, usos')
     p = sub.add_parser('parte', help='parte de jornada del agente (Engram, proyecto 77delta): lo leen los demás al arrancar'); p.add_argument('texto', nargs='?'); p.add_argument('--agente')
     p = sub.add_parser('partes', help='partes de las últimas 48 h de todos los agentes'); p.add_argument('--horas', type=int, default=48)
     p = sub.add_parser('historia', help='buscar en el histórico de Engram (título y contenido), en vez de fiarse de la memoria de la sesión')
@@ -273,16 +390,32 @@ def main():
     p.add_argument('--alias', help='alias de correo para "enviar como", minúsculas sin acentos; por defecto se deriva de --nombre')
     p.add_argument('--agente', help='quien pide la tarjeta del alias (por defecto quien ejecuta esto)')
     a = ap.parse_args()
+    exigir_sin_credenciales(a)
 
     if a.cmd in ('pedir', 'duda'):
         cuerpo = a.cuerpo
         if a.cuerpo_archivo:
-            cuerpo = Path(a.cuerpo_archivo).read_text()
+            # 9-sep (coo): a Helena le falló 3 veces sin dar error (tarjeta 340). No he reproducido un fallo
+            # silencioso en el resto del camino (rpc()/avisar()/salida() ya cortan con sys.exit), pero esto
+            # que sí podía fallar en frío (fichero que no existe, o vacío) ahora avisa claro en vez de traza.
+            try:
+                cuerpo = Path(a.cuerpo_archivo).read_text()
+            except OSError as ex:
+                sys.exit(f"hq.py: no se pudo leer --cuerpo-archivo '{a.cuerpo_archivo}': {ex}")
+            if not cuerpo.strip():
+                sys.exit(f"hq.py: --cuerpo-archivo '{a.cuerpo_archivo}' está vacío, no se crea la tarjeta.")
+            motivo = motivo_si_parece_credencial(cuerpo)
+            if motivo:
+                sys.exit(f"NO SE GUARDA: --cuerpo-archivo '{a.cuerpo_archivo}' {motivo}.")
         payload = {'agente': agente_actual(a.agente), 'tipo': 'duda' if a.cmd == 'duda' else a.tipo, 'titulo': a.titulo, 'detalle': a.detalle,
                    'riesgo': a.riesgo, 'enlace': a.enlace, 'vence': a.vence, 'cuerpo': cuerpo, 'diego_en_persona': bool(a.diego_en_persona)}
         if a.importe is not None: payload['importe'] = a.importe
         if a.depto: payload['depto'] = a.depto
         if a.prioridad: payload['prioridad'] = a.prioridad
+        # encargo #129: réplica del cálculo servidor de destinatario (schema.sql, omc_pedir) para poder
+        # rechazar ANTES de crear la fila - el cliente solo sabe el destinatario real tras el rpc().
+        if payload['tipo'] in ('gasto', 'accion') or bool(a.diego_en_persona):
+            exigir_limite_diego(a.titulo, a.detalle)
         # Formato ejecutivo obligatorio (Diego, 8-sep): tarjetas cortas y en bullets. Se rechaza aquí para que
         # no dependa de que cada agente se acuerde: el detalle largo y en prosa es lo que hace ilegible HQ en el móvil.
         det = (a.detalle or '')
@@ -295,35 +428,65 @@ def main():
         avisar(s)
         salida(s, a.json)
         # encargo 56: solo gasto/accion (o --diego-en-persona) llegan a Diego; el resto va a la cola del
-        # chief, que la resuelve por chat. Aviso inmediato además de lo que recoja hq-despertar.py.
+        # coo (9-sep, reorg despacho/operaciones), que la resuelve por chat. Aviso inmediato además de lo
+        # que recoja hq-despertar.py.
         if not a.json:
             print(f"-> destinatario: {s.get('destinatario', 'diego')}")
-        if s.get('destinatario') == 'chief':
+        if s.get('destinatario') == 'coo':
             import subprocess as _sp
-            _sp.run([str(Path.home() / 'bin' / 'tmux-decir'), 'Marc-Chief',
+            _sp.run([str(Path.home() / 'bin' / 'tmux-decir'), 'Jordi-COO',
                      f"[hq.py {a.cmd}] #{s['id']} de {s['agente']}: {s['titulo']}" + (f" - {a.detalle[:200]}" if a.detalle else '') +
-                     f" · resuelve con: hq.py comentar {s['id']} --texto \"...\" (o hq.py escalar {s['id']} si de verdad necesita a Diego)"],
+                     f" · resuelve con: hq.py comentar {s['id']} --texto \"...\" (o hq.py escalar {s['id']} --agente coo si hace falta subirlo al chief)"],
                     capture_output=True, text=True, timeout=40)
         if a.esperar:
             sys.exit(esperar(s['id'], a.esperar, a.intervalo, a.json))
     elif a.cmd == 'escalar':
         owner = E.get('HQ_OWNER_TOKEN')
         if not owner:
-            sys.exit('falta HQ_OWNER_TOKEN en hq.env: escalar es solo del chief/Diego')
-        salida(rpc('omc_escalar', p_token=owner, p_id=a.id), a.json)
+            sys.exit('falta HQ_OWNER_TOKEN en hq.env: escalar es solo del coo/chief/Diego')
+        # encargo #129: escalar fija destinatario='diego' (schema.sql), así que la tarjeta existente tiene
+        # que cumplir el límite antes de subir, no después.
+        actual = rpc('omc_estado', p_token=owner, p_id=a.id)
+        exigir_limite_diego(actual.get('titulo'), actual.get('detalle'))
+        salida(rpc('omc_escalar', p_token=owner, p_id=a.id, p_agente=agente_actual(a.agente)), a.json)
     elif a.cmd == 'pendientes-chief':
         owner = E.get('HQ_OWNER_TOKEN')
         if not owner:
             sys.exit('falta HQ_OWNER_TOKEN en hq.env: la cola del chief es solo del chief/Diego')
         salida(rpc('omc_pendientes_chief', p_token=owner), a.json)
+    elif a.cmd == 'pendientes-coo':
+        owner = E.get('HQ_OWNER_TOKEN')
+        if not owner:
+            sys.exit('falta HQ_OWNER_TOKEN en hq.env: la cola del coo es solo del coo/chief/Diego')
+        salida(rpc('omc_pendientes_coo', p_token=owner), a.json)
+    elif a.cmd == 'posponer':
+        owner = E.get('HQ_OWNER_TOKEN')
+        if not owner:
+            sys.exit('falta HQ_OWNER_TOKEN en hq.env: posponer es solo del coo/chief/Diego')
+        hasta_utc = hora_local_a_utc(a.hasta)
+        r = rpc('omc_posponer', p_token=owner, p_id=a.id, p_hasta=hasta_utc)
+        if a.json:
+            print(json.dumps(r, ensure_ascii=False))
+        else:
+            print(f"#{a.id} pospuesta hasta {utc_a_local_str(hasta_utc)} hora de Madrid "
+                  f"(instante exacto guardado: {hasta_utc}) - dilo por escrito una vez y para; te despierta esto, no tú mirando.")
     elif a.cmd == 'estado':
         salida(rpc('omc_estado', p_token=E['HQ_TOKEN'], p_id=a.id), a.json)
+    elif a.cmd == 'aprobar':
+        s = rpc('omc_aprobar', p_token=E['HQ_TOKEN'], p_id=a.id, p_agente=a.agente)
+        engram(f"[APROBAR #{a.id}]", f"aprobada por {a.agente}")
+        print(json.dumps(s, ensure_ascii=False) if a.json else f"#{a.id} -> aprobada por {a.agente}")
+    elif a.cmd == 'titulo':
+        exigir_limite_diego(a.texto, None)
+        s = rpc('omc_titulo', p_token=E['HQ_TOKEN'], p_id=a.id, p_agente=a.agente, p_titulo=a.texto)
+        engram(f"[TITULO #{a.id}]", f"cambiado por {a.agente} -> \"{a.texto}\"")
+        print(json.dumps(s, ensure_ascii=False) if a.json else f"#{a.id} -> título cambiado por {a.agente}: \"{a.texto}\"")
     elif a.cmd == 'esperar':
         sys.exit(esperar(a.id, a.timeout, a.intervalo, a.json, a.vistos))
     elif a.cmd == 'comentar':
         m = rpc('omc_comentar', p_token=E['HQ_TOKEN'], p_id=a.id, p_texto=a.texto, p_agente=agente_actual(a.agente))
         avisar({'id': a.id, 'texto': a.texto})
-        destino = 'a Diego' if m.get('destinatario', 'diego') == 'diego' else 'al chief'
+        destino = {'diego': 'a Diego', 'coo': 'a Jordi (coo)', 'chief': 'al chief'}.get(m.get('destinatario', 'diego'), 'a Jordi (coo)')
         print(json.dumps(m, ensure_ascii=False) if a.json else f"#{a.id} comentario enviado {destino} ({m['autor']})")
     elif a.cmd == 'retirar':
         r = rpc('omc_retirar', p_token=E['HQ_TOKEN'], p_id=a.id, p_nota=a.nota)
@@ -372,7 +535,12 @@ def main():
             for l in ls:
                 quien = {'diego': 'DIEGO', 'sales': 'sales/auto'}.get(l['decidido_por'], '')
                 mot = (', '.join(l.get('motivos') or []) + (' · ' + l['motivo_texto'] if l.get('motivo_texto') else '')).strip(' ·')
-                print(f"{l['expediente']} · {l['organo'][:40]} · {l['importe'] or '?'} € · cierre {l['cierre'] or '?'} · {l['estado'] or '-'} · {l['decision']}{' (' + quien + ')' if quien else ''}{' · ' + mot if mot else ''}")
+                # 10-sep (COO): "Aprobada" mentia mientras esperaba firma - 9 expedientes muertos seguian
+                # contando casi 2M€ en el panel. Esta etiqueta es aparte de estado/decision a proposito
+                # (nunca las toca), asi que sigue siendo Diego quien decide, solo que el panel ya no oculta
+                # que hay una propuesta de cierre esperando su firma.
+                cp = f" · CIERRE PROPUESTO #{l['cierre_propuesto_tarjeta']} (pendiente de firma)" if l.get('cierre_propuesto_tarjeta') else ''
+                print(f"{l['expediente']} · {l['organo'][:40]} · {l['importe'] or '?'} € · cierre {l['cierre'] or '?'} · {l['estado'] or '-'} · {l['decision']}{' (' + quien + ')' if quien else ''}{' · ' + mot if mot else ''}{cp}")
     elif a.cmd == 'lic-hilo':
         l = rpc('omc_lic_hilo', p_token=E['HQ_TOKEN'], p_lic_id=a.id)
         if a.json:
@@ -386,6 +554,28 @@ def main():
         print(json.dumps(m, ensure_ascii=False) if a.json else f"{a.id} comentario enviado a Diego ({m['autor']})")
     elif a.cmd == 'lic-esperar':
         sys.exit(esperar_lic(a.id, a.timeout, a.intervalo, a.json, a.vistos))
+    elif a.cmd == 'lic-cierre-propuesto':
+        l = rpc('omc_lic_cierre_propuesto', p_token=E['HQ_TOKEN'], p_agente=a.agente, p_expediente=a.id, p_tarjeta=a.tarjeta)
+        print(json.dumps(l, ensure_ascii=False) if a.json else
+              (f"{a.id} -> etiqueta 'cierre propuesto #{a.tarjeta}' puesta por {a.agente}" if a.tarjeta else f"{a.id} -> etiqueta de cierre propuesto quitada por {a.agente}"))
+    elif a.cmd == 'lic-cribar':
+        l = rpc('omc_licitacion_cribar', p_token=E['HQ_TOKEN'], p_expediente=a.id, p_estado=a.estado, p_motivo_auto=a.motivo, p_resumen_corto=a.resumen_corto)
+        print(json.dumps(l, ensure_ascii=False) if a.json else f"{a.id} -> {l['estado']}")
+    elif a.cmd == 'lic-editar-cierre':
+        l = rpc('omc_licitacion_editar_cierre', p_token=E['HQ_TOKEN'], p_expediente=a.id, p_cierre=a.cierre, p_agente=agente_actual(a.agente))
+        print(json.dumps(l, ensure_ascii=False) if a.json else f"{a.id} -> cierre corregido a {l['cierre']} (rastro en hq.py lic-hilo {a.id})")
+    elif a.cmd == 'lic-nueva':
+        if a.json_file:
+            filas = json.loads(Path(a.json_file).read_text(encoding='utf-8'))
+        else:
+            if not a.expediente:
+                sys.exit('lic-nueva: falta el expediente (o usa --json-file para varias)')
+            filas = [{'expediente': a.expediente, 'organo': a.organo, 'provincia': a.provincia, 'objeto': a.objeto,
+                      'importe': a.importe, 'cierre': a.cierre, 'tipo': a.tipo, 'procedimiento': a.procedimiento,
+                      'enlace': a.enlace, 'pcap': a.pcap, 'ppt': a.ppt, 'motivo_auto': a.motivo_auto, 'estado': a.estado,
+                      'pestana': 'Licitaciones'}]
+        r = rpc('omc_licitaciones_subir', p_token=E['HQ_TOKEN'], p_filas=filas)
+        print(json.dumps(r, ensure_ascii=False) if a.json else f"{r.get('filas', len(filas))} fila(s) dada(s) de alta/actualizada(s)")
     elif a.cmd == 'parte':
         import subprocess, datetime
         texto = a.texto or sys.stdin.read().strip()
@@ -467,8 +657,12 @@ def main():
         cuenta_desc = 'Max · team@77delta.com' if a.cuenta == 'b' else 'Max 20x · Diego'
 
         # 1) puesto en HQ (omc_agentes)
+        # 'activo': True explicito (encargo #500-hq-test, 13-sep): sin este campo el patch dejaba
+        # el puesto DESACTIVADO por defecto y nadie lo veia (asi salieron tech-devops, sales-registros
+        # y admin-books). No hay setter de 'activo' aparte, asi que si falta aqui no se activa nunca.
         patch = {'nombre': a.nombre, 'depto': a.depto, 'nivel': a.nivel, 'jefe': a.jefe,
-                 'sesiones': [a.ventana], 'contrato': {'cuenta': cuenta_desc, 'modelo': a.modelo}}
+                 'sesiones': [a.ventana], 'contrato': {'cuenta': cuenta_desc, 'modelo': a.modelo},
+                 'activo': True}
         ag = rpc('omc_agente_set', p_token=owner, p_id=a.id, p_patch=patch)
         print(f"1/5 puesto en HQ: {ag['id']} · {ag['nombre']} ({ag['depto']}, nivel {ag['nivel']}, jefe {ag['jefe']})")
 
@@ -669,6 +863,26 @@ def main():
                 for e in es:
                     marca = ' ⚠ 48h sin avance' if e['antiguo'] else ''
                     print(f"#{e['id']} [{e['estado']}] p{e['prioridad']} · {linea_encargo(e)} · {e['texto'][:60]} · {e['departamento']}/{e['agente']}{marca}")
+    elif a.cmd == 'patron':
+        owner_token = E.get('HQ_OWNER_TOKEN')
+        if a.sub == 'alta':
+            if not owner_token:
+                sys.exit('falta HQ_OWNER_TOKEN en hq.env: dar de alta un patron exige el token de owner, no el compartido de agente.')
+            p = {'agente': a.para, 'alias': a.alias, 'tipo_accion': a.tipo_accion, 'condiciones': a.condiciones,
+                 'fecha_revision': a.fecha_revision, 'aprobado_por': a.agente}
+            r = rpc('omc_patron_crear', p_token=owner_token, p=p)
+            engram(f"[PATRON #{r['id']}] alta", f"para {r['agente']} (alias {r['alias']}), tipo {r['tipo_accion']}, aprobado por {r['aprobado_por']}, revision {r['fecha_revision']}")
+            print(json.dumps(r, ensure_ascii=False) if a.json else f"#{r['id']} patron creado: {r['agente']}/{r['alias']} · {r['tipo_accion']} · revisar antes de {r['fecha_revision']}")
+        elif a.sub == 'lista':
+            token = owner_token or E['HQ_TOKEN']
+            ps = rpc('omc_patron_lista', p_token=token)
+            if a.json: print(json.dumps(ps, ensure_ascii=False))
+            else:
+                if not ps:
+                    print('(sin patrones)')
+                for pt in ps:
+                    marca = '' if pt['activo'] else ' [INACTIVO]'
+                    print(f"#{pt['id']}{marca} {pt['agente']}/{pt['alias']} · {pt['tipo_accion']} · revisar {pt['fecha_revision']} · {pt['usos']} uso(s) · aprobado por {pt['aprobado_por']}\n    {pt['condiciones_resumen']}")
 
 
 if __name__ == '__main__':

@@ -14,6 +14,8 @@ from datetime import datetime, timezone
 from pathlib import Path
 
 CONF = Path.home() / '.config' / '77delta' / 'hq.env'
+# 13-sep (Pol, encargo #103 del chief): deja de medir 'peni' - el encargo ordenaba pararlo tras el
+# sabado 12-sep (peni retirada, doc 46). Seguia midiendo y logueando HTTP 401 cada 15 min sin uso real.
 CUENTAS = [('principal', Path.home() / '.claude'), ('team', Path.home() / '.claude-team')]
 
 

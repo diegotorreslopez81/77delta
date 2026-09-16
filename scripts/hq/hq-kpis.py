@@ -39,10 +39,10 @@ def env():
 
 
 def access_token():
-    cred = json.load(open(GDIR / 'credentials.json')); k = cred.get('web') or cred.get('installed') or cred
-    tok = json.load(open(GDIR / 'token.json')); acc = tok['accounts'][tok.get('defaultAccount', 'default')]
-    datos = urllib.parse.urlencode({'client_id': k['client_id'], 'client_secret': k['client_secret'], 'refresh_token': acc['refreshToken'], 'grant_type': 'refresh_token'}).encode()
-    with urllib.request.urlopen(urllib.request.Request(k.get('token_uri', 'https://oauth2.googleapis.com/token'), data=datos, method='POST'), timeout=20) as r:
+    # 13-sep-2026 (chief): token OAuth de diego@77delta.com (~/.config/77delta/gdrive-diego.json, 600); el de gdrive-pdata fue revocado el 12-sep
+    t = json.load(open(Path.home() / '.config/77delta/gdrive-diego.json'))
+    datos = urllib.parse.urlencode({'client_id': t['client_id'], 'client_secret': t['client_secret'], 'refresh_token': t['refresh_token'], 'grant_type': 'refresh_token'}).encode()
+    with urllib.request.urlopen(urllib.request.Request('https://oauth2.googleapis.com/token', data=datos, method='POST'), timeout=20) as r:
         return json.loads(r.read())['access_token']
 
 

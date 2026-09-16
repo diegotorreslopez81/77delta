@@ -14,7 +14,15 @@ from pathlib import Path
 from zoneinfo import ZoneInfo
 
 CONF = Path.home() / '.config' / '77delta' / 'hq.env'
-RAICES = [Path.home() / '.claude' / 'projects', Path('/Users/diego/.claude/projects'), Path('/home/diego/.claude/projects')]
+# 9-sep (chief, via coo): antes solo se leia ~/.claude/projects (cuenta principal) - ciego a team@ y a
+# cualquier otra cuenta que corra agentes de verdad. Esto es SOLO consumo (tokens/coste por sesion, ya
+# volcados igual en el jsonl que genera Claude Code) - no toca Drive, documentos ni nada del contenido de
+# ninguna organizacion. Cada raiz se etiqueta con su cuenta para poder ver el gasto por cuenta despues.
+RAICES = {
+    'a': [Path.home() / '.claude' / 'projects', Path('/Users/diego/.claude/projects'), Path('/home/diego/.claude/projects')],
+    'b': [Path.home() / '.claude-team' / 'projects'],
+    'c': [Path.home() / '.claude-peni' / 'projects'],
+}
 TZ = ZoneInfo('Europe/Madrid')
 # $/MTok: input, output, cache write 5m, cache write 1h, cache read. Orden de coincidencia por substring del id de modelo.
 PRECIOS = [
@@ -51,26 +59,29 @@ def coste(modelo, inp, out, cw5, cw1, cr):
 
 
 def ficheros(dias, todo):
+    """Devuelve [(fichero, cuenta)]. Cuenta 'a'/'b'/'c' segun la raiz donde vive - solo para poder
+    imputar coste por cuenta despues, nunca para leer nada mas de esa cuenta."""
     limite = time.time() - dias * 86400
     vistos, out = set(), []
-    for raiz in RAICES:
-        if not raiz.is_dir():
-            continue
-        for f in glob.glob(str(raiz / '**' / '*.jsonl'), recursive=True):
-            if '.sync-conflict-' in f:
+    for cuenta, raices in RAICES.items():
+        for raiz in raices:
+            if not raiz.is_dir():
                 continue
-            real = os.path.realpath(f)
-            if real in vistos:
-                continue
-            vistos.add(real)
-            if todo or os.path.getmtime(f) >= limite:
-                out.append(f)
+            for f in glob.glob(str(raiz / '**' / '*.jsonl'), recursive=True):
+                if '.sync-conflict-' in f:
+                    continue
+                real = os.path.realpath(f)
+                if real in vistos:
+                    continue
+                vistos.add(real)
+                if todo or os.path.getmtime(f) >= limite:
+                    out.append((f, cuenta))
     return sorted(out)
 
 
-def agregar(f):
+def agregar(f, cuenta):
     """Devuelve {(fecha, sesion, modelo): dict} para un fichero de transcripción."""
-    filas = defaultdict(lambda: {'input': 0, 'output': 0, 'cache_write': 0, 'cache_read': 0, 'mensajes': 0, 'coste_usd': 0.0, 'ruta': '', 'titulo': ''})
+    filas = defaultdict(lambda: {'input': 0, 'output': 0, 'cache_write': 0, 'cache_read': 0, 'mensajes': 0, 'coste_usd': 0.0, 'ruta': '', 'titulo': '', 'cuenta': cuenta})
     titulos, sesion_fichero, vistos = {}, Path(f).stem, set()
     with open(f, 'r', encoding='utf-8', errors='replace') as fh:
         for linea in fh:
@@ -123,7 +134,11 @@ def agregar(f):
 def subir(e, filas, seco):
     lote, n = [], 0
     for (fecha, sid, modelo), r in filas.items():
-        lote.append({'fecha': fecha, 'sesion_id': sid, 'modelo': modelo, 'maquina': socket.gethostname(), **{k: (round(v, 6) if k == 'coste_usd' else v) for k, v in r.items()}})
+        # cuenta va como sufijo de maquina (":a"/":b"/":c") para no tener que tocar el esquema de
+        # omc_subir_uso esta noche - queda legible y no rompe nada que ya lea ese campo como hostname.
+        maquina = socket.gethostname() + (f":{r.get('cuenta')}" if r.get('cuenta') else '')
+        lote.append({'fecha': fecha, 'sesion_id': sid, 'modelo': modelo, 'maquina': maquina,
+                     **{k: (round(v, 6) if k == 'coste_usd' else v) for k, v in r.items() if k != 'cuenta'}})
     if seco:
         return len(lote)
     for i in range(0, len(lote), 400):
@@ -152,8 +167,8 @@ def main():
                 sys.exit(f'falta {k} en {CONF}')
     fs = ficheros(a.dias, a.todo)
     todas = {}
-    for f in fs:
-        for k, r in agregar(f).items():
+    for f, cuenta in fs:
+        for k, r in agregar(f, cuenta).items():
             if k in todas:  # misma sesión repartida en varios ficheros (subagentes): se suma
                 t = todas[k]
                 for c in ('input', 'output', 'cache_write', 'cache_read', 'mensajes', 'coste_usd'):
