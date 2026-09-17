@@ -137,9 +137,11 @@ export function render(raiz, S, arg) {
   // a Guillem (Revisar, No viable, Sin pliego) para la linea informativa de debajo del titulo.
   const lic = porDecidir(d.licitaciones);
   const criba = enCriba(d.licitaciones).length;
+  // Minor 9 (revision final): sin nada en criba, la linea "0 en criba..." no aporta nada; se omite.
+  const lineaCriba = criba ? el('p', { class: 'mudo' }, [el('a', { href: '#operacion/licitaciones', text: criba + ' en criba de Guillem (Revisar, No viable, Sin pliego): se deciden cuando estén analizadas' })]) : null;
   raiz.append(el('section', { class: 'seccion' }, [
     el('h2', { text: 'Licitaciones por decidir (' + lic.length + ')' }),
-    el('p', { class: 'mudo' }, [el('a', { href: '#operacion/licitaciones', text: criba + ' en criba de Guillem (Revisar, No viable, Sin pliego): se deciden cuando estén analizadas' })]),
+    lineaCriba,
     ...lic.map(licitacion),
     el('a', { class: 'btn-enlace', href: '/hq/v1/#licita', text: 'histórico y fichas completas en HQ v1' })]));
   const total = g.hoy.length + g.semana.length + g.resto.length + g.pospuestas.length;

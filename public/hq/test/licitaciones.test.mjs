@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { DECIDIBLES, ABIERTAS, pendiente, porDecidir, enCriba, porElegible, solvenciaTexto, embudo } from '../app/licitaciones.js';
+import { DECIDIBLES, ABIERTAS, pendiente, porDecidir, enCriba, porElegible, solvenciaTexto, embudo, estadoDe } from '../app/licitaciones.js';
 
 // Fixture de 8 licitaciones (Task 1, plan 3b): cubre decidibles, criba, descartada, aprobada por
 // decision sin ser decidible, presentada y contratada con importe.
@@ -18,6 +18,24 @@ const lics = [
 test('DECIDIBLES y ABIERTAS son los conjuntos esperados', () => {
   assert.deepEqual([...DECIDIBLES], ['Probable', 'Dudosa']);
   assert.deepEqual([...ABIERTAS], ['Nueva', 'Por decidir']);
+});
+
+// C1 (revision final del controlador): estado '' (cadena vacia, valor por defecto de la columna en
+// BD) se trata como 'Nueva' en todo el modulo.
+test('estadoDe: cadena vacia o solo espacios cae a Nueva; un estado real se respeta tal cual', () => {
+  assert.equal(estadoDe({ estado: '' }), 'Nueva');
+  assert.equal(estadoDe({ estado: '   ' }), 'Nueva');
+  assert.equal(estadoDe({}), 'Nueva');
+  assert.equal(estadoDe({ estado: null }), 'Nueva');
+  assert.equal(estadoDe({ estado: 'Presentada' }), 'Presentada');
+});
+
+test('C1: una fila con estado vacio, elegible Probable y decision null es pendiente y cuenta en por_decidir', () => {
+  const fila = { expediente: 'EVACIO', elegible: 'Probable', estado: '', decision: null, cierre: '2026-10-01', importe: '1000' };
+  assert.ok(pendiente(fila));
+  assert.ok(porDecidir([fila]).some(l => l.expediente === 'EVACIO'), 'estado vacio debe tratarse como Nueva (abierta) y entrar en por_decidir');
+  const e = embudo([fila]);
+  assert.equal(e.find(f => f.clave === 'por_decidir').n, 1);
 });
 
 test('pendiente: decision null, vacia o Pendiente; OK y No no son pendientes', () => {
@@ -61,7 +79,11 @@ test('porDecidir/enCriba: empate de cierre (incluidos ambos null) desempata por 
 
 test('porElegible: agrupa por elegible (o Sin clasificar) y ordena por tamano desc', () => {
   const grupos = porElegible(lics);
-  assert.deepEqual(grupos[0], ['Probable', grupos[0][1]]);
+  // Minor 11 (revision final): la asercion original se comparaba consigo misma
+  // (assert.deepEqual(grupos[0], ['Probable', grupos[0][1]])), siempre en verde. Se sustituye por el
+  // valor esperado real: Probable agrupa E1, E5 y E6 (por orden de insercion).
+  assert.equal(grupos[0][0], 'Probable');
+  assert.deepEqual(grupos[0][1].map(l => l.expediente), ['E1', 'E5', 'E6']);
   assert.equal(grupos[0][1].length, 3);
   assert.equal(grupos[1][0], 'Sin clasificar');
   assert.equal(grupos[1][1].length, 2);
@@ -91,7 +113,8 @@ test('solvenciaTexto: recorte a 160 caracteres mas el caracter de elipsis U+2026
 
 test('embudo sin kpis: no hay fila detectadas ni analizadas', () => {
   const e = embudo(lics);
-  assert.deepEqual(e.map(f => f.clave), ['por_decidir', 'en_criba', 'aprobadas', 'presentadas', 'adjudicadas', 'contratadas', 'descartadas', 'cerradas']);
+  // I1 (revision final): fila pausadas anadida entre presentadas y adjudicadas.
+  assert.deepEqual(e.map(f => f.clave), ['por_decidir', 'en_criba', 'aprobadas', 'presentadas', 'pausadas', 'adjudicadas', 'contratadas', 'descartadas', 'cerradas']);
 });
 
 test('embudo con kpis.lic.detectadas.n: primera fila detectadas con n 1500 y eur null', () => {
@@ -204,4 +227,27 @@ test('embudo con resumen: eur y n se leen con Number y por defecto 0 si faltan',
   const adj = e.find(f => f.clave === 'adjudicadas');
   assert.equal(adj.n, 3);
   assert.equal(adj.eur, 0);
+});
+
+// I1 (revision final): fila pausadas, misma logica que aprobadas/presentadas (array o resumen).
+test('embudo: pausadas cuenta por estado Pausada, del array cuando no hay resumen.pausadas', () => {
+  const conPausada = [...lics, { expediente: 'E14', estado: 'Pausada', decision: 'OK', importe: '7000' }];
+  const e = embudo(conPausada);
+  const pa = e.find(f => f.clave === 'pausadas');
+  assert.equal(pa.n, 1);
+  assert.equal(pa.eur, 7000);
+});
+
+test('embudo: pausadas usa resumen.pausadas cuando existe (C2)', () => {
+  const e = embudo(lics, {}, { pausadas: { n: 4, eur: 25000 } });
+  assert.deepEqual(e.find(f => f.clave === 'pausadas'), { clave: 'pausadas', nombre: 'Pausadas', n: 4, eur: 25000 });
+});
+
+// C2 (revision final): aprobadas y presentadas tambien pueden venir de lic_resumen (el corte de 7
+// dias por cierre ya no aplica a estos dos estados en el SQL, pero lic_resumen sigue siendo la fuente
+// completa sin el limite de pestana/30 dias de omc_hq).
+test('embudo: aprobadas y presentadas usan resumen cuando existe (C2)', () => {
+  const e = embudo(lics, {}, { aprobadas: { n: 10, eur: 90000 }, presentadas: { n: 5, eur: 45000 } });
+  assert.deepEqual(e.find(f => f.clave === 'aprobadas'), { clave: 'aprobadas', nombre: 'Aprobadas', n: 10, eur: 90000 });
+  assert.deepEqual(e.find(f => f.clave === 'presentadas'), { clave: 'presentadas', nombre: 'Presentadas', n: 5, eur: 45000 });
 });

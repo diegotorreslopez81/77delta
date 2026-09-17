@@ -998,15 +998,30 @@ begin
           'tipo', x->>'tipo', 'procedimiento', x->>'procedimiento', 'elegible', x->>'elegible',
           'motivo_auto', left(x->>'motivo_auto', 300), 'solvencia', left(x->>'solvencia', 300),
           'cierre', (x->>'cierre')::date, 'enlace', x->>'enlace', 'pcap', x->>'pcap', 'ppt', x->>'ppt', 'carpeta', x->>'carpeta',
-          'estado', x->>'estado', 'decision', x->>'decision', 'detectada', x->>'detectada'
+          -- C1 (revision final del controlador): estado '' (cadena vacia, valor por defecto de la
+          -- columna) se trata como 'Nueva', no como un estado desconocido que se cae del filtro.
+          'estado', coalesce(nullif(x->>'estado', ''), 'Nueva'), 'decision', x->>'decision', 'detectada', x->>'detectada'
         )), '[]'::jsonb)
         from jsonb_array_elements(coalesce(base->'licitaciones', '[]'::jsonb)) x
-        where ((x->>'cierre') is null or (x->>'cierre')::date >= (ahora - interval '7 days')::date)
-          and coalesce(x->>'estado', 'Nueva') in ('Nueva', 'Por decidir', 'Aprobada', 'Presentada', 'Pausada')
+        -- C2 (revision final del controlador): el corte de 7 dias por cierre solo aplica a las que
+        -- todavia no tienen una decision firme (Nueva, Por decidir); Aprobada/Presentada/Pausada se
+        -- mandan siempre, aunque su cierre ya haya pasado o sea nulo (si no, Operacion/Licitaciones y
+        -- Reglas/Decisiones perdian filas que Diego ya habia aprobado o presentado).
+        where (coalesce(nullif(x->>'estado', ''), 'Nueva') in ('Aprobada', 'Presentada', 'Pausada'))
+           or (
+             ((x->>'cierre') is null or (x->>'cierre')::date >= (ahora - interval '7 days')::date)
+             and coalesce(nullif(x->>'estado', ''), 'Nueva') in ('Nueva', 'Por decidir')
+           )
       ) else '[]'::jsonb end,
     'lic_resumen', case when es_owner then (
         select jsonb_build_object(
           'total', jsonb_build_object('n', count(*), 'eur', coalesce(sum(l.importe), 0)),
+          -- C2 (revision final del controlador): aprobadas/presentadas/pausadas agregadas aqui para
+          -- que el embudo de Operacion/Licitaciones no dependa solo del array recortado por omc_hq
+          -- (pestana Licitaciones o actualizadas en 30 dias); mismo patron que descartadas/cerradas.
+          'aprobadas', jsonb_build_object('n', count(*) filter (where l.estado = 'Aprobada'), 'eur', coalesce(sum(l.importe) filter (where l.estado = 'Aprobada'), 0)),
+          'presentadas', jsonb_build_object('n', count(*) filter (where l.estado = 'Presentada'), 'eur', coalesce(sum(l.importe) filter (where l.estado = 'Presentada'), 0)),
+          'pausadas', jsonb_build_object('n', count(*) filter (where l.estado = 'Pausada'), 'eur', coalesce(sum(l.importe) filter (where l.estado = 'Pausada'), 0)),
           'descartadas', jsonb_build_object('n', count(*) filter (where l.estado like 'Descartada%' or upper(coalesce(l.decision, '')) in ('NO', 'NOK', 'DESCARTADA', 'DESCARTADO')),
                                             'eur', coalesce(sum(l.importe) filter (where l.estado like 'Descartada%' or upper(coalesce(l.decision, '')) in ('NO', 'NOK', 'DESCARTADA', 'DESCARTADO')), 0)),
           'cerradas', jsonb_build_object('n', count(*) filter (where l.estado = 'Cerrada sin presentar'), 'eur', coalesce(sum(l.importe) filter (where l.estado = 'Cerrada sin presentar'), 0)),

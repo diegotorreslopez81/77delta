@@ -12,6 +12,7 @@ function crearNodo(tag) {
     dataset: {}, hidden: false,
     classList: { toggle(c, on) { const s = new Set(this._n.className.split(' ').filter(Boolean)); on ? s.add(c) : s.delete(c); this._n.className = [...s].join(' '); return on; }, contains(c) { return this._n.className.split(' ').includes(c); }, add(c) { this.toggle(c, true); }, remove(c) { this.toggle(c, false); } },
     setAttribute(k, v) { this.attrs[k] = v; if (k.startsWith('data-')) this.dataset[k.slice(5)] = v; },
+    getAttribute(k) { return this.attrs[k] ?? null; },
     addEventListener(ev, fn) { (this.listeners[ev] ||= []).push(fn); },
     append(...kids) { for (const k of kids) { if (k == null) continue; k.parent = this; this.children.push(k); } },
     // T4 (plan 3b): cablearShell() ahora hace menu.prepend(...) para montar la cabecera del cajon

@@ -18,14 +18,21 @@ const $ = id => document.getElementById(id);
 export function montarMenu(nav) {
   nav.innerHTML = ''; ref.enlaces.clear(); ref.areas.clear();
   for (const a of AREAS) {
-    // Icono en el título del área siempre; en el propio enlace solo cuando el área tiene una única
-    // vista (si no, el enlace duplicaría el mismo icono que ya lleva el área-título justo encima).
+    // C3 (revision final del controlador): icono siempre, en el titulo del area y en cada enlace, sea
+    // el area de una sola vista o de varias. Antes solo lo llevaba el enlace de las areas de una vista,
+    // asi que el menu plegado (que solo pinta iconos, sin texto) dejaba filas en blanco para Operacion,
+    // Reglas o Equipo. Los enlaces de un area con varias vistas marcan ademas class 'sub'; hq.css oculta
+    // ese icono en modo expandido (evita repetir el mismo dibujo que el area-titulo justo encima) y lo
+    // muestra en plegado.
     const unaVista = a.vistas.length === 1;
-    const titulo = el('p', { class: 'area-titulo' }, [el('span', { class: 'ico-caja', html: a.icono }), a.nombre]);
+    const titulo = el('p', { class: 'area-titulo' }, [el('span', { class: 'ico', html: a.icono }), a.nombre]);
     const div = el('div', { class: 'area', 'data-area': a.id }, [titulo,
       ...(a.vistas.length ? a.vistas.map(v => {
-        const e = el('a', { href: '#' + v.clave, 'data-clave': v.clave, 'data-inicial': v.nombre[0], title: v.nombre },
-          [unaVista ? el('span', { class: 'ico-caja', html: a.icono }) : null, el('span', { class: 'txt', text: v.nombre })]);
+        const e = el('a', { href: '#' + v.clave, 'data-clave': v.clave, title: v.nombre, class: unaVista ? '' : 'sub',
+          // Minor 5 (revision final): un click en un enlace del cajon lo cierra aunque el hash ya fuera
+          // el activo (el listener de hashchange no dispara si el hash no cambia).
+          onclick: cerrarMenu },
+          [el('span', { class: 'ico', html: a.icono }), el('span', { class: 'txt', text: v.nombre })]);
         ref.enlaces.set(v.clave, e); return e;
       }) : [el('p', { class: 'mudo pronto', text: 'pronto' })])]);
     ref.areas.set(a.id, div); nav.append(div);
@@ -62,12 +69,26 @@ export function pintarBarra(datos) {
   sem.hidden = !s;
   if (s) { sem.className = 'semaforo ' + s.color; sem.setAttribute('title', s.cuenta + ' al ' + s.pct + ' % de la ventana'); }
 }
-export function cerrarMenu() { document.body.classList.remove('menu-abierto'); $('hamburguesa').setAttribute('aria-expanded', 'false'); }
-function abrirMenu() { document.body.classList.add('menu-abierto'); $('hamburguesa').setAttribute('aria-expanded', 'true'); }
+// Minor 4 (revision final): aria-label del hamburguesa alterna Abrir/Cerrar menu junto con aria-expanded.
+export function cerrarMenu() {
+  document.body.classList.remove('menu-abierto');
+  const h = $('hamburguesa'); h.setAttribute('aria-expanded', 'false'); h.setAttribute('aria-label', 'Abrir menú');
+}
+function abrirMenu() {
+  document.body.classList.add('menu-abierto');
+  const h = $('hamburguesa'); h.setAttribute('aria-expanded', 'true'); h.setAttribute('aria-label', 'Cerrar menú');
+}
 
 export function cablearShell() {
+  // Minor 3 (revision final): cablearShell() se llama sin condicion desde main.js al importarse; una
+  // segunda llamada (posible si algun test o alguna cadena de imports repite el import en el mismo
+  // proceso) no debe duplicar la cabecera del cajon ni los listeners. Se marca #menu con data-cableado
+  // la primera vez y se corta aqui en las siguientes.
+  const menu = $('menu');
+  if (menu.getAttribute('data-cableado')) return;
+  menu.setAttribute('data-cableado', '1');
   montarCabeceraMenu();
-  $('hamburguesa').setAttribute('aria-label', 'Abrir menú');
+  cerrarMenu();
   $('hamburguesa').addEventListener('click', () => (document.body.classList.contains('menu-abierto') ? cerrarMenu() : abrirMenu()));
   $('velo').addEventListener('click', cerrarMenu);
   // Plegado del menú (solo escritorio). Se recuerda en localStorage hq_menu ('plegado' o 'abierto').
@@ -96,4 +117,6 @@ export function cablearShell() {
     (navigator.clipboard ? navigator.clipboard.writeText(url) : Promise.reject()).then(() => toast('enlace copiado'), () => toast(url));
   });
   window.addEventListener('hashchange', cerrarMenu);
+  // Minor 5 (revision final): cierre del cajon tambien con la tecla Escape.
+  document.addEventListener('keydown', e => { if (e.key === 'Escape') cerrarMenu(); });
 }

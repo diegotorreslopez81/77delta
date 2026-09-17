@@ -18,6 +18,7 @@ function crearNodo(tag) {
     // classList, asi que el shim no lo tenia; se anade aqui con el mismo patron que test/shell.test.mjs.
     classList: { toggle(c, on) { const s = new Set(this._n.className.split(' ').filter(Boolean)); on ? s.add(c) : s.delete(c); this._n.className = [...s].join(' '); return on; }, contains(c) { return this._n.className.split(' ').includes(c); }, add(c) { this.toggle(c, true); }, remove(c) { this.toggle(c, false); } },
     setAttribute(k, v) { this.attrs[k] = v; },
+    getAttribute(k) { return this.attrs[k] ?? null; },
     addEventListener(ev, fn) { (this.listeners[ev] ||= []).push(fn); },
     append(...kids) { for (const k of kids) { if (k == null) continue; k.parent = this; this.children.push(k); } },
     // T4 (plan 3b): cablearShell() ahora hace menu.prepend(...) para montar la cabecera del cajon
@@ -86,6 +87,15 @@ test('licitaciones: la linea de criba cuenta solo lo abierto y no decidible, con
   assert.equal(criba.textContent, '1 en criba de Guillem (Revisar, No viable, Sin pliego): se deciden cuando estén analizadas');
   const enlace = buscarNodos(criba, n => n.tag === 'a')[0];
   assert.equal(enlace.attrs.href, '#operacion/licitaciones');
+});
+
+// Minor 9 (revision final): sin nada en criba (todas las abiertas son decidibles) no se pinta la
+// linea "0 en criba...": no aporta nada y confunde ("0 en criba" suena a que algo falta).
+test('licitaciones: sin nada en criba, no se pinta la linea "en criba" (Minor 9)', () => {
+  const raiz = crearNodo('main');
+  render(raiz, { datos: { rol: 'owner', licitaciones: [licsFixture[0], licsFixture[1]] } });
+  const lineas = buscarNodos(raiz, n => n.className.includes('mudo'));
+  assert.ok(!lineas.some(n => n.textContent.includes('en criba')), 'no debe existir ninguna linea "en criba" cuando el conteo es 0');
 });
 
 test('ficha de licitacion: elegible, solvencia (con "sin dato" si esta vacia) y motivo solo si hay', () => {

@@ -2,19 +2,11 @@
 // decidir -> en criba -> aprobadas -> presentadas -> adjudicadas -> contratadas, con descartadas y
 // cerradas aparte) y la cola en criba de Guillem agrupada por elegible. Sin botones de accion: decidir
 // una licitacion (Presentar/Estudiar/Descartar) vive en Reglas/Decisiones (vistas/decisiones.js), no
-// aqui. Owner y agente ven exactamente lo mismo: la vista no gatea por S.datos.rol.
+// aqui. La vista en si no gatea por S.datos.rol, pero el SQL si: omc_hq_v2 sirve 'licitaciones' y
+// 'lic_resumen' solo con case when es_owner (schema-v2.sql), asi que un agente ve siempre "sin
+// licitaciones" aqui (Minor 10, revision final del controlador: corregido el comentario, no la vista).
 import { el, eur, fecha, urlSegura } from '../ui.js';
-import { embudo, enCriba, porElegible, porDecidir } from '../licitaciones.js';
-
-// Mismo criterio de orden que ordenCierre() en licitaciones.js (no exportada de alli: aqui solo hace
-// falta para Aprobadas y presentadas, una lista pequena que no necesita el resto de licitaciones.js).
-function ordenCierre(a, b) {
-  const ac = a.cierre, bc = b.cierre;
-  if (ac == null && bc == null) return String(a.expediente || '').localeCompare(String(b.expediente || ''));
-  if (ac == null) return 1;
-  if (bc == null) return -1;
-  return String(ac).localeCompare(String(bc)) || String(a.expediente || '').localeCompare(String(b.expediente || ''));
-}
+import { embudo, enCriba, porElegible, porDecidir, ordenCierre, estadoDe } from '../licitaciones.js';
 
 const APROBADA_PRESENTADA = new Set(['Aprobada', 'Presentada']);
 
@@ -49,10 +41,15 @@ export function render(raiz, S, arg, filtrosRuta = {}) {
   const kpis = d.kpis || {};
   if (!lics.length && !Object.keys(resumen).length) { raiz.append(el('p', { class: 'mudo', text: 'sin licitaciones' })); return; }
 
-  const filas = embudo(lics, kpis, resumen);
+  // I1 (revision final): la fila pausadas solo se pinta cuando n > 0 (no siempre hay licitaciones
+  // pausadas, y una mini a 0 no aporta nada en un embudo que ya tiene bastantes tiles).
+  const filas = embudo(lics, kpis, resumen).filter(f => f.clave !== 'pausadas' || f.n > 0);
   const secEmbudo = el('section', { class: 'seccion' }, [
     el('h2', { text: 'Embudo' }),
     el('div', { class: 'embudo' }, filas.map(mini)),
+    // Minor 1 (revision final): caption unica bajo el embudo en vez de repetir "sin IVA" en cada tile
+    // (las tiles de 140px son demasiado estrechas para el sufijo sin partirse en dos lineas).
+    el('p', { class: 'mudo', text: 'Importes sin IVA' }),
     el('p', { class: 'mudo' }, [el('a', { href: '#reglas/decisiones', text: porDecidir(lics).length + ' por decidir en Reglas/Decisiones' })]),
   ]);
   const tasa = kpis['lic.tasa_exito'], proximo = kpis['lic.proximo_cierre'], actualizado = kpis['lic.actualizado'];
@@ -63,7 +60,7 @@ export function render(raiz, S, arg, filtrosRuta = {}) {
   if (actualizado?.texto) secEmbudo.append(el('p', { class: 'mudo', text: 'KPIs del barrido actualizados ' + actualizado.texto }));
   raiz.append(secEmbudo);
 
-  const aprPres = lics.filter(l => APROBADA_PRESENTADA.has(l.estado)).sort(ordenCierre);
+  const aprPres = lics.filter(l => APROBADA_PRESENTADA.has(estadoDe(l))).sort(ordenCierre);
   if (aprPres.length) raiz.append(el('section', { class: 'seccion' }, [el('h2', { text: 'Aprobadas y presentadas' }), ...aprPres.map(tarjetaAprobada)]));
 
   const criba = enCriba(lics);

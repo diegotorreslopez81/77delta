@@ -95,6 +95,31 @@ test('embudo: kpis.lic.tasa_exito, lic.proximo_cierre y lic.actualizado se pinta
   assert.ok(textos.some(t => t === 'KPIs del barrido actualizados 2026-09-17T10:00'));
 });
 
+test('embudo: caption unica "Importes sin IVA" bajo el embudo, no repetida por tile (Minor 1)', () => {
+  const raiz = raizVacia();
+  render(raiz, { datos: { licitaciones: lics } });
+  const textos = buscarNodos(raiz, n => clase(n, 'mudo')).map(n => n.textContent);
+  assert.ok(textos.includes('Importes sin IVA'));
+});
+
+test('embudo: sin licitaciones pausadas, la mini "Pausadas" no se pinta (I1)', () => {
+  const raiz = raizVacia();
+  render(raiz, { datos: { licitaciones: lics } });
+  assert.equal(miniPor(raiz, 'Pausadas'), undefined);
+});
+
+test('embudo: con una licitacion en estado Pausada, se pinta la mini "Pausadas" con su importe (I1)', () => {
+  const raiz = raizVacia();
+  const conPausada = [...lics, { expediente: 'L8', elegible: 'Probable', estado: 'Pausada', decision: null, cierre: '2026-09-25', importe: '7000', resumen_corto: 'Resumen L8', objeto: 'Objeto L8' }];
+  render(raiz, { datos: { licitaciones: conPausada } });
+  const m = miniPor(raiz, 'Pausadas');
+  assert.ok(m, 'debe existir la mini de Pausadas cuando hay al menos una');
+  const v = buscarNodos(m, n => clase(n, 'v'))[0];
+  assert.equal(v.children[0].data, '1');
+  const small = buscarNodos(v, n => n.tag === 'small')[0];
+  assert.equal(small.textContent, eurTexto(7000));
+});
+
 test('criba: los grupos salen ordenados por tamano desc (Revisar 2, No viable 1) y el primero abierto', () => {
   const raiz = raizVacia();
   render(raiz, { datos: { licitaciones: lics } });

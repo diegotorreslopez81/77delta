@@ -4,13 +4,21 @@
 export const DECIDIBLES = new Set(['Probable', 'Dudosa']);
 export const ABIERTAS = new Set(['Nueva', 'Por decidir']);
 
+// C1 (revision final del controlador): estado '' (cadena vacia, valor por defecto de la columna en
+// BD) se trata como 'Nueva' en todo el modulo, igual que ya hace schema-v2.sql en omc_hq_v2 con
+// coalesce(nullif(x->>'estado', ''), 'Nueva'). Sin esto una fila recien detectada con estado ''
+// caia fuera de ABIERTAS y no aparecia ni en porDecidir ni en enCriba.
+export function estadoDe(l) {
+  return (l?.estado || '').trim() || 'Nueva';
+}
+
 export function pendiente(l) {
   const d = l?.decision;
   return d == null || d === '' || d === 'Pendiente';
 }
 
 // Nulls de cierre van al final; empate (incluido null contra null) se desempata por expediente.
-function ordenCierre(a, b) {
+export function ordenCierre(a, b) {
   const ac = a.cierre, bc = b.cierre;
   if (ac == null && bc == null) return String(a.expediente || '').localeCompare(String(b.expediente || ''));
   if (ac == null) return 1;
@@ -20,13 +28,13 @@ function ordenCierre(a, b) {
 
 export function porDecidir(lics) {
   return (lics || [])
-    .filter(l => pendiente(l) && ABIERTAS.has(l.estado) && DECIDIBLES.has(l.elegible))
+    .filter(l => pendiente(l) && ABIERTAS.has(estadoDe(l)) && DECIDIBLES.has(l.elegible))
     .sort(ordenCierre);
 }
 
 export function enCriba(lics) {
   return (lics || [])
-    .filter(l => pendiente(l) && ABIERTAS.has(l.estado) && !DECIDIBLES.has(l.elegible))
+    .filter(l => pendiente(l) && ABIERTAS.has(estadoDe(l)) && !DECIDIBLES.has(l.elegible))
     .sort(ordenCierre);
 }
 
@@ -55,25 +63,34 @@ function filaResumen(clave, nombre, rows, resumen) {
   return fila(clave, nombre, rows);
 }
 
-// Orden fijo del embudo (Task 1, plan 3b). aprobadas/presentadas/adjudicadas/contratadas/descartadas/
-// cerradas son exclusivas entre si por estado, salvo aprobadas que ademas admite decision 'OK' cuando
-// el estado no ha avanzado a Presentada/Adjudicada/Contratada; cada fila cuenta una sola vez porque el
-// filtro es un unico predicado OR, no la union de dos arrays.
+// Orden fijo del embudo (Task 1, plan 3b; I1 de la revision final anade pausadas). aprobadas/
+// presentadas/pausadas/adjudicadas/contratadas/descartadas/cerradas son exclusivas entre si por
+// estado, salvo aprobadas que ademas admite decision 'OK' cuando el estado no ha avanzado a
+// Presentada/Adjudicada/Contratada; cada fila cuenta una sola vez porque el filtro es un unico
+// predicado OR, no la union de dos arrays.
 export function embudo(lics, kpis = {}, resumen = {}) {
   const rows = lics || [];
   const filas = [];
   const detectadas = kpis?.['lic.detectadas.n'];
-  if (detectadas) filas.push({ clave: 'detectadas', nombre: 'Detectadas', n: Number(detectadas.valor), eur: null });
+  if (detectadas) filas.push({ clave: 'detectadas', nombre: 'Detectadas', n: Number(detectadas.valor) || 0, eur: null });
   else if (resumen?.total) filas.push({ clave: 'detectadas', nombre: 'Detectadas', n: Number(resumen.total.n) || 0, eur: null });
   const analizadas = kpis?.['lic.analizadas.n'];
-  if (analizadas) filas.push({ clave: 'analizadas', nombre: 'Analizadas', n: Number(analizadas.valor), eur: null });
+  if (analizadas) filas.push({ clave: 'analizadas', nombre: 'Analizadas', n: Number(analizadas.valor) || 0, eur: null });
   filas.push(fila('por_decidir', 'Por decidir', porDecidir(rows)));
   filas.push(fila('en_criba', 'En criba', enCriba(rows)));
-  filas.push(fila('aprobadas', 'Aprobadas', rows.filter(l => l.estado === 'Aprobada' || (l.decision === 'OK' && !['Presentada', 'Adjudicada', 'Contratada'].includes(l.estado)))));
-  filas.push(fila('presentadas', 'Presentadas', rows.filter(l => l.estado === 'Presentada')));
-  filas.push(filaResumen('adjudicadas', 'Adjudicadas', rows.filter(l => l.estado === 'Adjudicada'), resumen));
-  filas.push(filaResumen('contratadas', 'Contratadas', rows.filter(l => l.estado === 'Contratada'), resumen));
-  filas.push(filaResumen('descartadas', 'Descartadas', rows.filter(l => (l.estado || '').startsWith('Descartada') || l.decision === 'No'), resumen));
-  filas.push(filaResumen('cerradas', 'Cerradas sin presentar', rows.filter(l => l.estado === 'Cerrada sin presentar'), resumen));
+  // C2 (revision final): aprobadas y presentadas tambien pueden venir de lic_resumen cuando existe
+  // (el array de 'licitaciones' ya no se recorta a 7 dias para estos dos estados, pero lic_resumen
+  // sigue siendo la fuente completa, sin el limite de pestana/30 dias de omc_hq; ver Deuda aceptada).
+  filas.push(filaResumen('aprobadas', 'Aprobadas', rows.filter(l => estadoDe(l) === 'Aprobada' || (l.decision === 'OK' && !['Presentada', 'Adjudicada', 'Contratada'].includes(estadoDe(l)))), resumen));
+  filas.push(filaResumen('presentadas', 'Presentadas', rows.filter(l => estadoDe(l) === 'Presentada'), resumen));
+  // I1 (revision final): fila pausadas, misma fuente (lic_resumen o array) que aprobadas/presentadas;
+  // la vista decide si la pinta (solo cuando n > 0).
+  filas.push(filaResumen('pausadas', 'Pausadas', rows.filter(l => estadoDe(l) === 'Pausada'), resumen));
+  filas.push(filaResumen('adjudicadas', 'Adjudicadas', rows.filter(l => estadoDe(l) === 'Adjudicada'), resumen));
+  filas.push(filaResumen('contratadas', 'Contratadas', rows.filter(l => estadoDe(l) === 'Contratada'), resumen));
+  // Minor 8 (revision final): mismo predicado de descartada que la SQL (estado empieza por
+  // 'Descartada' o decision en NO/NOK/DESCARTADA/DESCARTADO, sin distinguir mayusculas).
+  filas.push(filaResumen('descartadas', 'Descartadas', rows.filter(l => estadoDe(l).startsWith('Descartada') || ['NO', 'NOK', 'DESCARTADA', 'DESCARTADO'].includes(String(l.decision || '').toUpperCase())), resumen));
+  filas.push(filaResumen('cerradas', 'Cerradas sin presentar', rows.filter(l => estadoDe(l) === 'Cerrada sin presentar'), resumen));
   return filas;
 }
