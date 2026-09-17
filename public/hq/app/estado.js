@@ -41,3 +41,31 @@ export function semana(encargos, ahora = new Date()) {
   const pedidos = (encargos || []).filter(e => sinAcentos(e.origen).startsWith('diego') && new Date(e.fecha) >= desde);
   return { hechos: pedidos.filter(e => e.estado === 'hecho'), parados: pedidos.filter(e => e.rojo), en_curso: pedidos.filter(e => e.estado !== 'hecho' && e.estado !== 'descartado' && !e.rojo) };
 }
+
+// Plan 3a (tanda 1): funciones puras del shell y de Dirección/Objetivo.
+// prorrateo: parte de la meta anual que tocaría a la fecha, por día natural (Europe/Madrid no importa:
+// se usa la fecha UTC del instante, la diferencia de un día en el cambio de año es irrelevante aquí).
+export function prorrateo(meta, horizonte, ahora = new Date()) {
+  const m = Number(meta) || 0, y = ahora.getUTCFullYear();
+  if (horizonte > y) return 0;
+  if (horizonte < y) return m;
+  const inicio = Date.UTC(y, 0, 1), fin = Date.UTC(y + 1, 0, 1);
+  const dias = Math.round((fin - inicio) / 864e5), dia = Math.floor((ahora.getTime() - inicio) / 864e5) + 1;
+  return dia >= dias ? m : m * dia / dias;
+}
+export function enCurso(encargos) { return (encargos || []).filter(e => e.estado === 'en_curso'); }
+// contador de la barra superior. El token de agente no sabe quién es (omc_hq_v2 no expone la identidad,
+// ver T4-c), así que cuenta lo que hay en curso en vez de "sus" tarjetas.
+export function contador(datos) {
+  if (datos?.rol === 'owner') return { texto: 'Depende de ti', n: (datos.pendientes || []).length, href: '#hoy' };
+  return { texto: 'En curso', n: enCurso(datos?.encargos).length, href: '#operacion/tablero' };
+}
+// semáforo de cuentas: `cuentas` entra en el payload en la tanda 3 (omc_cuentas_estado); hasta entonces null
+// y la barra no pinta nada. Umbrales de la spec 2.1: verde < 80, ámbar 80-94, rojo >= 95.
+export function semaforoCuentas(datos) {
+  const cs = (datos?.cuentas || []).filter(c => c && c.pct_ventana != null);
+  if (!cs.length) return null;
+  const peor = cs.reduce((a, b) => (Number(b.pct_ventana) > Number(a.pct_ventana) ? b : a));
+  const pct = Number(peor.pct_ventana);
+  return { color: pct >= 95 ? 'rojo' : pct >= 80 ? 'ambar' : 'verde', pct, cuenta: peor.cuenta };
+}

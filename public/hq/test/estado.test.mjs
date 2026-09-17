@@ -1,6 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { derivar, kanban, filtrar, semana, sinAcentos, COLUMNAS } from '../app/estado.js';
+import { prorrateo, contador, semaforoCuentas, enCurso } from '../app/estado.js';
 
 const datos = {
   objetivos: [{ horizonte: 2026, meta_eur: 300000 }],
@@ -38,3 +39,29 @@ test('semana: solo lo pedido por Diego en 7 días', () => {
   assert.deepEqual(s.parados.map(e => e.id), [10]); assert.deepEqual(s.hechos.map(e => e.id), [13]); assert.deepEqual(s.en_curso, []);
 });
 test('sinAcentos', () => { assert.equal(sinAcentos('ACCIÓ Ñu'), 'accio nu'); });
+test('prorrateo reparte la meta anual por día natural; año futuro 0, año pasado la meta entera', () => {
+  // 2026-07-02 es el día 183 de 365: 300000 * 183 / 365 = 150410.9...
+  assert.equal(Math.round(prorrateo(300000, 2026, new Date('2026-07-02T12:00:00Z'))), 150411);
+  assert.ok(Math.abs(prorrateo(300000, 2026, new Date('2026-01-01T12:00:00Z')) - 300000 / 365) < 0.01);
+  assert.equal(prorrateo(300000, 2026, new Date('2026-12-31T12:00:00Z')), 300000);
+  assert.equal(prorrateo(3000000, 2027, new Date('2026-09-17T12:00:00Z')), 0);
+  assert.equal(prorrateo(100, 2025, new Date('2026-09-17T12:00:00Z')), 100);
+  assert.equal(prorrateo(null, 2026, new Date('2026-09-17T12:00:00Z')), 0);
+});
+test('contador: owner cuenta lo que depende de Diego; agente cuenta lo que está en curso', () => {
+  const owner = { rol: 'owner', pendientes: [{ id: 1 }, { id: 2 }], encargos: [{ id: 9, estado: 'en_curso' }] };
+  assert.deepEqual(contador(owner), { texto: 'Depende de ti', n: 2, href: '#hoy' });
+  const agente = { rol: 'agente', pendientes: [], encargos: [{ id: 9, estado: 'en_curso' }, { id: 10, estado: 'hecho' }, { id: 11, estado: 'bloqueado_diego' }] };
+  assert.deepEqual(contador(agente), { texto: 'En curso', n: 1, href: '#operacion/tablero' });
+  assert.deepEqual(contador({ rol: 'owner' }), { texto: 'Depende de ti', n: 0, href: '#hoy' });
+});
+test('semaforoCuentas: null sin datos de cuentas; color por la cuenta más cargada', () => {
+  assert.equal(semaforoCuentas({}), null); assert.equal(semaforoCuentas({ cuentas: [] }), null);
+  assert.deepEqual(semaforoCuentas({ cuentas: [{ cuenta: 'diego@', pct_ventana: 40 }, { cuenta: 'team@', pct_ventana: 79 }] }), { color: 'verde', pct: 79, cuenta: 'team@' });
+  assert.deepEqual(semaforoCuentas({ cuentas: [{ cuenta: 'diego@', pct_ventana: 80 }] }), { color: 'ambar', pct: 80, cuenta: 'diego@' });
+  assert.deepEqual(semaforoCuentas({ cuentas: [{ cuenta: 'diego@', pct_ventana: 95 }, { cuenta: 'team@', pct_ventana: 10 }] }), { color: 'rojo', pct: 95, cuenta: 'diego@' });
+});
+test('enCurso deja solo estado en_curso', () => {
+  assert.deepEqual(enCurso([{ id: 1, estado: 'en_curso' }, { id: 2, estado: 'encolado' }, { id: 3, estado: 'hecho' }]).map(e => e.id), [1]);
+  assert.deepEqual(enCurso(undefined), []);
+});
