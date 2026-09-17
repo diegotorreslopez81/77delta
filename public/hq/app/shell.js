@@ -1,7 +1,12 @@
 // Shell de HQ v2 (plan 3a): menú lateral por áreas (plegable desde 900 px, drawer por debajo), barra
 // superior (contador, semáforo de cuentas, buscador global) y "copiar enlace". Solo DOM del armazón;
-// las vistas no saben que existe. Ids esperados en index.html: nav, hamburguesa, velo, plegar,
+// las vistas no saben que existe. Ids esperados en index.html: nav, menu, hamburguesa, velo, plegar,
 // busqueda, resultados, contador, semaforo.
+// Plan 3b, T4: menú con iconos y cómodo en el móvil. cablearShell() monta la cabecera del cajón
+// (marca "HQ" + botón cerrar) dentro de #menu con prepend (no hay hueco fijo en index.html: nav ya
+// vive ahí, y prepend ya es un patrón usado en tablero.js). El cierre al navegar ya existía
+// (window.addEventListener('hashchange', cerrarMenu), más abajo): un click en un enlace del menú
+// cambia location.hash, dispara hashchange y cierra el cajón sin código nuevo.
 import { AREAS } from './rutas.js';
 import { el, toast } from './ui.js';
 import { buscar } from './buscador.js';
@@ -13,12 +18,26 @@ const $ = id => document.getElementById(id);
 export function montarMenu(nav) {
   nav.innerHTML = ''; ref.enlaces.clear(); ref.areas.clear();
   for (const a of AREAS) {
-    const div = el('div', { class: 'area', 'data-area': a.id }, [el('p', { class: 'area-titulo', text: a.nombre }),
-      ...(a.vistas.length ? a.vistas.map(v => { const e = el('a', { href: '#' + v.clave, 'data-clave': v.clave, 'data-inicial': v.nombre[0], text: v.nombre }); ref.enlaces.set(v.clave, e); return e; })
-        : [el('p', { class: 'mudo pronto', text: 'pronto' })])]);
+    // Icono en el título del área siempre; en el propio enlace solo cuando el área tiene una única
+    // vista (si no, el enlace duplicaría el mismo icono que ya lleva el área-título justo encima).
+    const unaVista = a.vistas.length === 1;
+    const titulo = el('p', { class: 'area-titulo' }, [el('span', { class: 'ico-caja', html: a.icono }), a.nombre]);
+    const div = el('div', { class: 'area', 'data-area': a.id }, [titulo,
+      ...(a.vistas.length ? a.vistas.map(v => {
+        const e = el('a', { href: '#' + v.clave, 'data-clave': v.clave, 'data-inicial': v.nombre[0], title: v.nombre },
+          [unaVista ? el('span', { class: 'ico-caja', html: a.icono }) : null, el('span', { class: 'txt', text: v.nombre })]);
+        ref.enlaces.set(v.clave, e); return e;
+      }) : [el('p', { class: 'mudo pronto', text: 'pronto' })])]);
     ref.areas.set(a.id, div); nav.append(div);
   }
   return ref;
+}
+// Cabecera del cajón móvil (marca "HQ" + botón cerrar). Se monta una sola vez, la primera vez que se
+// llama a cablearShell() (que en producción solo ocurre una vez, al arrancar main.js).
+function montarCabeceraMenu() {
+  const menu = $('menu');
+  const cerrar = el('button', { class: 'btn-icono', id: 'cerrar-menu', 'aria-label': 'Cerrar menú', text: '✕', onclick: cerrarMenu });
+  menu.prepend(el('div', { class: 'menu-cab' }, [el('span', { class: 'marca-menu', text: 'HQ' }), cerrar]));
 }
 export function marcarActiva(clave) {
   const area = clave.split('/')[0];
@@ -47,6 +66,8 @@ export function cerrarMenu() { document.body.classList.remove('menu-abierto'); $
 function abrirMenu() { document.body.classList.add('menu-abierto'); $('hamburguesa').setAttribute('aria-expanded', 'true'); }
 
 export function cablearShell() {
+  montarCabeceraMenu();
+  $('hamburguesa').setAttribute('aria-label', 'Abrir menú');
   $('hamburguesa').addEventListener('click', () => (document.body.classList.contains('menu-abierto') ? cerrarMenu() : abrirMenu()));
   $('velo').addEventListener('click', cerrarMenu);
   // Plegado del menú (solo escritorio). Se recuerda en localStorage hq_menu ('plegado' o 'abierto').

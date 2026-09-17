@@ -20,6 +20,9 @@ function crearNodo(tag) {
     setAttribute(k, v) { this.attrs[k] = v; },
     addEventListener(ev, fn) { (this.listeners[ev] ||= []).push(fn); },
     append(...kids) { for (const k of kids) { if (k == null) continue; k.parent = this; this.children.push(k); } },
+    // T4 (plan 3b): cablearShell() ahora hace menu.prepend(...) para montar la cabecera del cajon
+    // movil; sin este metodo la cadena api.js/main.js explota al importar decisiones.js.
+    prepend(...kids) { for (const k of kids.reverse()) { if (k == null) continue; k.parent = this; this.children.unshift(k); } },
     remove() { if (this.parent) { const i = this.parent.children.indexOf(this); if (i >= 0) this.parent.children.splice(i, 1); this.parent = null; } },
     get textContent() { return this.children.length ? this.children.map(c => (c.nodeType === 3 ? c.data : c.textContent)).join('') : this._text; },
     set textContent(v) { this._text = v; this.children = []; },
