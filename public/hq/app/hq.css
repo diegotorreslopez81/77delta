@@ -30,3 +30,11 @@ a{color:inherit}
 .entrar{max-width:420px;margin:20vh auto;display:grid;gap:12px}
 .cargando,.error{text-align:center;color:var(--tinta-2);padding:40px 0}
 @media (min-width:900px){.fondo{align-items:center}.modal{border-radius:var(--radio)}.vista{padding:20px}}
+
+/* inicio y plan */
+.seccion{margin:18px 0}.seccion h2{font-size:17px;margin-bottom:8px}
+.objetivo{padding:14px;border-radius:var(--radio);background:var(--marino);color:var(--marfil);margin-bottom:14px}.objetivo .mudo{color:var(--marfil);opacity:.75}
+.barra{height:6px;background:rgba(255,255,255,.2);border-radius:3px;margin-top:10px;overflow:hidden}.barra i{display:block;height:100%;background:var(--oro)}
+.tarjeta.enlace{display:block;text-decoration:none}.tarjeta .titulo{margin:4px 0 2px;font-weight:500}
+.bloque{margin:18px 0}.bloque-cab h2{font-size:18px}.frentes{display:grid;gap:8px;margin-top:8px}.frente.vacio{opacity:.6}
+@media (min-width:900px){.frentes{grid-template-columns:repeat(auto-fill,minmax(280px,1fr))}}
