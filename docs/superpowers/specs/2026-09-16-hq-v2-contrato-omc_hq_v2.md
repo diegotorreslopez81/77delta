@@ -19,9 +19,13 @@ ese token.
 
 ## Owner vs agente
 
-- **`pendientes`**, **`licitaciones`** y **`uso`**: solo owner. Con token de agente llegan `[]`, `[]` y `{}`
-  (la función interna `omc_hq(p_token)` y `omc_hq_uso(p_token)` son "solo owner" y lanzarían excepción si se
-  llamaran con un token de agente; `omc_hq_v2` las evita en ese caso en vez de fallar entera).
+- **`pendientes`**, **`pospuestas`**, **`hilos`**, **`licitaciones`** y **`uso`**: solo owner. Con token de
+  agente llegan `[]`, `[]`, `{}`, `[]` y `{}` (la función interna `omc_hq(p_token)` y `omc_hq_uso(p_token)`
+  son "solo owner" y lanzarían excepción si se llamaran con un token de agente; `omc_hq_v2` las evita en ese
+  caso en vez de fallar entera). `pospuestas` y `hilos` se añaden en `2.0.6` (tarea 5 del plan 2, interfaz de
+  Decisiones): la tarjeta de una pendiente pospuesta no vive en `pendientes` sino en `pospuestas`, y el hilo
+  de mensajes de una pendiente no vive dentro de `pendientes[].mensajes` (esa clave no existe) sino en
+  `hilos`, aparte.
 - **`agentes[].sesion_url`** y **`sesion_url_fecha`**: un agente solo ve su propia `sesion_url` (comparando por
   `nombre` del token contra el `id` del agente); las de los demás agentes llegan sin esa clave. El owner ve
   todas.
@@ -261,7 +265,28 @@ propia):
 
 ### `pendientes[]`
 Solo owner (agente: `[]`). = `omc_hq(p_token).pendientes`: solicitudes de `omc_solicitudes` pendientes para
-Diego. Fecha límite en la clave `vence`, no `fecha_limite`.
+Diego. Fecha límite en la clave `vence`, no `fecha_limite`. Columnas reales de `omc_solicitudes`: `id`,
+`empresa`, `agente`, `depto`, `tipo`, `titulo`, `detalle`, `importe`, `riesgo`, `enlace`, `vence`,
+`prioridad`, `estado`, `respuesta`, `resultado`, `created_at`, `resolved_at`, `done_at`, `pospuesta_hasta`.
+No incluye `pendientes[].mensajes`: ese campo no existe en ningún nivel de `omc_hq_v2`, ver `hilos` más abajo.
+No incluye las solicitudes ya pospuestas (`pospuesta_hasta` en el futuro): esas viajan en `pospuestas[]`, no
+aquí (ver debajo).
+
+### `pospuestas[]` (añadida en `2.0.6`)
+Solo owner (agente: `[]`). Mismas columnas que `pendientes[]` (misma tabla `omc_solicitudes`, mismo filtro de
+`omc_hq(p_token)` salvo que estas SÍ tienen `pospuesta_hasta` fijado en el futuro). Añadida por ruling del
+controlador en la tarea 5 (interfaz de Decisiones): sin esta clave, la UI no tenía forma de listar por
+separado lo que Diego pospuso a propósito, ni de recuperarlo cuando `pospuesta_hasta` vence. La UI trata una
+fila de `pospuestas[]` igual que una de `pendientes[]` (misma tarjeta, mismo `agrupar()`); la única diferencia
+es de dónde viene, no de forma.
+
+### `hilos` (añadida en `2.0.6`)
+Solo owner (agente: `{}`). Mapa `solicitud_id -> [{id, autor, texto, ts}]`, copiado de la clave `hilos` que ya
+devuelve `omc_hq(p_token)` en v1 (`omc_mensajes` agrupados por `solicitud_id`). Añadida por ruling del
+controlador en la tarea 5: el brief original de esa tarea asumía que el hilo de una pendiente viajaba anidado
+como `pendientes[].mensajes`, pero esa forma no existe en ningún esquema real; el hilo siempre vivió aparte,
+igual que en v1. La UI busca el hilo de una tarjeta con `(hilos[solicitud_id] || [])`, nunca con
+`pendiente.mensajes`.
 
 ### `licitaciones[]`
 Solo owner (agente: `[]`). Basado en `omc_hq(p_token).licitaciones`, con dos recortes por ruling del

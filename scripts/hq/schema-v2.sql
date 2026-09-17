@@ -2,7 +2,7 @@
 -- Convención: cada sección lleva el número de tarea del plan 2026-09-16-hq-v2-plan-1-base.md.
 
 -- T1 · versión del esquema v2 (los tests la usan como centinela)
-create or replace function omc_v2_version() returns text language sql immutable as $$ select '2.0.5' $$;
+create or replace function omc_v2_version() returns text language sql immutable as $$ select '2.0.6' $$;
 grant execute on function omc_v2_version() to anon, authenticated;
 
 -- T2 · objetivo por horizonte
@@ -965,6 +965,13 @@ begin
       from omc_sesiones s join omc_expedientes x on x.id = s.expediente_id where s.empresa = t.empresa and s.estado in ('abierta','solicitada')),
     'agentes', (select coalesce(jsonb_agg(case when es_owner or a->>'id' = t.nombre then a else a - 'sesion_url' end), '[]'::jsonb) from jsonb_array_elements(omc_agentes_lista(p_token)) a),
     'pendientes', case when es_owner then coalesce(base->'pendientes', '[]'::jsonb) else '[]'::jsonb end,
+    -- T5-b (ruling del controlador, tarea 5): el hilo de una pendiente no viaja dentro de 'pendientes'
+    -- (omc_hq no le anida 'mensajes'; el brief de la tarea 5 asumia mal esa forma). Vive aparte en
+    -- 'hilos' (mapa solicitud_id -> [{id, autor, texto, ts}], igual que en omc_hq v1) y 'pospuestas'
+    -- (mismas columnas que 'pendientes', para las que tienen pospuesta_hasta futura) son las dos claves
+    -- que la UI de decisiones necesita y que omc_hq_v2 no exponia todavia.
+    'hilos', case when es_owner then coalesce(base->'hilos', '{}'::jsonb) else '{}'::jsonb end,
+    'pospuestas', case when es_owner then coalesce(base->'pospuestas', '[]'::jsonb) else '[]'::jsonb end,
     -- Ajuste por rulings del controlador (tarea 16): 'licitaciones' es, con mucho, la clave mas pesada
     -- (3,36 MB de 3,84 MB medidos en produccion con 1641 filas, el 90% en decision='Pendiente'). Ruling
     -- paso 1: lo cerrado hace mas de una semana no va al tablero (el historico se sirve en el plan 2 con
