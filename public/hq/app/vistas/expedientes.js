@@ -67,7 +67,7 @@ function alta(S) {
   const resp = el('select', {}, [el('option', { value: '', text: 'Responsable' }), ...(S.datos.agentes || []).map(a => el('option', { value: a.id, text: a.nombre }))]);
   const m = modal({ titulo: 'Nuevo expediente', cuerpo: [nombre, tipo, frente, resp], acciones: [el('button', { class: 'btn primario', text: 'Crear', onclick: async () => {
     if (!nombre.value.trim() || !frente.value) { toast('nombre y frente son obligatorios'); return; }
-    try { await rpc('omc_expediente_set', { p: { nombre: nombre.value.trim(), tipo: tipo.value, frente: frente.value, responsable: resp.value || null } }); m.cerrar(); await recargar(); }
+    try { await rpc('omc_expediente_set', { p: { nombre: nombre.value.trim(), tipo: tipo.value, frente: frente.value, responsable: resp.value || null } }); m.cerrar(); toast('expediente creado'); await recargar(); }
     catch (err) { toast('HQ rechaza: ' + err.message); }
   } })] });
 }
@@ -75,12 +75,10 @@ function alta(S) {
 async function ficha(raiz, S, id) {
   let f; try { f = await rpc('omc_expediente_ficha', { p_id: id }); } catch (err) { raiz.append(el('p', { class: 'error', text: err.message })); return; }
   const x = f.expediente;
-  // f.sesiones (respuesta propia de omc_expediente_ficha) ya viene acotada a este expediente: si sus
-  // filas no traen expediente_id (detectado con el humo de esta tarea, T6), estadoSesion() las
-  // descartaria todas y "Trabajar con" reapareceria aunque ya hubiera sesion abierta. Se normaliza con
-  // el id del propio expediente antes de filtrar; si la fila ya trae expediente_id, se respeta.
-  const sesionesFicha = (f.sesiones || []).map(s => ({ ...s, expediente_id: s.expediente_id ?? x.id }));
-  const es = estadoSesion(x, sesionesFicha.length ? sesionesFicha : S.datos.sesiones), ag = (S.datos.agentes || []).find(a => a.id === x.responsable);
+  // f.sesiones (respuesta de omc_expediente_ficha) hace se.* sobre omc_sesiones (schema-v2.sql:633),
+  // que ya incluye expediente_id: no hace falta normalizarlo (NIT ronda 1, retirada la version
+  // defensiva que lo daba por ausente).
+  const es = estadoSesion(x, f.sesiones?.length ? f.sesiones : S.datos.sesiones), ag = (S.datos.agentes || []).find(a => a.id === x.responsable);
   raiz.append(el('a', { href: '#expedientes', class: 'btn-enlace', text: '← expedientes' }));
   raiz.append(el('section', { class: 'objetivo' }, [
     el('p', { class: 'mudo', text: x.tipo + ' · ' + (f.frente ? f.frente.codigo + ' ' + f.frente.linea : '') }),

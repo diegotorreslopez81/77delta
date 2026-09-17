@@ -7,6 +7,11 @@
 // Ultima instruccion del controlador (punto 3): "editar" frentes de un agente es una de las 4
 // acciones de escritura de esta tarea y solo se muestra con S.datos.rol==='owner' (ya lo hacia el
 // paso 3 del brief; se mantiene).
+//
+// Fix ronda 1 (revision del controlador, hallazgo BLOQUEA): agentes[].sesion_abierta es el
+// expediente_id (bigint, schema-v2.sql:964), no un objeto con .expediente_id/.nombre. Se resuelve el
+// nombre buscando primero en S.datos.sesiones (misma sesion, mismo agente) y si no aparece en
+// S.datos.expedientes por id; si tampoco esta, se muestra '#' + id en vez de "undefined".
 import { rpc } from '../api.js';
 import { el, modal, toast, horas } from '../ui.js';
 import { filtrar } from '../estado.js';
@@ -15,12 +20,18 @@ import { recargar } from '../main.js';
 
 function avatar(a) { return a.avatar_url ? el('img', { class: 'avatar', src: a.avatar_url, alt: '' }) : el('span', { class: 'avatar letra', text: (a.nombre || a.id)[0].toUpperCase() }); }
 function latido(a) { const h = horas(a.ultima_actividad); return h == null ? 'sin latido' : h < 1 ? 'activo ahora' : h < 24 ? 'hace ' + h + ' h' : 'hace ' + Math.floor(h / 24) + ' d'; }
+function nombreExpedienteSesion(id, agenteId, S) {
+  const s = (S.datos.sesiones || []).find(x => x.expediente_id === id && x.agente === agenteId);
+  if (s?.nombre) return s.nombre;
+  const e = (S.datos.expedientes || []).find(x => x.id === id);
+  return e?.nombre || ('#' + id);
+}
 
 function editarFrentes(a, S) {
   const cajas = (S.datos.frentes || []).map(f => el('label', { class: 'fila' }, [el('input', { type: 'checkbox', value: f.codigo, checked: (a.frentes_codigos || []).includes(f.codigo) }), f.codigo + ' ' + f.linea]));
   const m = modal({ titulo: 'Frentes de ' + a.nombre, cuerpo: cajas, acciones: [el('button', { class: 'btn primario', text: 'Guardar', onclick: async () => {
     const sel = cajas.map(c => c.querySelector('input')).filter(i => i.checked).map(i => i.value);
-    try { await rpc('omc_agente_frentes_set', { p_agente: a.id, p_frentes: sel }); m.cerrar(); await recargar(); }
+    try { await rpc('omc_agente_frentes_set', { p_agente: a.id, p_frentes: sel }); m.cerrar(); toast('frentes guardados'); await recargar(); }
     catch (err) { toast('HQ rechaza: ' + err.message); }
   } })] });
 }
@@ -38,7 +49,7 @@ function ficha(raiz, S, a) {
   raiz.append(el('section', { class: 'seccion' }, [el('h2', { text: 'Encargos abiertos (' + enc.length + ')' }), ...enc.map(e => tarjetaEncargo(e))]));
   const acciones = [
     a.sesion_url ? el('a', { class: 'btn primario', href: a.sesion_url, text: 'Abrir sesión' }) : el('span', { class: 'mudo', text: 'sin sesión publicada' }),
-    a.sesion_abierta ? el('a', { class: 'pill sesion', href: '#expedientes/' + a.sesion_abierta.expediente_id, text: 'en sesión: ' + a.sesion_abierta.nombre }) : null];
+    a.sesion_abierta ? el('a', { class: 'pill sesion', href: '#expedientes/' + a.sesion_abierta, text: 'en sesión: ' + nombreExpedienteSesion(a.sesion_abierta, a.id, S) }) : null];
   raiz.append(el('section', { class: 'seccion fila' }, acciones));
 }
 
