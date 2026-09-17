@@ -1,9 +1,10 @@
-// Acceso a HQ: config, token, RPC y realtime. Sin estado de negocio (eso está en estado.js).
+// Acceso a HQ: config, token y RPC. Sin canal realtime (T7-b: main.js recarga por intervalo, no por
+// suscripción); sin estado de negocio (eso está en estado.js).
 const API = 'https://api.77delta.com';
 const params = new URLSearchParams(location.search);
 if (params.get('t')) { localStorage.setItem('hq_t', params.get('t')); history.replaceState(null, '', location.pathname + location.hash); }
 export let TOKEN = localStorage.getItem('hq_t');
-let sb = null, canal = null, CFG = null;
+let sb = null, CFG = null;
 
 export async function conf() {
   const cache = localStorage.getItem('hq_cfg');
@@ -22,7 +23,3 @@ export async function rpc(fn, args = {}) {
   return r.data;
 }
 export function cargar() { return rpc('omc_hq_v2'); }
-export function suscribir(empresa, onCambio) {
-  if (canal) sb.removeChannel(canal);
-  canal = sb.channel('omc:' + empresa).on('broadcast', { event: 'cambio' }, onCambio).subscribe();
-}
