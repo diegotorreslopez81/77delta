@@ -46,9 +46,10 @@ function nuevoEncargo(S) {
   } })] });
 }
 
-export function render(raiz, S, arg) {
-  if (arg && arg.startsWith('f/')) { S.filtros.frente = arg.slice(2); history.replaceState(null, '', '#tablero'); }
-  else if (arg && /^\d+$/.test(arg)) { history.replaceState(null, '', '#tablero'); abrirDetalle(Number(arg), S, recargar); }
+export function render(raiz, S, arg, filtrosRuta = {}) {
+  if (filtrosRuta.frente) { S.filtros.frente = filtrosRuta.frente; history.replaceState(null, '', '#operacion/tablero'); }
+  if (filtrosRuta.agente) { S.filtros.agente = filtrosRuta.agente; history.replaceState(null, '', '#operacion/tablero'); }
+  if (arg && /^\d+$/.test(arg)) { history.replaceState(null, '', '#operacion/tablero'); abrirDetalle(Number(arg), S, recargar); }
   const movil = matchMedia('(max-width: 899px)').matches;
   const cont = el('div', { class: 'kanban' + (movil ? ' movil' : '') });
   const pintar = () => {

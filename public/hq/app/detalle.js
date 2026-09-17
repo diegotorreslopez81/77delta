@@ -50,7 +50,7 @@ export async function abrirDetalle(id, S, recargar) {
     owner ? el('button', { class: 'btn primario', text: 'Guardar', onclick: guardar }) : null];
   const m = modal({ titulo: '#' + id + ' · ' + e.codigo + ' · ' + e.estado, acciones, cuerpo: [
     el('p', { class: 'mudo', text: [e.origen, 'alta ' + fecha(e.fecha, { hora: true }), e.fecha_avance ? 'último avance ' + fecha(e.fecha_avance, { hora: true }) : null].filter(Boolean).join(' · ') }),
-    f.expediente ? el('a', { href: '#expedientes/' + f.expediente.id, class: 'pill', text: 'expediente: ' + f.expediente.nombre }) : null,
+    f.expediente ? el('a', { href: '#operacion/expedientes/' + f.expediente.id, class: 'pill', text: 'expediente: ' + f.expediente.nombre }) : null,
     owner ? el('div', { class: 'form' }, [fila('Texto', campos.texto), fila('Interpretación', campos.interpretacion), el('div', { class: 'dos' }, [fila('Frente', campos.frente), fila('Responsable', campos.agente)]), el('div', { class: 'dos' }, [fila('Prioridad (0 alta, 9 baja)', campos.prioridad), fila('Hito', campos.fecha_hito)]), fila('Etiquetas', campos.etiquetas), fila('Enlaces', campos.enlaces)])
       : el('div', {}, [el('p', { text: e.texto }), e.interpretacion ? el('p', { class: 'mudo', text: e.interpretacion }) : null,
         // Fix ronda 2 (revision final, B2): e.enlaces lo escribe quien edita el encargo (agente o chief),

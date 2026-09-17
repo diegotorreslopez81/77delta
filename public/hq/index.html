@@ -14,13 +14,29 @@
 </head>
 <body>
 <header class="cab">
-  <a class="marca" href="#inicio">HQ</a>
-  <nav class="nav" id="nav">
-    <a href="#inicio">Inicio</a><a href="#plan">Plan</a><a href="#tablero">Tablero</a><a href="#decisiones">Decisiones</a><a href="#equipo">Equipo</a><a href="#expedientes">Expedientes</a>
-  </nav>
-  <span class="ver" id="ver"></span>
+  <button class="btn-icono" id="hamburguesa" aria-label="Menú" aria-expanded="false" aria-controls="menu">☰</button>
+  <a class="marca" href="#hoy">HQ</a>
+  <div class="buscador" id="buscador">
+    <input class="campo" id="busqueda" type="search" placeholder="Buscar número o texto" autocomplete="off" aria-label="Buscar en HQ">
+    <div class="resultados" id="resultados" hidden></div>
+  </div>
+  <a class="contador" id="contador" href="#hoy" hidden></a>
+  <span class="semaforo" id="semaforo" hidden aria-label="Cuentas"></span>
+  <button class="btn-enlace salir" data-salir>salir</button>
 </header>
-<main id="vista" class="vista"><p class="cargando">Cargando HQ...</p></main>
+<div class="cuerpo">
+  <aside class="menu" id="menu">
+    <nav id="nav" aria-label="Áreas"></nav>
+    <div class="menu-pie">
+      <button class="btn-enlace" id="plegar" aria-label="Plegar o desplegar el menú">plegar</button>
+      <a href="/hq/v1/">v1 (hasta 30-sep)</a>
+      <button class="btn-enlace" data-salir>salir</button>
+      <span class="ver" id="ver"></span>
+    </div>
+  </aside>
+  <div class="velo" id="velo"></div>
+  <main id="vista" class="vista"><p class="cargando">Cargando HQ...</p></main>
+</div>
 <div id="capa"></div>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
 <script>var HQ_VERSION = { v: '2.0.1', fecha: '2026-09-17 04:24' }; // la actualiza scripts/hq/version.sh en cada publicación</script>

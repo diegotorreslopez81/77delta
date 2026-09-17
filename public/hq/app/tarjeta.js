@@ -8,7 +8,7 @@ export function resumenEncargo(e, ahora = new Date()) {
 }
 export function tarjetaEncargo(e, { onAbrir } = {}) {
   const r = resumenEncargo(e);
-  return el('article', { class: 'tarjeta encargo ' + r.clase, 'data-id': e.id, tabindex: 0, onclick: () => onAbrir ? onAbrir(e) : (location.hash = '#tablero/' + e.id) }, [
+  return el('article', { class: 'tarjeta encargo ' + r.clase, 'data-id': e.id, tabindex: 0, onclick: () => onAbrir ? onAbrir(e) : (location.hash = '#operacion/tablero/' + e.id) }, [
     el('div', { class: 'fila' }, [el('span', { class: 'pill codigo', text: r.codigo }), el('span', { class: 'mudo', text: '#' + e.id }), ...(e.etiquetas || []).map(x => el('span', { class: 'pill', text: x }))]),
     el('p', { class: 'titulo', text: r.titulo }), el('p', { class: 'mudo', text: r.sub })]);
 }
