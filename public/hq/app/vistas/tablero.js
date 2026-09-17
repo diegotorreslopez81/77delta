@@ -46,9 +46,9 @@ function nuevoEncargo(S) {
   } })] });
 }
 
-export function render(raiz, S, arg, filtros = {}) {
-  if (filtros.frente) { S.filtros.frente = filtros.frente; history.replaceState(null, '', '#operacion/tablero'); }
-  if (filtros.agente) { S.filtros.agente = filtros.agente; history.replaceState(null, '', '#operacion/tablero'); }
+export function render(raiz, S, arg, filtrosRuta = {}) {
+  if (filtrosRuta.frente) { S.filtros.frente = filtrosRuta.frente; history.replaceState(null, '', '#operacion/tablero'); }
+  if (filtrosRuta.agente) { S.filtros.agente = filtrosRuta.agente; history.replaceState(null, '', '#operacion/tablero'); }
   if (arg && /^\d+$/.test(arg)) { history.replaceState(null, '', '#operacion/tablero'); abrirDetalle(Number(arg), S, recargar); }
   const movil = matchMedia('(max-width: 899px)').matches;
   const cont = el('div', { class: 'kanban' + (movil ? ' movil' : '') });
