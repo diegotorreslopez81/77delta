@@ -35,3 +35,35 @@ export function fecha(iso, { hora = false, tz = 'Europe/Madrid' } = {}) {
 }
 export function eur(n) { return n == null ? '-' : Math.round(Number(n)).toLocaleString('es-ES') + ' EUR'; }
 export function horas(iso, ahora = new Date()) { return iso ? Math.floor((ahora - new Date(iso)) / 36e5) : null; }
+
+// Modal de texto libre reutilizable (antes duplicado en detalle.js y en decisiones.js). Cancelar resuelve
+// null; quien llama debe comprobar `=== null` para no seguir. `opciones`, si se pasa, añade un select por
+// delante del textarea (para un motivo de una lista cerrada) sin duplicar el modal.
+export function pedirTexto(titulo, etiqueta, obligatorio = true, { opciones } = {}) {
+  return new Promise(res => {
+    const campo = el('textarea', { rows: 3, placeholder: etiqueta });
+    const sel = opciones ? el('select', {}, [el('option', { value: '', text: 'Motivo (opcional)' }), ...opciones.map(o => el('option', { value: o, text: o }))]) : null;
+    const m = modal({ titulo, cuerpo: [sel, campo].filter(Boolean), acciones: [el('button', { class: 'btn', text: 'Cancelar', onclick: () => { m.cerrar(); res(null); } }),
+      el('button', { class: 'btn primario', text: 'Guardar', onclick: () => {
+        if (obligatorio && !campo.value.trim()) { campo.focus(); return; }
+        m.cerrar(); res(sel ? { texto: campo.value.trim(), motivo: sel.value || null } : campo.value.trim());
+      } })] });
+    setTimeout(() => campo.focus(), 50);
+  });
+}
+
+// Convierte texto plano de la BD en nodos DOM: URLs en <a href> (atributo real via el(), nunca `html:` con
+// datos de la BD: una comilla en el texto no puede escapar del atributo porque no hay parseo de HTML de por
+// medio) y saltos de línea en <br>. Reemplaza el patrón `html:` con reemplazos de string usado antes en
+// decisiones.js (T5, fix ronda 1: ese patrón dejaba inyectar atributos via un `"` en el detalle).
+export function enlazar(texto) {
+  const out = [];
+  for (const parte of String(texto || '').split(/(https?:\/\/[^\s)]+)/g)) {
+    if (/^https?:\/\//.test(parte)) { out.push(el('a', { href: parte, target: '_blank', rel: 'noopener', text: parte })); continue; }
+    parte.split('\n').forEach((linea, i) => {
+      if (i > 0) out.push(el('br'));
+      if (linea) out.push(document.createTextNode(linea));
+    });
+  }
+  return out;
+}

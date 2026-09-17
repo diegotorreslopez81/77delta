@@ -1,16 +1,11 @@
 // Modal de un encargo: ficha, edición, hilo, acciones.
 import { rpc } from './api.js';
-import { el, modal, toast, fecha } from './ui.js';
+import { el, modal, toast, fecha, pedirTexto } from './ui.js';
 import { yo } from './estado.js';
 
-export function pedirTexto(titulo, etiqueta, obligatorio = true) {
-  return new Promise(res => {
-    const campo = el('textarea', { rows: 3, placeholder: etiqueta });
-    const m = modal({ titulo, cuerpo: [campo], acciones: [el('button', { class: 'btn', text: 'Cancelar', onclick: () => { m.cerrar(); res(null); } }),
-      el('button', { class: 'btn primario', text: 'Guardar', onclick: () => { if (obligatorio && !campo.value.trim()) { campo.focus(); return; } m.cerrar(); res(campo.value.trim()); } })] });
-    setTimeout(() => campo.focus(), 50);
-  });
-}
+// T5 fix ronda 1: pedirTexto vivia aqui y estaba reimplementado (copiado) en decisiones.js; ahora es
+// compartido desde ui.js. Se re-exporta para no romper a quien ya lo importaba desde detalle.js.
+export { pedirTexto };
 export async function moverEncargo(e, accion, S, recargar) {
   try {
     if (accion.tipo === 'tomar') await rpc('omc_encargo_tomar', { p_id: e.id, p_agente: S.datos.rol === 'owner' ? e.agente : yo(S) });

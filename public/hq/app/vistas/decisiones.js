@@ -15,8 +15,16 @@
 // T5-a: omc_licitacion_decidir solo admite p_decision in ('OK','No','Pendiente'). Los botones
 // conservan los verbos de la v1 (Presentar/Estudiar/Descartar); decidir() los traduce antes de llamar
 // a la RPC.
+//
+// Fix ronda 1 (revision del controlador, 2026-09-17): resolver() y licitacion().decidir() reimplementaban
+// el modal "textarea + Cancelar/Guardar" que ya vive en pedirTexto (antes en detalle.js, ahora compartido en
+// ui.js); usarlo aqui elimina la duplicacion y, de paso, arregla que el modal de motivo de licitaciones no
+// tenia boton Cancelar (dejaba decidir() colgado para siempre si se cerraba con la X). El detalle de una
+// pendiente tambien se pintaba con `html:` sobre texto de la BD (p.detalle): una comilla doble en el texto
+// rompia el atributo href del enlace autogenerado e inyectaba atributos (XSS). Se sustituye por enlazar(),
+// que construye los nodos <a>/<br> via el() (atributos DOM reales, no interpolacion de string en innerHTML).
 import { rpc } from '../api.js';
-import { el, modal, toast, fecha, eur } from '../ui.js';
+import { el, modal, toast, fecha, eur, pedirTexto, enlazar } from '../ui.js';
 import { recargar } from '../main.js';
 
 export function agrupar(pendientes, ahora = new Date()) {
@@ -31,14 +39,12 @@ export function agrupar(pendientes, ahora = new Date()) {
 }
 
 async function resolver(p, estado) {
-  const campo = el('textarea', { rows: 3, placeholder: estado === 'aprobada' ? 'Instrucción para quien ejecuta (opcional)' : 'Motivo o respuesta' });
-  const m = modal({ titulo: (estado === 'aprobada' ? 'Aprobar' : estado === 'rechazada' ? 'Rechazar' : 'Responder') + ' #' + p.id, cuerpo: [el('p', { text: p.titulo }), campo], acciones: [
-    el('button', { class: 'btn', text: 'Cancelar', onclick: () => m.cerrar() }),
-    el('button', { class: 'btn primario', text: 'Confirmar', onclick: async () => {
-      if (estado !== 'aprobada' && !campo.value.trim()) { campo.focus(); return; }
-      try { await rpc('omc_resolver', { p_id: p.id, p_estado: estado, p_respuesta: campo.value.trim() }); m.cerrar(); toast('#' + p.id + ' ' + estado); await recargar(); }
-      catch (err) { toast('HQ rechaza: ' + err.message); }
-    } })] });
+  const verbo = estado === 'aprobada' ? 'Aprobar' : estado === 'rechazada' ? 'Rechazar' : 'Responder';
+  const etiqueta = estado === 'aprobada' ? 'Instrucción para quien ejecuta (opcional)' : 'Motivo o respuesta';
+  const respuesta = await pedirTexto(verbo + ' #' + p.id + ': ' + p.titulo, etiqueta, estado !== 'aprobada');
+  if (respuesta == null) return;
+  try { await rpc('omc_resolver', { p_id: p.id, p_estado: estado, p_respuesta: respuesta }); toast('#' + p.id + ' ' + estado); await recargar(); }
+  catch (err) { toast('HQ rechaza: ' + err.message); }
 }
 
 async function posponer(p) {
@@ -54,7 +60,7 @@ function tarjeta(p, abierta, hilo) {
   const det = el('details', { open: abierta }, [
     el('summary', {}, [el('div', { class: 'fila' }, [el('span', { class: 'pill', text: p.tipo }), el('strong', { text: p.titulo })]),
       el('p', { class: 'mudo', text: [p.agente, p.importe ? eur(p.importe) : null, p.vence ? 'vence ' + fecha(p.vence, { hora: true }) : null, p.riesgo].filter(Boolean).join(' · ') })]),
-    el('div', { class: 'detalle', html: (p.detalle || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/(https?:\/\/[^\s)]+)/g, '<a href="$1" target="_blank" rel="noopener">$1</a>').replace(/\n/g, '<br>') }),
+    el('div', { class: 'detalle' }, enlazar(p.detalle || '')),
     p.enlace ? el('a', { href: p.enlace, target: '_blank', rel: 'noopener', class: 'btn-enlace', text: 'abrir enlace' }) : null,
     el('div', { class: 'hilo' }, (hilo || []).map(mm => el('div', { class: 'avance' }, [el('span', { class: 'mudo', text: fecha(mm.ts, { hora: true }) + ' · ' + mm.autor }), el('p', { text: mm.texto })]))),
     el('div', { class: 'fila' }, [(() => {
@@ -74,10 +80,7 @@ const DECISION = { presentar: 'OK', descartar: 'No', estudiar: 'Pendiente' };
 function licitacion(l) {
   const decidir = async (verbo) => {
     const decision = DECISION[verbo];
-    const texto = decision === 'OK' ? '' : await new Promise(res => {
-      const c = el('textarea', { rows: 2, placeholder: 'Motivo' });
-      const m = modal({ titulo: verbo + ' ' + l.expediente, cuerpo: [c], acciones: [el('button', { class: 'btn primario', text: 'Confirmar', onclick: () => { m.cerrar(); res(c.value.trim()); } })] });
-    });
+    const texto = decision === 'OK' ? '' : await pedirTexto(verbo + ' ' + l.expediente, 'Motivo', false);
     if (texto == null) return;
     try { await rpc('omc_licitacion_decidir', { p_expediente: l.expediente, p_decision: decision, p_motivos: [], p_texto: texto || '' }); toast(l.expediente + ': ' + verbo); await recargar(); }
     catch (err) { toast('HQ rechaza: ' + err.message); }
