@@ -2,36 +2,34 @@ import { conf, TOKEN, cargar, rpc, guardarToken, salir } from './api.js';
 import { S, poner } from './estado.js';
 import { el, toast } from './ui.js';
 import { crearRecargador } from './recargador.js';
-import * as inicio from './vistas/inicio.js';
-import * as plan from './vistas/plan.js';
+import { resolver } from './rutas.js';
+import { montarMenu, marcarActiva, pintarBarra, cablearShell } from './shell.js';
+import * as hoy from './vistas/hoy.js';
+import * as objetivo from './vistas/objetivo.js';
 import * as tablero from './vistas/tablero.js';
 import * as decisiones from './vistas/decisiones.js';
 import * as equipo from './vistas/equipo.js';
 import * as expedientes from './vistas/expedientes.js';
 
-const VISTAS = { inicio, plan, tablero, decisiones, equipo, expedientes };
+// Plan 3a: una vista por clave de ruta (rutas.js). 'equipo/agente' es la ficha de equipo.js (arg = id).
+const VISTAS = { 'hoy': hoy, 'direccion/objetivo': objetivo, 'operacion/tablero': tablero, 'operacion/expedientes': expedientes, 'equipo/organigrama': equipo, 'equipo/agente': equipo, 'reglas/decisiones': decisiones };
 const raiz = document.getElementById('vista');
 document.getElementById('ver').textContent = 'v' + HQ_VERSION.v;
+montarMenu(document.getElementById('nav'));
+cablearShell();
 
-// Fix ronda 2 (revision final, D5): un push con `?id=N` en la URL (sin `t`, porque el token ya vive en
-// localStorage) debe abrir la tarjeta, no #inicio. Se resuelve antes de leer location.hash por primera
-// vez, quitando la query del historial para no dejarla colgada tras la navegacion.
-{
-  const idPush = new URLSearchParams(location.search).get('id');
-  if (idPush) history.replaceState(null, '', location.pathname + '#decisiones/' + idPush);
-}
-
-// Fix ronda 2 (revision final, B1): antes `arg` solo era el segundo segmento del hash (`h[1]`), asi que
-// `#tablero/f/A3` perdia el codigo de frente (arg quedaba en 'f', tablero.js esperaba 'f/A3'). Con
-// `slice(1).join('/')` el resto del hash llega entero: `#tablero/12` sigue dando arg='12' (un solo
-// segmento) y `#tablero/f/A3` da arg='f/A3'.
-function ruta() { const h = (location.hash || '#inicio').slice(1).split('/'); return { vista: VISTAS[h[0]] ? h[0] : 'inicio', arg: h.slice(1).join('/') || undefined }; }
+// resolver() absorbe las rutas de la v2.0 (#inicio, #tablero/f/A3, ?id=N...) y devuelve el hash canónico;
+// si difiere del actual (o hay que limpiar la query) se sustituye en el historial para no dejar enlaces
+// viejos colgados. Ruling del controlador (17-sep): comparar contra r.canonico, no solo r.redirigido,
+// porque '#hoy/extra' resuelve a canonico '#hoy' con redirigido=false y aun asi hay que limpiar la URL.
 export function render() {
-  const { vista, arg } = ruta();
-  document.querySelectorAll('#nav a').forEach(a => a.classList.toggle('activa', a.getAttribute('href') === '#' + vista));
-  raiz.innerHTML = ''; raiz.className = 'vista vista-' + vista;
+  const r = resolver(location.hash, location.search);
+  if (r.canonico !== location.hash || location.search) history.replaceState(null, '', location.pathname + r.canonico);
+  marcarActiva(r.clave);
+  raiz.innerHTML = ''; raiz.className = 'vista vista-' + r.clave.replace('/', '-');
   if (!S.datos) { raiz.append(el('p', { class: 'cargando', text: 'Cargando HQ...' })); return; }
-  VISTAS[vista].render(raiz, S, arg);
+  window.HQ_DATOS = S.datos; pintarBarra(S.datos);
+  VISTAS[r.clave].render(raiz, S, r.arg, r.filtros);
 }
 // Fix ronda 2 (revision final, D3): recargar() coalescido via crearRecargador (modulo sin DOM, con test
 // propio en test/recargador.test.mjs). cargarFn atrapa el error y muestra el toast (igual que antes:
@@ -74,12 +72,11 @@ if ('serviceWorker' in navigator) {
     else if (Notification.permission === 'granted') activarPush(reg);
   }).catch(() => {});
   // Fix ronda 2 (revision final, D5): enlace profundo del push cuando la app ya esta abierta (sw.js
-  // hace postMessage en vez de navegar la pestana existente). Equivalente al listener de
-  // public/hq/v1/index.html (~1391), adaptado a los hashes de la v2: no hay ruta propia para
-  // licitaciones en la v2 (viven dentro de #decisiones), asi que 'abrir-lic' tambien va ahi.
+  // hace postMessage en vez de navegar la pestana existente). Plan 3a: las rutas nuevas viven bajo
+  // 'reglas/decisiones' (no hay ruta propia para licitaciones en la v2: viven dentro de esa area).
   navigator.serviceWorker.addEventListener('message', ev => {
-    if (ev.data?.tipo === 'abrir' && ev.data.id) location.hash = '#decisiones/' + ev.data.id;
-    else if (ev.data?.tipo === 'abrir-lic' && ev.data.lic) location.hash = '#decisiones';
+    if (ev.data?.tipo === 'abrir' && ev.data.id) location.hash = '#reglas/decisiones/' + ev.data.id;
+    else if (ev.data?.tipo === 'abrir-lic' && ev.data.lic) location.hash = '#reglas/decisiones';
   });
 }
 

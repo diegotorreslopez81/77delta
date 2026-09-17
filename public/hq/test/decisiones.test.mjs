@@ -13,6 +13,10 @@ import assert from 'node:assert/strict';
 function crearNodo(tag) {
   const n = {
     tag, nodeType: 1, children: [], attrs: {}, className: '', _text: '', _html: '', listeners: {}, parent: null,
+    // Plan 3a T6: main.js ahora llama a cablearShell() al importarse, y esa funcion toca
+    // document.body.classList (plegado del menu). Antes de T6 esta cadena de imports nunca tocaba
+    // classList, asi que el shim no lo tenia; se anade aqui con el mismo patron que test/shell.test.mjs.
+    classList: { toggle(c, on) { const s = new Set(this._n.className.split(' ').filter(Boolean)); on ? s.add(c) : s.delete(c); this._n.className = [...s].join(' '); return on; }, contains(c) { return this._n.className.split(' ').includes(c); }, add(c) { this.toggle(c, true); }, remove(c) { this.toggle(c, false); } },
     setAttribute(k, v) { this.attrs[k] = v; },
     addEventListener(ev, fn) { (this.listeners[ev] ||= []).push(fn); },
     append(...kids) { for (const k of kids) { if (k == null) continue; k.parent = this; this.children.push(k); } },
@@ -22,6 +26,7 @@ function crearNodo(tag) {
     get innerHTML() { return this._html; },
     set innerHTML(v) { this._html = v; this.children = []; },
   };
+  n.classList._n = n;
   return n;
 }
 globalThis.document = {
