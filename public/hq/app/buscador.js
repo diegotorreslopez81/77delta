@@ -15,14 +15,17 @@ export function buscar(datos, consulta, max = 12) {
   const q = sinAcentos(consulta).trim().replace(/^#/, '');
   if (!q) return [];
   const num = /^\d+$/.test(q) ? Number(q) : null;
-  const out = [];
+  // Important 2 de la revisión final: reparto por fuente con un cupo propio para que un tipo con muchas
+  // coincidencias (frecuente en encargos, la lista más larga) no agote el tope y deje fuera a los demás
+  // (decisiones, expedientes, agentes...). Cada fuente aporta hasta `cupo`; lo que sobre de hueco se
+  // rellena después con el resto de cada fuente, respetando el orden de FUENTES.
+  const porTipo = [];
   for (const [tipo, lista, id, titulo, href] of FUENTES) {
-    for (const x of lista(datos || {}) || []) {
-      const coincide = num != null ? Number(id(x)) === num : sinAcentos([id(x), titulo(x)].join(' ')).includes(q);
-      if (!coincide) continue;
-      out.push({ tipo, id: id(x), titulo: String(titulo(x) || ''), href: href(x) });
-      if (out.length >= max) return out;
-    }
+    const hits = (lista(datos || {}) || [])
+      .filter(x => num != null ? Number(id(x)) === num : sinAcentos([id(x), titulo(x)].join(' ')).includes(q))
+      .map(x => ({ tipo, id: id(x), titulo: String(titulo(x) || ''), href: href(x) }));
+    porTipo.push(hits);
   }
-  return out;
+  const cupo = Math.max(2, Math.floor(max / FUENTES.length));
+  return [...porTipo.flatMap(h => h.slice(0, cupo)), ...porTipo.flatMap(h => h.slice(cupo))].slice(0, max);
 }

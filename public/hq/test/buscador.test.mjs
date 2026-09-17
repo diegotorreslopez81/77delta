@@ -26,3 +26,12 @@ test('vacío o sin resultados devuelve [], y respeta el tope', () => {
   assert.equal(buscar(muchos, 'repetido').length, 12); assert.equal(buscar(muchos, 'repetido', 5).length, 5);
 });
 test('tolera payload sin listas', () => { assert.deepEqual(buscar({}, '996'), []); });
+test('un tipo con muchas coincidencias no agota el tope: los demás tipos también entran (revisión final, Important 2)', () => {
+  const muchos = {
+    encargos: Array.from({ length: 20 }, (_, i) => ({ id: i + 1, texto: 'kit consulting ' + i })),
+    agentes: [{ id: 'kit-bot', nombre: 'Agente Kit' }],
+  };
+  const r = buscar(muchos, 'kit');
+  assert.equal(r.length, 12);
+  assert.ok(r.some(x => x.tipo === 'agente'), 'el agente que casa con "kit" debe estar entre los 12 resultados');
+});

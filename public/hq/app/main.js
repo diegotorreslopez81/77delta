@@ -23,6 +23,11 @@ cablearShell();
 // viejos colgados. Ruling del controlador (17-sep): comparar contra r.canonico, no solo r.redirigido,
 // porque '#hoy/extra' resuelve a canonico '#hoy' con redirigido=false y aun asi hay que limpiar la URL.
 export function render() {
+  // Fix Important 3 de la revisión final: sin token, cualquier hashchange (clic en el menú, en "HQ" o
+  // Enter en el buscador) llegaba hasta aquí, borraba el formulario de pedirToken() y dejaba "Cargando
+  // HQ..." para siempre (S.datos nunca llega sin token). pedirToken está declarada con `function`, así
+  // que el hoisting cubre este orden.
+  if (!TOKEN) return pedirToken();
   const r = resolver(location.hash, location.search);
   if (r.canonico !== location.hash || location.search) history.replaceState(null, '', location.pathname + r.canonico);
   marcarActiva(r.clave);
