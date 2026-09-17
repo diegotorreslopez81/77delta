@@ -58,7 +58,7 @@ function bloqueAlertas(d) {
   const parados = (d.encargos || []).filter(e => e.rojo).length;
   const kids = [];
   if (sesionesAbiertas) kids.push(el('a', { class: 'enlace', href: '#operacion/expedientes', text: sesionesAbiertas + ' sesiones abiertas' }));
-  if (parados > 0) kids.push(el('p', { class: 'mudo', text: parados + ' encargos parados' }));
+  if (parados > 0) kids.push(el('a', { class: 'enlace', href: '#operacion/tablero', text: parados + ' encargos parados' }));
   return kids;
 }
 
