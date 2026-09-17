@@ -104,6 +104,13 @@ def exigir_limite_diego(titulo, detalle):
     alternativa = ('El detalle largo va a un MD o a un doc y se enlaza con --enlace. Formato: pregunta o '
                    'acción en la primera línea, después máximo 5 bullets de una línea.')
     tit, det = (titulo or ''), (detalle or '')
+    # Regla 48 (Diego, 17-sep, caso 089): a Diego nunca le llega una ruta local (Escritorio, C:\\, /Users, ~).
+    # Todo fichero vive en la carpeta de Drive de su expediente o cliente y se enlaza con --enlace.
+    import re as _re
+    ruta = _re.search(r'(Escritorio[\\/]|[A-Za-z]:\\|/Users/|/home/|(?<![\w])~/)', tit + '\n' + det)
+    if ruta:
+        sys.exit(f'Ruta local en la tarjeta ("{ruta.group(0)}"): prohibido. El fichero va a la carpeta de Drive del '
+                 'expediente o cliente (drive-subir.py) y aqui se pone el enlace con --enlace. Regla 48.')
     if len(tit) > 120:
         sys.exit(f'Título de {len(tit)} caracteres para Diego: el máximo son 120. {alternativa}')
     if len(det) > 600:
