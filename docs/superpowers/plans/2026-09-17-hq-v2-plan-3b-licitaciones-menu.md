@@ -116,3 +116,10 @@ CSS obligatorio:
 
 - [ ] **Step 1: tests que fallan** en shell.test.mjs: cada `.area-titulo` contiene un `svg`; los enlaces tienen `span.txt` con el nombre; existe `.menu-cab` con botón `[aria-label="Cerrar menú"]`; tras `cablearShell` un click en el hamburguesa pone `aria-expanded="true"` y en el botón cerrar lo vuelve a `"false"`.
 - [ ] **Step 2:** fallan. **Step 3:** implementar. **Step 4:** suite verde. **Step 5:** commit `feat(hq-v2): menú con iconos, objetivo táctil de 44 px y cajón móvil con cabecera`.
+
+## Deuda aceptada
+
+- El array `licitaciones` que sirve `omc_hq_v2` sigue limitado por lo que trae `omc_hq` (pestaña
+  Licitaciones o `updated_at` en los últimos 30 días), mientras que `lic_resumen` cuenta la tabla
+  completa `omc_licitaciones`. Aceptado como deuda del MVP (ruling I2 de la revisión final del
+  controlador, 17-sep-2026); revisar cuando `lic_resumen` sustituya también los recuentos por array.

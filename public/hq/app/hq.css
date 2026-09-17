@@ -6,6 +6,7 @@ a{color:inherit}
 .cab{position:sticky;top:0;z-index:5;display:flex;align-items:center;gap:10px;padding:calc(8px + env(safe-area-inset-top)) 12px 8px;background:var(--marino);color:var(--marfil);min-height:52px}
 .marca{font-family:var(--display);font-weight:700;text-decoration:none;font-size:18px;color:inherit}
 .btn-icono{font:inherit;font-size:20px;line-height:1;background:none;border:0;color:inherit;cursor:pointer;padding:4px 6px}
+#hamburguesa{min-width:44px;min-height:44px}
 .buscador{position:relative;flex:1;max-width:520px;margin-left:auto;min-width:0}
 .buscador .campo{padding:6px 10px;font-size:14px;background:rgba(255,255,255,.1);border-color:transparent;color:var(--marfil)}
 .buscador .campo::placeholder{color:var(--pizarra-clara)}
@@ -18,22 +19,38 @@ a{color:inherit}
 .ver{font-family:var(--mono);font-size:11px;opacity:.6}
 .cuerpo{display:flex;align-items:stretch;min-height:calc(100vh - 52px)}
 .menu{background:var(--panel);border-right:1px solid var(--linea);width:232px;flex:none;display:flex;flex-direction:column;justify-content:space-between;padding:10px 8px;box-sizing:border-box}
-.menu .area{margin-bottom:6px}.area-titulo{font-family:var(--display);font-weight:600;font-size:12px;text-transform:uppercase;letter-spacing:.05em;color:var(--tinta-2);margin:8px 10px 2px}
-.menu nav a{display:block;padding:7px 10px;border-radius:var(--radio-boton);text-decoration:none;color:var(--tinta);font-size:14px}
+.menu .area{margin-bottom:6px}.area-titulo{display:flex;align-items:center;gap:8px;font-family:var(--display);font-weight:600;font-size:12px;text-transform:uppercase;letter-spacing:.05em;color:var(--tinta-2);margin:8px 10px 2px}
+.ico{display:block;width:20px;height:20px;flex:none}
+.menu nav a{display:flex;align-items:center;gap:10px;min-height:44px;padding:0 12px;border-radius:var(--radio-boton);text-decoration:none;color:var(--tinta);font-size:15px}
 .menu nav a.activa{background:var(--oro);color:var(--tinta);font-weight:600}.menu .pronto{margin:0 10px;font-size:12px}
+/* C3 (revision final): en modo expandido el enlace de un area con varias vistas no repite el icono del
+   area-titulo justo encima; en modo plegado (solo iconos, sin texto) si hace falta o la fila queda en
+   blanco. */
+.menu nav a.sub .ico{display:none}
+body.menu-plegado .menu nav a.sub .ico{display:block}
+.menu-cab{display:flex;align-items:center;justify-content:space-between;gap:8px;position:sticky;top:0;background:var(--panel);margin:-10px -8px 8px;padding:calc(8px + env(safe-area-inset-top)) 10px 8px;box-shadow:0 0 32px rgba(0,0,0,.3)}
+.menu-cab .marca-menu{font-family:var(--display);font-weight:700;font-size:16px}
+.menu-cab button{min-width:44px;min-height:44px}
 .menu-pie{display:grid;gap:6px;font-size:12px;padding:8px 10px}.menu-pie a{color:var(--tinta-2)}
 .velo{display:none}
 .vista{flex:1;min-width:0;padding:14px;max-width:1280px;margin:0 auto;box-sizing:border-box}
 @media (max-width:899px){
-  .menu{position:fixed;top:0;bottom:0;left:0;z-index:25;transform:translateX(-100%);transition:transform .2s var(--ease);padding-top:calc(10px + env(safe-area-inset-top))}
+  .menu{position:fixed;top:0;bottom:0;left:0;z-index:25;width:min(84vw,320px);transform:translateX(-100%);transition:transform .2s var(--ease);overflow-y:auto;padding-bottom:env(safe-area-inset-bottom)}
   body.menu-abierto .menu{transform:none}body.menu-abierto .velo{display:block;position:fixed;inset:0;background:rgba(0,0,0,.4);z-index:24}
   #plegar,.cab .salir{display:none}.cab .contador{font-size:12px;padding:2px 8px}
+  /* I4 (revision final): .menu-cab (prepend de montarCabeceraMenu) suma un tercer hijo a .menu, que
+     seguia usando justify-content:space-between de la regla base (linea 21): con tres hijos eso deja
+     ~80px muertos entre la cabecera "HQ" y la primera area. Se corta el reparto y se ancla el pie abajo
+     a mano. */
+  .menu{justify-content:flex-start}
+  .menu-pie{margin-top:auto}
 }
 @media (min-width:900px){
   #hamburguesa{display:none}.menu-pie [data-salir]{display:none}
+  .menu-cab{display:none}
   body.menu-plegado .menu{width:56px;padding:10px 4px}
-  body.menu-plegado .menu nav a{font-size:0;padding:10px 0;text-align:center}
-  body.menu-plegado .menu nav a::before{content:attr(data-inicial);font-size:14px;font-weight:600}
+  body.menu-plegado .menu nav a{justify-content:center;padding:0}
+  body.menu-plegado .menu nav a span.txt{display:none}
   body.menu-plegado .area-titulo,body.menu-plegado .menu-pie a,body.menu-plegado .menu-pie .ver,body.menu-plegado .pronto{display:none}
 }
 .tarjeta{background:var(--panel);border:1px solid var(--linea);border-radius:var(--radio);padding:12px;margin-bottom:10px}
@@ -79,8 +96,24 @@ a{color:inherit}
 /* decisiones */
 .decision summary{cursor:pointer;list-style:none}.decision summary::-webkit-details-marker{display:none}.decision .detalle{margin:8px 0;white-space:normal;word-break:break-word}
 .licitacion .modal-acciones{justify-content:flex-start}
+.licitacion .datos{display:grid;gap:4px;margin:8px 0}.licitacion .datos p{margin:0;font-size:14px}
+.pill.elegible-probable{background:var(--exito-suave);color:var(--exito)}
+.pill.elegible-dudosa{background:var(--oro-suave);color:var(--oro-oscuro)}
+.enlaces-doc{display:flex;flex-wrap:wrap;gap:8px;margin-top:8px}
+.enlaces-doc .btn-enlace{display:inline-flex;align-items:center;min-height:36px;padding:6px 12px;border:1px solid var(--linea-fuerte);border-radius:var(--radio-boton);background:var(--panel);color:var(--oro-oscuro);text-decoration:none}
 
 /* equipo y expedientes */
 .avatar{width:44px;height:44px;border-radius:50%;flex:none;object-fit:cover;background:var(--marino)}.avatar.letra{display:grid;place-items:center;color:var(--oro);font-family:var(--display);font-weight:700;font-size:20px}
 .agente{align-items:center}.pill.sesion{background:var(--oro-suave);color:var(--tinta)}.acciones-exp{margin-top:10px}.objetivo .btn{color:var(--tinta)}.resumen{margin:4px 0 0;font-size:14px}
 .objetivo .datos{display:flex;gap:18px;flex-wrap:wrap;margin-top:6px}.objetivo .dato{display:grid}.objetivo .dato strong{font-size:16px}.objetivo .dato.mal strong{color:var(--oro-luz)}.objetivo .dato.bien strong{color:#8CB897}
+
+/* operacion/licitaciones */
+.embudo{display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:8px;margin:8px 0}
+.mini{background:var(--panel);border:1px solid var(--linea);border-radius:var(--radio);padding:10px;text-align:center}
+.mini .v{font-family:var(--display);font-weight:700;font-size:22px;line-height:1.2}
+.mini .v small{display:block;font-family:var(--body);font-weight:400;font-size:12px;color:var(--tinta-2)}
+.mini .l{font-size:12px;color:var(--tinta-2);margin-top:2px}
+.grupo-criba{margin-bottom:10px}
+.grupo-criba summary{cursor:pointer;font-weight:600;padding:6px 0;list-style:none}
+.grupo-criba summary::-webkit-details-marker{display:none}
+.grupo-criba p{margin:6px 0;padding:8px 0;border-top:1px solid var(--linea);font-size:14px}

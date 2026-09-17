@@ -14,8 +14,12 @@ function crearNodo(tag) {
     // classList, asi que el shim no lo tenia; se anade aqui con el mismo patron que test/shell.test.mjs.
     classList: { toggle(c, on) { const s = new Set(this._n.className.split(' ').filter(Boolean)); on ? s.add(c) : s.delete(c); this._n.className = [...s].join(' '); return on; }, contains(c) { return this._n.className.split(' ').includes(c); }, add(c) { this.toggle(c, true); }, remove(c) { this.toggle(c, false); } },
     setAttribute(k, v) { this.attrs[k] = v; },
+    getAttribute(k) { return this.attrs[k] ?? null; },
     addEventListener(ev, fn) { (this.listeners[ev] ||= []).push(fn); },
     append(...kids) { for (const k of kids) { if (k == null) continue; k.parent = this; this.children.push(k); } },
+    // T4 (plan 3b): cablearShell() ahora hace menu.prepend(...) para montar la cabecera del cajon
+    // movil; sin este metodo la cadena api.js/main.js explota al importar expedientes.js.
+    prepend(...kids) { for (const k of kids.reverse()) { if (k == null) continue; k.parent = this; this.children.unshift(k); } },
     remove() { if (this.parent) { const i = this.parent.children.indexOf(this); if (i >= 0) this.parent.children.splice(i, 1); this.parent = null; } },
     get textContent() { return this.children.length ? this.children.map(c => (c.nodeType === 3 ? c.data : c.textContent)).join('') : this._text; },
     set textContent(v) { this._text = v; this.children = []; },

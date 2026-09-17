@@ -1,6 +1,6 @@
 // Buscador global (plan 3a): busca sobre el payload ya cargado, nunca llama a la BD. Sin DOM.
 // Un número encuentra por id exacto en todas las fuentes; un texto busca sin acentos en id y título.
-// Clientes y licitaciones se añaden en la tanda 2 cuando entren en el payload.
+// Minor 10 (revision final): comentario corregido, licitaciones ya entraron (fuente de mas abajo).
 import { sinAcentos } from './estado.js';
 
 const FUENTES = [
@@ -9,6 +9,9 @@ const FUENTES = [
   ['expediente', d => d.expedientes, x => x.id, x => x.nombre, x => '#operacion/expedientes/' + x.id],
   ['agente', d => d.agentes, a => a.id, a => a.nombre, a => '#equipo/agente/' + a.id],
   ['frente', d => d.frentes, f => f.codigo, f => f.linea, f => '#operacion/tablero?frente=' + f.codigo],
+  // I3 (revision final): la ficha completa de una licitacion vive en Operacion/Licitaciones, no en
+  // Reglas/Decisiones (que solo lista las decidibles); un resultado de busqueda debe llevar ahi.
+  ['licitación', d => d.licitaciones, l => l.expediente, l => l.resumen_corto || l.objeto, l => '#operacion/licitaciones'],
 ];
 
 export function buscar(datos, consulta, max = 12) {

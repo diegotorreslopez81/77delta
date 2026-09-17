@@ -19,6 +19,7 @@ function crearNodo(tag) {
     tag, nodeType: 1, children: [], attrs: {}, className: '', _text: '', _html: '', listeners: {}, parent: null, dataset: {},
     classList: { toggle(c, on) { const s = new Set(this._n.className.split(' ').filter(Boolean)); on ? s.add(c) : s.delete(c); this._n.className = [...s].join(' '); return on; }, contains(c) { return this._n.className.split(' ').includes(c); }, add(c) { this.toggle(c, true); }, remove(c) { this.toggle(c, false); } },
     setAttribute(k, v) { this.attrs[k] = v; if (k.startsWith('data-')) this.dataset[k.slice(5)] = v; },
+    getAttribute(k) { return this.attrs[k] ?? null; },
     addEventListener(ev, fn) { (this.listeners[ev] ||= []).push(fn); },
     append(...kids) { for (const k of kids) { if (k == null) continue; k.parent = this; this.children.push(k); } },
     remove() { if (this.parent) { const i = this.parent.children.indexOf(this); if (i >= 0) this.parent.children.splice(i, 1); this.parent = null; } },

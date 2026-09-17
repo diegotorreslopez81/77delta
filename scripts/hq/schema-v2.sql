@@ -2,7 +2,7 @@
 -- Convención: cada sección lleva el número de tarea del plan 2026-09-16-hq-v2-plan-1-base.md.
 
 -- T1 · versión del esquema v2 (los tests la usan como centinela)
-create or replace function omc_v2_version() returns text language sql immutable as $$ select '2.0.7' $$;
+create or replace function omc_v2_version() returns text language sql immutable as $$ select '2.0.9' $$;
 grant execute on function omc_v2_version() to anon, authenticated;
 
 -- T2 · objetivo por horizonte
@@ -986,15 +986,50 @@ begin
     -- fuera quedan provincia, tipo, procedimiento, elegible, detectada, estado, fecha_decision, progreso.
     -- El listado completo con esos campos y los de texto largo (resumen, comentarios, pcap, ppt,
     -- motivo_auto, solvencia) sigue disponible via omc_licitaciones_lista u omc_hq para quien lo necesite.
+    -- Plan 3b (17-sep, tanda 2a): la ficha de Diego necesita elegible, solvencia, motivo_auto, tipo,
+    -- procedimiento, provincia, estado y los enlaces PCAP/PPT/carpeta. Para no volver a los 3 MB, solo
+    -- viajan las filas con estado abierto (Nueva, Por decidir, Aprobada, Presentada, Pausada) y los textos
+    -- largos recortados a 300 caracteres. El resto de estados (Descartada, Cerrada sin presentar,
+    -- Adjudicada, Contratada...) se sirve agregado en 'lic_resumen' para el embudo.
     'licitaciones', case when es_owner then (
         select coalesce(jsonb_agg(jsonb_build_object(
-          'expediente', x->>'expediente', 'organo', x->>'organo', 'objeto', x->>'objeto',
+          'expediente', x->>'expediente', 'organo', x->>'organo', 'provincia', x->>'provincia', 'objeto', x->>'objeto',
           'resumen_corto', x->>'resumen_corto', 'importe', (x->>'importe')::numeric,
-          'cierre', (x->>'cierre')::date, 'enlace', x->>'enlace', 'decision', x->>'decision'
+          'tipo', x->>'tipo', 'procedimiento', x->>'procedimiento', 'elegible', x->>'elegible',
+          'motivo_auto', left(x->>'motivo_auto', 300), 'solvencia', left(x->>'solvencia', 300),
+          'cierre', (x->>'cierre')::date, 'enlace', x->>'enlace', 'pcap', x->>'pcap', 'ppt', x->>'ppt', 'carpeta', x->>'carpeta',
+          -- C1 (revision final del controlador): estado '' (cadena vacia, valor por defecto de la
+          -- columna) se trata como 'Nueva', no como un estado desconocido que se cae del filtro.
+          'estado', coalesce(nullif(x->>'estado', ''), 'Nueva'), 'decision', x->>'decision', 'detectada', x->>'detectada'
         )), '[]'::jsonb)
         from jsonb_array_elements(coalesce(base->'licitaciones', '[]'::jsonb)) x
-        where (x->>'cierre') is null or (x->>'cierre')::date >= (ahora - interval '7 days')::date
+        -- C2 (revision final del controlador): el corte de 7 dias por cierre solo aplica a las que
+        -- todavia no tienen una decision firme (Nueva, Por decidir); Aprobada/Presentada/Pausada se
+        -- mandan siempre, aunque su cierre ya haya pasado o sea nulo (si no, Operacion/Licitaciones y
+        -- Reglas/Decisiones perdian filas que Diego ya habia aprobado o presentado).
+        where (coalesce(nullif(x->>'estado', ''), 'Nueva') in ('Aprobada', 'Presentada', 'Pausada'))
+           or (
+             ((x->>'cierre') is null or (x->>'cierre')::date >= (ahora - interval '7 days')::date)
+             and coalesce(nullif(x->>'estado', ''), 'Nueva') in ('Nueva', 'Por decidir')
+           )
       ) else '[]'::jsonb end,
+    'lic_resumen', case when es_owner then (
+        select jsonb_build_object(
+          'total', jsonb_build_object('n', count(*), 'eur', coalesce(sum(l.importe), 0)),
+          -- C2 (revision final del controlador): aprobadas/presentadas/pausadas agregadas aqui para
+          -- que el embudo de Operacion/Licitaciones no dependa solo del array recortado por omc_hq
+          -- (pestana Licitaciones o actualizadas en 30 dias); mismo patron que descartadas/cerradas.
+          'aprobadas', jsonb_build_object('n', count(*) filter (where l.estado = 'Aprobada'), 'eur', coalesce(sum(l.importe) filter (where l.estado = 'Aprobada'), 0)),
+          'presentadas', jsonb_build_object('n', count(*) filter (where l.estado = 'Presentada'), 'eur', coalesce(sum(l.importe) filter (where l.estado = 'Presentada'), 0)),
+          'pausadas', jsonb_build_object('n', count(*) filter (where l.estado = 'Pausada'), 'eur', coalesce(sum(l.importe) filter (where l.estado = 'Pausada'), 0)),
+          'descartadas', jsonb_build_object('n', count(*) filter (where l.estado like 'Descartada%' or upper(coalesce(l.decision, '')) in ('NO', 'NOK', 'DESCARTADA', 'DESCARTADO')),
+                                            'eur', coalesce(sum(l.importe) filter (where l.estado like 'Descartada%' or upper(coalesce(l.decision, '')) in ('NO', 'NOK', 'DESCARTADA', 'DESCARTADO')), 0)),
+          'cerradas', jsonb_build_object('n', count(*) filter (where l.estado = 'Cerrada sin presentar'), 'eur', coalesce(sum(l.importe) filter (where l.estado = 'Cerrada sin presentar'), 0)),
+          'adjudicadas', jsonb_build_object('n', count(*) filter (where l.estado = 'Adjudicada'), 'eur', coalesce(sum(l.importe) filter (where l.estado = 'Adjudicada'), 0)),
+          'no_adjudicadas', jsonb_build_object('n', count(*) filter (where l.estado = 'No adjudicada'), 'eur', coalesce(sum(l.importe) filter (where l.estado = 'No adjudicada'), 0)),
+          'contratadas', jsonb_build_object('n', count(*) filter (where l.estado = 'Contratada'), 'eur', coalesce(sum(l.importe) filter (where l.estado = 'Contratada'), 0)))
+        from omc_licitaciones l where l.empresa = t.empresa
+      ) else '{}'::jsonb end,
     'uso', case when es_owner and exists (select 1 from pg_proc where proname = 'omc_hq_uso') then omc_hq_uso(p_token) else '{}'::jsonb end
   );
 end $$;

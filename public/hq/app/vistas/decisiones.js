@@ -26,6 +26,7 @@
 import { rpc } from '../api.js';
 import { el, modal, toast, fecha, eur, pedirTexto, enlazar, urlSegura } from '../ui.js';
 import { recargar } from '../main.js';
+import { porDecidir, enCriba, solvenciaTexto } from '../licitaciones.js';
 
 export function agrupar(pendientes, ahora = new Date()) {
   const finHoy = new Date(ahora); finHoy.setUTCHours(23, 59, 59, 999); const finSemana = new Date(ahora.getTime() + 7 * 864e5);
@@ -81,6 +82,23 @@ function tarjeta(p, abierta, hilo) {
 
 // T5-a: mapea el verbo de la UI a la decision real que acepta omc_licitacion_decidir.
 const DECISION = { presentar: 'OK', descartar: 'No', estudiar: 'Pendiente' };
+
+// Slug de 'Elegible' para la clase del pill: minusculas, sin acentos, espacios a '-' (probable, dudosa,
+// revisar, no-viable...). La ficha solo pinta Probable/Dudosa (porDecidir ya filtra), pero la funcion
+// no asume eso: cualquier valor de 'elegible' produce un slug valido.
+function slugElegible(v) {
+  return String(v || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').trim().replace(/\s+/g, '-');
+}
+
+// PCAP/PPT/Perfil (campo 'enlace')/Drive (campo 'carpeta'): solo se pintan si la url es http(s)
+// absoluta (urlSegura, la misma puerta que ya usa tarjeta() para p.enlace) - un 'javascript:...' en
+// cualquiera de los cuatro campos no produce ningun <a>.
+function enlacesDoc(l) {
+  return [['PCAP', l.pcap], ['PPT', l.ppt], ['Perfil', l.enlace], ['Drive', l.carpeta]]
+    .map(([etiqueta, valor]) => { const href = urlSegura(valor); return href ? el('a', { class: 'btn-enlace', href, target: '_blank', rel: 'noopener', text: etiqueta }) : null; })
+    .filter(Boolean);
+}
+
 function licitacion(l) {
   const decidir = async (verbo) => {
     const decision = DECISION[verbo];
@@ -89,10 +107,16 @@ function licitacion(l) {
     try { await rpc('omc_licitacion_decidir', { p_expediente: l.expediente, p_decision: decision, p_motivos: [], p_texto: texto || '' }); toast(l.expediente + ': ' + verbo); await recargar(); }
     catch (err) { toast('HQ rechaza: ' + err.message); }
   };
+  const enlaces = enlacesDoc(l);
   return el('article', { class: 'tarjeta licitacion' }, [
     el('div', { class: 'fila' }, [el('span', { class: 'pill codigo', text: l.expediente }), el('strong', { text: l.resumen_corto || l.objeto || l.expediente })]),
-    el('p', { class: 'mudo', text: [l.organo, l.importe ? eur(l.importe) + ' sin IVA' : null, l.cierre ? 'cierra ' + fecha(l.cierre) : null].filter(Boolean).join(' · ') }),
-    l.objeto && l.objeto !== l.resumen_corto ? el('p', { text: l.objeto }) : null,
+    el('p', { class: 'mudo', text: [l.organo, l.provincia, l.importe ? eur(l.importe) + ' sin IVA' : null, l.cierre ? 'cierra ' + fecha(l.cierre) : null, l.tipo, l.procedimiento].filter(Boolean).join(' · ') }),
+    el('div', { class: 'datos' }, [
+      el('p', {}, ['Elegible: ', el('span', { class: 'pill elegible-' + slugElegible(l.elegible), text: l.elegible })]),
+      el('p', { text: 'Solvencia: ' + solvenciaTexto(l) }),
+      l.motivo_auto ? el('p', { text: 'Motivo: ' + l.motivo_auto }) : null,
+    ]),
+    enlaces.length ? el('div', { class: 'enlaces-doc' }, enlaces) : null,
     el('div', { class: 'modal-acciones' }, [
       el('button', { class: 'btn peligro', text: 'Descartar', onclick: () => decidir('descartar') }),
       el('button', { class: 'btn', text: 'Estudiar', onclick: () => decidir('estudiar') }),
@@ -107,8 +131,19 @@ export function render(raiz, S, arg) {
   const abierta = Number(arg) || null;
   const sec = (t, xs) => xs.length ? el('section', { class: 'seccion' }, [el('h2', { text: t + ' (' + xs.length + ')' }), ...xs.map(p => tarjeta(p, p.id === abierta, hilos[p.id] || []))]) : null;
   raiz.append(sec('Vence hoy', g.hoy), sec('Esta semana', g.semana), sec('Sin fecha', g.resto), sec('Pospuestas', g.pospuestas));
-  const lic = (d.licitaciones || []).filter(l => !l.decision || l.decision === 'Pendiente');
-  raiz.append(el('section', { class: 'seccion' }, [el('h2', { text: 'Licitaciones por decidir (' + lic.length + ')' }), ...lic.map(licitacion), el('a', { class: 'btn-enlace', href: '/hq/v1/#licita', text: 'histórico y fichas completas en HQ v1' })]));
+  // Fix ronda 3 (plan 3b, tarea 2): la cola solo mostraba "sin decision o Pendiente", sin mirar estado
+  // ni elegible - salian las ~1.475 filas del feed, no las ~60 realmente decidibles. porDecidir()
+  // (licitaciones.js) aplica los tres filtros de golpe; enCriba() cuenta las abiertas que aun le faltan
+  // a Guillem (Revisar, No viable, Sin pliego) para la linea informativa de debajo del titulo.
+  const lic = porDecidir(d.licitaciones);
+  const criba = enCriba(d.licitaciones).length;
+  // Minor 9 (revision final): sin nada en criba, la linea "0 en criba..." no aporta nada; se omite.
+  const lineaCriba = criba ? el('p', { class: 'mudo' }, [el('a', { href: '#operacion/licitaciones', text: criba + ' en criba de Guillem (Revisar, No viable, Sin pliego): se deciden cuando estén analizadas' })]) : null;
+  raiz.append(el('section', { class: 'seccion' }, [
+    el('h2', { text: 'Licitaciones por decidir (' + lic.length + ')' }),
+    lineaCriba,
+    ...lic.map(licitacion),
+    el('a', { class: 'btn-enlace', href: '/hq/v1/#licita', text: 'histórico y fichas completas en HQ v1' })]));
   const total = g.hoy.length + g.semana.length + g.resto.length + g.pospuestas.length;
   if (!total && !lic.length) raiz.append(el('p', { class: 'mudo', text: 'Nada que decidir.' }));
   if (abierta) setTimeout(() => document.getElementById('d' + abierta)?.scrollIntoView({ block: 'start' }), 50);

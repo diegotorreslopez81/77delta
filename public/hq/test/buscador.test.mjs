@@ -26,6 +26,16 @@ test('vacío o sin resultados devuelve [], y respeta el tope', () => {
   assert.equal(buscar(muchos, 'repetido').length, 12); assert.equal(buscar(muchos, 'repetido', 5).length, 5);
 });
 test('tolera payload sin listas', () => { assert.deepEqual(buscar({}, '996'), []); });
+// I3 (revision final del controlador): la ficha completa de una licitacion vive en
+// Operacion/Licitaciones (Reglas/Decisiones solo lista las decidibles); el resultado de busqueda
+// debe enlazar ahi, no a Reglas/Decisiones.
+test('licitación enlaza a Operacion/Licitaciones, no a Reglas/Decisiones (revision final, I3)', () => {
+  const conLicitaciones = { ...datos, licitaciones: [{ expediente: 'A31/2025/80', resumen_corto: 'Servicio de limpieza' }] };
+  const r = buscar(conLicitaciones, 'A31/2025/80');
+  assert.equal(r.length, 1);
+  assert.equal(r[0].tipo, 'licitación');
+  assert.equal(r[0].href, '#operacion/licitaciones');
+});
 test('un tipo con muchas coincidencias no agota el tope: los demás tipos también entran (revisión final, Important 2)', () => {
   const muchos = {
     encargos: Array.from({ length: 20 }, (_, i) => ({ id: i + 1, texto: 'kit consulting ' + i })),
