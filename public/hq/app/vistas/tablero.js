@@ -1,17 +1,17 @@
 // Tablero Kanban: filtros, alta de encargo, arrastre y detalle.
 import { rpc } from '../api.js';
 import { el, modal, toast } from '../ui.js';
-import { kanban, COLUMNAS } from '../estado.js';
+import { kanban, COLUMNAS, yo } from '../estado.js';
 import { tarjetaEncargo } from '../tarjeta.js';
 import { accionAlSoltar, habilitarArrastre } from '../dnd.js';
 import { abrirDetalle, moverEncargo } from '../detalle.js';
 import { recargar } from '../main.js';
 
 // T4-c (ruling del controlador, 2026-09-16): omc_hq_v2 no expone 'yo' en la raíz; con null la base
-// resuelve la identidad del token. Efecto en este fichero: sin un id de agente real en el payload,
-// una tarjeta de agente nunca coincide con yo(S) para un token que no sea owner, así que el arrastre
-// queda restringido al owner hasta que el backend exponga la identidad del agente (se anota en el informe).
-const yo = S => S.datos.rol === 'owner' ? 'diego' : null;
+// resuelve la identidad del token (yo() vive en estado.js). Efecto en este fichero: sin un id de
+// agente real en el payload, una tarjeta de agente nunca coincide con yo(S) para un token que no sea
+// owner, así que el arrastre queda restringido al owner hasta que el backend exponga la identidad
+// del agente (se anota en el informe).
 
 function filtros(S, pintar) {
   const d = S.datos, f = S.filtros;

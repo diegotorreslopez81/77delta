@@ -1,6 +1,8 @@
 // Arrastrar y soltar del tablero. accionAlSoltar es puro (node --test); habilitarArrastre toca DOM.
 export function accionAlSoltar(origen, destino) {
   if (origen === destino) return { tipo: 'nada' };
+  // T4-e (ruling del controlador): desde hecho a cualquier viva = reabrir, prevalece sobre destino.
+  if (origen === 'hecho') return { tipo: 'reabrir' };
   if (destino === 'en_curso') return { tipo: 'tomar' };
   if (destino === 'hecho') return { tipo: 'hecho' };
   if (destino === 'bloqueado') return { tipo: 'bloquear' };

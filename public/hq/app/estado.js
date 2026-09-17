@@ -3,6 +3,9 @@ export const S = { datos: null, filtros: { frente: null, bloque: null, agente: n
 export const COLUMNAS = [['backlog', 'Backlog'], ['por_hacer', 'Por hacer'], ['en_curso', 'En curso'], ['bloqueado', 'Bloqueado'], ['hecho', 'Hecho']];
 export function poner(datos) { S.datos = datos; S.derivado = derivar(datos); }
 export function sinAcentos(s) { return String(s || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase(); }
+// T4-c (ruling del controlador, 2026-09-16): omc_hq_v2 no expone 'yo' en la raíz. Con null la base
+// resuelve la identidad del token (coalesce a 'agente' genérico); solo owner tiene un nombre fijo ('diego').
+export const yo = S => S.datos?.rol === 'owner' ? 'diego' : null;
 
 export function derivar(datos) {
   const porBloque = {};

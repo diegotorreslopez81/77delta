@@ -1,10 +1,8 @@
 // Modal de un encargo: ficha, edición, hilo, acciones.
 import { rpc } from './api.js';
 import { el, modal, toast, fecha } from './ui.js';
+import { yo } from './estado.js';
 
-// T4-c (ruling del controlador, 2026-09-16): omc_hq_v2 no expone 'yo' en la raíz. Con null la base
-// resuelve la identidad del token (coalesce a 'agente' genérico); solo owner tiene un nombre fijo ('diego').
-const yo = S => S.datos.rol === 'owner' ? 'diego' : null;
 export function pedirTexto(titulo, etiqueta, obligatorio = true) {
   return new Promise(res => {
     const campo = el('textarea', { rows: 3, placeholder: etiqueta });
@@ -23,7 +21,13 @@ export async function moverEncargo(e, accion, S, recargar) {
       await rpc('omc_encargo_hecho', { p_id: e.id, p_fuente: fuente, p_entregable: entregable || '', p_agente: yo(S) });
     }
     else if (accion.tipo === 'bloquear') { const motivo = await pedirTexto('Bloquear #' + e.id, 'Qué falta de Diego'); if (motivo == null) return; await rpc('omc_encargo_estado', { p_id: e.id, p_estado: 'bloqueado_diego', p_motivo: motivo, p_agente: yo(S) }); }
-    else if (accion.tipo === 'reabrir') { await rpc('omc_encargo_estado', { p_id: e.id, p_estado: 'encolado', p_motivo: 'reabierto desde HQ', p_agente: yo(S) }); if (accion.destino === 'backlog') await rpc('omc_encargo_editar', { p_id: e.id, p: { fecha_hito: null } }); }
+    else if (accion.tipo === 'reabrir') {
+      // T4-e: reabrir aterriza en la columna destino real (en_curso/bloqueado tambien son validos
+      // para omc_encargo_estado), no siempre en 'encolado'. Nunca con omc_encargo_tomar.
+      const estado = accion.destino === 'en_curso' ? 'en_curso' : accion.destino === 'bloqueado' ? 'bloqueado_diego' : 'encolado';
+      await rpc('omc_encargo_estado', { p_id: e.id, p_estado: estado, p_motivo: 'reabierto desde HQ', p_agente: yo(S) });
+      if (accion.destino === 'backlog') await rpc('omc_encargo_editar', { p_id: e.id, p: { fecha_hito: null } });
+    }
     else if (accion.tipo === 'planificar') { if (accion.destino === 'backlog') await rpc('omc_encargo_editar', { p_id: e.id, p: { fecha_hito: null } }); else { const hito = await pedirTexto('Planificar #' + e.id, 'Fecha del hito (AAAA-MM-DD)'); if (!hito) return; await rpc('omc_encargo_editar', { p_id: e.id, p: { fecha_hito: hito } }); } }
     else if (accion.tipo === 'descartar') { const motivo = await pedirTexto('Descartar #' + e.id, 'Motivo del descarte'); if (motivo == null) return; await rpc('omc_encargo_estado', { p_id: e.id, p_estado: 'descartado', p_motivo: motivo, p_agente: yo(S) }); }
     toast('#' + e.id + ' ' + accion.tipo); await recargar();
