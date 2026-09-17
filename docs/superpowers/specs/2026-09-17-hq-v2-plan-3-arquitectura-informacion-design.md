@@ -112,7 +112,7 @@ Esquema pasa de 2.0.7 a 2.1.0. Todo se aplica con `bash scripts/hq/aplicar-schem
 
 Tablas nuevas:
 
-- `omc_kpi_semana(empresa, semana date, frente text, valor numeric, meta numeric, presentado_eur numeric, contratado_eur numeric, created_at)`, clave `(empresa, semana, frente)`. La escribe `omc_kpi_foto(p_token)` (owner o cron con token de solo lectura no vale: la foto escribe, así que la dispara `hq-informe.py` los lunes 07:00 con el token del chief).
+- `omc_kpi_semana(empresa, semana date, frente text, valor numeric, meta numeric, presentado_eur numeric, contratado_eur numeric, created_at)`, clave `(empresa, semana, frente)`. La escribe `omc_kpi_foto(p_token)`, que admite owner o el token de agente `chief`; la dispara `hq-informe.py` los lunes a las 07:00 con el token del chief, sin owner token.
 - `omc_cuentas_estado(empresa, cuenta text, pct_ventana int, pct_semana int, ventana_fin timestamptz, pausados text[], updated_at)`, clave `(empresa, cuenta)`. La escribe `hq-ahorro` en cada pasada (hoy escribe `~/.config/77delta/hq-ahorro.json`; pasa a escribir los dos).
 - `omc_reglas(empresa, num int, texto text, ambito text, activa bool, updated_at)`, clave `(empresa, num)`. Carga inicial desde el markdown con `hq.py reglas importar`.
 
@@ -129,7 +129,7 @@ RPC nuevos (todos `security definer`, comprueban token y rol como los actuales):
 - `omc_contacto_convertir(p_token, p_contacto_id, p_nombre_cliente)`: owner. Crea expediente tipo `cliente` con `organizacion` = `omc_contactos.organizacion`, `origen` = canal del contacto, `estado_funnel` = 'contacto', y pone `expediente_id` del contacto y de todos los contactos de la misma `organizacion` sin expediente. Devuelve el id.
 - `omc_kit_set(p_token, p_frente, p_texto)`: owner.
 - `omc_regla_set(p_token, p_num, p_texto, p_activa)`: owner.
-- `omc_kpi_foto(p_token)`: owner. Inserta o actualiza la fila de la semana en curso por frente a partir de `omc_plan_lineas` y de `omc_licitaciones`.
+- `omc_kpi_foto(p_token)`: owner o agente `chief`. Inserta o actualiza la fila de la semana en curso por frente a partir de `omc_plan_lineas` y de `omc_licitaciones`.
 - `omc_licitaciones_pagina(p_token, p_filtros jsonb, p_pagina int)`: cualquier rol. Devuelve 50 filas y el total.
 
 Payload `omc_hq_v2` ampliado (el contrato se actualiza en su fichero): añade `licitaciones_resumen` (contadores por estado y tipología, no las filas), `contactos`, `clientes` (expedientes tipo cliente con hijos, ingresos y contactos agregados), `peticiones`, `uso` (agregados 7 y 30 días por agente, modelo, sesión, frente), `cuentas`, `kpi_semana` (últimas 8 semanas), `decisiones`, `kit`, `reglas`, `manuales`. Las filas de licitaciones no van en el payload: se piden a `omc_licitaciones_pagina`. Tamaño objetivo del payload: menos de 400 KB con gzip; si se supera, `uso` por sesión se recorta al top 15.
