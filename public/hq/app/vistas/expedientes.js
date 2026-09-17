@@ -19,7 +19,7 @@
 // con, Cerrar sesion, Nuevo expediente, frentes de agente) solo se muestran con rol==='owner'. El
 // paso 3 del brief no gateaba "Cerrar sesion": aqui se anade el gate por instruccion explicita.
 import { rpc } from '../api.js';
-import { el, modal, toast, fecha, eur, pedirTexto, enlazar } from '../ui.js';
+import { el, modal, toast, fecha, eur, pedirTexto, enlazar, urlSegura } from '../ui.js';
 import { tarjetaEncargo } from '../tarjeta.js';
 import { recargar } from '../main.js';
 
@@ -33,7 +33,10 @@ async function trabajarCon(exp, S) {
   const ag = (S.datos.agentes || []).find(a => a.id === exp.responsable);
   try {
     const s = await rpc('omc_sesion_solicitar', { p_expediente: exp.id });
-    if (ag?.sesion_url) { toast('abriendo la sesión de ' + ag.nombre); setTimeout(() => { location.href = ag.sesion_url; }, 400); }
+    // Fix ronda 2 (B2): sesion_url ya la valida omc_agente_sesion_url en la BD (^https://(claude\.ai|
+    // claude\.com)/), pero se pasa por urlSegura tambien aqui por coherencia con el resto de href/src.
+    const url = urlSegura(ag?.sesion_url);
+    if (url) { toast('abriendo la sesión de ' + ag.nombre); setTimeout(() => { location.href = url; }, 400); }
     else { toast(ag ? ag.nombre + ' no ha publicado su sesión (hq.py agente sesion-url). Queda solicitada #' + s.id : 'sin responsable'); await recargar(); }
   } catch (err) { toast('HQ rechaza: ' + err.message); }
 }
@@ -73,12 +76,14 @@ function alta(S) {
 }
 
 async function ficha(raiz, S, id) {
-  let f; try { f = await rpc('omc_expediente_ficha', { p_id: id }); } catch (err) { raiz.append(el('p', { class: 'error', text: err.message })); return; }
+  let f; try { f = await rpc('omc_expediente_ficha', { p_id: id }); } catch (err) { toast('HQ rechaza: ' + err.message); raiz.append(el('p', { class: 'error', text: 'No se pudo cargar el expediente.' })); return; }
   const x = f.expediente;
   // f.sesiones (respuesta de omc_expediente_ficha) hace se.* sobre omc_sesiones (schema-v2.sql:633),
   // que ya incluye expediente_id: no hace falta normalizarlo (NIT ronda 1, retirada la version
   // defensiva que lo daba por ausente).
   const es = estadoSesion(x, f.sesiones?.length ? f.sesiones : S.datos.sesiones), ag = (S.datos.agentes || []).find(a => a.id === x.responsable);
+  // Fix ronda 2 (B2): sesion_url, ficha_url y carpeta_url vienen de la BD sin validar esquema.
+  const sesionUrl = urlSegura(ag?.sesion_url), fichaUrl = urlSegura(x.ficha_url), carpetaUrl = urlSegura(x.carpeta_url);
   raiz.append(el('a', { href: '#expedientes', class: 'btn-enlace', text: '← expedientes' }));
   raiz.append(el('section', { class: 'objetivo' }, [
     el('p', { class: 'mudo', text: x.tipo + ' · ' + (f.frente ? f.frente.codigo + ' ' + f.frente.linea : '') }),
@@ -87,17 +92,17 @@ async function ficha(raiz, S, id) {
     el('div', { class: 'fila acciones-exp' }, [
       S.datos.rol === 'owner' && !es.hay ? el('button', { class: 'btn primario', text: 'Trabajar con ' + (ag?.nombre || x.responsable || '…'), onclick: () => trabajarCon(x, S) }) : null,
       es.estado === 'solicitada' ? el('span', { class: 'pill sesion', text: 'sesión solicitada, ' + (ag?.nombre || '') + ' la abre en <1 min' }) : null,
-      es.estado === 'abierta' && ag?.sesion_url ? el('a', { class: 'btn primario', href: ag.sesion_url, text: 'Volver a la sesión' }) : null,
+      es.estado === 'abierta' && sesionUrl ? el('a', { class: 'btn primario', href: sesionUrl, text: 'Volver a la sesión' }) : null,
       es.hay && S.datos.rol === 'owner' ? el('button', { class: 'btn', text: 'Cerrar sesión', onclick: () => cerrarSesion(es.sesion, S) }) : null,
-      x.ficha_url ? el('a', { class: 'btn', href: x.ficha_url, target: '_blank', rel: 'noopener', text: 'Ficha (Doc)' }) : null,
-      x.carpeta_url ? el('a', { class: 'btn', href: x.carpeta_url, target: '_blank', rel: 'noopener', text: 'Carpeta' }) : null])]));
+      fichaUrl ? el('a', { class: 'btn', href: fichaUrl, target: '_blank', rel: 'noopener', text: 'Ficha (Doc)' }) : null,
+      carpetaUrl ? el('a', { class: 'btn', href: carpetaUrl, target: '_blank', rel: 'noopener', text: 'Carpeta' }) : null])]));
   if (x.resumen_estado) raiz.append(el('section', { class: 'seccion' }, [el('h2', { text: 'Estado (' + fecha(x.resumen_fecha, { hora: true }) + ')' }), el('p', {}, enlazar(x.resumen_estado))]));
   raiz.append(el('section', { class: 'seccion' }, [el('h2', { text: 'Encargos (' + f.encargos.length + ')' }), ...f.encargos.map(e => tarjetaEncargo(e))]));
-  if (x.entregables?.length) raiz.append(el('section', { class: 'seccion' }, [el('h2', { text: 'Entregables' }), ...x.entregables.map(en => el('p', {}, [el('span', { class: 'pill', text: en.estado || 'pendiente' }), ' ', en.url ? el('a', { href: en.url, target: '_blank', rel: 'noopener', text: en.nombre }) : en.nombre]))]));
+  if (x.entregables?.length) raiz.append(el('section', { class: 'seccion' }, [el('h2', { text: 'Entregables' }), ...x.entregables.map(en => { const h = urlSegura(en.url); return el('p', {}, [el('span', { class: 'pill', text: en.estado || 'pendiente' }), ' ', h ? el('a', { href: h, target: '_blank', rel: 'noopener', text: en.nombre }) : en.nombre]); })]));
   if (f.contactos?.length) raiz.append(el('section', { class: 'seccion' }, [el('h2', { text: 'Contactos y envíos' }), ...f.contactos.map(c => el('p', { class: 'mudo', text: fecha(c.fecha || c.created_at, { hora: true }) + ' · ' + c.canal + ' · ' + (c.persona || c.destinatario || '') + ' · ' + (c.estado || '') + (c.asunto ? ' · ' + c.asunto : '') }))]));
   if (f.decisiones?.length) raiz.append(el('section', { class: 'seccion' }, [el('h2', { text: 'Decisiones' }), ...f.decisiones.map(d => el('a', { class: 'tarjeta enlace', href: '#decisiones/' + d.id }, [el('p', { class: 'titulo', text: '#' + d.id + ' ' + d.titulo }), el('p', { class: 'mudo', text: d.estado })]))]));
   if (f.sesiones?.length) raiz.append(el('section', { class: 'seccion' }, [el('h2', { text: 'Sesiones' }), ...f.sesiones.map(s => el('p', { class: 'mudo', text: fecha(s.abierta || s.created_at, { hora: true }) + ' · ' + s.agente + ' · ' + s.estado + (s.resumen ? ' · ' + s.resumen : '') }))]));
-  if (f.kit?.length) raiz.append(el('details', {}, [el('summary', { text: 'Kit del frente (' + f.kit.length + ')' }), ...f.kit.map(k => el('a', { href: k.url, target: '_blank', rel: 'noopener', class: 'kit', text: k.titulo }))]));
+  if (f.kit?.length) raiz.append(el('details', {}, [el('summary', { text: 'Kit del frente (' + f.kit.length + ')' }), ...f.kit.map(k => { const h = urlSegura(k.url); return h ? el('a', { href: h, target: '_blank', rel: 'noopener', class: 'kit', text: k.titulo }) : el('span', { class: 'kit mudo', text: k.titulo }); })]));
 }
 
 export function render(raiz, S, arg) { if (arg && /^\d+$/.test(arg)) ficha(raiz, S, Number(arg)); else lista(raiz, S); }

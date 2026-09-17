@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { eur, fecha, horas, enlazar } from '../app/ui.js';
+import { eur, fecha, horas, enlazar, urlSegura } from '../app/ui.js';
 
 // enlazar() solo toca `document` dentro de sus funciones (via el()), nunca al importar el modulo, asi que
 // un shim minimo definido tras un import estatico normal es suficiente (mismo razonamiento que en
@@ -44,4 +44,14 @@ test('enlazar convierte URLs en <a> por atributo real (nunca html:) y saltos de 
   assert.equal(nodos.filter(n => n.tag === 'br').length, 1);
   assert.equal(enlazar('').length, 0);
   assert.equal(enlazar(null).length, 0);
+});
+test('urlSegura solo deja pasar http(s) absoluto (fix ronda 2, B2)', () => {
+  assert.equal(urlSegura('javascript:alert(1)'), null);
+  assert.equal(urlSegura('https://x'), 'https://x');
+  assert.equal(urlSegura('http://x.example.com/a?b=1'), 'http://x.example.com/a?b=1');
+  assert.equal(urlSegura(''), null);
+  assert.equal(urlSegura(null), null);
+  assert.equal(urlSegura(undefined), null);
+  assert.equal(urlSegura('#tablero/f/A3'), null);
+  assert.equal(urlSegura('data:text/html,x'), null);
 });

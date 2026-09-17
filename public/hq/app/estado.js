@@ -20,7 +20,10 @@ export function filtrar(encargos, f = {}) {
   const t = sinAcentos(f.texto || '');
   return (encargos || []).filter(e =>
     (!f.frente || e.codigo === f.frente) && (!f.bloque || e.bloque_letra === f.bloque) &&
-    (!f.agente || sinAcentos(e.agente).includes(sinAcentos(f.agente)) || sinAcentos(e.responsable) === sinAcentos(f.agente)) &&
+    // NIT #5 (parado en la revision, aplicado aqui por ser trivial): .includes() sobre e.agente dejaba
+    // que un id de agente que fuera substring de otro (p. ej. 'ana' dentro de 'ariadna') colase en el
+    // filtro; se compara con igualdad exacta, igual que ya se hacia con e.responsable.
+    (!f.agente || sinAcentos(e.agente) === sinAcentos(f.agente) || sinAcentos(e.responsable) === sinAcentos(f.agente)) &&
     (!f.etiqueta || (e.etiquetas || []).includes(f.etiqueta)) &&
     (!t || sinAcentos([e.texto, e.interpretacion, e.origen, e.id].join(' ')).includes(t)));
 }

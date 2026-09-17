@@ -6,7 +6,11 @@ self.addEventListener('install', function (e) {
   e.waitUntil(caches.open(CACHE).then(function (c) { return c.addAll(SHELL); }).then(function () { return self.skipWaiting(); }));
 });
 self.addEventListener('activate', function (e) {
-  e.waitUntil(caches.keys().then(function (ks) { return Promise.all(ks.filter(function (k) { return k !== CACHE; }).map(function (k) { return caches.delete(k); })); }).then(function () { return self.clients.claim(); }));
+  // Fix ronda 2 (revision final, F-d/D2): borrar solo cache de la propia familia v1 (prefijo
+  // 'hq-v1-'); antes borraba cualquier clave que no fuera la suya, incluidas las 'hq-v13' etc. del
+  // sw de v2 (mismo origen, misma CacheStorage), asi que cada activate de un sw tiraba la cache del
+  // otro sw.
+  e.waitUntil(caches.keys().then(function (ks) { return Promise.all(ks.filter(function (k) { return k !== CACHE && k.indexOf('hq-v1-') === 0; }).map(function (k) { return caches.delete(k); })); }).then(function () { return self.clients.claim(); }));
 });
 self.addEventListener('fetch', function (e) {
   var u = new URL(e.request.url);

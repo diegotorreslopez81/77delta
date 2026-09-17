@@ -36,6 +36,13 @@ export function fecha(iso, { hora = false, tz = 'Europe/Madrid' } = {}) {
 export function eur(n) { return n == null ? '-' : Math.round(Number(n)).toLocaleString('es-ES') + ' EUR'; }
 export function horas(iso, ahora = new Date()) { return iso ? Math.floor((ahora - new Date(iso)) / 36e5) : null; }
 
+// Fix ronda 2 (revision final, B2): cualquier href/src que venga de un campo escrito por un agente o por
+// el chief (enlace de una solicitud, kit, ficha_url, carpeta_url, entregable, avatar...) pasa por aqui
+// antes de pintarse. Solo deja pasar http(s) absoluto; un `javascript:...` (o cualquier otro esquema)
+// vuelve null y quien llama no pinta el enlace. Los enlaces internos (`#tablero/...`, `#decisiones/...`)
+// nunca pasan por esta funcion: los construye la propia UI, no vienen de la BD.
+export function urlSegura(u) { return /^https?:\/\//i.test(String(u || '')) ? String(u) : null; }
+
 // Modal de texto libre reutilizable (antes duplicado en detalle.js y en decisiones.js). Cancelar resuelve
 // null; quien llama debe comprobar `=== null` para no seguir. `opciones`, si se pasa, añade un select por
 // delante del textarea (para un motivo de una lista cerrada) sin duplicar el modal.

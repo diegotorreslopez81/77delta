@@ -13,12 +13,15 @@
 // nombre buscando primero en S.datos.sesiones (misma sesion, mismo agente) y si no aparece en
 // S.datos.expedientes por id; si tampoco esta, se muestra '#' + id en vez de "undefined".
 import { rpc } from '../api.js';
-import { el, modal, toast, horas } from '../ui.js';
+import { el, modal, toast, horas, urlSegura } from '../ui.js';
 import { filtrar } from '../estado.js';
 import { tarjetaEncargo } from '../tarjeta.js';
 import { recargar } from '../main.js';
 
-function avatar(a) { return a.avatar_url ? el('img', { class: 'avatar', src: a.avatar_url, alt: '' }) : el('span', { class: 'avatar letra', text: (a.nombre || a.id)[0].toUpperCase() }); }
+// Fix ronda 2 (B2): avatar_url lo publica hq.py agente avatar-url sin validar esquema en la BD.
+// NIT #9 (parado, aplicado aqui por ser trivial): (a.nombre || a.id) puede ser '' si ambos faltan;
+// se cae a '?' en vez de lanzar en [0] de una cadena vacia.
+function avatar(a) { const url = urlSegura(a.avatar_url); return url ? el('img', { class: 'avatar', src: url, alt: '' }) : el('span', { class: 'avatar letra', text: ((a.nombre || a.id || '?')[0] || '?').toUpperCase() }); }
 function latido(a) { const h = horas(a.ultima_actividad); return h == null ? 'sin latido' : h < 1 ? 'activo ahora' : h < 24 ? 'hace ' + h + ' h' : 'hace ' + Math.floor(h / 24) + ' d'; }
 function nombreExpedienteSesion(id, agenteId, S) {
   const s = (S.datos.sesiones || []).find(x => x.expediente_id === id && x.agente === agenteId);
@@ -47,14 +50,17 @@ function ficha(raiz, S, a) {
     (a.frentes_codigos || []).length ? null : el('p', { class: 'mudo', text: 'sin frentes asignados' })]));
   const enc = filtrar(S.datos.encargos, { agente: a.id }).filter(e => e.estado !== 'hecho' && e.estado !== 'descartado');
   raiz.append(el('section', { class: 'seccion' }, [el('h2', { text: 'Encargos abiertos (' + enc.length + ')' }), ...enc.map(e => tarjetaEncargo(e))]));
+  const sesionUrl = urlSegura(a.sesion_url);
   const acciones = [
-    a.sesion_url ? el('a', { class: 'btn primario', href: a.sesion_url, text: 'Abrir sesión' }) : el('span', { class: 'mudo', text: 'sin sesión publicada' }),
+    sesionUrl ? el('a', { class: 'btn primario', href: sesionUrl, text: 'Abrir sesión' }) : el('span', { class: 'mudo', text: 'sin sesión publicada' }),
     a.sesion_abierta ? el('a', { class: 'pill sesion', href: '#expedientes/' + a.sesion_abierta, text: 'en sesión: ' + nombreExpedienteSesion(a.sesion_abierta, a.id, S) }) : null];
   raiz.append(el('section', { class: 'seccion fila' }, acciones));
 }
 
 export function render(raiz, S, arg) {
-  const ags = (S.datos.agentes || []).filter(a => a.activo !== false).sort((x, y) => (x.nivel - y.nivel) || x.nombre.localeCompare(y.nombre));
+  // NIT #9 (parado, aplicado aqui por ser trivial): x.nombre/y.nombre pueden faltar en un agente mal
+  // dado de alta; localeCompare sobre undefined lanza TypeError y tira toda la vista.
+  const ags = (S.datos.agentes || []).filter(a => a.activo !== false).sort((x, y) => (x.nivel - y.nivel) || (x.nombre || '').localeCompare(y.nombre || ''));
   if (arg) { const a = ags.find(x => x.id === arg); if (a) return ficha(raiz, S, a); }
   const deptos = [...new Set(ags.map(a => a.depto))];
   for (const d of deptos) {

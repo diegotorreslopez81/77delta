@@ -1,6 +1,6 @@
 // Modal de un encargo: ficha, edición, hilo, acciones.
 import { rpc } from './api.js';
-import { el, modal, toast, fecha, pedirTexto } from './ui.js';
+import { el, modal, toast, fecha, pedirTexto, urlSegura } from './ui.js';
 import { yo } from './estado.js';
 
 // T5 fix ronda 1: pedirTexto vivia aqui y estaba reimplementado (copiado) en decisiones.js; ahora es
@@ -29,7 +29,7 @@ export async function moverEncargo(e, accion, S, recargar) {
   } catch (err) { toast('HQ rechaza: ' + err.message); }
 }
 export async function abrirDetalle(id, S, recargar) {
-  let f; try { f = await rpc('omc_encargo_ficha', { p_id: id }); } catch (err) { toast(err.message); return; }
+  let f; try { f = await rpc('omc_encargo_ficha', { p_id: id }); } catch (err) { toast('HQ rechaza: ' + err.message); return; }
   const e = f.encargo, owner = S.datos.rol === 'owner';
   const campos = { texto: el('textarea', { rows: 3 }, [e.texto || '']), interpretacion: el('textarea', { rows: 2, placeholder: 'Interpretación del chief' }, [e.interpretacion || '']),
     frente: el('select', {}, (S.datos.frentes || []).map(x => el('option', { value: x.codigo, selected: x.codigo === e.codigo, text: x.codigo + ' ' + x.linea }))),
@@ -44,7 +44,7 @@ export async function abrirDetalle(id, S, recargar) {
       etiquetas: campos.etiquetas.value.split(',').map(s => s.trim()).filter(Boolean), enlaces: campos.enlaces.value.split('\n').map(s => s.trim()).filter(Boolean) };
     try { await rpc('omc_encargo_editar', { p_id: id, p }); toast('#' + id + ' guardado'); m.cerrar(); await recargar(); } catch (err) { toast('HQ rechaza: ' + err.message); }
   };
-  const comentar = async () => { if (!nuevo.value.trim()) return; try { await rpc('omc_encargo_avance', { p_id: id, p_texto: nuevo.value.trim(), p_agente: yo(S) }); m.cerrar(); await recargar(); abrirDetalle(id, S, recargar); } catch (err) { toast(err.message); } };
+  const comentar = async () => { if (!nuevo.value.trim()) return; try { await rpc('omc_encargo_avance', { p_id: id, p_texto: nuevo.value.trim(), p_agente: yo(S) }); m.cerrar(); await recargar(); abrirDetalle(id, S, recargar); } catch (err) { toast('HQ rechaza: ' + err.message); } };
   const acciones = [el('button', { class: 'btn peligro', text: 'Descartar', onclick: () => { m.cerrar(); moverEncargo(e, { tipo: 'descartar' }, S, recargar); } }),
     e.estado !== 'hecho' ? el('button', { class: 'btn', text: 'Cerrar con fuente', onclick: () => { m.cerrar(); moverEncargo(e, { tipo: 'hecho' }, S, recargar); } }) : null,
     owner ? el('button', { class: 'btn primario', text: 'Guardar', onclick: guardar }) : null];
@@ -52,7 +52,12 @@ export async function abrirDetalle(id, S, recargar) {
     el('p', { class: 'mudo', text: [e.origen, 'alta ' + fecha(e.fecha, { hora: true }), e.fecha_avance ? 'último avance ' + fecha(e.fecha_avance, { hora: true }) : null].filter(Boolean).join(' · ') }),
     f.expediente ? el('a', { href: '#expedientes/' + f.expediente.id, class: 'pill', text: 'expediente: ' + f.expediente.nombre }) : null,
     owner ? el('div', { class: 'form' }, [fila('Texto', campos.texto), fila('Interpretación', campos.interpretacion), el('div', { class: 'dos' }, [fila('Frente', campos.frente), fila('Responsable', campos.agente)]), el('div', { class: 'dos' }, [fila('Prioridad (0 alta, 9 baja)', campos.prioridad), fila('Hito', campos.fecha_hito)]), fila('Etiquetas', campos.etiquetas), fila('Enlaces', campos.enlaces)])
-      : el('div', {}, [el('p', { text: e.texto }), e.interpretacion ? el('p', { class: 'mudo', text: e.interpretacion }) : null, ...(e.enlaces || []).map(u => el('a', { href: u, target: '_blank', rel: 'noopener', text: u }))]),
-    f.kit?.length ? el('details', {}, [el('summary', { text: 'Kit del frente (' + f.kit.length + ')' }), ...f.kit.map(k => el('a', { href: k.url, target: '_blank', rel: 'noopener', class: 'kit', text: k.titulo }))]) : null,
+      : el('div', {}, [el('p', { text: e.texto }), e.interpretacion ? el('p', { class: 'mudo', text: e.interpretacion }) : null,
+        // Fix ronda 2 (revision final, B2): e.enlaces lo escribe quien edita el encargo (agente o chief),
+        // sin validar esquema en la BD. Se descarta cualquier enlace que no sea http(s) absoluto.
+        ...(e.enlaces || []).map(u => urlSegura(u)).filter(Boolean).map(h => el('a', { href: h, target: '_blank', rel: 'noopener', text: h }))]),
+    // Fix ronda 2 (B2): k.url viene del kit del frente (omc_kit_set, sin validar esquema); si no es
+    // http(s) se pinta el titulo sin enlace en vez de omitirlo del todo.
+    f.kit?.length ? el('details', {}, [el('summary', { text: 'Kit del frente (' + f.kit.length + ')' }), ...f.kit.map(k => { const h = urlSegura(k.url); return h ? el('a', { href: h, target: '_blank', rel: 'noopener', class: 'kit', text: k.titulo }) : el('span', { class: 'kit mudo', text: k.titulo }); })]) : null,
     el('h3', { text: 'Hilo' }), hilo, el('div', { class: 'fila' }, [nuevo, el('button', { class: 'btn', text: 'Enviar', onclick: comentar })])] });
 }

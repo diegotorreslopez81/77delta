@@ -66,7 +66,7 @@ export function render(raiz, S, arg) {
   habilitarArrastre(cont, { onSoltar: async (id, columna, indice) => {
     const e = S.datos.encargos.find(x => x.id === id); if (!e) return;
     const a = accionAlSoltar(e.columna, columna); a.destino = columna;
-    if (a.tipo === 'nada') { try { const vecinos = kanban(S.datos.encargos, S.filtros)[columna].filter(x => x.id !== id); const orden = indice === 0 ? (vecinos[0]?.orden_kanban ?? 1000) - 10 : indice >= vecinos.length ? (vecinos.at(-1)?.orden_kanban ?? 0) + 10 : Math.floor(((vecinos[indice - 1].orden_kanban ?? 0) + (vecinos[indice].orden_kanban ?? 1000)) / 2); await rpc('omc_encargo_editar', { p_id: id, p: { orden_kanban: orden } }); await recargar(); } catch (err) { toast(err.message); } return; }
+    if (a.tipo === 'nada') { try { const vecinos = kanban(S.datos.encargos, S.filtros)[columna].filter(x => x.id !== id); const orden = indice === 0 ? (vecinos[0]?.orden_kanban ?? 1000) - 10 : indice >= vecinos.length ? (vecinos.at(-1)?.orden_kanban ?? 0) + 10 : Math.floor(((vecinos[indice - 1].orden_kanban ?? 0) + (vecinos[indice].orden_kanban ?? 1000)) / 2); await rpc('omc_encargo_editar', { p_id: id, p: { orden_kanban: orden } }); await recargar(); } catch (err) { toast('HQ rechaza: ' + err.message); } return; }
     await moverEncargo(e, a, S, recargar);
   } });
   raiz.append(cont); pintar();

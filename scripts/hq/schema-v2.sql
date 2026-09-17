@@ -2,7 +2,7 @@
 -- Convención: cada sección lleva el número de tarea del plan 2026-09-16-hq-v2-plan-1-base.md.
 
 -- T1 · versión del esquema v2 (los tests la usan como centinela)
-create or replace function omc_v2_version() returns text language sql immutable as $$ select '2.0.6' $$;
+create or replace function omc_v2_version() returns text language sql immutable as $$ select '2.0.7' $$;
 grant execute on function omc_v2_version() to anon, authenticated;
 
 -- T2 · objetivo por horizonte
@@ -436,7 +436,11 @@ begin
     prioridad = coalesce(nullif(p->>'prioridad','')::int, prioridad),
     etiquetas = case when p ? 'etiquetas' then array(select jsonb_array_elements_text(p->'etiquetas')) else etiquetas end,
     enlaces = coalesce(p->'enlaces', enlaces), proximo_hito = coalesce(p->>'proximo_hito', proximo_hito),
-    fecha_hito = coalesce(nullif(p->>'fecha_hito','')::date, fecha_hito),
+    -- Fix ronda 2 (revision final, F-c/D1): coalesce sobre fecha_hito hacia que enviar null (para
+    -- vaciar el hito, como hace "Planificar > Backlog" en detalle.js) nunca se aplicara: coalesce
+    -- vuelve al valor viejo en cuanto el nuevo es null. case ? distingue "la clave no vino en p"
+    -- (mantener el valor viejo) de "vino con valor null" (vaciar el campo).
+    fecha_hito = case when p ? 'fecha_hito' then nullif(p->>'fecha_hito','')::date else fecha_hito end,
     linea_id = coalesce(v_linea, linea_id), agente = coalesce(v_resp, agente),
     orden_kanban = coalesce(nullif(p->>'orden_kanban','')::int, orden_kanban),
     expediente_id = coalesce(nullif(p->>'expediente_id','')::bigint, expediente_id), updated_at = now()

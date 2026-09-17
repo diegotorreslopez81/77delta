@@ -24,7 +24,7 @@
 // rompia el atributo href del enlace autogenerado e inyectaba atributos (XSS). Se sustituye por enlazar(),
 // que construye los nodos <a>/<br> via el() (atributos DOM reales, no interpolacion de string en innerHTML).
 import { rpc } from '../api.js';
-import { el, modal, toast, fecha, eur, pedirTexto, enlazar } from '../ui.js';
+import { el, modal, toast, fecha, eur, pedirTexto, enlazar, urlSegura } from '../ui.js';
 import { recargar } from '../main.js';
 
 export function agrupar(pendientes, ahora = new Date()) {
@@ -57,11 +57,15 @@ async function posponer(p) {
 }
 
 function tarjeta(p, abierta, hilo) {
+  // Fix ronda 2 (revision final, B2): p.enlace lo escribe cualquier agente al crear la tarjeta
+  // (omc_solicitudes.enlace no valida esquema en la BD); un `javascript:...` ahi ejecutaria codigo en
+  // el origen de HQ con el token owner a mano. urlSegura() lo descarta antes de pintarlo.
+  const enlaceSeguro = urlSegura(p.enlace);
   const det = el('details', { open: abierta }, [
     el('summary', {}, [el('div', { class: 'fila' }, [el('span', { class: 'pill', text: p.tipo }), el('strong', { text: p.titulo })]),
       el('p', { class: 'mudo', text: [p.agente, p.importe ? eur(p.importe) : null, p.vence ? 'vence ' + fecha(p.vence, { hora: true }) : null, p.riesgo].filter(Boolean).join(' · ') })]),
     el('div', { class: 'detalle' }, enlazar(p.detalle || '')),
-    p.enlace ? el('a', { href: p.enlace, target: '_blank', rel: 'noopener', class: 'btn-enlace', text: 'abrir enlace' }) : null,
+    enlaceSeguro ? el('a', { href: enlaceSeguro, target: '_blank', rel: 'noopener', class: 'btn-enlace', text: 'abrir enlace' }) : null,
     el('div', { class: 'hilo' }, (hilo || []).map(mm => el('div', { class: 'avance' }, [el('span', { class: 'mudo', text: fecha(mm.ts, { hora: true }) + ' · ' + mm.autor }), el('p', { text: mm.texto })]))),
     el('div', { class: 'fila' }, [(() => {
       const c = el('input', { class: 'campo', placeholder: 'Comentar sin resolver' });
