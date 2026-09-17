@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { derivar, kanban, filtrar, semana, sinAcentos, COLUMNAS } from '../app/estado.js';
-import { prorrateo, contador, semaforoCuentas, enCurso } from '../app/estado.js';
+import { prorrateo, contador, semaforoCuentas, enCurso, cierres } from '../app/estado.js';
 
 const datos = {
   objetivos: [{ horizonte: 2026, meta_eur: 300000 }],
@@ -64,4 +64,19 @@ test('semaforoCuentas: null sin datos de cuentas; color por la cuenta más carga
 test('enCurso deja solo estado en_curso', () => {
   assert.deepEqual(enCurso([{ id: 1, estado: 'en_curso' }, { id: 2, estado: 'encolado' }, { id: 3, estado: 'hecho' }]).map(e => e.id), [1]);
   assert.deepEqual(enCurso(undefined), []);
+});
+test('cierres: fecha_hito dentro de la ventana, nunca hecho/descartado, ordenado por fecha_hito', () => {
+  const ahoraC = new Date('2026-09-17T07:00:00Z');
+  const encargosC = [
+    { id: 1, fecha_hito: '2026-09-20', estado: 'en_curso' },
+    { id: 2, fecha_hito: '2026-09-18', estado: 'encolado' },
+    { id: 3, fecha_hito: '2026-09-30', estado: 'en_curso' }, // fuera de la ventana de 7 días
+    { id: 4, fecha_hito: '2026-09-19', estado: 'hecho' }, // excluido por estado
+    { id: 5, fecha_hito: '2026-09-19', estado: 'descartado' }, // excluido por estado
+    { id: 6, fecha_hito: null, estado: 'en_curso' }, // sin hito
+    { id: 7, fecha_hito: '2026-09-16', estado: 'en_curso' }, // ya pasó
+  ];
+  assert.deepEqual(cierres(encargosC, ahoraC).map(e => e.id), [2, 1]);
+  assert.deepEqual(cierres(encargosC, ahoraC, 15).map(e => e.id), [2, 1, 3]);
+  assert.deepEqual(cierres(undefined, ahoraC), []);
 });

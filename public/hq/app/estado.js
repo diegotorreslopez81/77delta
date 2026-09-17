@@ -54,6 +54,15 @@ export function prorrateo(meta, horizonte, ahora = new Date()) {
   return dia >= dias ? m : m * dia / dias;
 }
 export function enCurso(encargos) { return (encargos || []).filter(e => e.estado === 'en_curso'); }
+// Hoy como cuadro de mando (plan 3a, orden de Diego 17-sep): encargos con hito en los próximos `dias`
+// días, nunca hecho/descartado, ordenados por fecha_hito ascendente. Pura, sin DOM.
+export function cierres(encargos, ahora = new Date(), dias = 7) {
+  const desde = ahora.getTime(), hasta = desde + dias * 864e5;
+  return (encargos || [])
+    .filter(e => e.fecha_hito && e.estado !== 'hecho' && e.estado !== 'descartado')
+    .filter(e => { const t = new Date(e.fecha_hito).getTime(); return t >= desde && t <= hasta; })
+    .sort((a, b) => new Date(a.fecha_hito) - new Date(b.fecha_hito));
+}
 // contador de la barra superior. El token de agente no sabe quién es (omc_hq_v2 no expone la identidad,
 // ver T4-c), así que cuenta lo que hay en curso en vez de "sus" tarjetas.
 export function contador(datos) {
