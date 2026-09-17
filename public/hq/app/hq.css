@@ -89,3 +89,14 @@ a{color:inherit}
 .avatar{width:44px;height:44px;border-radius:50%;flex:none;object-fit:cover;background:var(--marino)}.avatar.letra{display:grid;place-items:center;color:var(--oro);font-family:var(--display);font-weight:700;font-size:20px}
 .agente{align-items:center}.pill.sesion{background:var(--oro-suave);color:var(--tinta)}.acciones-exp{margin-top:10px}.objetivo .btn{color:var(--tinta)}.resumen{margin:4px 0 0;font-size:14px}
 .objetivo .datos{display:flex;gap:18px;flex-wrap:wrap;margin-top:6px}.objetivo .dato{display:grid}.objetivo .dato strong{font-size:16px}.objetivo .dato.mal strong{color:var(--oro-luz)}.objetivo .dato.bien strong{color:#8CB897}
+
+/* operacion/licitaciones */
+.embudo{display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:8px;margin:8px 0}
+.mini{background:var(--panel);border:1px solid var(--linea);border-radius:var(--radio);padding:10px;text-align:center}
+.mini .v{font-family:var(--display);font-weight:700;font-size:22px;line-height:1.2}
+.mini .v small{display:block;font-family:var(--body);font-weight:400;font-size:12px;color:var(--tinta-2)}
+.mini .l{font-size:12px;color:var(--tinta-2);margin-top:2px}
+.grupo-criba{margin-bottom:10px}
+.grupo-criba summary{cursor:pointer;font-weight:600;padding:6px 0;list-style:none}
+.grupo-criba summary::-webkit-details-marker{display:none}
+.grupo-criba p{margin:6px 0;padding:8px 0;border-top:1px solid var(--linea);font-size:14px}

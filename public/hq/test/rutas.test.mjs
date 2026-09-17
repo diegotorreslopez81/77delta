@@ -27,6 +27,7 @@ const casos = [
   ['#equipo/sales-motor', '', 'equipo/agente', 'sales-motor', {}, '#equipo/agente/sales-motor', true],
   ['#equipo/agente/sales-motor', '', 'equipo/agente', 'sales-motor', {}, '#equipo/agente/sales-motor', false],
   ['#expedientes/9', '', 'operacion/expedientes', '9', {}, '#operacion/expedientes/9', true],
+  ['#operacion/licitaciones', '', 'operacion/licitaciones', undefined, {}, '#operacion/licitaciones', false],
   ['#recursos', '', 'hoy', undefined, {}, '#hoy', true],
   ['#loquesea/x', '', 'hoy', undefined, {}, '#hoy', true],
   ['#tablero', '?id=55', 'reglas/decisiones', '55', {}, '#reglas/decisiones/55', true],

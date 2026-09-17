@@ -19,7 +19,7 @@ const { montarMenu, marcarActiva, pintarBarra } = await import('../app/shell.js'
 
 test('montarMenu pinta las seis áreas, un enlace por vista y "pronto" en Recursos', () => {
   const nav = document.createElement('nav'); const m = montarMenu(nav);
-  assert.equal(nav.children.length, 6); assert.equal(m.enlaces.size, 6);
+  assert.equal(nav.children.length, 6); assert.equal(m.enlaces.size, 7);
   assert.equal(m.enlaces.get('operacion/tablero').attrs.href, '#operacion/tablero');
   assert.equal(m.enlaces.get('hoy').attrs['data-inicial'], 'H');
   assert.ok(m.areas.get('recursos').textContent.includes('pronto'));

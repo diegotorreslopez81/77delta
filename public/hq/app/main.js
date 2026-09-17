@@ -10,9 +10,10 @@ import * as tablero from './vistas/tablero.js';
 import * as decisiones from './vistas/decisiones.js';
 import * as equipo from './vistas/equipo.js';
 import * as expedientes from './vistas/expedientes.js';
+import * as licitaciones from './vistas/licitaciones.js';
 
 // Plan 3a: una vista por clave de ruta (rutas.js). 'equipo/agente' es la ficha de equipo.js (arg = id).
-const VISTAS = { 'hoy': hoy, 'direccion/objetivo': objetivo, 'operacion/tablero': tablero, 'operacion/expedientes': expedientes, 'equipo/organigrama': equipo, 'equipo/agente': equipo, 'reglas/decisiones': decisiones };
+const VISTAS = { 'hoy': hoy, 'direccion/objetivo': objetivo, 'operacion/tablero': tablero, 'operacion/expedientes': expedientes, 'operacion/licitaciones': licitaciones, 'equipo/organigrama': equipo, 'equipo/agente': equipo, 'reglas/decisiones': decisiones };
 const raiz = document.getElementById('vista');
 document.getElementById('ver').textContent = 'v' + HQ_VERSION.v;
 montarMenu(document.getElementById('nav'));

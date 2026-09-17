@@ -152,3 +152,56 @@ test('embudo: cerradas solo con estado Cerrada sin presentar', () => {
   const conCerrada = [...lics, { expediente: 'E13', estado: 'Cerrada sin presentar', importe: '0' }];
   assert.equal(embudo(conCerrada).find(f => f.clave === 'cerradas').n, 1);
 });
+
+// Ruling del controlador (17-sep): el payload real ya no trae en 'licitaciones' las filas cerradas
+// (Descartada, Cerrada sin presentar, Adjudicada, Contratada): esas se sirven agregadas en
+// 'lic_resumen' ({ total, descartadas, cerradas, adjudicadas, no_adjudicadas, contratadas }, cada una
+// { n, eur }). embudo(lics, kpis, resumen) usa resumen[clave] cuando existe para esas cuatro filas en
+// vez de contar el array, y resumen.total para la fila detectadas cuando no hay kpis.
+
+test('embudo con resumen: adjudicadas/contratadas/descartadas/cerradas usan resumen en vez de contar el array', () => {
+  const resumen = {
+    total: { n: 1500, eur: 9000000 },
+    descartadas: { n: 900, eur: 4000000 },
+    cerradas: { n: 200, eur: 1000000 },
+    adjudicadas: { n: 50, eur: 500000 },
+    no_adjudicadas: { n: 30, eur: 300000 },
+    contratadas: { n: 20, eur: 200000 },
+  };
+  const e = embudo(lics, {}, resumen);
+  assert.deepEqual(e.find(f => f.clave === 'descartadas'), { clave: 'descartadas', nombre: 'Descartadas', n: 900, eur: 4000000 });
+  assert.deepEqual(e.find(f => f.clave === 'cerradas'), { clave: 'cerradas', nombre: 'Cerradas sin presentar', n: 200, eur: 1000000 });
+  assert.deepEqual(e.find(f => f.clave === 'adjudicadas'), { clave: 'adjudicadas', nombre: 'Adjudicadas', n: 50, eur: 500000 });
+  assert.deepEqual(e.find(f => f.clave === 'contratadas'), { clave: 'contratadas', nombre: 'Contratadas', n: 20, eur: 200000 });
+  // aprobadas y presentadas no tienen clave en lic_resumen: se siguen contando del array, sin cambios.
+  assert.equal(e.find(f => f.clave === 'aprobadas').n, 1);
+  assert.equal(e.find(f => f.clave === 'presentadas').n, 1);
+});
+
+test('embudo con resumen: detectadas usa resumen.total cuando no hay kpis.lic.detectadas.n', () => {
+  const e = embudo(lics, {}, { total: { n: 1500, eur: 9000000 } });
+  assert.equal(e[0].clave, 'detectadas');
+  assert.equal(e[0].n, 1500);
+  assert.equal(e[0].eur, null);
+});
+
+test('embudo: kpis.lic.detectadas.n tiene prioridad sobre resumen.total', () => {
+  const e = embudo(lics, { 'lic.detectadas.n': { valor: 1600 } }, { total: { n: 1500, eur: 9000000 } });
+  assert.equal(e[0].clave, 'detectadas');
+  assert.equal(e[0].n, 1600);
+});
+
+test('embudo: sin resumen (por defecto {}) sigue contando el array como antes, sin romper', () => {
+  const e = embudo(lics);
+  assert.equal(e.find(f => f.clave === 'adjudicadas').n, 0);
+  assert.equal(e.find(f => f.clave === 'contratadas').n, 1);
+  assert.equal(e.find(f => f.clave === 'contratadas').eur, 45000.5);
+  assert.equal(e.some(f => f.clave === 'detectadas'), false);
+});
+
+test('embudo con resumen: eur y n se leen con Number y por defecto 0 si faltan', () => {
+  const e = embudo(lics, {}, { adjudicadas: { n: 3 } });
+  const adj = e.find(f => f.clave === 'adjudicadas');
+  assert.equal(adj.n, 3);
+  assert.equal(adj.eur, 0);
+});

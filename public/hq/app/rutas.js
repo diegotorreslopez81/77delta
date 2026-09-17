@@ -3,13 +3,13 @@
 export const AREAS = [
   { id: 'hoy', nombre: 'Hoy', vistas: [{ clave: 'hoy', nombre: 'Hoy' }] },
   { id: 'direccion', nombre: 'Dirección', vistas: [{ clave: 'direccion/objetivo', nombre: 'Objetivo' }] },
-  { id: 'operacion', nombre: 'Operación', vistas: [{ clave: 'operacion/tablero', nombre: 'Tablero' }, { clave: 'operacion/expedientes', nombre: 'Expedientes' }] },
+  { id: 'operacion', nombre: 'Operación', vistas: [{ clave: 'operacion/tablero', nombre: 'Tablero' }, { clave: 'operacion/expedientes', nombre: 'Expedientes' }, { clave: 'operacion/licitaciones', nombre: 'Licitaciones' }] },
   { id: 'equipo', nombre: 'Equipo', vistas: [{ clave: 'equipo/organigrama', nombre: 'Organigrama' }] },
   { id: 'recursos', nombre: 'Recursos', vistas: [] },
   { id: 'reglas', nombre: 'Reglas', vistas: [{ clave: 'reglas/decisiones', nombre: 'Decisiones' }] },
 ];
 // Claves que tienen vista. 'equipo/agente' no sale en el menú (es la ficha) pero es una ruta válida.
-export const CLAVES = new Set(['hoy', 'direccion/objetivo', 'operacion/tablero', 'operacion/expedientes', 'equipo/organigrama', 'equipo/agente', 'reglas/decisiones']);
+export const CLAVES = new Set(['hoy', 'direccion/objetivo', 'operacion/tablero', 'operacion/expedientes', 'operacion/licitaciones', 'equipo/organigrama', 'equipo/agente', 'reglas/decisiones']);
 // Rutas de la v2.0 (tabs): se redirigen para que no se rompa ningún enlace ya enviado en tarjetas o push.
 const VIEJAS = { inicio: 'hoy', plan: 'direccion/objetivo', tablero: 'operacion/tablero', decisiones: 'reglas/decisiones', equipo: 'equipo/organigrama', expedientes: 'operacion/expedientes' };
 // Área sin vista (o con vista desconocida): a su vista por defecto. Recursos no tiene vista hasta la tanda 3.

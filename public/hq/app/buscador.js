@@ -9,6 +9,7 @@ const FUENTES = [
   ['expediente', d => d.expedientes, x => x.id, x => x.nombre, x => '#operacion/expedientes/' + x.id],
   ['agente', d => d.agentes, a => a.id, a => a.nombre, a => '#equipo/agente/' + a.id],
   ['frente', d => d.frentes, f => f.codigo, f => f.linea, f => '#operacion/tablero?frente=' + f.codigo],
+  ['licitación', d => d.licitaciones, l => l.expediente, l => l.resumen_corto || l.objeto, l => '#reglas/decisiones'],
 ];
 
 export function buscar(datos, consulta, max = 12) {
