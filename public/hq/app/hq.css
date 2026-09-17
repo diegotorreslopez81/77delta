@@ -38,3 +38,14 @@ a{color:inherit}
 .tarjeta.enlace{display:block;text-decoration:none}.tarjeta .titulo{margin:4px 0 2px;font-weight:500}
 .bloque{margin:18px 0}.bloque-cab h2{font-size:18px}.frentes{display:grid;gap:8px;margin-top:8px}.frente.vacio{opacity:.6}
 @media (min-width:900px){.frentes{grid-template-columns:repeat(auto-fill,minmax(280px,1fr))}}
+
+/* tablero */
+.filtros{margin-bottom:10px}.campo.mini{width:auto;min-width:120px;padding:6px 8px;font-size:14px}
+.kanban{display:grid;gap:10px;align-items:start}
+@media (min-width:900px){.kanban{grid-template-columns:repeat(5,minmax(200px,1fr));overflow-x:auto}}
+.columna{background:var(--pizarra-tenue);border-radius:var(--radio);padding:8px;min-height:120px}.columna.sobre{outline:2px solid var(--oro)}
+.columna h2{font-size:14px;text-transform:uppercase;letter-spacing:.04em;margin:2px 4px 8px;color:var(--tinta-2)}
+.encargo{cursor:pointer;position:relative}.encargo.arrastrando{opacity:.4}.encargo .mover{position:absolute;right:10px;bottom:8px;font-size:12px}
+.pestanas{display:flex;gap:6px;overflow-x:auto;padding-bottom:6px}.pestanas .btn{white-space:nowrap;font-size:13px;padding:6px 10px}
+.form{display:grid;gap:8px}.dos{display:grid;gap:8px;grid-template-columns:1fr 1fr}.campo-l{display:grid;gap:3px;font-size:14px}
+.hilo{display:grid;gap:8px;max-height:40vh;overflow:auto;margin:8px 0}.avance p{margin:2px 0 0}.kit{display:block;font-size:14px}.btn.ancho{width:100%;margin-bottom:6px}
