@@ -79,6 +79,11 @@ a{color:inherit}
 /* decisiones */
 .decision summary{cursor:pointer;list-style:none}.decision summary::-webkit-details-marker{display:none}.decision .detalle{margin:8px 0;white-space:normal;word-break:break-word}
 .licitacion .modal-acciones{justify-content:flex-start}
+.licitacion .datos{display:grid;gap:4px;margin:8px 0}.licitacion .datos p{margin:0;font-size:14px}
+.pill.elegible-probable{background:var(--exito-suave);color:var(--exito)}
+.pill.elegible-dudosa{background:var(--oro-suave);color:var(--oro-oscuro)}
+.enlaces-doc{display:flex;flex-wrap:wrap;gap:8px;margin-top:8px}
+.enlaces-doc .btn-enlace{display:inline-flex;align-items:center;min-height:36px;padding:6px 12px;border:1px solid var(--linea-fuerte);border-radius:var(--radio-boton);background:var(--panel);color:var(--oro-oscuro);text-decoration:none}
 
 /* equipo y expedientes */
 .avatar{width:44px;height:44px;border-radius:50%;flex:none;object-fit:cover;background:var(--marino)}.avatar.letra{display:grid;place-items:center;color:var(--oro);font-family:var(--display);font-weight:700;font-size:20px}
