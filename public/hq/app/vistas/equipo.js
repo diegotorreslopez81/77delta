@@ -40,20 +40,20 @@ function editarFrentes(a, S) {
 }
 
 function ficha(raiz, S, a) {
-  raiz.append(el('a', { href: '#equipo', class: 'btn-enlace', text: '← equipo' }));
+  raiz.append(el('a', { href: '#equipo/organigrama', class: 'btn-enlace', text: '← equipo' }));
   raiz.append(el('section', { class: 'objetivo fila' }, [avatar(a), el('div', {}, [
     el('h1', { text: a.nombre }),
     el('p', { class: 'mudo', text: [a.id, a.depto, 'nivel ' + a.nivel, a.modelo, a.cuenta ? 'cuenta ' + a.cuenta + '@' : null, latido(a)].filter(Boolean).join(' · ') })])]));
   raiz.append(el('section', { class: 'seccion' }, [
     el('div', { class: 'fila' }, [el('h2', { text: 'Frentes' }), S.datos.rol === 'owner' ? el('button', { class: 'btn-enlace', text: 'editar', onclick: () => editarFrentes(a, S) }) : null]),
-    ...(a.frentes_codigos || []).map(c => { const f = (S.datos.frentes || []).find(x => x.codigo === c); return el('a', { class: 'pill codigo', href: '#tablero/f/' + c, text: c + (f ? ' ' + f.linea : '') }); }),
+    ...(a.frentes_codigos || []).map(c => { const f = (S.datos.frentes || []).find(x => x.codigo === c); return el('a', { class: 'pill codigo', href: '#operacion/tablero?frente=' + c, text: c + (f ? ' ' + f.linea : '') }); }),
     (a.frentes_codigos || []).length ? null : el('p', { class: 'mudo', text: 'sin frentes asignados' })]));
   const enc = filtrar(S.datos.encargos, { agente: a.id }).filter(e => e.estado !== 'hecho' && e.estado !== 'descartado');
   raiz.append(el('section', { class: 'seccion' }, [el('h2', { text: 'Encargos abiertos (' + enc.length + ')' }), ...enc.map(e => tarjetaEncargo(e))]));
   const sesionUrl = urlSegura(a.sesion_url);
   const acciones = [
     sesionUrl ? el('a', { class: 'btn primario', href: sesionUrl, text: 'Abrir sesión' }) : el('span', { class: 'mudo', text: 'sin sesión publicada' }),
-    a.sesion_abierta ? el('a', { class: 'pill sesion', href: '#expedientes/' + a.sesion_abierta, text: 'en sesión: ' + nombreExpedienteSesion(a.sesion_abierta, a.id, S) }) : null];
+    a.sesion_abierta ? el('a', { class: 'pill sesion', href: '#operacion/expedientes/' + a.sesion_abierta, text: 'en sesión: ' + nombreExpedienteSesion(a.sesion_abierta, a.id, S) }) : null];
   raiz.append(el('section', { class: 'seccion fila' }, acciones));
 }
 
@@ -64,7 +64,7 @@ export function render(raiz, S, arg) {
   if (arg) { const a = ags.find(x => x.id === arg); if (a) return ficha(raiz, S, a); }
   const deptos = [...new Set(ags.map(a => a.depto))];
   for (const d of deptos) {
-    raiz.append(el('section', { class: 'seccion' }, [el('h2', { text: d }), el('div', { class: 'frentes' }, ags.filter(a => a.depto === d).map(a => el('a', { class: 'tarjeta enlace fila agente', href: '#equipo/' + a.id }, [
+    raiz.append(el('section', { class: 'seccion' }, [el('h2', { text: d }), el('div', { class: 'frentes' }, ags.filter(a => a.depto === d).map(a => el('a', { class: 'tarjeta enlace fila agente', href: '#equipo/agente/' + a.id }, [
       avatar(a),
       el('div', {}, [el('strong', { text: a.nombre }), el('p', { class: 'mudo', text: [(a.frentes_codigos || []).join(' ') || 'sin frentes', a.encargos_abiertos + ' abiertos', latido(a)].join(' · ') })]),
       a.sesion_abierta ? el('span', { class: 'pill sesion', text: 'en sesión' }) : null])))]));

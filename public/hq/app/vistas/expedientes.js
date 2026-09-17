@@ -54,7 +54,7 @@ function lista(raiz, S) {
   for (const t of tipos) {
     raiz.append(el('section', { class: 'seccion' }, [el('h2', { text: t + 's' }), ...xs.filter(x => x.tipo === t).map(x => {
       const es = estadoSesion(x, S.datos.sesiones);
-      return el('a', { class: 'tarjeta enlace expediente', href: '#expedientes/' + x.id }, [
+      return el('a', { class: 'tarjeta enlace expediente', href: '#operacion/expedientes/' + x.id }, [
         el('div', { class: 'fila' }, [el('span', { class: 'pill codigo', text: x.codigo }), el('strong', { text: x.nombre }), es.hay ? el('span', { class: 'pill sesion', text: 'sesión ' + es.estado }) : null]),
         el('p', { class: 'mudo', text: [x.responsable, x.estado_funnel, x.importe ? eur(x.importe) : null, x.encargos_abiertos + ' abiertos'].filter(Boolean).join(' · ') }),
         x.resumen_estado ? el('p', { class: 'resumen' }, enlazar(x.resumen_estado)) : null]);
@@ -84,7 +84,7 @@ async function ficha(raiz, S, id) {
   const es = estadoSesion(x, f.sesiones?.length ? f.sesiones : S.datos.sesiones), ag = (S.datos.agentes || []).find(a => a.id === x.responsable);
   // Fix ronda 2 (B2): sesion_url, ficha_url y carpeta_url vienen de la BD sin validar esquema.
   const sesionUrl = urlSegura(ag?.sesion_url), fichaUrl = urlSegura(x.ficha_url), carpetaUrl = urlSegura(x.carpeta_url);
-  raiz.append(el('a', { href: '#expedientes', class: 'btn-enlace', text: '← expedientes' }));
+  raiz.append(el('a', { href: '#operacion/expedientes', class: 'btn-enlace', text: '← expedientes' }));
   raiz.append(el('section', { class: 'objetivo' }, [
     el('p', { class: 'mudo', text: x.tipo + ' · ' + (f.frente ? f.frente.codigo + ' ' + f.frente.linea : '') }),
     el('h1', { text: x.nombre }),
@@ -100,7 +100,7 @@ async function ficha(raiz, S, id) {
   raiz.append(el('section', { class: 'seccion' }, [el('h2', { text: 'Encargos (' + f.encargos.length + ')' }), ...f.encargos.map(e => tarjetaEncargo(e))]));
   if (x.entregables?.length) raiz.append(el('section', { class: 'seccion' }, [el('h2', { text: 'Entregables' }), ...x.entregables.map(en => { const h = urlSegura(en.url); return el('p', {}, [el('span', { class: 'pill', text: en.estado || 'pendiente' }), ' ', h ? el('a', { href: h, target: '_blank', rel: 'noopener', text: en.nombre }) : en.nombre]); })]));
   if (f.contactos?.length) raiz.append(el('section', { class: 'seccion' }, [el('h2', { text: 'Contactos y envíos' }), ...f.contactos.map(c => el('p', { class: 'mudo', text: fecha(c.fecha || c.created_at, { hora: true }) + ' · ' + c.canal + ' · ' + (c.persona || c.destinatario || '') + ' · ' + (c.estado || '') + (c.asunto ? ' · ' + c.asunto : '') }))]));
-  if (f.decisiones?.length) raiz.append(el('section', { class: 'seccion' }, [el('h2', { text: 'Decisiones' }), ...f.decisiones.map(d => el('a', { class: 'tarjeta enlace', href: '#decisiones/' + d.id }, [el('p', { class: 'titulo', text: '#' + d.id + ' ' + d.titulo }), el('p', { class: 'mudo', text: d.estado })]))]));
+  if (f.decisiones?.length) raiz.append(el('section', { class: 'seccion' }, [el('h2', { text: 'Decisiones' }), ...f.decisiones.map(d => el('a', { class: 'tarjeta enlace', href: '#reglas/decisiones/' + d.id }, [el('p', { class: 'titulo', text: '#' + d.id + ' ' + d.titulo }), el('p', { class: 'mudo', text: d.estado })]))]));
   if (f.sesiones?.length) raiz.append(el('section', { class: 'seccion' }, [el('h2', { text: 'Sesiones' }), ...f.sesiones.map(s => el('p', { class: 'mudo', text: fecha(s.abierta || s.created_at, { hora: true }) + ' · ' + s.agente + ' · ' + s.estado + (s.resumen ? ' · ' + s.resumen : '') }))]));
   if (f.kit?.length) raiz.append(el('details', {}, [el('summary', { text: 'Kit del frente (' + f.kit.length + ')' }), ...f.kit.map(k => { const h = urlSegura(k.url); return h ? el('a', { href: h, target: '_blank', rel: 'noopener', class: 'kit', text: k.titulo }) : el('span', { class: 'kit mudo', text: k.titulo }); })]));
 }
