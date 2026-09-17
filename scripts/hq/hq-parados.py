@@ -60,7 +60,7 @@ def destino_aviso(agente, agentes):
 
 def decir(ventana, texto, dry):
     if dry: print(f'[dry] tmux-decir {ventana}: {texto}'); return
-    subprocess.run(['tmux-decir', ventana, texto], check=False)
+    subprocess.run([os.path.expanduser('~/bin/tmux-decir'), ventana, texto], check=False)
 
 
 TOPE_LINEAS = 25

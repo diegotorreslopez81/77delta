@@ -66,7 +66,7 @@ def main():
     out = subprocess.run([sys.executable, str(RAIZ / 'scripts/drive-subir.py'), str(tmp), '--nombre', f"Informe HQ {hoy:%Y-%m-%d}"], capture_output=True, text=True)
     url = next((w for w in out.stdout.split() if w.startswith('https://')), None)
     if url:
-        subprocess.run(['tmux-decir', 'Marc-Chief', f"[informe-7am] listo: {url} . Léelo y pásale a Diego las dos primeras secciones en el chat, en 6 líneas."], check=False)
+        subprocess.run([os.path.expanduser('~/bin/tmux-decir'), 'Marc-Chief', f"[informe-7am] listo: {url} . Léelo y pásale a Diego las dos primeras secciones en el chat, en 6 líneas."], check=False)
         print(url)
     else:
         # Drive no disponible (MCP caido, oauth fallido...): nunca se pierde el informe, se guarda en
@@ -74,7 +74,7 @@ def main():
         print('drive-subir fallo, guardando informe en local:', out.stderr[-300:], file=sys.stderr)
         destino = pathlib.Path.home() / '.config/77delta/informes'; destino.mkdir(parents=True, exist_ok=True)
         ruta = destino / f"informe-hq-{hoy:%Y-%m-%d}.md"; ruta.write_text(texto)
-        subprocess.run(['tmux-decir', 'Marc-Chief', f"[informe-7am] Drive no disponible, informe guardado en {ruta} . Léelo y pásale a Diego las dos primeras secciones en el chat, en 6 líneas."], check=False)
+        subprocess.run([os.path.expanduser('~/bin/tmux-decir'), 'Marc-Chief', f"[informe-7am] Drive no disponible, informe guardado en {ruta} . Léelo y pásale a Diego las dos primeras secciones en el chat, en 6 líneas."], check=False)
         print(str(ruta))
 
 
