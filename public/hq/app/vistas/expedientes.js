@@ -21,6 +21,9 @@
 import { rpc } from '../api.js';
 import { el, modal, toast, fecha, eur, pedirTexto, enlazar, urlSegura } from '../ui.js';
 import { tarjetaEncargo } from '../tarjeta.js';
+import { sinAcentos } from '../estado.js';
+import { donut, apilada, progreso } from '../graficos.js';
+import { eurCorto, anchoLog, panel, cifra, grafico, leyenda, filaBarra } from '../cuadro.js';
 import { recargar } from '../main.js';
 
 export function estadoSesion(exp, sesiones) {
@@ -48,18 +51,105 @@ async function cerrarSesion(s, S) {
   catch (err) { toast('HQ rechaza: ' + err.message); }
 }
 
-function lista(raiz, S) {
+// Lista como cuadro de mando (#1057 tarea 21, HQ 2.0.8; regla de kit #221): paneles de cartera, fase,
+// trabajo abierto y estado sin actualizar; chips por tipo con los clientes delante y una tarjeta por
+// expediente. Sin esquema nuevo: todo sale de expedientes[] y sesiones[] del payload.
+export const TIPOS = [['cliente', 'Clientes'], ['convocatoria', 'Convocatorias'], ['producto', 'Productos'], ['licitacion', 'Licitaciones'], ['todos', 'Todos']];
+export const ECONOMICO = [['concedido', 'neutro-2'], ['contratado', 'tinta-2'], ['facturado', 'tinta'], ['cobrado', 'oro']];
+const COLORES_FASE = ['tinta', 'tinta-2', 'neutro-1', 'neutro-2', 'neutro-3'];
+const DIA = 86400000;
+const suma = xs => xs.reduce((s, x) => s + (Number(x.importe) || 0), 0);
+const abiertos = x => Number(x.encargos_abiertos) || 0;
+
+export function pasoEconomico(x) {
+  const i = ECONOMICO.findIndex(([k]) => k === x.estado_economico);
+  return i < 0 ? null : { paso: i + 1, de: ECONOMICO.length, pct: Math.round(100 * (i + 1) / ECONOMICO.length) };
+}
+// Fases del embudo presentes, de más a menos expedientes, con color de la paleta neutra en ese orden.
+export function porFase(xs) {
+  const c = {};
+  for (const x of xs) { const f = x.estado_funnel || 'sin fase'; c[f] = (c[f] || 0) + 1; }
+  return Object.entries(c).sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0])).map(([l, v], i) => ({ l, v, color: COLORES_FASE[Math.min(i, COLORES_FASE.length - 1)] }));
+}
+// Sin estado reciente: sin resumen o con el resumen de hace más de 7 días.
+export const sinActualizar = (xs, ahora = new Date()) => xs.filter(x => { const t = Date.parse(x.resumen_fecha || ''); return !x.resumen_estado || isNaN(t) || ahora - t > 7 * DIA; });
+export function porTipo(xs, tipo) { return tipo === 'todos' ? xs : xs.filter(x => x.tipo === tipo); }
+export function buscarExp(xs, texto, agentes = []) {
+  const q = sinAcentos(String(texto || '').trim().toLowerCase());
+  if (!q) return xs;
+  const nombre = id => (agentes.find(a => a.id === id) || {}).nombre;
+  return xs.filter(x => sinAcentos([x.nombre, x.codigo, x.responsable, nombre(x.responsable), x.estado_funnel, x.tipologia].filter(Boolean).join(' ').toLowerCase()).includes(q));
+}
+
+function panelCartera(clientes) {
+  const tramos = ECONOMICO.map(([k, color]) => ({ l: k, color, xs: clientes.filter(x => x.estado_economico === k) }));
+  tramos.push({ l: 'sin estado', color: 'neutro-3', xs: clientes.filter(x => !ECONOMICO.some(([k]) => k === x.estado_economico)) });
+  const segs = tramos.filter(t => t.xs.length).map(t => ({ l: t.l, color: t.color, v: suma(t.xs), n: t.xs.length }));
+  return panel('Cartera de clientes', '#operacion/expedientes?tipo=cliente', [
+    cifra(eurCorto(suma(clientes)), clientes.length + ' clientes · sin IVA'),
+    clientes.length ? grafico(apilada(segs, 'importe de clientes por estado económico'), 'fina') : null,
+    leyenda(segs.map(s => ({ l: s.l + ' (' + s.n + ')', v: eurCorto(s.v), color: s.color }))),
+  ], 'ancho-2');
+}
+function panelFase(xs) {
+  const segs = porFase(xs);
+  return panel('Por fase', '#operacion/expedientes?tipo=todos', [
+    el('div', { class: 'donut-fila' }, [el('div', { class: 'donut' }, [grafico(donut(segs, 'expedientes por fase')), el('span', { class: 'centro', text: String(xs.length) })]), leyenda(segs)]),
+  ]);
+}
+function panelTrabajo(xs) {
+  const con = xs.filter(x => abiertos(x) > 0).sort((a, b) => abiertos(b) - abiertos(a));
+  const total = con.reduce((s, x) => s + abiertos(x), 0), max = con.length ? abiertos(con[0]) : 0;
+  return panel('Trabajo abierto', '#operacion/tablero', [
+    cifra(String(total), con.length ? 'encargos abiertos en ' + con.length + ' expedientes' : 'sin encargos abiertos'),
+    ...con.slice(0, 4).map(x => filaBarra(x.nombre, String(abiertos(x)), anchoLog(abiertos(x), max), 'tinta-2', '#operacion/expedientes/' + x.id)),
+  ], 'ancho-2');
+}
+function panelSinActualizar(xs, ahora) {
+  const sa = sinActualizar(xs, ahora);
+  return panel('Sin estado reciente', '#operacion/expedientes?tipo=todos', [
+    cifra(String(sa.length), sa.length ? 'sin resumen en 7 días' : 'todos al día'),
+    sa.length ? el('ul', { class: 'lista-corta' }, sa.slice(0, 3).map(x => el('li', { text: x.nombre }))) : null,
+  ], sa.length ? 'alerta' : null);
+}
+
+export function tarjetaExp(x, S, colorFase = {}) {
+  const es = estadoSesion(x, S.datos.sesiones), ag = (S.datos.agentes || []).find(a => a.id === x.responsable);
+  const pe = pasoEconomico(x), fase = x.estado_funnel || 'sin fase', sub = [ag?.nombre || x.responsable, x.tipologia].filter(Boolean).join(' · ');
+  const enlaces = [['Ficha (Doc)', x.ficha_url], ['Carpeta', x.carpeta_url]].map(([t, u]) => [t, urlSegura(u)]).filter(e => e[1]);
+  return el('article', { class: 'tarjeta-rica tarjeta-exp' }, [
+    el('div', { class: 'cab' }, [el('span', { class: 'pill estado' }, [el('i', { class: 'punto g-' + (colorFase[fase] || 'neutro-3') }), fase]), el('span', { class: 'pill codigo', text: x.codigo }),
+      es.hay ? el('span', { class: 'pill sesion', text: 'sesión ' + es.estado }) : null]),
+    el('h3', {}, [el('a', { href: '#operacion/expedientes/' + x.id, text: x.nombre })]),
+    sub ? el('p', { class: 'sub', text: sub }) : null,
+    el('div', { class: 'cifra-fila' }, [el('p', { class: 'cifra-l', text: x.importe ? eurCorto(x.importe) : 'importe sin dato' }), x.importe ? el('span', { class: 'mudo', text: 'sin IVA' }) : null]),
+    pe ? el('div', { class: 'plazo-barra' }, [grafico(progreso(pe.pct, 'avance económico', { color: pe.paso === pe.de ? 'oro' : 'tinta-2' }), 'fina'),
+      el('span', { class: 'mudo', text: x.estado_economico + ' · paso ' + pe.paso + ' de ' + pe.de + ' hasta cobrado' })]) : null,
+    x.resumen_estado ? el('p', { class: 'solv' }, enlazar(x.resumen_estado)) : null,
+    el('p', { class: 'solv', text: abiertos(x) + (abiertos(x) === 1 ? ' encargo abierto' : ' encargos abiertos') }),
+    el('div', { class: 'enlaces' }, [el('a', { href: '#operacion/expedientes/' + x.id, text: 'Abrir' }), ...enlaces.map(([t, h]) => el('a', { href: h, target: '_blank', rel: 'noopener', text: t }))]),
+  ]);
+}
+
+function lista(raiz, S, filtrosRuta = {}, ahora = new Date()) {
   const xs = (S.datos.expedientes || []).filter(x => x.activo !== false);
-  const tipos = [...new Set(xs.map(x => x.tipo))];
-  for (const t of tipos) {
-    raiz.append(el('section', { class: 'seccion' }, [el('h2', { text: t + 's' }), ...xs.filter(x => x.tipo === t).map(x => {
-      const es = estadoSesion(x, S.datos.sesiones);
-      return el('a', { class: 'tarjeta enlace expediente', href: '#operacion/expedientes/' + x.id }, [
-        el('div', { class: 'fila' }, [el('span', { class: 'pill codigo', text: x.codigo }), el('strong', { text: x.nombre }), es.hay ? el('span', { class: 'pill sesion', text: 'sesión ' + es.estado }) : null]),
-        el('p', { class: 'mudo', text: [x.responsable, x.estado_funnel, x.importe ? eur(x.importe) : null, x.encargos_abiertos + ' abiertos'].filter(Boolean).join(' · ') }),
-        x.resumen_estado ? el('p', { class: 'resumen' }, enlazar(x.resumen_estado)) : null]);
-    })]));
-  }
+  const tipo = TIPOS.some(([k]) => k === filtrosRuta.tipo) ? filtrosRuta.tipo : 'cliente';
+  const colorFase = Object.fromEntries(porFase(xs).map(s => [s.l, s.color]));
+  raiz.append(el('div', { class: 'cuadro' }, [panelCartera(porTipo(xs, 'cliente')), panelFase(xs), panelTrabajo(xs), panelSinActualizar(xs, ahora)]));
+  const base = porTipo(xs, tipo).slice().sort((a, b) => (Number(b.importe) || 0) - (Number(a.importe) || 0) || String(a.nombre).localeCompare(String(b.nombre)));
+  const cont = el('div', { class: 'lista-rica' });
+  const pintarLista = texto => {
+    const rows = buscarExp(base, texto, S.datos.agentes);
+    cont.innerHTML = '';
+    if (!rows.length) { cont.append(el('p', { class: 'mudo', text: 'nada con este filtro' })); return; }
+    rows.forEach(x => cont.append(tarjetaExp(x, S, colorFase)));
+  };
+  raiz.append(el('div', { class: 'filtros-rica' }, [
+    el('div', { class: 'chips' }, TIPOS.filter(([k]) => k === 'todos' || k === tipo || porTipo(xs, k).length).map(([k, t]) => el('a', { class: 'chip' + (k === tipo ? ' activo' : ''), href: '#operacion/expedientes?tipo=' + k, text: t + ' ' + porTipo(xs, k).length }))),
+    el('input', { class: 'campo mini', type: 'search', placeholder: 'Buscar por nombre, código o responsable', 'aria-label': 'Buscar expedientes', oninput: e => pintarLista(e.target.value) }),
+  ]));
+  raiz.append(cont);
+  pintarLista('');
   if (S.datos.rol === 'owner') raiz.append(el('button', { class: 'btn primario', text: '+ Expediente', onclick: () => alta(S) }));
 }
 
@@ -105,4 +195,4 @@ async function ficha(raiz, S, id) {
   if (f.kit?.length) raiz.append(el('details', {}, [el('summary', { text: 'Kit del frente (' + f.kit.length + ')' }), ...f.kit.map(k => { const h = urlSegura(k.url); return h ? el('a', { href: h, target: '_blank', rel: 'noopener', class: 'kit', text: k.titulo }) : el('span', { class: 'kit mudo', text: k.titulo }); })]));
 }
 
-export function render(raiz, S, arg) { if (arg && /^\d+$/.test(arg)) ficha(raiz, S, Number(arg)); else lista(raiz, S); }
+export function render(raiz, S, arg, filtrosRuta = {}, ahora = new Date()) { if (arg && /^\d+$/.test(arg)) ficha(raiz, S, Number(arg)); else lista(raiz, S, filtrosRuta, ahora); }

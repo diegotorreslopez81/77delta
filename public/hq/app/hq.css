@@ -174,22 +174,23 @@ body.menu-plegado .menu nav a.sub .ico{display:block}
 .lista-corta{margin:0;padding-left:16px;font-size:13px;color:var(--tinta-2)}.lista-corta li{margin:2px 0}
 /* Operación/Licitaciones en la línea del cuadro de mando (#1057, HQ 2.0.7) */
 @media(min-width:640px){.panel-kpi.ancho-2{grid-column:span 2}}
-.filtros-lic{display:flex;flex-wrap:wrap;gap:8px 14px;align-items:center;margin:18px 0 12px}
+.filtros-rica{display:flex;flex-wrap:wrap;gap:8px 14px;align-items:center;margin:18px 0 12px}
 .chips{display:flex;flex-wrap:wrap;gap:6px}
 .chip{padding:5px 12px;border-radius:999px;border:1px solid var(--linea);background:var(--panel);color:var(--tinta-2);text-decoration:none;font-size:13px;font-weight:600}
 .chip.activo{background:var(--tinta);border-color:var(--tinta);color:var(--papel)}
-.filtros-lic .campo.mini{flex:1 1 220px;max-width:360px}
-.lista-lic{display:grid;grid-template-columns:1fr;gap:12px}
-@media(min-width:760px){.lista-lic{grid-template-columns:repeat(2,minmax(0,1fr))}}
-@media(min-width:1300px){.lista-lic{grid-template-columns:repeat(3,minmax(0,1fr))}}
-.tarjeta-lic{background:var(--panel);border:1px solid var(--linea);border-radius:var(--radio);padding:14px 16px;display:flex;flex-direction:column;gap:8px;min-width:0}
-.tarjeta-lic .cab{display:flex;flex-wrap:wrap;gap:6px;align-items:center}
-.tarjeta-lic .pill.estado,.tarjeta-lic .plazo{display:inline-flex;align-items:center;gap:5px}
-.tarjeta-lic .plazo{margin-left:auto;font-size:12px;font-weight:600;color:var(--tinta)}
-.tarjeta-lic h3{margin:0;font-size:15px;line-height:1.35;color:var(--tinta)}
-.tarjeta-lic .sub{margin:0;font-size:13px;color:var(--pizarra)}
-.lic-cifra{display:flex;flex-wrap:wrap;align-items:baseline;gap:8px}
+.filtros-rica .campo.mini{flex:1 1 220px;max-width:360px}
+.lista-rica{display:grid;grid-template-columns:1fr;gap:12px}
+@media(min-width:760px){.lista-rica{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media(min-width:1300px){.lista-rica{grid-template-columns:repeat(3,minmax(0,1fr))}}
+.tarjeta-rica{background:var(--panel);border:1px solid var(--linea);border-radius:var(--radio);padding:14px 16px;display:flex;flex-direction:column;gap:8px;min-width:0}
+.tarjeta-rica .cab{display:flex;flex-wrap:wrap;gap:6px;align-items:center}
+.tarjeta-rica .pill.estado,.tarjeta-rica .plazo{display:inline-flex;align-items:center;gap:5px}
+.tarjeta-rica .plazo{margin-left:auto;font-size:12px;font-weight:600;color:var(--tinta)}
+.tarjeta-rica h3{margin:0;font-size:15px;line-height:1.35;color:var(--tinta)}
+.tarjeta-rica .sub{margin:0;font-size:13px;color:var(--pizarra)}
+.cifra-fila{display:flex;flex-wrap:wrap;align-items:baseline;gap:8px}
 .cifra-l{margin:0;font-family:var(--display);font-size:24px;font-weight:700;color:var(--tinta)}
 .plazo-barra{display:flex;flex-direction:column;gap:3px}
-.tarjeta-lic .solv{margin:0;font-size:12px;color:var(--tinta-2)}
-.tarjeta-lic .enlaces{display:flex;flex-wrap:wrap;gap:12px;margin-top:auto;font-size:13px}
+.tarjeta-rica .solv{margin:0;font-size:12px;color:var(--tinta-2)}
+.tarjeta-rica .enlaces{display:flex;flex-wrap:wrap;gap:12px;margin-top:auto;font-size:13px}
+.tarjeta-rica h3 a{color:inherit;text-decoration:none}.tarjeta-rica h3 a:hover{text-decoration:underline}

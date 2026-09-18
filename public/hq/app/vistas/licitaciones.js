@@ -107,7 +107,7 @@ export function tarjetaLic(l, ahora = new Date()) {
   const p = plazo(l.cierre, ahora), cons = plazoConsumido(l, ahora), est = estadoDe(l);
   const enlaces = [['Perfil', l.enlace], ['Carpeta', l.carpeta], ['PPT', l.ppt], ['PCAP', l.pcap]].map(([t, u]) => [t, urlSegura(u)]).filter(x => x[1]);
   const solv = solvenciaTexto(l);
-  return el('article', { class: 'tarjeta-lic' }, [
+  return el('article', { class: 'tarjeta-rica' }, [
     el('div', { class: 'cab' }, [
       el('span', { class: 'pill estado' }, [el('i', { class: 'punto g-' + (COLOR_ESTADO[est] || 'neutro-3') }), est]),
       l.expediente ? el('span', { class: 'pill codigo', text: l.expediente }) : null,
@@ -115,7 +115,7 @@ export function tarjetaLic(l, ahora = new Date()) {
     ]),
     el('h3', { text: corto(l.resumen_corto || l.objeto || l.expediente, 140) }),
     l.organo || l.provincia || l.procedimiento ? el('p', { class: 'sub', text: [l.organo, l.provincia, l.procedimiento].filter(Boolean).join(' · ') }) : null,
-    el('div', { class: 'lic-cifra' }, [el('p', { class: 'cifra-l', text: l.importe ? eurCorto(l.importe) : 'importe sin dato' }), l.importe ? el('span', { class: 'sub', text: 'sin IVA' }) : null,
+    el('div', { class: 'cifra-fila' }, [el('p', { class: 'cifra-l', text: l.importe ? eurCorto(l.importe) : 'importe sin dato' }), l.importe ? el('span', { class: 'sub', text: 'sin IVA' }) : null,
       l.decision && l.decision !== 'Pendiente' ? el('span', { class: 'pill', text: 'decisión ' + l.decision }) : null]),
     cons != null ? el('div', { class: 'plazo-barra' }, [grafico(progreso(cons, 'plazo consumido ' + cons + ' %', { color: p.color === 'rojo' ? 'rojo' : 'tinta-2' }), 'fina'), el('span', { class: 'sub', text: cons + ' % del plazo consumido' })]) : null,
     solv !== 'sin dato' ? el('p', { class: 'solv', text: 'Solvencia: ' + solv }) : null,
@@ -146,7 +146,7 @@ export function render(raiz, S, arg, filtrosRuta = {}, ahora = new Date()) {
   raiz.append(el('div', { class: 'cuadro' }, [panelPipeline(lics, ahora), panelEmbudo(lics, kpis, resumen), panelEstados(lics), panelDecidir(lics), panelCierres(lics, ahora)]));
 
   const base = ordenar(porFiltro(lics, estado), orden);
-  const lista = el('div', { class: estado === 'criba' ? 'lista-criba' : 'lista-lic' });
+  const lista = el('div', { class: estado === 'criba' ? 'lista-criba' : 'lista-rica' });
   const pintarLista = texto => {
     const rows = buscar(base, texto);
     lista.innerHTML = '';
@@ -154,7 +154,7 @@ export function render(raiz, S, arg, filtrosRuta = {}, ahora = new Date()) {
     if (estado === 'criba') porElegible(rows).forEach((g, i) => lista.append(grupoCriba(g, i === 0)));
     else rows.forEach(l => lista.append(tarjetaLic(l, ahora)));
   };
-  raiz.append(el('div', { class: 'filtros-lic' }, [
+  raiz.append(el('div', { class: 'filtros-rica' }, [
     el('div', { class: 'chips' }, FILTROS.map(([k, t]) => el('a', { class: 'chip' + (k === estado ? ' activo' : ''), href: ruta(k, orden), text: t + ' ' + porFiltro(lics, k).length }))),
     el('div', { class: 'chips' }, [['cierre', 'por cierre'], ['importe', 'por importe']].map(([k, t]) => el('a', { class: 'chip' + (k === orden ? ' activo' : ''), href: ruta(estado, k), text: t }))),
     el('input', { class: 'campo mini', type: 'search', placeholder: 'Buscar expediente, objeto u órgano', 'aria-label': 'Buscar licitación', oninput: e => pintarLista(e.target.value) }),

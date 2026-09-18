@@ -35,7 +35,7 @@ const h2s = raiz => buscarNodos(raiz, n => n.tag === 'h2');
 const paneles = raiz => buscarNodos(raiz, n => n.tag === 'section' && clase(n, 'panel-kpi'));
 const panel = (raiz, t) => paneles(raiz).find(p => p.children[0].textContent === t);
 const filaDe = (raiz, et) => buscarNodos(panel(raiz, 'Embudo'), n => clase(n, 'fila-barra')).find(f => f.children[0].textContent === et);
-const tarjetas = raiz => buscarNodos(raiz, n => n.tag === 'article' && clase(n, 'tarjeta-lic'));
+const tarjetas = raiz => buscarNodos(raiz, n => n.tag === 'article' && clase(n, 'tarjeta-rica'));
 const codigos = raiz => tarjetas(raiz).map(t => buscarNodos(t, n => clase(n, 'codigo'))[0].textContent);
 const chips = raiz => buscarNodos(raiz, n => n.tag === 'a' && clase(n, 'chip'));
 const grupos = raiz => buscarNodos(raiz, n => n.tag === 'details' && clase(n, 'grupo-criba'));
