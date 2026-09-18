@@ -470,3 +470,138 @@ create trigger trg_omc_encargo_hecho_interacciones after update of estado on omc
 
 revoke all on function omc_interaccion_alta(text, jsonb), omc_interaccion_atender(text, bigint, text, text, text, text) from public;
 grant execute on function omc_interaccion_alta(text, jsonb), omc_interaccion_atender(text, bigint, text, text, text, text) to anon, authenticated, service_role;
+
+-- ---------------------------------------------------------------------------------------------------
+-- T8 · RPC de alta del CRM (tarea 7 del rediseño HQ, encargo #259, 18-sep-2026).
+-- omc_cliente_alta, omc_persona_alta y omc_colaborador_alta reciben p jsonb como omc_interaccion_alta.
+-- Idempotentes: si ya existe la fila (cliente por NIF o nombre; persona por email o nombre dentro del
+-- cliente; colaborador por email o nombre) no duplican: rellenan los huecos y devuelven nuevo=false.
+-- Sin DNI, móvil personal ni IBAN (orden de Diego): solo datos de contacto de empresa. Aditivo e idempotente.
+-- ---------------------------------------------------------------------------------------------------
+create or replace function omc_v3_version() returns text language sql immutable as $$ select '3.3.0' $$;
+
+create or replace function omc_cliente_alta(p_token text, p jsonb) returns jsonb
+language plpgsql security definer set search_path = public as $$
+declare t record; r omc_clientes; v_nombre text; v_nif text; nuevo boolean := false;
+begin
+  select * into t from omc_tok(p_token);
+  v_nombre := nullif(trim(coalesce(p->>'nombre', '')), '');
+  if v_nombre is null then raise exception 'omc_cliente_alta: hace falta nombre'; end if;
+  v_nif := nullif(upper(regexp_replace(coalesce(p->>'nif', ''), '[^A-Za-z0-9]', '', 'g')), '');
+  if v_nif is not null then
+    select * into r from omc_clientes c where c.empresa = t.empresa and upper(regexp_replace(coalesce(c.nif, ''), '[^A-Za-z0-9]', '', 'g')) = v_nif;
+  end if;
+  if r.id is null then
+    select * into r from omc_clientes c where c.empresa = t.empresa
+      and (lower(c.nombre) = lower(v_nombre) or lower(coalesce(c.nombre_corto, '')) = lower(v_nombre)) order by c.id limit 1;
+  end if;
+  if r.id is null then
+    insert into omc_clientes (empresa, nombre, nombre_corto, nif, tipo, sector, cnae, web, localidad, carpeta_url, ficha_url, estado, origen, responsable, notas)
+    values (t.empresa, v_nombre, coalesce(nullif(p->>'nombre_corto', ''), v_nombre), v_nif,
+            coalesce(nullif(p->>'tipo', ''), 'empresa'), nullif(p->>'sector', ''), nullif(p->>'cnae', ''),
+            nullif(lower(trim(p->>'web')), ''), nullif(p->>'localidad', ''), nullif(p->>'carpeta_url', ''), nullif(p->>'ficha_url', ''),
+            coalesce(nullif(p->>'estado', ''), 'prospecto'), nullif(p->>'origen', ''), nullif(p->>'responsable', ''), left(nullif(p->>'notas', ''), 2000))
+    returning * into r;
+    nuevo := true;
+  else
+    update omc_clientes set nif = coalesce(nif, v_nif), nombre_corto = coalesce(nombre_corto, nullif(p->>'nombre_corto', '')),
+      sector = coalesce(sector, nullif(p->>'sector', '')), cnae = coalesce(cnae, nullif(p->>'cnae', '')),
+      web = coalesce(web, nullif(lower(trim(p->>'web')), '')), localidad = coalesce(localidad, nullif(p->>'localidad', '')),
+      carpeta_url = coalesce(carpeta_url, nullif(p->>'carpeta_url', '')), ficha_url = coalesce(ficha_url, nullif(p->>'ficha_url', '')),
+      origen = coalesce(origen, nullif(p->>'origen', '')), responsable = coalesce(responsable, nullif(p->>'responsable', '')),
+      estado = case when coalesce((p->>'forzar_estado')::boolean, false) and nullif(p->>'estado', '') is not null then p->>'estado' else estado end,
+      notas = case when nullif(p->>'notas', '') is not null and coalesce(notas, '') = '' then left(p->>'notas', 2000) else notas end,
+      updated_at = now()
+      where id = r.id returning * into r;
+  end if;
+  return to_jsonb(r) || jsonb_build_object('nuevo', nuevo);
+end $$;
+
+create or replace function omc_persona_alta(p_token text, p jsonb) returns jsonb
+language plpgsql security definer set search_path = public as $$
+declare t record; r omc_personas; cid bigint; v_nombre text; em text; nuevo boolean := false;
+begin
+  select * into t from omc_tok(p_token);
+  v_nombre := nullif(trim(coalesce(p->>'nombre', '')), '');
+  if v_nombre is null then raise exception 'omc_persona_alta: hace falta nombre'; end if;
+  cid := nullif(p->>'cliente_id', '')::bigint;
+  em := nullif(lower(trim(coalesce(p->>'email', ''))), '');
+  if cid is null and nullif(p->>'cliente', '') is not null then
+    select c.id into cid from omc_clientes c where c.empresa = t.empresa
+      and (lower(c.nombre) = lower(trim(p->>'cliente')) or lower(coalesce(c.nombre_corto, '')) = lower(trim(p->>'cliente'))) order by c.id limit 1;
+  end if;
+  if cid is null and em is not null then cid := omc_cliente_por_email(t.empresa, em); end if;
+  if cid is null then raise exception 'omc_persona_alta: hace falta cliente_id, cliente (nombre) o un email cuyo dominio case con un cliente'; end if;
+  if not exists (select 1 from omc_clientes c where c.id = cid and c.empresa = t.empresa) then
+    raise exception 'omc_persona_alta: el cliente % no existe', cid;
+  end if;
+  if em is not null then
+    select * into r from omc_personas x where x.cliente_id = cid and lower(coalesce(x.email, '')) = em order by x.id limit 1;
+  end if;
+  if r.id is null then
+    select * into r from omc_personas x where x.cliente_id = cid and lower(x.nombre) = lower(v_nombre) order by x.id limit 1;
+  end if;
+  if r.id is null then
+    insert into omc_personas (empresa, cliente_id, nombre, cargo, email, telefono, linkedin_url, idioma, principal, activo, notas)
+    values (t.empresa, cid, v_nombre, nullif(p->>'cargo', ''), em, nullif(trim(p->>'telefono'), ''), nullif(p->>'linkedin_url', ''),
+            nullif(p->>'idioma', ''), coalesce((p->>'principal')::boolean, false), true, left(nullif(p->>'notas', ''), 2000))
+    returning * into r;
+    nuevo := true;
+  else
+    update omc_personas set email = coalesce(email, em), cargo = coalesce(cargo, nullif(p->>'cargo', '')),
+      telefono = coalesce(telefono, nullif(trim(p->>'telefono'), '')), linkedin_url = coalesce(linkedin_url, nullif(p->>'linkedin_url', '')),
+      idioma = coalesce(idioma, nullif(p->>'idioma', '')), principal = principal or coalesce((p->>'principal')::boolean, false),
+      activo = true,
+      notas = case when nullif(p->>'notas', '') is not null and coalesce(notas, '') = '' then left(p->>'notas', 2000) else notas end,
+      updated_at = now()
+      where id = r.id returning * into r;
+  end if;
+  if r.principal then
+    update omc_personas set principal = false, updated_at = now() where cliente_id = cid and id <> r.id and principal;
+  end if;
+  return to_jsonb(r) || jsonb_build_object('nuevo', nuevo, 'cliente', (select c.nombre_corto from omc_clientes c where c.id = cid));
+end $$;
+
+create or replace function omc_colaborador_alta(p_token text, p jsonb) returns jsonb
+language plpgsql security definer set search_path = public as $$
+declare t record; r omc_colaboradores; v_nombre text; em text; nuevo boolean := false; v_esp text[]; v_idi text[];
+begin
+  select * into t from omc_tok(p_token);
+  v_nombre := nullif(trim(coalesce(p->>'nombre', '')), '');
+  if v_nombre is null then raise exception 'omc_colaborador_alta: hace falta nombre'; end if;
+  em := nullif(lower(trim(coalesce(p->>'email', ''))), '');
+  v_esp := coalesce((select array_agg(trim(x)) from jsonb_array_elements_text(case when jsonb_typeof(p->'especialidades') = 'array' then p->'especialidades' else '[]'::jsonb end) x where trim(x) <> ''), '{}');
+  v_idi := coalesce((select array_agg(trim(x)) from jsonb_array_elements_text(case when jsonb_typeof(p->'idiomas') = 'array' then p->'idiomas' else '[]'::jsonb end) x where trim(x) <> ''), '{}');
+  if em is not null then
+    select * into r from omc_colaboradores x where x.empresa = t.empresa and lower(coalesce(x.email, '')) = em order by x.id limit 1;
+  end if;
+  if r.id is null then
+    select * into r from omc_colaboradores x where x.empresa = t.empresa and lower(x.nombre) = lower(v_nombre) order by x.id limit 1;
+  end if;
+  if r.id is null then
+    insert into omc_colaboradores (empresa, nombre, perfil, especialidades, email, linkedin_url, foto_url, cv_url, carpeta_url, tarifa_dia, disponibilidad, ubicacion, idiomas, origen, estado, acuerdo_fecha, acuerdo_url, notas)
+    values (t.empresa, v_nombre, nullif(p->>'perfil', ''), v_esp, em, nullif(p->>'linkedin_url', ''), nullif(p->>'foto_url', ''), nullif(p->>'cv_url', ''),
+            nullif(p->>'carpeta_url', ''), nullif(p->>'tarifa_dia', '')::numeric, nullif(p->>'disponibilidad', ''), nullif(p->>'ubicacion', ''), v_idi,
+            nullif(p->>'origen', ''), coalesce(nullif(p->>'estado', ''), 'candidato'), nullif(p->>'acuerdo_fecha', '')::date, nullif(p->>'acuerdo_url', ''),
+            left(nullif(p->>'notas', ''), 2000))
+    returning * into r;
+    nuevo := true;
+  else
+    update omc_colaboradores set email = coalesce(email, em), perfil = coalesce(perfil, nullif(p->>'perfil', '')),
+      especialidades = (select coalesce(array_agg(distinct e), '{}') from unnest(especialidades || v_esp) e),
+      idiomas = (select coalesce(array_agg(distinct e), '{}') from unnest(idiomas || v_idi) e),
+      linkedin_url = coalesce(linkedin_url, nullif(p->>'linkedin_url', '')), foto_url = coalesce(foto_url, nullif(p->>'foto_url', '')),
+      cv_url = coalesce(cv_url, nullif(p->>'cv_url', '')), carpeta_url = coalesce(carpeta_url, nullif(p->>'carpeta_url', '')),
+      tarifa_dia = coalesce(tarifa_dia, nullif(p->>'tarifa_dia', '')::numeric), disponibilidad = coalesce(disponibilidad, nullif(p->>'disponibilidad', '')),
+      ubicacion = coalesce(ubicacion, nullif(p->>'ubicacion', '')), origen = coalesce(origen, nullif(p->>'origen', '')),
+      estado = case when coalesce((p->>'forzar_estado')::boolean, false) and nullif(p->>'estado', '') is not null then p->>'estado' else estado end,
+      acuerdo_fecha = coalesce(acuerdo_fecha, nullif(p->>'acuerdo_fecha', '')::date), acuerdo_url = coalesce(acuerdo_url, nullif(p->>'acuerdo_url', '')),
+      notas = case when nullif(p->>'notas', '') is not null and coalesce(notas, '') = '' then left(p->>'notas', 2000) else notas end,
+      updated_at = now()
+      where id = r.id returning * into r;
+  end if;
+  return to_jsonb(r) || jsonb_build_object('nuevo', nuevo);
+end $$;
+
+revoke all on function omc_cliente_alta(text, jsonb), omc_persona_alta(text, jsonb), omc_colaborador_alta(text, jsonb) from public;
+grant execute on function omc_cliente_alta(text, jsonb), omc_persona_alta(text, jsonb), omc_colaborador_alta(text, jsonb) to anon, authenticated, service_role;

@@ -63,6 +63,25 @@ def registrar(sub, esub):
     ixa.add_argument('--pendiente', action='store_true', help='queda pendiente de atender (aparece en HQ hasta interaccion atendida)'); ixa.add_argument('--agente')
     ixt = ixsub.add_parser('atendida'); ixt.add_argument('id', type=int, nargs='?'); ixt.add_argument('--ref'); ixt.add_argument('--canal', default='correo'); ixt.add_argument('--motivo'); ixt.add_argument('--agente')
     ixl = ixsub.add_parser('lista'); ixl.add_argument('--cliente', type=int); ixl.add_argument('--expediente', type=int); ixl.add_argument('--canal'); ixl.add_argument('--pendientes', action='store_true'); ixl.add_argument('--desde'); ixl.add_argument('--limite', type=int)
+    cl = sub.add_parser('cliente', help='alta idempotente de cliente en el CRM (por NIF o nombre): sin DNI, móvil personal ni IBAN')
+    clsub = cl.add_subparsers(dest='sub', required=True)
+    cla = clsub.add_parser('alta'); cla.add_argument('--nombre', required=True); cla.add_argument('--corto', dest='nombre_corto'); cla.add_argument('--nif')
+    cla.add_argument('--tipo', choices=('empresa', 'administracion', 'autonomo', 'entidad')); cla.add_argument('--sector'); cla.add_argument('--cnae'); cla.add_argument('--web'); cla.add_argument('--localidad')
+    cla.add_argument('--carpeta', dest='carpeta_url'); cla.add_argument('--ficha', dest='ficha_url'); cla.add_argument('--estado', choices=('prospecto', 'activo', 'inactivo', 'perdido'))
+    cla.add_argument('--forzar-estado', dest='forzar_estado', action='store_true', help='si ya existe, cambia el estado (por defecto solo rellena huecos)')
+    cla.add_argument('--origen'); cla.add_argument('--responsable'); cla.add_argument('--notas')
+    pe = sub.add_parser('persona', help='alta idempotente de persona de contacto de un cliente (por email o nombre dentro del cliente)')
+    pesub = pe.add_subparsers(dest='sub', required=True)
+    pea = pesub.add_parser('alta'); pea.add_argument('--nombre', required=True); pea.add_argument('--cliente', help='id o nombre del cliente; si falta, se deduce del dominio del email')
+    pea.add_argument('--email'); pea.add_argument('--cargo'); pea.add_argument('--telefono', help='solo teléfono de empresa, nunca móvil personal'); pea.add_argument('--linkedin', dest='linkedin_url')
+    pea.add_argument('--idioma'); pea.add_argument('--principal', action='store_true'); pea.add_argument('--notas')
+    co = sub.add_parser('colaborador', help='alta idempotente de colaborador externo (por email o nombre): sin DNI, móvil personal ni IBAN')
+    cosub = co.add_subparsers(dest='sub', required=True)
+    coa = cosub.add_parser('alta'); coa.add_argument('--nombre', required=True); coa.add_argument('--perfil'); coa.add_argument('--especialidad', action='append', default=[], help='repetible')
+    coa.add_argument('--email'); coa.add_argument('--linkedin', dest='linkedin_url'); coa.add_argument('--foto', dest='foto_url'); coa.add_argument('--cv', dest='cv_url'); coa.add_argument('--carpeta', dest='carpeta_url')
+    coa.add_argument('--tarifa-dia', dest='tarifa_dia', type=float); coa.add_argument('--disponibilidad'); coa.add_argument('--ubicacion'); coa.add_argument('--idioma', action='append', default=[], help='repetible')
+    coa.add_argument('--origen', choices=('red', 'referido', 'linkedin', 'upwork', 'cliente', 'otro')); coa.add_argument('--estado', choices=('candidato', 'contactado', 'activo', 'inactivo'))
+    coa.add_argument('--forzar-estado', dest='forzar_estado', action='store_true'); coa.add_argument('--acuerdo-fecha', dest='acuerdo_fecha'); coa.add_argument('--acuerdo', dest='acuerdo_url'); coa.add_argument('--notas')
     x = sub.add_parser('expediente', help='clientes, productos, convocatorias y licitaciones con su ficha, encargos, contactos y sesiones')
     xsub = x.add_subparsers(dest='sub', required=True)
     xa = xsub.add_parser('alta'); xa.add_argument('--id', type=int); xa.add_argument('--nombre'); xa.add_argument('--tipo', choices=('cliente', 'producto', 'convocatoria', 'licitacion')); xa.add_argument('--frente')
@@ -171,6 +190,24 @@ def ejecutar(a, c):
             f = {k: v for k, v in {'cliente_id': a.cliente, 'expediente_id': a.expediente, 'canal': a.canal, 'pendientes': a.pendientes or None, 'desde': a.desde, 'limite': a.limite}.items() if v is not None}
             xs = rpc('omc_interacciones_lista', p_token=E['HQ_TOKEN'], p_filtro=f)
             salida(xs, '\n'.join(f"#{x['id']} {x['fecha'][:16]} {'PENDIENTE' if x['pendiente'] else 'ok'} {x['canal']} {x['sentido']} · {x.get('cliente') or '-'} · {(x.get('asunto') or '')[:70]} · {x.get('agente') or ''}" + (f" · encargo #{x['encargo_id']}" if x.get('encargo_id') else '') for x in xs) or '(sin interacciones)')
+        return True
+    if a.cmd in ('cliente', 'persona', 'colaborador') and a.sub == 'alta':
+        if a.cmd == 'cliente':
+            p = {'nombre': a.nombre, 'nombre_corto': a.nombre_corto, 'nif': a.nif, 'tipo': a.tipo, 'sector': a.sector, 'cnae': a.cnae, 'web': a.web, 'localidad': a.localidad,
+                 'carpeta_url': a.carpeta_url, 'ficha_url': a.ficha_url, 'estado': a.estado, 'forzar_estado': a.forzar_estado or None, 'origen': a.origen, 'responsable': a.responsable, 'notas': a.notas}
+            r = rpc('omc_cliente_alta', p_token=E['HQ_TOKEN'], p={k: v for k, v in p.items() if v is not None})
+            salida(r, f"cliente #{r['id']} {'nuevo' if r.get('nuevo') else 'ya existía'} · {r['nombre']} · {r['estado']} · nif {r.get('nif') or '-'} · web {r.get('web') or '-'}")
+        elif a.cmd == 'persona':
+            p = {'nombre': a.nombre, 'email': a.email, 'cargo': a.cargo, 'telefono': a.telefono, 'linkedin_url': a.linkedin_url, 'idioma': a.idioma, 'principal': a.principal or None, 'notas': a.notas}
+            if a.cliente: p['cliente_id' if a.cliente.isdigit() else 'cliente'] = int(a.cliente) if a.cliente.isdigit() else a.cliente
+            r = rpc('omc_persona_alta', p_token=E['HQ_TOKEN'], p={k: v for k, v in p.items() if v is not None})
+            salida(r, f"persona #{r['id']} {'nueva' if r.get('nuevo') else 'ya existía'} · {r['nombre']} · {r.get('cargo') or '-'} · cliente {r.get('cliente') or r['cliente_id']} · {r.get('email') or '-'}" + (' · principal' if r.get('principal') else ''))
+        else:
+            p = {'nombre': a.nombre, 'perfil': a.perfil, 'especialidades': a.especialidad or None, 'email': a.email, 'linkedin_url': a.linkedin_url, 'foto_url': a.foto_url, 'cv_url': a.cv_url,
+                 'carpeta_url': a.carpeta_url, 'tarifa_dia': a.tarifa_dia, 'disponibilidad': a.disponibilidad, 'ubicacion': a.ubicacion, 'idiomas': a.idioma or None, 'origen': a.origen,
+                 'estado': a.estado, 'forzar_estado': a.forzar_estado or None, 'acuerdo_fecha': a.acuerdo_fecha, 'acuerdo_url': a.acuerdo_url, 'notas': a.notas}
+            r = rpc('omc_colaborador_alta', p_token=E['HQ_TOKEN'], p={k: v for k, v in p.items() if v is not None})
+            salida(r, f"colaborador #{r['id']} {'nuevo' if r.get('nuevo') else 'ya existía'} · {r['nombre']} · {r.get('perfil') or '-'} · {r['estado']} · {', '.join(r.get('especialidades') or []) or '-'}")
         return True
     if a.cmd == 'expediente':
         tok = E.get('HQ_OWNER_TOKEN') or E['HQ_TOKEN']
