@@ -1,6 +1,8 @@
 // Tablero Kanban: filtros, alta de encargo, arrastre y detalle.
 import { rpc } from '../api.js';
-import { el, modal, toast } from '../ui.js';
+import { el, modal, toast, fecha } from '../ui.js';
+import { apilada } from '../graficos.js';
+import { panel, cifra, grafico, leyenda, filaBarra } from '../cuadro.js';
 import { kanban, COLUMNAS, yo } from '../estado.js';
 import { tarjetaEncargo } from '../tarjeta.js';
 import { accionAlSoltar, habilitarArrastre } from '../dnd.js';
@@ -46,15 +48,40 @@ function nuevoEncargo(S) {
   } })] });
 }
 
-export function render(raiz, S, arg, filtrosRuta = {}) {
+// Cuadro de mando encima del kanban (#1057 tarea 22, HQ 2.0.9; regla de kit #221): cifras del conjunto
+// filtrado, así que responden a los mismos filtros que las columnas.
+export const COLOR_COLUMNA = { backlog: 'neutro-3', por_hacer: 'neutro-2', en_curso: 'tinta-2', bloqueado: 'tinta' };
+const abiertosDe = k => COLUMNAS.filter(([c]) => c !== 'hecho').flatMap(([c]) => k[c]);
+export const vencidos = (k, ahora = new Date()) => { const hoy = ahora.toISOString().slice(0, 10); return abiertosDe(k).filter(e => e.fecha_hito && String(e.fecha_hito).slice(0, 10) < hoy).sort((a, b) => String(a.fecha_hito).localeCompare(String(b.fecha_hito))); };
+export function porResponsable(k, agentes = []) {
+  const c = {};
+  for (const e of abiertosDe(k)) { const a = e.responsable || e.agente || 'sin responsable'; c[a] = (c[a] || 0) + 1; }
+  return Object.entries(c).sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0])).map(([id, n]) => ({ id, n, nombre: (agentes.find(a => a.id === id) || {}).nombre || id }));
+}
+const corto = (t, n) => { t = String(t || ''); return t.length > n ? t.slice(0, n - 1) + '…' : t; };
+export function cuadroTablero(S, k, ahora = new Date()) {
+  const ab = abiertosDe(k), segs = COLUMNAS.filter(([c]) => c !== 'hecho' && k[c].length).map(([c, t]) => ({ l: t, v: k[c].length, color: COLOR_COLUMNA[c] }));
+  const ven = vencidos(k, ahora), resp = porResponsable(k, S.datos.agentes), max = resp.length ? resp[0].n : 1, bl = k.bloqueado;
+  return [
+    panel('Encargos abiertos', '#operacion/tablero', [cifra(String(ab.length), k.hecho.length + ' hechos con este filtro'), ab.length ? grafico(apilada(segs, 'encargos abiertos por columna'), 'fina') : null, leyenda(segs)], 'ancho-2'),
+    panel('Vencidos', '#operacion/tablero', [cifra(String(ven.length), ven.length ? 'con el hito pasado sin cerrar' : 'nada vencido'),
+      ven.length ? el('ul', { class: 'lista-corta' }, ven.slice(0, 3).map(e => el('li', { text: '#' + e.id + ' ' + corto(e.texto, 50) + ' · ' + fecha(e.fecha_hito) }))) : null], ven.length ? 'alerta' : null),
+    panel('Por responsable', '#equipo/organigrama', resp.length ? resp.slice(0, 5).map(r => filaBarra(r.nombre, String(r.n), Math.round(100 * r.n / max), 'tinta-2', '#operacion/tablero?agente=' + encodeURIComponent(r.id))) : [cifra('0', 'sin encargos abiertos')], 'ancho-2'),
+    panel('Bloqueados', '#operacion/tablero', [cifra(String(bl.length), bl.length ? 'esperan una decisión o un tercero' : 'nada bloqueado'),
+      bl.length ? el('ul', { class: 'lista-corta' }, bl.slice(0, 3).map(e => el('li', { text: '#' + e.id + ' ' + corto(e.texto, 60) }))) : null], bl.length ? 'alerta' : null),
+  ];
+}
+
+export function render(raiz, S, arg, filtrosRuta = {}, ahora = new Date()) {
   if (filtrosRuta.frente) { S.filtros.frente = filtrosRuta.frente; history.replaceState(null, '', '#operacion/tablero'); }
   if (filtrosRuta.agente) { S.filtros.agente = filtrosRuta.agente; history.replaceState(null, '', '#operacion/tablero'); }
   if (arg && /^\d+$/.test(arg)) { history.replaceState(null, '', '#operacion/tablero'); abrirDetalle(Number(arg), S, recargar); }
   const movil = matchMedia('(max-width: 899px)').matches;
-  const cont = el('div', { class: 'kanban' + (movil ? ' movil' : '') });
+  const cont = el('div', { class: 'kanban' + (movil ? ' movil' : '') }), cuadro = el('div', { class: 'cuadro' }), barra = el('div', { class: 'barra-filtros' });
   const pintar = () => {
-    raiz.querySelector('.filtros')?.remove(); raiz.prepend(filtros(S, pintar));
+    barra.innerHTML = ''; barra.append(filtros(S, pintar));
     const k = kanban(S.datos.encargos, S.filtros); cont.innerHTML = '';
+    cuadro.innerHTML = ''; cuadro.append(...cuadroTablero(S, k, ahora));
     if (movil) cont.append(el('div', { class: 'pestanas' }, COLUMNAS.map(([c, t]) => el('button', { class: 'btn' + (S.columnaMovil === c ? ' primario' : ''), text: t + ' ' + k[c].length, onclick: () => { S.columnaMovil = c; pintar(); } }))));
     for (const [c, t] of COLUMNAS) {
       if (movil && c !== S.columnaMovil) continue;
@@ -70,7 +97,7 @@ export function render(raiz, S, arg, filtrosRuta = {}) {
     if (a.tipo === 'nada') { try { const vecinos = kanban(S.datos.encargos, S.filtros)[columna].filter(x => x.id !== id); const orden = indice === 0 ? (vecinos[0]?.orden_kanban ?? 1000) - 10 : indice >= vecinos.length ? (vecinos.at(-1)?.orden_kanban ?? 0) + 10 : Math.floor(((vecinos[indice - 1].orden_kanban ?? 0) + (vecinos[indice].orden_kanban ?? 1000)) / 2); await rpc('omc_encargo_editar', { p_id: id, p: { orden_kanban: orden } }); await recargar(); } catch (err) { toast('HQ rechaza: ' + err.message); } return; }
     await moverEncargo(e, a, S, recargar);
   } });
-  raiz.append(cont); pintar();
+  raiz.append(cuadro, barra, cont); pintar();
 }
 function menuMover(e, S) {
   const m = modal({ titulo: 'Mover #' + e.id, cuerpo: COLUMNAS.filter(([c]) => c !== e.columna).map(([c, t]) => el('button', { class: 'btn ancho', text: t, onclick: () => { m.cerrar(); const a = accionAlSoltar(e.columna, c); a.destino = c; moverEncargo(e, a, S, recargar); } })) });

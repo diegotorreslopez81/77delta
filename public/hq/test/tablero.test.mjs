@@ -50,11 +50,56 @@ if (typeof globalThis.localStorage === 'undefined') {
   globalThis.localStorage = { getItem: (k) => (mem.has(k) ? mem.get(k) : null), setItem: (k, v) => mem.set(k, String(v)), removeItem: (k) => mem.delete(k) };
 }
 
-const { render } = await import('../app/vistas/tablero.js');
+const { render, cuadroTablero, vencidos, porResponsable } = await import('../app/vistas/tablero.js');
+const { kanban } = await import('../app/estado.js');
 
 test('render con filtro de ruta no lanza y vuelca el filtro a S.filtros (regresion shadowing filtros/filtrosRuta)', () => {
   const raiz = crearNodo('main');
   const S = { datos: { encargos: [], bloques: [], frentes: [], agentes: [], rol: 'owner' }, filtros: {}, columnaMovil: null };
   assert.doesNotThrow(() => render(raiz, S, null, { frente: 'x' }));
   assert.equal(S.filtros.frente, 'x');
+});
+
+// Cuadro de mando del tablero (#1057 tarea 22, HQ 2.0.9).
+const buscarNodos = (n, f, out = []) => { if (n && n.nodeType === 1) { if (f(n)) out.push(n); n.children.forEach(c => buscarNodos(c, f, out)); } return out; };
+const AHORA = new Date('2026-09-18T10:00:00Z');
+const encargos = [
+  { id: 1, columna: 'en_curso', responsable: 'chief', texto: 'Uno', fecha_hito: '2026-09-10' },
+  { id: 2, columna: 'en_curso', responsable: 'chief', texto: 'Dos', fecha_hito: '2026-09-25' },
+  { id: 3, columna: 'bloqueado', responsable: 'guillem', texto: 'Tres bloqueado', fecha_hito: '2026-09-01' },
+  { id: 4, columna: 'backlog', agente: 'nil', texto: 'Cuatro' },
+  { id: 5, columna: 'hecho', responsable: 'chief', texto: 'Cinco', fecha_hito: '2026-09-01' },
+];
+const Sx = () => ({ datos: { encargos, bloques: [], frentes: [], agentes: [{ id: 'chief', nombre: 'Marc' }, { id: 'guillem', nombre: 'Guillem' }], rol: 'owner' }, filtros: {}, columnaMovil: null });
+
+test('cuadro del tablero: abiertos por columna, vencidos, por responsable y bloqueados', () => {
+  const ps = cuadroTablero(Sx(), kanban(encargos, {}), AHORA);
+  assert.deepEqual(ps.map(p => p.children[0].textContent), ['Encargos abiertos', 'Vencidos', 'Por responsable', 'Bloqueados']);
+  assert.ok(ps[0].textContent.startsWith('Encargos abiertos41 hechos con este filtro'), ps[0].textContent);
+  assert.match(buscarNodos(ps[0], n => (n.className || '').includes('graf'))[0].innerHTML, /g-neutro-3.*g-tinta-2.*g-tinta"/);
+  assert.match(ps[1].className, /alerta/);
+  assert.ok(ps[1].textContent.includes('2con el hito pasado sin cerrar') && ps[1].textContent.includes('#3 Tres bloqueado'), ps[1].textContent);
+  assert.deepEqual(buscarNodos(ps[2], n => n.tag === 'a' && (n.className || '').includes('fila-barra')).map(a => [a.children[0].textContent, a.children[1].textContent, a.attrs.href]),
+    [['Marc', '2', '#operacion/tablero?agente=chief'], ['Guillem', '1', '#operacion/tablero?agente=guillem'], ['nil', '1', '#operacion/tablero?agente=nil']]);
+  assert.match(ps[3].className, /alerta/);
+});
+
+test('cuadro del tablero sigue los filtros y sin abiertos no marca alertas', () => {
+  const ps = cuadroTablero(Sx(), kanban(encargos, { agente: 'nil' }), AHORA);
+  assert.ok(ps[0].textContent.startsWith('Encargos abiertos10 hechos'), ps[0].textContent);
+  const vacio = cuadroTablero(Sx(), kanban([], {}), AHORA);
+  assert.ok(vacio.every(p => !/alerta/.test(p.className)));
+  assert.ok(vacio[2].textContent.includes('sin encargos abiertos'));
+});
+
+test('vencidos ordena por hito más antiguo e ignora hechos y sin hito; porResponsable cae en agente', () => {
+  assert.deepEqual(vencidos(kanban(encargos, {}), AHORA).map(e => e.id), [3, 1]);
+  assert.deepEqual(porResponsable(kanban(encargos, {}), []).map(r => [r.id, r.n, r.nombre]), [['chief', 2, 'chief'], ['guillem', 1, 'guillem'], ['nil', 1, 'nil']]);
+});
+
+test('render pinta el cuadro antes de los filtros y del kanban', () => {
+  const raiz = crearNodo('main');
+  render(raiz, Sx(), null, {}, AHORA);
+  assert.deepEqual(raiz.children.map(n => n.className), ['cuadro', 'barra-filtros', 'kanban']);
+  assert.equal(raiz.children[0].children.length, 4);
 });
