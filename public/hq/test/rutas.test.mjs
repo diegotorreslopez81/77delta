@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { AREAS, CLAVES, resolver } from '../app/rutas.js';
 
 test('AREAS tiene las seis áreas en orden y cada vista del menú es una clave válida', () => {
-  assert.deepEqual(AREAS.map(a => a.id), ['hoy', 'direccion', 'operacion', 'equipo', 'recursos', 'reglas']);
+  assert.deepEqual(AREAS.map(a => a.id), ['hoy', 'operacion', 'equipo', 'recursos', 'direccion', 'reglas']);
   for (const a of AREAS) for (const v of a.vistas) assert.ok(CLAVES.has(v.clave), v.clave);
   assert.deepEqual(AREAS.find(a => a.id === 'recursos').vistas.map(v => v.clave), ['recursos/computo'], 'Recursos: Cómputo desde #1054; Dinero llega en la tanda 3');
 });

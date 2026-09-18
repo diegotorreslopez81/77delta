@@ -13,10 +13,10 @@ const ICONOS = {
 };
 export const AREAS = [
   { id: 'hoy', nombre: 'Hoy', icono: ICONOS.hoy, vistas: [{ clave: 'hoy', nombre: 'Hoy' }] },
-  { id: 'direccion', nombre: 'Dirección', icono: ICONOS.direccion, vistas: [{ clave: 'direccion/objetivo', nombre: 'Objetivo' }] },
   { id: 'operacion', nombre: 'Operación', icono: ICONOS.operacion, vistas: [{ clave: 'operacion/tablero', nombre: 'Tablero' }, { clave: 'operacion/expedientes', nombre: 'Expedientes' }, { clave: 'operacion/licitaciones', nombre: 'Licitaciones' }] },
   { id: 'equipo', nombre: 'Equipo', icono: ICONOS.equipo, vistas: [{ clave: 'equipo/organigrama', nombre: 'Organigrama' }, { clave: 'equipo/colaboradores', nombre: 'Colaboradores' }] },
   { id: 'recursos', nombre: 'Recursos', icono: ICONOS.recursos, vistas: [{ clave: 'recursos/computo', nombre: 'Cómputo' }] },
+  { id: 'direccion', nombre: 'Plan estratégico', icono: ICONOS.direccion, vistas: [{ clave: 'direccion/objetivo', nombre: 'Plan estratégico' }] },
   { id: 'reglas', nombre: 'Reglas', icono: ICONOS.reglas, vistas: [{ clave: 'reglas/decisiones', nombre: 'Decisiones' }] },
 ];
 // Claves que tienen vista. 'equipo/agente' no sale en el menú (es la ficha) pero es una ruta válida.
