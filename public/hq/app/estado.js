@@ -69,12 +69,13 @@ export function contador(datos) {
   if (datos?.rol === 'owner') return { texto: 'Depende de ti', n: (datos.pendientes || []).length, href: '#hoy' };
   return { texto: 'En curso', n: enCurso(datos?.encargos).length, href: '#operacion/tablero' };
 }
-// semáforo de cuentas: `cuentas` entra en el payload en la tanda 3 (omc_cuentas_estado); hasta entonces null
-// y la barra no pinta nada. Umbrales de la spec 2.1: verde < 80, ámbar 80-94, rojo >= 95.
+// semáforo de cuentas: `cuentas` viene en el payload desde el lote 1e (#1054, RPC omc_cuentas_estado, solo owner);
+// sin datos devuelve null y la barra no pinta nada. Una cuenta se bloquea por cualquiera de sus dos límites, así
+// que cuenta el mayor de % ventana (5 h) y % semana. Umbrales de la spec 2.1: verde < 80, ámbar 80-94, rojo >= 95.
 export function semaforoCuentas(datos) {
-  const cs = (datos?.cuentas || []).filter(c => c && c.pct_ventana != null);
+  const cs = (datos?.cuentas || []).filter(c => c && (c.pct_ventana != null || c.pct_semana != null))
+    .map(c => ({ cuenta: c.cuenta, pct: Math.max(Number(c.pct_ventana) || 0, Number(c.pct_semana) || 0) }));
   if (!cs.length) return null;
-  const peor = cs.reduce((a, b) => (Number(b.pct_ventana) > Number(a.pct_ventana) ? b : a));
-  const pct = Number(peor.pct_ventana);
-  return { color: pct >= 95 ? 'rojo' : pct >= 80 ? 'ambar' : 'verde', pct, cuenta: peor.cuenta };
+  const peor = cs.reduce((a, b) => (b.pct > a.pct ? b : a));
+  return { color: peor.pct >= 95 ? 'rojo' : peor.pct >= 80 ? 'ambar' : 'verde', pct: peor.pct, cuenta: peor.cuenta };
 }

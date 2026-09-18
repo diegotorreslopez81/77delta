@@ -605,3 +605,74 @@ end $$;
 
 revoke all on function omc_cliente_alta(text, jsonb), omc_persona_alta(text, jsonb), omc_colaborador_alta(text, jsonb) from public;
 grant execute on function omc_cliente_alta(text, jsonb), omc_persona_alta(text, jsonb), omc_colaborador_alta(text, jsonb) to anon, authenticated, service_role;
+
+-- ---------------------------------------------------------------------------------------------------
+-- T9 · consumo por cuenta desde omc_plan (encargo #1054, tareas 12-13 del rediseño HQ, 18-sep-2026).
+-- omc_cuentas_estado(p_token) devuelve, solo al owner, la última muestra (48 h) de cada cuenta activa
+-- de omc_plan (hq-plan.py cada 15 min): % ventana de 5 h, % semana, resets y antigüedad. peni quedó
+-- retirada el 12-sep y se excluye. Un trigger sobre omc_plan mantiene los KPI cuentas.urge_tercera
+-- (1 cuando todas las cuentas activas están al 90 % o más de ventana o semana) y cuentas.peor_pct,
+-- que Home pinta en el lote 2. Sin tabla nueva ni cambios en hq-ahorro. Aditivo e idempotente.
+-- ---------------------------------------------------------------------------------------------------
+create or replace function omc_v3_version() returns text language sql immutable as $$ select '3.4.0' $$;
+
+create or replace function omc_cuentas_filas(p_empresa text)
+returns table (clave text, cuenta text, pct_ventana int, pct_semana int, pct_semana_opus int, ventana_fin timestamptz,
+               semana_fin timestamptz, updated_at timestamptz, minutos int, saturada boolean)
+language sql stable set search_path = public as $$
+  select p.cuenta, case p.cuenta when 'principal' then 'diego@' when 'team' then 'team@' else p.cuenta end,
+         round(coalesce(p.cinco_h, 0))::int, round(coalesce(p.semana, 0))::int, round(p.semana_opus)::int,
+         p.cinco_h_reset, p.semana_reset, p.ts, floor(extract(epoch from (now() - p.ts)) / 60)::int,
+         greatest(coalesce(p.cinco_h, 0), coalesce(p.semana, 0)) >= 90
+  from (select distinct on (cuenta) * from omc_plan
+        where empresa = p_empresa and cuenta <> 'peni' and ts >= now() - interval '48 hours'
+        order by cuenta, ts desc) p
+  order by p.cuenta;
+$$;
+
+create or replace function omc_cuentas_estado(p_token text) returns jsonb
+language plpgsql security definer set search_path = public as $$
+declare t record; r jsonb;
+begin
+  select * into t from omc_tok(p_token);
+  if t.rol <> 'owner' then return '[]'::jsonb; end if;
+  select coalesce(jsonb_agg(jsonb_build_object('clave', f.clave, 'cuenta', f.cuenta, 'pct_ventana', f.pct_ventana,
+           'pct_semana', f.pct_semana, 'pct_semana_opus', f.pct_semana_opus, 'ventana_fin', f.ventana_fin,
+           'semana_fin', f.semana_fin, 'updated_at', f.updated_at, 'minutos', f.minutos, 'saturada', f.saturada,
+           'pausados', '[]'::jsonb) order by f.clave), '[]'::jsonb)
+    into r from omc_cuentas_filas(t.empresa) f;
+  return r;
+end $$;
+
+create or replace function omc_cuentas_kpi(p_empresa text) returns void
+language plpgsql security definer set search_path = public as $$
+declare n_act int; n_sat int; peor int; txt text; urge boolean;
+begin
+  select count(*), count(*) filter (where f.saturada), max(greatest(f.pct_ventana, f.pct_semana)),
+         string_agg(f.cuenta || ' ' || greatest(f.pct_ventana, f.pct_semana) || ' %', ' · ' order by f.clave)
+    into n_act, n_sat, peor, txt from omc_cuentas_filas(p_empresa) f;
+  urge := n_act > 0 and n_sat = n_act;
+  insert into omc_kpis (empresa, clave, valor, texto, fuente, updated_at) values
+    (p_empresa, 'cuentas.urge_tercera', case when urge then 1 else 0 end,
+     case when urge then 'todas las cuentas al 90 % o más de su ventana o semana (' || txt || '): urge la tercera cuenta'
+          else coalesce(txt, 'sin muestras en 48 h') end, 'hq-plan', now()),
+    (p_empresa, 'cuentas.peor_pct', coalesce(peor, 0), coalesce(txt, 'sin muestras en 48 h'), 'hq-plan', now())
+  on conflict (empresa, clave) do update
+    set valor = excluded.valor, texto = excluded.texto, fuente = excluded.fuente, updated_at = excluded.updated_at;
+end $$;
+
+create or replace function omc_plan_kpi_cuentas_trg() returns trigger
+language plpgsql security definer set search_path = public as $$
+begin
+  if new.cuenta <> 'peni' then perform omc_cuentas_kpi(new.empresa); end if;
+  return null;
+end $$;
+drop trigger if exists trg_omc_plan_kpi_cuentas on omc_plan;
+create trigger trg_omc_plan_kpi_cuentas after insert or update on omc_plan
+  for each row execute function omc_plan_kpi_cuentas_trg();
+
+do $do$ begin perform omc_cuentas_kpi(e) from (select distinct empresa from omc_plan) x(e); end $do$;
+
+revoke all on function omc_cuentas_estado(text) from public;
+grant execute on function omc_cuentas_estado(text) to anon, authenticated, service_role;
+revoke all on function omc_cuentas_filas(text), omc_cuentas_kpi(text), omc_plan_kpi_cuentas_trg() from public, anon, authenticated;

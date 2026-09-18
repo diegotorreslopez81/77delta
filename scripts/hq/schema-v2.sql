@@ -1030,6 +1030,7 @@ begin
           'contratadas', jsonb_build_object('n', count(*) filter (where l.estado = 'Contratada'), 'eur', coalesce(sum(l.importe) filter (where l.estado = 'Contratada'), 0)))
         from omc_licitaciones l where l.empresa = t.empresa
       ) else '{}'::jsonb end,
+    'cuentas', case when es_owner then omc_cuentas_estado(p_token) else '[]'::jsonb end,
     'uso', case when es_owner and exists (select 1 from pg_proc where proname = 'omc_hq_uso') then omc_hq_uso(p_token) else '{}'::jsonb end
   );
 end $$;

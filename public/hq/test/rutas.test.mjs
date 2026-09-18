@@ -5,7 +5,7 @@ import { AREAS, CLAVES, resolver } from '../app/rutas.js';
 test('AREAS tiene las seis áreas en orden y cada vista del menú es una clave válida', () => {
   assert.deepEqual(AREAS.map(a => a.id), ['hoy', 'direccion', 'operacion', 'equipo', 'recursos', 'reglas']);
   for (const a of AREAS) for (const v of a.vistas) assert.ok(CLAVES.has(v.clave), v.clave);
-  assert.equal(AREAS.find(a => a.id === 'recursos').vistas.length, 0, 'Recursos llega en la tanda 3');
+  assert.deepEqual(AREAS.find(a => a.id === 'recursos').vistas.map(v => v.clave), ['recursos/computo'], 'Recursos: Cómputo desde #1054; Dinero llega en la tanda 3');
 });
 
 const casos = [
@@ -28,7 +28,9 @@ const casos = [
   ['#equipo/agente/sales-motor', '', 'equipo/agente', 'sales-motor', {}, '#equipo/agente/sales-motor', false],
   ['#expedientes/9', '', 'operacion/expedientes', '9', {}, '#operacion/expedientes/9', true],
   ['#operacion/licitaciones', '', 'operacion/licitaciones', undefined, {}, '#operacion/licitaciones', false],
-  ['#recursos', '', 'hoy', undefined, {}, '#hoy', true],
+  ['#recursos', '', 'recursos/computo', undefined, {}, '#recursos/computo', true],
+  ['#recursos/computo', '', 'recursos/computo', undefined, {}, '#recursos/computo', false],
+  ['#recursos/dinero', '', 'recursos/computo', undefined, {}, '#recursos/computo', true],
   ['#loquesea/x', '', 'hoy', undefined, {}, '#hoy', true],
   ['#tablero', '?id=55', 'reglas/decisiones', '55', {}, '#reglas/decisiones/55', true],
   ['#hoy', '?id=abc', 'hoy', undefined, {}, '#hoy', false],

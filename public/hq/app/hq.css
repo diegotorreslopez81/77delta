@@ -117,3 +117,9 @@ body.menu-plegado .menu nav a.sub .ico{display:block}
 .grupo-criba summary{cursor:pointer;font-weight:600;padding:6px 0;list-style:none}
 .grupo-criba summary::-webkit-details-marker{display:none}
 .grupo-criba p{margin:6px 0;padding:8px 0;border-top:1px solid var(--linea);font-size:14px}
+/* Recursos/Cómputo (#1054): tarjeta por cuenta con barras de semana y de ventana de 5 h, pill por color y aviso de tercera cuenta */
+.tarjeta.cuenta{margin-top:12px}.tarjeta.cuenta .fila{display:flex;gap:10px;align-items:baseline;flex-wrap:wrap}.tarjeta.cuenta h2{margin:0;font-size:18px}
+.consumo{margin-top:10px}.consumo .fila{gap:8px}.consumo strong{font-size:15px}.tarjeta .barra{background:var(--pizarra-tenue);margin-top:6px}
+.barra.verde i{background:var(--exito)}.barra.ambar i{background:var(--oro-luz)}.barra.rojo i{background:var(--error)}
+.pill.verde{background:var(--exito-suave);color:var(--exito)}.pill.ambar{background:var(--oro-suave);color:var(--oro-oscuro)}.pill.rojo{background:var(--error);color:#fff}
+.aviso{padding:10px 14px;border-radius:8px;background:var(--oro-suave);color:var(--tinta);margin:10px 0}.aviso.rojo{background:var(--error);color:#fff}

@@ -60,6 +60,8 @@ test('semaforoCuentas: null sin datos de cuentas; color por la cuenta más carga
   assert.deepEqual(semaforoCuentas({ cuentas: [{ cuenta: 'diego@', pct_ventana: 40 }, { cuenta: 'team@', pct_ventana: 79 }] }), { color: 'verde', pct: 79, cuenta: 'team@' });
   assert.deepEqual(semaforoCuentas({ cuentas: [{ cuenta: 'diego@', pct_ventana: 80 }] }), { color: 'ambar', pct: 80, cuenta: 'diego@' });
   assert.deepEqual(semaforoCuentas({ cuentas: [{ cuenta: 'diego@', pct_ventana: 95 }, { cuenta: 'team@', pct_ventana: 10 }] }), { color: 'rojo', pct: 95, cuenta: 'diego@' });
+  // #1054: cuenta el mayor de ventana y semana (la cuenta se bloquea por cualquiera de los dos límites)
+  assert.deepEqual(semaforoCuentas({ cuentas: [{ cuenta: 'diego@', pct_ventana: 12, pct_semana: 93 }, { cuenta: 'team@', pct_ventana: 5, pct_semana: 97 }] }), { color: 'rojo', pct: 97, cuenta: 'team@' });
 });
 test('enCurso deja solo estado en_curso', () => {
   assert.deepEqual(enCurso([{ id: 1, estado: 'en_curso' }, { id: 2, estado: 'encolado' }, { id: 3, estado: 'hecho' }]).map(e => e.id), [1]);

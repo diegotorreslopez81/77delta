@@ -29,15 +29,17 @@ globalThis.matchMedia = () => ({ matches: false });
 const { montarMenu, marcarActiva, pintarBarra, cablearShell } = await import('../app/shell.js');
 const { AREAS } = await import('../app/rutas.js');
 
-test('montarMenu pinta las seis áreas, un enlace por vista y "pronto" en Recursos', () => {
+test('montarMenu pinta las seis áreas, un enlace por vista y Cómputo en Recursos', () => {
   const nav = document.createElement('nav'); const m = montarMenu(nav);
-  assert.equal(nav.children.length, 6); assert.equal(m.enlaces.size, 7);
+  assert.equal(nav.children.length, 6); assert.equal(m.enlaces.size, 8);
   assert.equal(m.enlaces.get('operacion/tablero').attrs.href, '#operacion/tablero');
   // C3 (revision final): data-inicial era codigo muerto (nunca lo leia el CSS ni ningun otro modulo);
   // se retira, y en su lugar se comprueba lo que realmente hace visible el icono en modo plegado.
   assert.ok(m.enlaces.get('hoy').children.some(c => c.className.includes('ico')), 'C3: cada enlace lleva su span.ico');
   assert.ok(m.enlaces.get('hoy').attrs['data-inicial'] === undefined, 'C3: data-inicial es codigo muerto, se retira');
-  assert.ok(m.areas.get('recursos').textContent.includes('pronto'));
+  // #1054: Recursos ya tiene vista (Cómputo); el "pronto" desaparece
+  assert.equal(m.enlaces.get('recursos/computo').attrs.href, '#recursos/computo');
+  assert.ok(!m.areas.get('recursos').textContent.includes('pronto'));
 });
 // C3 (revision final del controlador): con el menu plegado, las areas de varias vistas (operacion,
 // reglas si tuviera mas de una...) dejaban filas en blanco porque solo las areas de una vista pintaban
