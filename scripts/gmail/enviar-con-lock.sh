@@ -124,12 +124,19 @@ fi
 printf 'destinatario: %s\ntarjeta: %s\n' "$TO" "$TARJETA" > "$LOCK/datos"
 
 if [ "$SIMULAR" = "1" ]; then
-  echo "SIMULACRO OK: pasa ventana, pasa estado ('aprobada'), candado libre."
-  echo "  enviaria a: $TO   bajo tarjeta #$TARJETA"
+  SALIDA=$(python3 "$GM" send --tarjeta "$TARJETA" --to "$TO" "$@" --simular 2>&1)
+  RC=$?
+  rm -rf "$LOCK"
+  if [ $RC -ne 0 ]; then
+    echo "SIMULACRO: gmail-agente.py RECHAZA este envio (rc=$RC), no lo intentes de verdad tal cual."
+    echo "$SALIDA"
+    exit $RC
+  fi
+  echo "SIMULACRO OK: pasa ventana, pasa estado ('aprobada'), candado libre, y gmail-agente.py valida los argumentos reales (adjuntos, alias, dominio, duplicado)."
   echo "  contacto: #$CONTACTO ($C_EMAIL, $C_ESTADO)"
   echo "  candado real que usaria: ${LOCK%.simulacro.$$}"
-  echo "  comando: gmail-agente.py send --tarjeta $TARJETA --to $TO $*"
-  rm -rf "$LOCK"; exit 0
+  echo "$SALIDA"
+  exit 0
 fi
 
 python3 "$GM" send --tarjeta "$TARJETA" --to "$TO" "$@"
