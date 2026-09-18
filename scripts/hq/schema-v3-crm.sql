@@ -676,3 +676,29 @@ do $do$ begin perform omc_cuentas_kpi(e) from (select distinct empresa from omc_
 revoke all on function omc_cuentas_estado(text) from public;
 grant execute on function omc_cuentas_estado(text) to anon, authenticated, service_role;
 revoke all on function omc_cuentas_filas(text), omc_cuentas_kpi(text), omc_plan_kpi_cuentas_trg() from public, anon, authenticated;
+
+-- ---------------------------------------------------------------------------------------------------
+-- 3.5.0 (#1057 tarea 24, HQ 2.0.11): lectura de la base de colaboradores para la vista Equipo >
+-- Colaboradores. Solo lectura, owner o agente de la misma empresa. No devuelve email ni notas (el
+-- contacto y lo sensible viven en la carpeta de Drive del colaborador); cada colaborador lleva sus
+-- colaboraciones con el nombre del expediente. Aditivo e idempotente.
+-- ---------------------------------------------------------------------------------------------------
+create or replace function omc_v3_version() returns text language sql immutable as $$ select '3.5.0' $$;
+
+create or replace function omc_colaboradores_lista(p_token text) returns jsonb
+language plpgsql stable security definer set search_path = public as $$
+declare t omc_tokens;
+begin
+  select * into t from omc_tok(p_token);
+  return (select coalesce(jsonb_agg(jsonb_build_object('id', c.id, 'nombre', c.nombre, 'perfil', c.perfil, 'especialidades', c.especialidades,
+      'estado', c.estado, 'origen', c.origen, 'disponibilidad', c.disponibilidad, 'ubicacion', c.ubicacion, 'idiomas', c.idiomas,
+      'tarifa_dia', c.tarifa_dia, 'acuerdo_fecha', c.acuerdo_fecha, 'acuerdo_url', c.acuerdo_url, 'cv_url', c.cv_url,
+      'carpeta_url', c.carpeta_url, 'linkedin_url', c.linkedin_url, 'foto_url', c.foto_url, 'updated_at', c.updated_at,
+      'colaboraciones', (select coalesce(jsonb_agg(jsonb_build_object('expediente_id', k.expediente_id, 'expediente', x.nombre,
+          'licitacion_expediente', k.licitacion_expediente, 'rol', k.rol, 'estado', k.estado) order by k.id), '[]'::jsonb)
+        from omc_colaboraciones k left join omc_expedientes x on x.id = k.expediente_id where k.colaborador_id = c.id and k.empresa = c.empresa))
+    order by c.acuerdo_fecha is null, c.nombre), '[]'::jsonb)
+    from omc_colaboradores c where c.empresa = t.empresa);
+end $$;
+revoke all on function omc_colaboradores_lista(text) from public;
+grant execute on function omc_colaboradores_lista(text) to anon, authenticated, service_role;

@@ -42,3 +42,13 @@ for (const [hash, search, clave, arg, filtros, canonico, redirigido] of casos) {
     assert.equal(r.canonico, canonico); assert.equal(r.redirigido, redirigido);
   });
 }
+
+// #1057 tarea 24: '#equipo/<vista>' con vista propia ya no cae en la ruta vieja '#equipo/<id>'.
+test('equipo/organigrama y equipo/colaboradores resuelven a su vista sin redirigir', async () => {
+  const { resolver } = await import('../app/rutas.js');
+  for (const c of ['equipo/organigrama', 'equipo/colaboradores']) {
+    const r = resolver('#' + c);
+    assert.equal(r.clave, c); assert.equal(r.arg, undefined); assert.equal(r.redirigido, false);
+  }
+  assert.equal(resolver('#equipo/sales-motor').clave, 'equipo/agente');
+});

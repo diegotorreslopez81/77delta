@@ -31,7 +31,7 @@ const { AREAS } = await import('../app/rutas.js');
 
 test('montarMenu pinta las seis áreas, un enlace por vista y Cómputo en Recursos', () => {
   const nav = document.createElement('nav'); const m = montarMenu(nav);
-  assert.equal(nav.children.length, 6); assert.equal(m.enlaces.size, 8);
+  assert.equal(nav.children.length, 6); assert.equal(m.enlaces.size, 9); // #1057 tarea 24: + Equipo > Colaboradores
   assert.equal(m.enlaces.get('operacion/tablero').attrs.href, '#operacion/tablero');
   // C3 (revision final): data-inicial era codigo muerto (nunca lo leia el CSS ni ningun otro modulo);
   // se retira, y en su lugar se comprueba lo que realmente hace visible el icono en modo plegado.
