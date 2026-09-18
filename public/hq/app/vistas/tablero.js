@@ -48,8 +48,9 @@ function nuevoEncargo(S) {
   } })] });
 }
 
-// Cuadro de mando encima del kanban (#1057 tarea 22, HQ 2.0.9; regla de kit #221): cifras del conjunto
-// filtrado, así que responden a los mismos filtros que las columnas.
+// Cuadro de mando (#1057 tarea 22, HQ 2.0.9; regla de kit #221): cifras del conjunto filtrado, así que
+// responden a los mismos filtros que las columnas. Se va a Operación/KPIs (grupo tablero) en la tarea
+// 29: aquí queda solo el enlace, cuadroTablero() se mantiene exportada para ese uso.
 export const COLOR_COLUMNA = { backlog: 'neutro-3', por_hacer: 'neutro-2', en_curso: 'tinta-2', bloqueado: 'tinta' };
 const abiertosDe = k => COLUMNAS.filter(([c]) => c !== 'hecho').flatMap(([c]) => k[c]);
 export const vencidos = (k, ahora = new Date()) => { const hoy = ahora.toISOString().slice(0, 10); return abiertosDe(k).filter(e => e.fecha_hito && String(e.fecha_hito).slice(0, 10) < hoy).sort((a, b) => String(a.fecha_hito).localeCompare(String(b.fecha_hito))); };
@@ -77,11 +78,10 @@ export function render(raiz, S, arg, filtrosRuta = {}, ahora = new Date()) {
   if (filtrosRuta.agente) { S.filtros.agente = filtrosRuta.agente; history.replaceState(null, '', '#operacion/tablero'); }
   if (arg && /^\d+$/.test(arg)) { history.replaceState(null, '', '#operacion/tablero'); abrirDetalle(Number(arg), S, recargar); }
   const movil = matchMedia('(max-width: 899px)').matches;
-  const cont = el('div', { class: 'kanban' + (movil ? ' movil' : '') }), cuadro = el('div', { class: 'cuadro' }), barra = el('div', { class: 'barra-filtros' });
+  const cont = el('div', { class: 'kanban' + (movil ? ' movil' : '') }), barra = el('div', { class: 'barra-filtros' });
   const pintar = () => {
     barra.innerHTML = ''; barra.append(filtros(S, pintar));
     const k = kanban(S.datos.encargos, S.filtros); cont.innerHTML = '';
-    cuadro.innerHTML = ''; cuadro.append(...cuadroTablero(S, k, ahora));
     if (movil) cont.append(el('div', { class: 'pestanas' }, COLUMNAS.map(([c, t]) => el('button', { class: 'btn' + (S.columnaMovil === c ? ' primario' : ''), text: t + ' ' + k[c].length, onclick: () => { S.columnaMovil = c; pintar(); } }))));
     for (const [c, t] of COLUMNAS) {
       if (movil && c !== S.columnaMovil) continue;
@@ -97,7 +97,7 @@ export function render(raiz, S, arg, filtrosRuta = {}, ahora = new Date()) {
     if (a.tipo === 'nada') { try { const vecinos = kanban(S.datos.encargos, S.filtros)[columna].filter(x => x.id !== id); const orden = indice === 0 ? (vecinos[0]?.orden_kanban ?? 1000) - 10 : indice >= vecinos.length ? (vecinos.at(-1)?.orden_kanban ?? 0) + 10 : Math.floor(((vecinos[indice - 1].orden_kanban ?? 0) + (vecinos[indice].orden_kanban ?? 1000)) / 2); await rpc('omc_encargo_editar', { p_id: id, p: { orden_kanban: orden } }); await recargar(); } catch (err) { toast('HQ rechaza: ' + err.message); } return; }
     await moverEncargo(e, a, S, recargar);
   } });
-  raiz.append(cuadro, barra, cont); pintar();
+  raiz.append(el('div', { class: 'fila enlace-kpis' }, [el('a', { class: 'btn-enlace', href: '#kpis?grupo=tablero', text: 'KPIs ›' })]), barra, cont); pintar();
 }
 function menuMover(e, S) {
   const m = modal({ titulo: 'Mover #' + e.id, cuerpo: COLUMNAS.filter(([c]) => c !== e.columna).map(([c, t]) => el('button', { class: 'btn ancho', text: t, onclick: () => { m.cerrar(); const a = accionAlSoltar(e.columna, c); a.destino = c; moverEncargo(e, a, S, recargar); } })) });

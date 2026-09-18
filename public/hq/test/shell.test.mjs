@@ -29,9 +29,9 @@ globalThis.matchMedia = () => ({ matches: false });
 const { montarMenu, marcarActiva, pintarBarra, cablearShell } = await import('../app/shell.js');
 const { AREAS } = await import('../app/rutas.js');
 
-test('montarMenu pinta las cinco áreas, un enlace por vista y Cómputo en Recursos', () => {
+test('montarMenu pinta las ocho áreas del menú nuevo, un enlace por vista y Cómputo en Recursos', () => {
   const nav = document.createElement('nav'); const m = montarMenu(nav);
-  assert.equal(nav.children.length, 5); assert.equal(m.enlaces.size, 8); // #1057 tarea 27: Decisiones pasa a Hoy como bandeja
+  assert.equal(nav.children.length, 8); assert.equal(m.enlaces.size, 9); // #1057 tarea 29: Home, KPIs, Tablero, Expedientes y Licitaciones separados; Equipo con 2 vistas
   assert.equal(m.enlaces.get('operacion/tablero').attrs.href, '#operacion/tablero');
   // C3 (revision final): data-inicial era codigo muerto (nunca lo leia el CSS ni ningun otro modulo);
   // se retira, y en su lugar se comprueba lo que realmente hace visible el icono en modo plegado.
@@ -65,7 +65,7 @@ test('marcarActiva marca el enlace y abre su área; la ficha de agente activa Eq
   const nav = document.createElement('nav'); const m = montarMenu(nav);
   marcarActiva('operacion/tablero');
   assert.ok(m.enlaces.get('operacion/tablero').classList.contains('activa')); assert.ok(!m.enlaces.get('hoy').classList.contains('activa'));
-  assert.ok(m.areas.get('operacion').classList.contains('abierta')); assert.ok(!m.areas.get('hoy').classList.contains('abierta'));
+  assert.ok(m.areas.get('tablero').classList.contains('abierta')); assert.ok(!m.areas.get('hoy').classList.contains('abierta'));
   marcarActiva('equipo/agente');
   assert.ok(m.areas.get('equipo').classList.contains('abierta')); assert.ok(!m.enlaces.get('operacion/tablero').classList.contains('activa'));
 });
@@ -88,16 +88,21 @@ test('pintarBarra refleja el contador en el icono de la app instalada (Badging A
   assert.doesNotThrow(() => pintarBarra({ rol: 'owner', pendientes: [{ id: 1 }] }));
   Object.defineProperty(globalThis, 'navigator', original);
 });
-// Plan 3b, T4: menú con iconos y cómodo en el móvil. montarMenu pinta un svg por área (en area-titulo,
-// y también en el enlace de las áreas de una sola vista) y envuelve el nombre de cada enlace en
-// span.txt (lo que permite ocultar solo el texto al plegar, nunca font-size:0).
-test('montarMenu: icono svg en cada área y span.txt con el nombre en cada enlace', () => {
+// Plan 3b, T4: menú con iconos y cómodo en el móvil. montarMenu pinta un svg por enlace y envuelve el
+// nombre de cada enlace en span.txt (lo que permite ocultar solo el texto al plegar, nunca font-size:0).
+// #1057 tarea 29: un área de una sola vista no repite area-titulo (sería la misma línea dos veces);
+// solo Equipo (única área con más de una vista) lo lleva.
+test('montarMenu: area-titulo solo en áreas con varias vistas; svg y span.txt en cada enlace', () => {
   const nav = document.createElement('nav'); const m = montarMenu(nav);
   for (const a of AREAS) {
     const div = m.areas.get(a.id);
     const titulo = div.children.find(c => c.className.includes('area-titulo'));
-    assert.ok(titulo, a.id + ': falta area-titulo');
-    assert.ok(titulo.children.some(c => (c.innerHTML || '').includes('<svg')), a.id + ': area-titulo sin svg');
+    if (a.vistas.length > 1) {
+      assert.ok(titulo, a.id + ': área con varias vistas debe llevar area-titulo');
+      assert.ok(titulo.children.some(c => (c.innerHTML || '').includes('<svg')), a.id + ': area-titulo sin svg');
+    } else {
+      assert.ok(!titulo, a.id + ': área de una sola vista no debe repetir area-titulo');
+    }
     for (const v of a.vistas) {
       const enlace = m.enlaces.get(v.clave);
       const txt = enlace.children.find(c => c.className.includes('txt'));
@@ -160,4 +165,57 @@ test('un click en un enlace del menu cierra el cajon aunque el hash ya sea el ac
   disparar(m.enlaces.get('hoy'), 'click');
   assert.ok(!document.body.classList.contains('menu-abierto'), 'el cajon debe cerrarse al hacer click en un enlace');
   document.body.classList.remove('menu-abierto');
+});
+
+// #1057 tarea 29: logo a la izquierda de "HQ" en la cabecera del cajón móvil (index.html no se toca:
+// el logo real solo puede montarse por JS, aquí).
+test('cablearShell monta el logo junto a la marca "HQ" en la cabecera del cajón', () => {
+  delete nodos.menu; delete nodos.hamburguesa; delete nodos.velo; delete nodos.plegar; delete nodos.busqueda; delete nodos.resultados; delete nodos.buscador;
+  document.body.classList.remove('menu-abierto');
+  const nav = document.createElement('nav'); montarMenu(nav);
+  cablearShell();
+  const menu = document.getElementById('menu');
+  const cab = menu.children.find(c => c.className.includes('menu-cab'));
+  const marca = cab.children.find(c => c.className.includes('marca-menu'));
+  assert.ok(marca, 'falta .marca-menu');
+  const logo = marca.children.find(c => c.className.includes('logo-menu'));
+  assert.ok(logo, 'falta el logo');
+  assert.equal(logo.attrs.src, '/hq/monograma.svg');
+  assert.equal(logo.attrs.alt, '77 Delta');
+});
+
+// #1057 tarea 29: campana de notificaciones (a #hoy/bandeja) y botón de recarga dentro de #buscador,
+// ya que index.html no se toca en este lote.
+test('cablearShell monta la campana (a #hoy/bandeja) y el botón de recarga en #buscador', async () => {
+  delete nodos.menu; delete nodos.hamburguesa; delete nodos.velo; delete nodos.plegar; delete nodos.busqueda; delete nodos.resultados; delete nodos.buscador;
+  document.body.classList.remove('menu-abierto');
+  const nav = document.createElement('nav'); montarMenu(nav);
+  cablearShell();
+  const buscador = document.getElementById('buscador');
+  const campana = buscador.children.find(c => c.attrs.id === 'campana');
+  const recargar = buscador.children.find(c => c.attrs.id === 'recargar-btn');
+  assert.ok(campana, 'falta la campana'); assert.equal(campana.attrs.href, '#hoy/bandeja');
+  assert.ok(recargar, 'falta el botón de recarga');
+  let llamado = 0;
+  globalThis.window.HQ_RECARGAR = () => { llamado++; return Promise.resolve(); };
+  const p = Promise.all((recargar.listeners.click || []).map(fn => fn({ target: recargar, currentTarget: recargar })));
+  assert.ok(recargar.classList.contains('girando'), 'debe girar mientras espera la recarga');
+  await p;
+  assert.equal(llamado, 1, 'el click debe llamar a window.HQ_RECARGAR');
+  assert.ok(!recargar.classList.contains('girando'), 'deja de girar al terminar');
+  delete globalThis.window.HQ_RECARGAR;
+});
+
+test('pintarBarra actualiza el número y la visibilidad de la campana', () => {
+  delete nodos.menu; delete nodos.hamburguesa; delete nodos.velo; delete nodos.plegar; delete nodos.busqueda; delete nodos.resultados; delete nodos.buscador;
+  document.body.classList.remove('menu-abierto');
+  const nav = document.createElement('nav'); montarMenu(nav);
+  cablearShell();
+  pintarBarra({ rol: 'owner', pendientes: [{ id: 1 }, { id: 2 }] });
+  const buscador = document.getElementById('buscador');
+  const campana = buscador.children.find(c => c.attrs.id === 'campana');
+  const badge = campana.children.find(c => c.className.includes('badge-campana'));
+  assert.equal(badge.textContent, '2'); assert.equal(badge.hidden, false);
+  pintarBarra({ rol: 'owner', pendientes: [] });
+  assert.equal(badge.hidden, true, 'sin pendientes se oculta la campana');
 });

@@ -39,7 +39,7 @@ if (typeof globalThis.localStorage === 'undefined') {
   globalThis.localStorage = { getItem: (k) => (mem.has(k) ? mem.get(k) : null), setItem: (k, v) => mem.set(k, String(v)), removeItem: (k) => mem.delete(k) };
 }
 
-const { render, pintar, recuento, cuadroColaboradores, tarjetaColaborador, limpiarCache } = await import('../app/vistas/colaboradores.js');
+const { render, pintar, recuento, cuadroColaboradores, tarjetaColaborador, limpiarCache, cargarColaboradores } = await import('../app/vistas/colaboradores.js');
 const buscarNodos = (n, f, out = []) => { if (n && n.nodeType === 1) { if (f(n)) out.push(n); n.children.forEach(c => buscarNodos(c, f, out)); } return out; };
 const textos = n => buscarNodos(n, () => true).map(x => x._text).filter(Boolean);
 const cs = [
@@ -83,7 +83,7 @@ test('render pide los datos una vez, pinta cuadro y lista, y cachea', async () =
   let llamadas = 0; const cargar = async () => { llamadas++; return cs; };
   const raiz = crearNodo('main');
   await render(raiz, S, null, {}, cargar);
-  assert.equal(raiz.children[0].className, 'cuadro');
+  assert.equal(raiz.children[0].className, 'fila enlace-kpis');
   assert.equal(buscarNodos(raiz, n => (n.className || '').includes('tarjeta-colaborador')).length, 3);
   const r2 = crearNodo('main');
   await render(r2, S, null, {}, cargar);
@@ -103,6 +103,17 @@ test('render con error de HQ lo muestra y un render posterior gana a la respuest
   const nueva = crearNodo('main');
   const p2 = render(nueva, S, null, {}, async () => cs);
   await p2; soltar(cs); await p1;
-  assert.equal(buscarNodos(vieja, n => n.className === 'cuadro').length, 0);
-  assert.equal(buscarNodos(nueva, n => n.className === 'cuadro').length, 1);
+  assert.equal(buscarNodos(vieja, n => n.className === 'fila enlace-kpis').length, 0);
+  assert.equal(buscarNodos(nueva, n => n.className === 'fila enlace-kpis').length, 1);
+});
+
+// Grupo 'Equipo' de KPIs (#1057 tarea 29): kpis.js reutiliza esta carga/caché sin pasar por pintar().
+test('cargarColaboradores cachea 5 minutos y no repite la llamada', async () => {
+  limpiarCache();
+  let llamadas = 0; const cargar = async () => { llamadas++; return cs; };
+  const a = await cargarColaboradores(cargar);
+  const b = await cargarColaboradores(cargar);
+  assert.equal(llamadas, 1);
+  assert.deepEqual(a, cs);
+  assert.deepEqual(b, cs);
 });

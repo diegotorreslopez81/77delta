@@ -1,0 +1,54 @@
+/* Tarjetas ricas de Equipo y Operacion/Licitaciones (#1057, hallazgo de Diego con capturas: cabecera
+   oscura de '.cab'/'.objetivo' con texto encima casi invisible, avatares de 36px sin gracia, tarjeta de
+   licitacion sin colapsar midiendo unos 14.000 px de alto en movil). Clases nuevas sin tocar '.cab',
+   '.objetivo' ni '.tarjeta-agente' (esas ya las usa la app y arrastraban los bugs). Reutiliza de hq.css
+   lo que ya sirve tal cual: .lista-rica (rejilla 1/2/3 col), .filtros-rica, .chips, .chip, .pill y sus
+   variantes de color, .punto/.g-color, .enlaces-doc .btn-enlace, .btn.primario. Colores solo de
+   tokens.css; rojo/ambar/verde unicamente en semaforos (pill/punto de latido y de plazo). */
+
+/* Equipo: tarjeta de agente, avatar clicable a chat, ficha con cabecera clara */
+.card-agente{display:flex;gap:12px;align-items:flex-start;background:var(--panel);border:1px solid var(--linea);border-radius:var(--radio);padding:14px 16px;cursor:pointer;transition:box-shadow .2s var(--ease),transform .2s var(--ease)}
+.card-agente:hover{box-shadow:0 10px 24px rgba(6,16,31,.08);transform:translateY(-1px)}
+.card-agente .avatar{width:56px;height:56px}
+.card-agente .avatar.letra{font-size:22px}
+.card-agente .cuerpo{display:flex;flex-direction:column;gap:4px;min-width:0;flex:1}
+.card-agente h3{margin:0;font-size:15px;line-height:1.3}
+.card-agente h3 a{color:inherit;text-decoration:none}
+.card-agente h3 a:hover{text-decoration:underline}
+.card-agente .sub{margin:0;font-size:13px;color:var(--pizarra)}
+.avatar-link{display:inline-block;line-height:0;border-radius:50%}
+.avatar-link:focus-visible{outline:2px solid var(--oro);outline-offset:2px}
+
+.ficha-cab{background:var(--panel);border:1px solid var(--linea);border-radius:var(--radio);padding:16px;align-items:flex-start}
+.ficha-cab .avatar{width:72px;height:72px}
+.ficha-cab .avatar.letra{font-size:28px}
+.ficha-cab h1{font-size:22px;margin-bottom:2px}
+.ficha-cab .sub{margin:0 0 8px;font-size:13px;color:var(--pizarra)}
+.ficha-cab .chips{margin-bottom:10px}
+
+/* Operacion/Licitaciones: tarjeta colapsada por defecto, clic o Intro/espacio despliega el detalle */
+.card-lic{display:block;background:var(--panel);border:1px solid var(--linea);border-radius:var(--radio);padding:14px 16px;cursor:pointer;min-width:0;transition:box-shadow .2s var(--ease),transform .2s var(--ease)}
+.card-lic:hover{box-shadow:0 10px 24px rgba(6,16,31,.08);transform:translateY(-1px)}
+.card-lic:focus-visible{outline:2px solid var(--oro);outline-offset:2px}
+.lic-tags{display:flex;flex-wrap:wrap;gap:6px;align-items:center}
+.lic-tags .plazo{display:inline-flex;align-items:center;gap:5px;margin-left:auto;font-size:12px;font-weight:600;color:var(--tinta)}
+.lic-titulo{margin:8px 0 0;font-size:15px;line-height:1.35;color:var(--tinta);display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden}
+.lic-organo{margin:2px 0 0;font-size:13px;color:var(--pizarra)}
+.card-lic .detalle{display:none;margin-top:10px;padding-top:10px;border-top:1px solid var(--linea)}
+.card-lic[aria-expanded="true"] .detalle{display:block}
+.card-lic .sub{margin:0 0 4px;font-size:13px;color:var(--tinta-2)}
+
+/* Filtros nuevos de tipologia/solvencia/fuente/tipo/desiertas: selects + checkbox en fila, envuelven en movil */
+.filtros-select{display:flex;flex-wrap:wrap;gap:8px;align-items:center;width:100%}
+.filtros-select select{width:auto;min-width:150px;flex:1 1 160px;font-size:13px;padding:6px 8px}
+.filtros-select label{display:flex;align-items:center;gap:6px;font-size:13px;color:var(--tinta-2);white-space:nowrap}
+
+/* Cola en criba: filas compactas agrupadas por elegible, sin la rejilla de tarjetas ricas */
+.lista-criba{display:flex;flex-direction:column;gap:4px}
+
+@media (max-width:599px){
+  .card-agente{padding:12px}
+  .card-agente .avatar{width:48px;height:48px}
+  .ficha-cab{flex-direction:column;align-items:center;text-align:center}
+  .ficha-cab .chips{justify-content:center}
+}

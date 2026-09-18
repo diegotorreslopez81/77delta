@@ -5,9 +5,9 @@ import { crearRecargador } from './recargador.js';
 import { resolver } from './rutas.js';
 import { montarMenu, marcarActiva, pintarBarra, cablearShell } from './shell.js';
 import * as hoy from './vistas/hoy.js';
+import * as kpis from './vistas/kpis.js';
 import * as objetivo from './vistas/objetivo.js';
 import * as tablero from './vistas/tablero.js';
-import * as decisiones from './vistas/decisiones.js';
 import * as equipo from './vistas/equipo.js';
 import * as colaboradores from './vistas/colaboradores.js';
 import * as expedientes from './vistas/expedientes.js';
@@ -15,9 +15,9 @@ import * as licitaciones from './vistas/licitaciones.js';
 import * as recursos from './vistas/recursos.js';
 
 // Plan 3a: una vista por clave de ruta (rutas.js). 'equipo/agente' es la ficha de equipo.js (arg = id).
-// #1057 tarea 27: Hoy lleva debajo la bandeja de decisiones (decisiones.montar, solo owner).
-const inicio = { render(raiz, S, arg, filtros) { hoy.render(raiz, S, arg, filtros); decisiones.montar(raiz, S, arg); } };
-const VISTAS = { 'hoy': inicio, 'direccion/objetivo': objetivo, 'operacion/tablero': tablero, 'operacion/expedientes': expedientes, 'operacion/licitaciones': licitaciones, 'equipo/organigrama': equipo, 'equipo/agente': equipo, 'equipo/colaboradores': colaboradores, 'recursos/computo': recursos };
+// #1057 tarea 29: Hoy ya monta la bandeja de decisiones ella misma (decisiones.montar, solo owner),
+// justo debajo de la franja; no hace falta envolverla aquí.
+const VISTAS = { 'hoy': hoy, 'kpis': kpis, 'direccion/objetivo': objetivo, 'operacion/tablero': tablero, 'operacion/expedientes': expedientes, 'operacion/licitaciones': licitaciones, 'equipo/organigrama': equipo, 'equipo/agente': equipo, 'equipo/colaboradores': colaboradores, 'recursos/computo': recursos };
 const raiz = document.getElementById('vista');
 document.getElementById('ver').textContent = 'v' + HQ_VERSION.v;
 montarMenu(document.getElementById('nav'));
@@ -48,6 +48,13 @@ export const recargar = crearRecargador(
   async () => { try { return await cargar(); } catch (e) { toast('HQ: ' + e.message); return undefined; } },
   datos => { if (datos !== undefined) { poner(datos); render(); } }
 );
+// #1057 tarea 29: campana/reload del menú y el gate de 60s de abajo comparten un único punto de
+// entrada. ultimaRecarga se actualiza tanto en la recarga automática como en el botón manual (shell.js
+// llama a window.HQ_RECARGAR desde el icono de recarga), para que un clic manual no dispare además una
+// recarga automática un segundo después.
+let ultimaRecarga = Date.now();
+function recargarYMarcar() { ultimaRecarga = Date.now(); return recargar(); }
+window.HQ_RECARGAR = recargarYMarcar;
 
 function pedirToken() {
   const campo = el('input', { class: 'campo', placeholder: 'Pega el enlace de HQ o el token', autofocus: true });
@@ -74,10 +81,24 @@ async function activarPush(reg) {
 // Service worker: registra el nuevo /hq/sw.js y desregistra cualquier registro sobrante en el mismo
 // scope (/hq/) que no sea ese script activo (residuos de versiones o pruebas anteriores). Nunca toca
 // registros de otro scope (p.ej. /hq/v1/, que se gestiona a si mismo y no se debe romper desde aqui).
+// #1057 tarea 29: si Diego está escribiendo algo (un campo de texto enfocado, con o sin contenido) la
+// versión nueva espera al toast con botón; si no hay nada que perder, se recarga sola sin interrumpir.
+// document.activeElement no existe en los shims de los tests (por eso el try/catch), pero esta rama
+// solo se ejecuta con 'serviceWorker' in navigator, que tampoco existe ahí: no se cubre con node --test.
+function escribiendo() {
+  try {
+    const a = document.activeElement;
+    if (!a) return false;
+    const tag = (a.tagName || '').toLowerCase();
+    if (tag === 'textarea') return true;
+    if (tag === 'input') return !['checkbox', 'radio', 'button', 'submit', 'range', 'color', 'file'].includes((a.type || 'text').toLowerCase());
+    return !!a.isContentEditable;
+  } catch { return false; }
+}
 if ('serviceWorker' in navigator) {
   navigator.serviceWorker.getRegistrations().then(rs => rs.forEach(r => { if (new URL(r.scope).pathname === '/hq/' && !(r.active && r.active.scriptURL.endsWith('/hq/sw.js'))) r.unregister(); }));
   navigator.serviceWorker.register('/hq/sw.js', { updateViaCache: 'none' }).then(reg => {
-    reg.addEventListener('updatefound', () => { const nuevo = reg.installing; if (nuevo) nuevo.addEventListener('statechange', () => { if (nuevo.state === 'activated' && navigator.serviceWorker.controller) toast('HQ tiene versión nueva', 'recargar', () => location.reload()); }); });
+    reg.addEventListener('updatefound', () => { const nuevo = reg.installing; if (nuevo) nuevo.addEventListener('statechange', () => { if (nuevo.state === 'activated' && navigator.serviceWorker.controller) { if (escribiendo()) toast('HQ tiene versión nueva', 'recargar', () => location.reload()); else location.reload(); } }); });
     if (Notification.permission === 'default') document.addEventListener('click', pedirPush, { once: true });
     else if (Notification.permission === 'granted') activarPush(reg);
   }).catch(() => {});
@@ -92,10 +113,11 @@ if ('serviceWorker' in navigator) {
 
 if (!TOKEN) pedirToken();
 else {
-  conf().then(recargar).catch(e => { raiz.innerHTML = ''; raiz.append(el('p', { class: 'error', text: 'No se pudo cargar HQ: ' + e.message })); });
+  conf().then(recargarYMarcar).catch(e => { raiz.innerHTML = ''; raiz.append(el('p', { class: 'error', text: 'No se pudo cargar HQ: ' + e.message })); });
   // Sin realtime (T7-b): recarga cada 60s y al volver a la pestaña, nunca en segundo plano. Fix ronda 2
   // (revision final, D3): el propio tick del intervalo tambien mira document.hidden (antes solo lo
-  // miraba el comentario, no el codigo).
-  setInterval(() => { if (!document.hidden) recargar(); }, 60000);
-  document.addEventListener('visibilitychange', () => { if (!document.hidden) recargar(); });
+  // miraba el comentario, no el codigo). #1057 tarea 29: al volver a la pestaña solo si ya pasaron 60s
+  // desde la última recarga (si el tick de abajo acaba de recargar hace 5s, no hace falta repetir).
+  setInterval(() => { if (!document.hidden) recargarYMarcar(); }, 60000);
+  document.addEventListener('visibilitychange', () => { if (!document.hidden && Date.now() - ultimaRecarga > 60000) recargarYMarcar(); });
 }

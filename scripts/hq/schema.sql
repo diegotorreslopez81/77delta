@@ -1236,3 +1236,87 @@ grant execute on function public.omc_token_info(text), public.omc_hq(text), publ
   public.omc_encargo_prioridad(text, bigint, text), public.omc_encargos_lista(text)
   to anon, authenticated, service_role;
 notify pgrst, 'reload schema';
+
+-- ===== 19-sep-2026 · motivos de NO (encargo #1063), aplicado en producción el 19-sep 02:2x =====
+-- Motivos de NO (Diego 19-sep-2026, encargo #1063): catálogo cerrado de por qué NO vamos a una licitación,
+-- guardado en omc_licitaciones.motivos (hasta ahora solo llevaba los motivos de SÍ del Sheet de Sales).
+-- El mismo catálogo, en el mismo orden, vive en scripts/hq/hq.py (MOTIVOS_NO) y public/hq/app/licitaciones.js
+-- (MOTIVOS_NO): si cambia aquí, cambia allí.
+create or replace function public.omc_motivos_no() returns text[] language sql immutable as $$
+  select array['Fuera de España', 'Suministro/hardware', 'No TIC ni formación', 'Solvencia/clasificación', 'Presencial',
+               'Sin pliego', 'Plazo corto', 'Importe bajo', 'Competencia/consorcio', 'Duplicada']
+$$;
+
+-- Deriva los motivos de NO de un texto libre (el motivo_auto del cribado). Es la misma regla con la que se
+-- rellenaron el 19-sep las 1.185 descartadas que no tenían motivo; la usa omc_licitacion_cribar cuando el
+-- agente descarta sin pasar --motivos. Devuelve '{}' si no reconoce nada: entonces el descarte exige motivos.
+create or replace function public.omc_motivos_no_de_texto(p_texto text) returns text[] language sql immutable as $$
+  with t as (select lower(coalesce(p_texto, '')) t)
+  select array_remove(array[
+    case when t ~ 'fuera de españa|fuera de espana|\mted\M|autotraducci|extranjer' then 'Fuera de España' end,
+    case when t ~ 'suministro|hardware|equipamiento|reventa|partner/distribuidor|del fabricante' then 'Suministro/hardware' end,
+    case when t ~ 'no es tic|no tic|fuera de alcance|fuera de sector|fuera de foco|ning.n cpv|cpv n.cleo pero|no confirma|cpv fuera del n.cleo|dudosa|vertical corpora' then 'No TIC ni formación' end,
+    case when t ~ 'exige volumen anual|exige plantilla|exige solvencia|clasificaci.n exigida|rolece|art\. 87|inacreditable' then 'Solvencia/clasificación' end,
+    case when t ~ 'presencial por naturaleza|presencialidad|presencial obligatoria|100 ?% presencial' then 'Presencial' end,
+    case when t ~ 'sin pliego' then 'Sin pliego' end,
+    case when t ~ 'plazo (corto|insuficiente)|sin tiempo' then 'Plazo corto' end,
+    case when t ~ '<15\.?000|<15k|adjudicaci.n directa|importe bajo|menor de 15' then 'Importe bajo' end,
+    case when t ~ 'proveedor original|consorci|\mute\M|competencia' then 'Competencia/consorcio' end,
+    case when t ~ 'duplicad' then 'Duplicada' end], null) from t
+$$;
+
+-- Cribado de Sales con motivos de NO. Cambia la firma (p_motivos nuevo): se quita la anterior para que PostgREST
+-- no tenga dos candidatas. Descartar exige al menos un motivo del catálogo: los que vengan en p_motivos, o los
+-- que se deriven del texto de p_motivo_auto, o los que la fila ya tuviera; si no hay ninguno, la RPC falla y no
+-- cambia nada. La decisión OK/No sigue siendo de omc_licitacion_decidir (Diego).
+drop function if exists public.omc_licitacion_cribar(text, text, text, text, text);
+create or replace function public.omc_licitacion_cribar(p_token text, p_expediente text, p_estado text, p_motivo_auto text default null,
+                                                        p_resumen_corto text default null, p_motivos jsonb default null)
+returns jsonb language plpgsql security definer set search_path = public as $$
+declare t public.omc_tokens; l public.omc_licitaciones; v_motivos text[];
+begin
+  t := public.omc_tok(p_token);
+  if p_estado not in ('Nueva', 'Por decidir', 'Descartada', 'Pausada', 'Cerrada sin presentar') then
+    raise exception 'omc_licitacion_cribar solo mueve entre Nueva/Por decidir/Descartada/Pausada/Cerrada sin presentar (cribado) - la decision OK/No es de omc_licitacion_decidir, exclusiva de Diego' using errcode = '42501';
+  end if;
+  v_motivos := coalesce((select array_agg(x) from jsonb_array_elements_text(coalesce(p_motivos, '[]'::jsonb)) x), '{}');
+  if cardinality(v_motivos) > 0 and not (v_motivos <@ public.omc_motivos_no()) then
+    raise exception 'motivos fuera del catálogo; válidos: %', array_to_string(public.omc_motivos_no(), ' · ') using errcode = '22023';
+  end if;
+  if p_estado = 'Descartada' and cardinality(v_motivos) = 0 then v_motivos := public.omc_motivos_no_de_texto(p_motivo_auto); end if;
+  update public.omc_licitaciones set
+    estado = p_estado,
+    motivo_auto = coalesce(p_motivo_auto, motivo_auto),
+    resumen_corto = coalesce(p_resumen_corto, resumen_corto),
+    motivos = case when cardinality(v_motivos) > 0 then v_motivos else motivos end,
+    sincronizado = false, updated_at = now()
+    where empresa = t.empresa and expediente = p_expediente returning * into l;
+  if not found then raise exception 'licitación no encontrada' using errcode = 'P0001'; end if;
+  if p_estado = 'Descartada' and cardinality(coalesce(l.motivos, '{}')) = 0 then
+    raise exception 'descartar exige al menos un motivo del catálogo (--motivos): %', array_to_string(public.omc_motivos_no(), ' · ') using errcode = '22023';
+  end if;
+  return to_jsonb(l);
+end $$;
+
+-- Decisión de Diego: si HQ manda motivos, mandan; si no, se derivan del texto; si tampoco, se conservan los que
+-- había (antes un p_motivos vacío borraba los motivos existentes). Misma firma, no hace falta quitar nada.
+create or replace function public.omc_licitacion_decidir(p_token text, p_expediente text, p_decision text, p_motivos jsonb default '[]'::jsonb, p_texto text default '')
+returns jsonb language plpgsql security definer set search_path = public as $$
+declare t public.omc_tokens; l public.omc_licitaciones; v_motivos text[];
+begin
+  t := public.omc_tok(p_token);
+  if t.rol <> 'owner' then raise exception 'solo owner' using errcode = '42501'; end if;
+  if p_decision not in ('OK','No','Pendiente') then raise exception 'decisión no válida' using errcode = 'P0001'; end if;
+  v_motivos := coalesce((select array_agg(x) from jsonb_array_elements_text(coalesce(p_motivos, '[]'::jsonb)) x), '{}');
+  if cardinality(v_motivos) = 0 and p_decision = 'No' then v_motivos := public.omc_motivos_no_de_texto(p_texto); end if;
+  update public.omc_licitaciones set decision = p_decision, fecha_decision = case when p_decision = 'Pendiente' then null else current_date end,
+    decidido_por = case when p_decision = 'Pendiente' then '' else 'diego' end,
+    motivos = case when cardinality(v_motivos) > 0 then v_motivos when p_decision = 'Pendiente' then '{}' else motivos end,
+    motivo_texto = coalesce(p_texto, ''),
+    estado = case when p_decision = 'OK' then 'Aprobada' when p_decision = 'No' then 'Descartada' else 'Analizada' end,
+    sincronizado = false, updated_at = now()
+    where empresa = t.empresa and expediente = p_expediente returning * into l;
+  if not found then raise exception 'licitación no encontrada' using errcode = 'P0001'; end if;
+  return to_jsonb(l);
+end $$;
+

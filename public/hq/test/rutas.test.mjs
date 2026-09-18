@@ -2,9 +2,12 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { AREAS, CLAVES, resolver } from '../app/rutas.js';
 
-test('AREAS tiene las seis áreas en orden y cada vista del menú es una clave válida', () => {
-  assert.deepEqual(AREAS.map(a => a.id), ['hoy', 'operacion', 'equipo', 'recursos', 'direccion']);
+// #1057 tarea 29: menú nuevo con ocho áreas (Home, KPIs, Tablero, Expedientes, Licitaciones separados;
+// Equipo sigue siendo la única con más de una vista; Plan estratégico al final).
+test('AREAS tiene las ocho áreas del menú nuevo en orden y cada vista es una clave válida', () => {
+  assert.deepEqual(AREAS.map(a => a.id), ['hoy', 'kpis', 'tablero', 'expedientes', 'licitaciones', 'equipo', 'recursos', 'direccion']);
   for (const a of AREAS) for (const v of a.vistas) assert.ok(CLAVES.has(v.clave), v.clave);
+  assert.deepEqual(AREAS.find(a => a.id === 'equipo').vistas.map(v => v.clave), ['equipo/organigrama', 'equipo/colaboradores']);
   assert.deepEqual(AREAS.find(a => a.id === 'recursos').vistas.map(v => v.clave), ['recursos/computo'], 'Recursos: Cómputo desde #1054; Dinero llega en la tanda 3');
 });
 
@@ -37,6 +40,9 @@ const casos = [
   ['#loquesea/x', '', 'hoy', undefined, {}, '#hoy', true],
   ['#tablero', '?id=55', 'hoy', '55', {}, '#hoy/55', true],
   ['#hoy', '?id=abc', 'hoy', undefined, {}, '#hoy', false],
+  // #1057 tarea 29: nueva sección KPIs, con paso de grupo por query string igual que cualquier otro filtro.
+  ['#kpis', '', 'kpis', undefined, {}, '#kpis', false],
+  ['#kpis?grupo=licitaciones', '', 'kpis', undefined, { grupo: 'licitaciones' }, '#kpis?grupo=licitaciones', false],
 ];
 for (const [hash, search, clave, arg, filtros, canonico, redirigido] of casos) {
   test('resolver ' + JSON.stringify(hash) + ' ' + JSON.stringify(search), () => {

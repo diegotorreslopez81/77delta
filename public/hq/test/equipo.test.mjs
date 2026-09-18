@@ -1,8 +1,10 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 
-// Organigrama con perfiles vivos (#1057 tarea 23, HQ 2.0.10). equipo.js importa `recargar` de main.js,
-// que toca el DOM al importarse: mismo shim mínimo que tablero.test.mjs.
+// Organigrama con perfiles vivos (#1057 tarea 23, HQ 2.0.10; tarjetas ricas #1057 hallazgo de Diego con
+// capturas). equipo.js importa `recargar` de main.js, que toca el DOM al importarse: mismo shim mínimo
+// que tablero.test.mjs. replaceWith no está en el shim (jsdom real lo tiene, este no): el test del svg
+// de avatar lo monkey-patchea en el nodo concreto que necesita.
 function crearNodo(tag) {
   const n = {
     tag, nodeType: 1, children: [], attrs: {}, className: '', _text: '', _html: '', listeners: {}, parent: null, dataset: {},
@@ -74,26 +76,67 @@ test('cuadro del equipo: activos, departamentos, carga ordenada con enlace a la 
   assert.ok(t[3].includes('1') && t[3].includes('Helena'));
 });
 
-test('tarjeta de agente: semáforo de latido, sesión con nombre de expediente, cifra y frentes', () => {
+test('tarjeta de agente: chip de latido en semáforo, cuenta, encargos, frentes y sesión con nombre de expediente', () => {
   const S = Sx();
   const c = tarjetaAgente(ags[0], S, AHORA);
-  assert.ok(c.className.includes('tarjeta-rica'));
-  assert.ok(buscarNodos(c, n => n.className === 'pill estado verde').length === 1);
+  assert.equal(c.className, 'card-agente');
+  assert.ok(buscarNodos(c, n => n.className === 'pill verde').length === 1);
   assert.equal(buscarNodos(c, n => n.tag === 'a' && n.attrs.href === '#operacion/tablero?frente=E4').length, 1);
-  assert.ok(textos(c).includes('20') && textos(c).includes('Dirección · nivel 1 · fable · team@'));
+  assert.ok(textos(c).includes('20 encargos') && textos(c).includes('team@') && textos(c).includes('Dirección · nivel 1 · fable'));
   const h = tarjetaAgente(ags[2], S, AHORA);
-  assert.ok(textos(h).includes('en sesión: Aresa') && textos(h).includes('1') && textos(h).includes('encargo abierto'));
-  assert.ok(buscarNodos(h, n => n.className === 'pill estado').length === 1);
+  assert.ok(textos(h).includes('en sesión: Aresa') && textos(h).includes('1 encargo'));
+  assert.ok(buscarNodos(h, n => n.className === 'pill rojo').length === 1);
   assert.match(tarjetaAgente(ags[3], S, AHORA).textContent, /sin latido/);
 });
 
-test('render: cuadro arriba, secciones por departamento sin inactivos y ficha con arg', () => {
+test('avatar: sin avatar_url usa el svg propio por id; si falla al cargar, onerror cae a la inicial', () => {
+  const c = tarjetaAgente(ags[1], Sx(), AHORA);
+  const img = buscarNodos(c, n => n.tag === 'img' && n.className === 'avatar')[0];
+  assert.ok(img);
+  assert.equal(img.attrs.src, '/hq/avatares/sales-licita.svg');
+  let reemplazo = null;
+  img.replaceWith = (n) => { reemplazo = n; };
+  img.listeners.error[0]({ target: img });
+  assert.ok(reemplazo && reemplazo.className === 'avatar letra' && reemplazo._text === 'G');
+});
+
+test('avatarConChat: con sesion_url el avatar es el enlace al chat; sin ella el avatar no es clicable', () => {
+  const S = Sx();
+  const conChat = tarjetaAgente({ ...ags[0], sesion_url: 'https://claude.ai/code/sesion' }, S, AHORA);
+  const link = buscarNodos(conChat, n => n.tag === 'a' && n.className === 'avatar-link')[0];
+  assert.ok(link && link.attrs.href === 'https://claude.ai/code/sesion' && link.attrs.target === '_blank');
+  const sinChat = tarjetaAgente(ags[0], S, AHORA);
+  assert.equal(buscarNodos(sinChat, n => n.className === 'avatar-link').length, 0);
+});
+
+test('coste del mes en la tarjeta cuando S.datos.uso trae dato para el agente', () => {
+  const S = Sx();
+  S.datos.uso = { por_agente: [{ agente: 'chief', coste: 42.5 }] };
+  const c = tarjetaAgente(ags[0], S, AHORA);
+  assert.ok(textos(c).includes('43 USD/mes'));
+  const sinUso = tarjetaAgente(ags[1], Sx(), AHORA);
+  assert.ok(!textos(sinUso).some(t => t.includes('USD')));
+});
+
+test('tarjeta de agente: clic en el cuerpo navega a la ficha; clic en un enlace o botón interno no navega', () => {
+  const c = tarjetaAgente(ags[0], Sx(), AHORA);
+  location.hash = '';
+  c.listeners.click[0]({ target: { closest: () => null } });
+  assert.equal(location.hash, '#equipo/agente/chief');
+  location.hash = '';
+  c.listeners.click[0]({ target: { closest: () => true } });
+  assert.equal(location.hash, '');
+});
+
+test('render: enlace a KPIs arriba, secciones por departamento sin inactivos y ficha con arg', () => {
   const raiz = crearNodo('main');
   render(raiz, Sx(), null, {}, AHORA);
-  assert.equal(raiz.children[0].className, 'cuadro');
-  const h2 = raiz.children.slice(1).map(s => s.children[0]._text);
-  assert.deepEqual(h2, ['Dirección', 'Comercial', 'Estrategia']);
-  assert.equal(buscarNodos(raiz, n => (n.className || '').includes('tarjeta-agente')).length, 4);
+  const enlace = buscarNodos(raiz, n => n.tag === 'a' && n.attrs.href === '#kpis?grupo=equipo')[0];
+  assert.ok(enlace && enlace._text === 'KPIs ›');
+  const secciones = raiz.children.filter(s => s.className === 'seccion');
+  assert.deepEqual(secciones.map(s => s.children[0]._text), ['Dirección', 'Comercial', 'Estrategia']);
+  assert.equal(buscarNodos(raiz, n => n.className === 'card-agente').length, 4);
+  assert.equal(buscarNodos(raiz, n => n.tag === 'a' && n.attrs.href === '#equipo/agente/chief').length, 1);
   const f = crearNodo('main');
   render(f, Sx(), 'chief', {}, AHORA);
   assert.ok(textos(f).includes('Marc'));

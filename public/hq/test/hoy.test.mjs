@@ -1,29 +1,46 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 
-// hoy.js importa tarjeta.js (que importa ui.js) y estado.js: solo tocan `document` dentro de funciones,
-// pero se monta el shim antes del import dinámico por el mismo motivo que decisiones.test.mjs (cadena
-// de imports).
+// Hoy (#1057 tarea 29): render() ahora monta decisiones.montar() (que a su vez importa main.js), asi
+// que la cadena de imports es la misma que decisiones.test.mjs/tablero.test.mjs: shim completo con
+// classList, getAttribute y prepend (cablearShell() los usa al importar main.js).
 function crearNodo(tag) {
   const n = {
-    tag, nodeType: 1, children: [], attrs: {}, className: '', _text: '', listeners: {}, parent: null,
-    setAttribute(k, v) { this.attrs[k] = v; }, addEventListener(ev, fn) { (this.listeners[ev] ||= []).push(fn); },
+    tag, nodeType: 1, children: [], attrs: {}, className: '', _text: '', _html: '', listeners: {}, parent: null,
+    classList: { toggle(c, on) { const s = new Set(this._n.className.split(' ').filter(Boolean)); on ? s.add(c) : s.delete(c); this._n.className = [...s].join(' '); return on; }, contains(c) { return this._n.className.split(' ').includes(c); }, add(c) { this.toggle(c, true); }, remove(c) { this.toggle(c, false); } },
+    setAttribute(k, v) { this.attrs[k] = v; },
+    getAttribute(k) { return this.attrs[k] ?? null; },
+    addEventListener(ev, fn) { (this.listeners[ev] ||= []).push(fn); },
     append(...kids) { for (const k of kids) { if (k == null) continue; k.parent = this; this.children.push(k); } },
     prepend(...kids) { for (const k of kids.reverse()) { if (k == null) continue; k.parent = this; this.children.unshift(k); } },
     remove() { if (this.parent) { const i = this.parent.children.indexOf(this); if (i >= 0) this.parent.children.splice(i, 1); this.parent = null; } },
     get textContent() { return this.children.length ? this.children.map(c => (c.nodeType === 3 ? c.data : c.textContent)).join('') : this._text; },
     set textContent(v) { this._text = v; this.children = []; },
-    set innerHTML(v) { this.children = []; this._html = v; }, get innerHTML() { return this._html || ''; },
-    querySelector() { return null; }, querySelectorAll() { return []; },
+    get innerHTML() { return this._html; },
+    set innerHTML(v) { this._html = v; this.children = []; },
+    querySelector() { return null; }, querySelectorAll() { return []; }, closest() { return null; },
   };
+  n.classList._n = n;
   return n;
 }
-globalThis.document = { createElement: t => crearNodo(t), createTextNode: d => ({ nodeType: 3, data: d }), getElementById: () => crearNodo('div'), body: crearNodo('body'), addEventListener() {} };
-globalThis.location = { hash: '', search: '', pathname: '/hq/' }; globalThis.history = { replaceState() {} }; globalThis.window = { addEventListener() {} }; globalThis.HQ_VERSION = { v: 'test' };
-if (typeof globalThis.localStorage === 'undefined') { const mem = new Map(); globalThis.localStorage = { getItem: k => (mem.has(k) ? mem.get(k) : null), setItem: (k, v) => mem.set(k, String(v)), removeItem: k => mem.delete(k) }; }
+globalThis.document = {
+  createElement: (tag) => crearNodo(tag),
+  createTextNode: (data) => ({ nodeType: 3, data }),
+  getElementById: () => crearNodo('div'),
+  body: crearNodo('body'),
+  addEventListener: () => {},
+};
+globalThis.location = { hash: '', search: '', pathname: '/hq/' };
+globalThis.history = { replaceState: () => {} };
+globalThis.window = { addEventListener: () => {} };
+globalThis.HQ_VERSION = { v: 'test' };
+if (typeof globalThis.localStorage === 'undefined') {
+  const mem = new Map();
+  globalThis.localStorage = { getItem: (k) => (mem.has(k) ? mem.get(k) : null), setItem: (k, v) => mem.set(k, String(v)), removeItem: (k) => mem.delete(k) };
+}
 
-const { render, urgentes, activosRecientes, eurCorto, pipelinePorMes, embudoLicitaciones, avancesPorDia, cierresPorDia, porColumna } = await import('../app/vistas/hoy.js');
-const { enCurso, cierres } = await import('../app/estado.js');
+const { render, urgentes, vencidosYParados, proximosCierres } = await import('../app/vistas/hoy.js');
+const { enCurso } = await import('../app/estado.js');
 
 const ahora = new Date('2026-09-17T07:00:00Z');
 const secciones = raiz => raiz.children.filter(c => c.tag === 'section');
@@ -32,49 +49,33 @@ const buscarNodos = (n, pred, out = []) => { if (n.nodeType === 1) { if (pred(n)
 const hrefs = raiz => buscarNodos(raiz, n => n.tag === 'a').map(a => a.attrs.href);
 const paneles = raiz => buscarNodos(raiz, n => n.tag === 'section' && /panel-kpi/.test(n.className));
 const panel = (raiz, titulo) => paneles(raiz).find(p => p.children[0].textContent.startsWith(titulo));
-const svgs = n => buscarNodos(n, x => /graf/.test(x.className)).map(x => x.innerHTML);
 
-// Fixture con la forma real del payload owner del 18-sep (omc_hq_v2 2.0.10: pendientes con prioridad 1-5,
-// frentes con kpi/valor_actual/meta, agentes con ultima_actividad, cuentas de omc_cuentas_estado y kpis).
+// Fixture con la forma real del payload owner (mismo patrón que el 2.0.10 anterior).
 const datosOwner = {
   rol: 'owner',
   pendientes: [
-    { id: 635, titulo: 'Responder a Guillem', agente: 'sales-licita', prioridad: 1, vence: '2026-09-17T18:00:00Z' }, // vence hoy (misma fecha UTC que `ahora`) y prioridad 1
+    { id: 635, titulo: 'Responder a Guillem', agente: 'sales-licita', prioridad: 1, vence: '2026-09-17T18:00:00Z' }, // vence hoy y prioridad 1: urgente
     { id: 640, titulo: 'Otra', agente: 'coo', prioridad: 4, vence: '2026-09-20T10:00:00Z' }, // ni urge ni vence hoy
   ],
   encargos: [
-    { id: 1, texto: 'Cierre A', estado: 'en_curso', fecha_hito: '2026-09-18', agente: 'Ariadna', rojo: false },
-    { id: 2, texto: 'Cierre B '.repeat(10), estado: 'encolado', fecha_hito: '2026-09-19', agente: 'Guillem', rojo: true },
-    { id: 3, texto: 'Cierre C', estado: 'en_curso', fecha_hito: '2026-09-20', agente: 'Ona', rojo: false },
-    { id: 4, texto: 'Cierre D', estado: 'en_curso', fecha_hito: '2026-09-21', agente: 'Marina', rojo: false },
-    { id: 5, texto: 'Cierre E', estado: 'en_curso', fecha_hito: '2026-09-22', agente: 'Aina', rojo: false },
-    { id: 6, texto: 'Cierre F', estado: 'en_curso', fecha_hito: '2026-09-23', agente: 'Biel', rojo: false },
-    { id: 7, texto: 'Fuera de ventana', estado: 'en_curso', fecha_hito: '2026-10-01', agente: 'X', rojo: false },
-    { id: 8, texto: 'Sin hito', estado: 'en_curso', fecha_hito: null, agente: 'Y', rojo: false },
+    { id: 1, columna: 'en_curso', estado: 'en_curso', texto: 'Cierre A', fecha_hito: '2026-09-10', agente: 'Ariadna', rojo: false }, // vencido (hito pasado)
+    { id: 2, columna: 'en_curso', estado: 'en_curso', texto: 'Cierre B '.repeat(10), fecha_hito: '2026-09-19', agente: 'Guillem', rojo: true }, // parado
+    { id: 3, columna: 'hecho', estado: 'hecho', texto: 'Cierre C', fecha_hito: '2026-09-01', agente: 'Ona', rojo: false }, // hecho: no cuenta aunque tenga hito pasado
   ],
-  agentes: [
-    { id: 'ariadna', nombre: 'Ariadna', activo: true, ultima_actividad: '2026-09-17T06:30:00Z' }, // hace 30 min
-    { id: 'guillem', nombre: 'Guillem', activo: true, ultima_actividad: '2026-09-17T02:00:00Z', sesion_url_fecha: '2026-09-16T20:00:00Z' }, // hace 5 h
-    { id: 'viejo', nombre: 'Viejo', activo: false, ultima_actividad: '2026-09-17T06:59:00Z' }, // inactivo aunque reciente
+  licitaciones: [
+    { expediente: 'L1', estado: 'Presentada', cierre: '2026-09-20', resumen_corto: 'Resumen L1' }, // dentro de 7 días
+    { expediente: 'L2', estado: 'Aprobada', cierre: '2026-09-30', objeto: 'Objeto L2' }, // fuera de 7 días
+    { expediente: 'L3', estado: 'Nueva', cierre: '2026-09-18', resumen_corto: 'No cuenta' }, // estado no elegible
   ],
-  frentes: [
-    { id: 3, codigo: 'A3', kpi: 'Ofertas presentadas', valor_actual: 3, meta: 12, unidad: 'ofertas', bloque_nombre: 'Licitaciones' },
-    { id: 7, codigo: 'B2', kpi: 'Memorias entregadas', valor_actual: 0, meta: 0, unidad: '', bloque_nombre: 'Subvenciones' }, // sin meta ni valor: no sale
-    { id: 9, codigo: 'E1', kpi: '', valor_actual: 5, meta: 10, unidad: '', bloque_nombre: 'Empresa' }, // sin kpi: no sale
-  ],
+  agentes: [{ id: 'ariadna', nombre: 'Ariadna', activo: true }],
   kpis: {
     'correo.pendientes.n': { valor: 2, texto: '', updated_at: '2026-09-17T06:50:00Z' },
-    'correo.pendientes.mas_antiguo_h': { valor: 5, texto: '', updated_at: '2026-09-17T06:50:00Z' },
     'cuentas.urge_tercera': { valor: 1, texto: 'diego@ 93 % · team@ 97 %', updated_at: '2026-09-17T06:45:00Z' },
   },
-  cuentas: [
-    { clave: 'principal', cuenta: 'diego@', pct_ventana: 12, pct_semana: 93, semana_fin: '2026-09-18T21:59:59Z', saturada: true },
-    { clave: 'team', cuenta: 'team@', pct_ventana: 5, pct_semana: 97, semana_fin: '2026-09-19T22:59:59Z', saturada: true },
-  ],
+  cuentas: [{ clave: 'principal', cuenta: 'diego@', pct_ventana: 12, pct_semana: 93, saturada: true }],
   sesiones: [{ id: 1, expediente_id: 9, nombre: 'Cíclica', agente: 'cupones', estado: 'abierta', abierta: ahora.toISOString() }],
 };
-const derivadoOwner = { objetivos: [{ horizonte: 2026, titulo: 'Contratado a 31 de diciembre', meta: 300000, unidad: 'EUR', contratado_eur: 20000 }] };
-const pintar = (datos = datosOwner, derivado = derivadoOwner) => { const raiz = crearNodo('main'); render(raiz, { datos, derivado }, undefined, {}, ahora); return raiz; };
+const pintar = (datos = datosOwner) => { const raiz = crearNodo('main'); render(raiz, { datos, filtros: {} }, undefined, {}, ahora); return raiz; };
 
 test('urgentes: prioridad 1-2 o vencimiento en menos de 24 h, ordenadas por prioridad y vencimiento', () => {
   const ps = [
@@ -89,140 +90,91 @@ test('urgentes: prioridad 1-2 o vencimiento en menos de 24 h, ordenadas por prio
   assert.deepEqual(urgentes(undefined, ahora), []);
 });
 
-test('activosRecientes: actividad hace menos de 2 h por sesión o último encargo, inactivos fuera, el más reciente primero', () => {
-  assert.deepEqual(activosRecientes(datosOwner.agentes, ahora).map(a => a.id), ['ariadna']);
-  const conSesion = [{ id: 'x', activo: true, ultima_actividad: '2026-09-16T00:00:00Z', sesion_url_fecha: '2026-09-17T06:00:00Z' }, { id: 'y', activo: true, ultima_actividad: '2026-09-17T06:40:00Z' }, { id: 'z', activo: true }];
-  assert.deepEqual(activosRecientes(conSesion, ahora).map(a => a.id), ['y', 'x']);
-  assert.deepEqual(activosRecientes(undefined, ahora), []);
+test('vencidosYParados: hito pasado sin cerrar o rojo, hecho fuera, parados primero y luego lo más vencido, tope 8', () => {
+  const es = vencidosYParados(datosOwner.encargos, ahora);
+  assert.deepEqual(es.map(e => e.id), [2, 1]); // #2 parado primero, luego #1 vencido; #3 esta hecho y no cuenta
+  assert.deepEqual(vencidosYParados(undefined, ahora), []);
+  const muchos = Array.from({ length: 12 }, (_, i) => ({ id: i, columna: 'en_curso', rojo: true }));
+  assert.equal(vencidosYParados(muchos, ahora).length, 8);
 });
 
-test('eurCorto: M con una decimal y coma, k redondeado, entero por debajo de 10.000', () => {
-  assert.equal(eurCorto(2272000), '2,3 M EUR');
-  assert.equal(eurCorto(227990.46), '228 k EUR');
-  assert.equal(eurCorto(null), '0 EUR');
+test('proximosCierres: aprobadas o presentadas que cierran en los próximos 7 días, ordenadas por fecha', () => {
+  const cs = proximosCierres(datosOwner.licitaciones, ahora);
+  assert.deepEqual(cs.map(l => l.expediente), ['L1']); // L2 cierra fuera de la ventana, L3 no es Aprobada/Presentada
+  assert.deepEqual(proximosCierres(undefined, ahora), []);
 });
 
-test('pipelinePorMes: aprobadas y presentadas por mes de cierre desde el mes en curso, lo anterior a la primera y lo posterior a la última', () => {
-  const cols = pipelinePorMes([
-    { estado: 'Presentada', cierre: '2026-08-30', importe: 100 }, // anterior: cae en sep
-    { estado: 'Presentada', cierre: '2026-09-17', importe: 50 },
-    { estado: 'Aprobada', cierre: '2026-10-02', importe: '200' },
-    { estado: 'Aprobada', cierre: '2030-04-29', importe: 7 }, // posterior: cae en la última
-    { estado: 'Nueva', cierre: '2026-09-20', importe: 999 }, // no cuenta
-    { estado: 'aprobada', cierre: null, importe: 1 }, // sin cierre: primera
-  ], ahora);
-  assert.deepEqual(cols.map(c => c.etiqueta), ['sep', 'oct', 'nov', 'dic', 'ene', 'feb+']);
-  assert.deepEqual(cols.map(c => [c.presentada, c.aprobada]), [[150, 1], [0, 200], [0, 0], [0, 0], [0, 0], [0, 7]]);
-});
-
-test('embudoLicitaciones: acumulado desde lic_resumen', () => {
-  const e = embudoLicitaciones({ total: { n: 1888 }, descartadas: { n: 1383 }, aprobadas: { n: 26 }, presentadas: { n: 9 }, no_adjudicadas: { n: 1 }, adjudicadas: { n: 0 }, contratadas: { n: 0 } });
-  assert.deepEqual(e.map(x => [x.l, x.n]), [['Detectadas', 1888], ['Sin descartar', 505], ['Aprobadas', 36], ['Presentadas', 10], ['Adjudicadas', 0]]);
-  assert.equal(embudoLicitaciones(undefined)[0].n, 0);
-});
-
-test('avancesPorDia y cierresPorDia: series por día (UTC), hoy el último en avances y la semana siguiente en cierres', () => {
-  const av = avancesPorDia([{ fecha: '2026-09-17T06:00:00Z' }, { fecha: '2026-09-17T01:00:00Z' }, { fecha: '2026-09-16T10:00:00Z' }, { fecha: '2026-09-10T10:00:00Z' }, {}], ahora, 3);
-  assert.deepEqual(av.map(x => [x.dia, x.n]), [['2026-09-15', 0], ['2026-09-16', 1], ['2026-09-17', 2]]);
-  const ci = cierresPorDia(datosOwner.encargos, ahora, 7);
-  assert.equal(ci.length, 7);
-  assert.deepEqual(ci.slice(0, 3).map(x => [x.dia, x.n, x.rojos]), [['2026-09-18', 1, 0], ['2026-09-19', 1, 1], ['2026-09-20', 1, 0]]);
-});
-
-test('porColumna: cuenta por columna del tablero, lo desconocido fuera', () => {
-  assert.deepEqual(porColumna([{ columna: 'en_curso' }, { columna: 'en_curso' }, { columna: 'hecho' }, { columna: 'raro' }, {}]), { backlog: 0, por_hacer: 0, en_curso: 2, bloqueado: 0, hecho: 1 });
-});
-
-test('owner: franja de semáforos y diez paneles en orden, cada uno con su enlace de destino', () => {
+test('owner: franja primero, luego la bandeja de decisiones y por último los tres paneles accionables', () => {
   const raiz = pintar();
   assert.equal(raiz.children[0].className, 'franja');
-  assert.deepEqual(paneles(raiz).map(p => p.children[0].textContent), ['Objetivo 2026', 'Depende de ti', 'Pipeline de licitaciones', 'Embudo de licitaciones', 'Expedientes', 'Frentes', 'Encargos', 'Cierres en 7 días', 'Equipo', 'Consumo de cuentas']);
-  assert.deepEqual(paneles(raiz).map(p => p.children[0].children[0].attrs.href), ['#direccion/objetivo', '#hoy/bandeja', '#operacion/licitaciones', '#operacion/licitaciones', '#operacion/expedientes', '#operacion/tablero', '#operacion/tablero', '#operacion/tablero', '#equipo/organigrama', '#recursos/computo']);
-  assert.equal(secciones(raiz).length, 0); // nada de las secciones de texto del 2.0.5
+  assert.equal(raiz.children[1].className, 'seccion bandeja');
+  assert.deepEqual(paneles(raiz).map(p => p.children[0].textContent), ['Vencidos y parados', 'Próximos cierres', 'Sesiones abiertas']);
+  assert.deepEqual(paneles(raiz).map(p => p.children[0].children[0].attrs.href), ['#operacion/tablero', '#operacion/licitaciones', '#operacion/expedientes']);
+  // nada de los diez paneles agregados del cuadro anterior (Objetivo, Pipeline, Embudo, Equipo...): eso vive en KPIs
+  for (const t of ['Objetivo', 'Pipeline', 'Embudo', 'Frentes', 'Consumo']) assert.ok(!raiz.textContent.includes(t), t);
 });
 
-test('owner: la franja enciende urgentes, parados, cuentas, correo y sesiones; sin nada, "sin alertas" en verde', () => {
+test('owner: la franja enciende urgentes, parados, cuentas y correo; sin nada, "sin alertas" en verde', () => {
   const t = pintar().children[0].textContent;
-  for (const x of ['1 urgentes tuyas', '1 encargos parados', 'cuentas saturadas', '2 correos sin contestar', '1 sesiones abiertas']) assert.ok(t.includes(x), x);
-  const vacia = pintar({ rol: 'owner' }, { objetivos: [] }).children[0];
-  assert.equal(vacia.textContent, 'sin alertas');
-  assert.match(vacia.children[0].className, /verde/);
+  for (const x of ['1 urgentes tuyas', '1 encargos parados', 'cuentas saturadas', '2 correos sin contestar']) assert.ok(t.includes(x), x);
+  const raiz = pintar({ rol: 'owner' });
+  assert.equal(raiz.children[0].textContent, 'sin alertas');
+  assert.match(raiz.children[0].children[0].className, /verde/);
 });
 
-test('owner: Objetivo con cifra grande, progreso con la raya del prorrateo en SVG y desviación como tendencia', () => {
-  const p = panel(pintar(), 'Objetivo');
-  const t = p.textContent;
-  assert.ok(t.startsWith('Objetivo 202620 k EUR'), t);
-  assert.ok(t.includes('de 300 k EUR · 7 %'), t);
-  assert.ok(/por (debajo|encima) de lo previsto a hoy/.test(t), t);
-  const svg = svgs(p)[0];
-  assert.match(svg, /^<svg viewBox="0 0 100 10" role="img"/);
-  assert.match(svg, /class="g-oro" x="0" y="0" width="7"/);
-  assert.match(svg, /class="g-tinta"/); // la raya de "a hoy tocaría"
-});
-
-test('owner: Depende de ti con número, urgentes y hasta tres líneas, marcado como alerta si hay urgentes', () => {
-  const p = panel(pintar(), 'Depende de ti');
+test('owner: Vencidos y parados marca alerta y lista lo peor primero', () => {
+  const p = panel(pintar(), 'Vencidos y parados');
   assert.match(p.className, /alerta/);
-  assert.ok(p.textContent.startsWith('Depende de ti2'));
-  assert.ok(p.textContent.includes('1 urgentes · 1 vencen hoy'));
-  assert.ok(p.textContent.includes('Responder a Guillem'));
-  assert.equal(buscarNodos(p, n => n.tag === 'button').length, 0);
+  assert.ok(p.textContent.startsWith('Vencidos y parados2'), p.textContent);
+  assert.ok(p.textContent.includes('#2') && p.textContent.indexOf('#2') < p.textContent.indexOf('#1'));
 });
 
-test('owner: Pipeline, Embudo y Expedientes pintan SVG propio y leyendas con cifras', () => {
-  const datos = { ...datosOwner,
-    licitaciones: [{ estado: 'Presentada', cierre: '2026-09-10', importe: 165489 }, { estado: 'Aprobada', cierre: '2026-10-20', importe: 2106960 }],
-    lic_resumen: { total: { n: 1888 }, descartadas: { n: 1383 }, aprobadas: { n: 26 }, presentadas: { n: 9 } },
-    expedientes: [{ estado_funnel: 'ejecución', importe: 8000 }, { estado_funnel: 'ejecución', importe: 8000 }, { estado_funnel: 'propuesta', importe: 8000 }, { estado_funnel: null }] };
-  const raiz = pintar(datos);
-  const pip = panel(raiz, 'Pipeline');
-  assert.ok(pip.textContent.includes('2,3 M EUR'));
-  assert.equal((svgs(pip)[0].match(/<rect /g) || []).length, 6); // 2 meses con barra + 4 rayas a 0
-  const emb = panel(raiz, 'Embudo');
-  assert.ok(emb.textContent.includes('presentadas de 1888 detectadas'));
-  assert.equal(svgs(emb).filter(s => s.includes('g-oro')).length, 1); // solo presentadas en oro
-  const exp = panel(raiz, 'Expedientes');
-  assert.ok(exp.textContent.includes('24 k EUR'));
-  assert.ok(exp.textContent.includes('ejecución2'));
-  assert.equal((svgs(exp)[0].match(/stroke-dasharray/g) || []).length, 3);
+test('owner: Próximos cierres cuenta solo lo que cierra esta semana', () => {
+  const p = panel(pintar(), 'Próximos cierres');
+  assert.ok(p.textContent.startsWith('Próximos cierres1licitación cierra esta semana'), p.textContent);
+  assert.ok(p.textContent.includes('L1'));
 });
 
-test('owner: Frentes ordenados por avance con enlace al tablero filtrado; Encargos, Cierres, Equipo y Consumo', () => {
-  const raiz = pintar();
-  const fr = panel(raiz, 'Frentes');
-  assert.deepEqual(buscarNodos(fr, n => n.tag === 'a' && /fila-barra/.test(n.className)).map(a => a.attrs.href), ['#operacion/tablero?frente=A3']);
-  assert.ok(panel(raiz, 'Encargos').textContent.includes('parados'));
-  const ci = panel(raiz, 'Cierres');
-  assert.ok(ci.textContent.startsWith('Cierres en 7 días6hitos esta semana'), ci.textContent);
-  assert.ok(ci.textContent.includes('siguiente: '));
-  const eq = panel(raiz, 'Equipo');
-  assert.deepEqual(buscarNodos(eq, n => n.tag === 'a' && /pill/.test(n.className)).map(a => a.attrs.href), ['#equipo/agente/ariadna']);
-  const co = panel(raiz, 'Consumo');
-  assert.equal(svgs(co).length, 2);
-  assert.match(svgs(co)[0], /t-(rojo|ambar)/);
-  assert.ok(co.textContent.includes('urge la tercera cuenta'));
-  assert.ok(!/EUR/.test(co.textContent));
+test('owner: Sesiones abiertas cuenta las no cerradas', () => {
+  const p = panel(pintar(), 'Sesiones abiertas');
+  assert.ok(p.textContent.includes('en curso ahora mismo'));
+  assert.ok(p.textContent.includes('Cíclica'));
 });
 
-test('owner: vacíos no rompen', () => {
-  const raiz = pintar({ rol: 'owner' }, { objetivos: [] });
-  assert.equal(paneles(raiz).length, 10);
-  assert.ok(panel(raiz, 'Objetivo').textContent.includes('sin objetivo'));
-  assert.ok(panel(raiz, 'Consumo').textContent.includes('sin muestras de consumo'));
+test('owner: vacíos no rompen y no marcan alerta', () => {
+  const raiz = pintar({ rol: 'owner' });
+  assert.equal(paneles(raiz).length, 3);
+  assert.ok(panel(raiz, 'Vencidos y parados').textContent.includes('nada parado'));
+  assert.ok(!/alerta/.test(panel(raiz, 'Vencidos y parados').className));
+  assert.ok(panel(raiz, 'Próximos cierres').textContent.includes('0licitaciones cierran esta semana'));
+  assert.ok(panel(raiz, 'Sesiones abiertas').textContent.includes('ninguna abierta'));
 });
 
-test('agente: sin cambios, "Tus tarjetas" con lo en curso y sesiones abiertas; nada de cuentas ni KPIs aunque viajen', () => {
-  const raiz = pintar({ ...datosOwner, rol: 'agente', pendientes: [] }, undefined);
+test('agente: "Tus tarjetas" con lo en curso y sesiones abiertas; nada de franja ni bandeja', () => {
+  const raiz = pintar({ ...datosOwner, rol: 'agente', pendientes: [] });
   assert.deepEqual(titulos(raiz), ['Tus tarjetas', 'Sesiones abiertas']);
   const ids = buscarNodos(raiz, n => n.className.includes('encargo')).map(t => t.attrs['data-id'] || t.textContent);
   assert.equal(ids.length, enCurso(datosOwner.encargos).length);
   assert.ok(hrefs(raiz).includes('#operacion/expedientes/9'));
-  assert.ok(!raiz.textContent.includes('diego@') && !raiz.textContent.includes('correos sin contestar'));
+  assert.ok(!raiz.textContent.includes('correos sin contestar'));
+});
+
+test('agente: "Tus tarjetas" se corta en 10 con enlace a las restantes', () => {
+  const muchos = Array.from({ length: 13 }, (_, i) => ({ id: i, columna: 'en_curso', estado: 'en_curso', texto: 'Tarea ' + i }));
+  const raiz = pintar({ rol: 'agente', encargos: muchos, sesiones: [] });
+  assert.equal(buscarNodos(raiz, n => n.className.includes('encargo')).length, 10);
+  const enlace = buscarNodos(raiz, n => n.tag === 'a' && n.textContent === 'ver las 3 restantes')[0];
+  assert.ok(enlace, 'debe enlazar a las 3 restantes');
+  assert.equal(enlace.attrs.href, '#operacion/tablero');
+});
+
+test('agente: con 10 o menos no aparece el enlace de "ver más"', () => {
+  const raiz = pintar({ rol: 'agente', encargos: [{ id: 1, columna: 'en_curso', estado: 'en_curso', texto: 'Uno' }], sesiones: [] });
+  assert.equal(buscarNodos(raiz, n => n.tag === 'a' && /restantes/.test(n.textContent)).length, 0);
 });
 
 test('agente: sin datos en las listas pinta los textos vacíos', () => {
-  const t = pintar({ rol: 'agente' }, undefined).textContent;
+  const t = pintar({ rol: 'agente' }).textContent;
   assert.ok(t.includes('nada en curso'));
   assert.ok(t.includes('ninguna'));
 });

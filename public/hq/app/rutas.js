@@ -3,26 +3,38 @@
 // `icono` (plan 3b, T4): svg 24x24 dibujado a mano, sin librerías ni fuente de iconos. shell.js lo
 // inserta con innerHTML (no con document.createElement('svg'), que en un documento HTML no crea un
 // nodo SVG real): así el navegador lo parsea como namespace SVG de verdad y se ve.
+// Menú (encargo #1057, lote 3 tarea 29): Home, KPIs, Tablero, Expedientes y Licitaciones salen cada
+// uno como área propia de una sola vista (antes Tablero/Expedientes/Licitaciones vivían juntos bajo
+// "Operación"); Equipo sigue siendo la única área con más de una vista (Organigrama, Colaboradores),
+// cada una con su propio icono via `icono` en el objeto de la vista (si no lo lleva, usa el del área).
 const ICONOS = {
-  hoy: '<svg class="ico" viewBox="0 0 24 24" stroke="currentColor" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="4"/><line x1="12" y1="2" x2="12" y2="4"/><line x1="12" y1="20" x2="12" y2="22"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="2" y1="12" x2="4" y2="12"/><line x1="20" y1="12" x2="22" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/></svg>',
+  hoy: '<svg class="ico" viewBox="0 0 24 24" stroke="currentColor" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 11l9-7 9 7"/><path d="M5 10v10h14V10"/><path d="M9 20v-6h6v6"/></svg>',
+  kpis: '<svg class="ico" viewBox="0 0 24 24" stroke="currentColor" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="3" y1="21" x2="21" y2="21"/><rect x="5" y="14" width="3" height="7"/><rect x="11" y="9" width="3" height="12"/><rect x="17" y="4" width="3" height="17"/></svg>',
   direccion: '<svg class="ico" viewBox="0 0 24 24" stroke="currentColor" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="3"/></svg>',
   operacion: '<svg class="ico" viewBox="0 0 24 24" stroke="currentColor" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="3" width="5" height="18"/><rect x="10" y="3" width="5" height="12"/><rect x="17" y="3" width="4" height="8"/></svg>',
+  expedientes: '<svg class="ico" viewBox="0 0 24 24" stroke="currentColor" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V7z"/></svg>',
+  licitaciones: '<svg class="ico" viewBox="0 0 24 24" stroke="currentColor" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2 9l10-6 10 6"/><line x1="4" y1="9" x2="20" y2="9"/><line x1="5" y1="9" x2="5" y2="19"/><line x1="9" y1="9" x2="9" y2="19"/><line x1="15" y1="9" x2="15" y2="19"/><line x1="19" y1="9" x2="19" y2="19"/><line x1="3" y1="21" x2="21" y2="21"/></svg>',
   equipo: '<svg class="ico" viewBox="0 0 24 24" stroke="currentColor" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="8" cy="8" r="3"/><path d="M2 20a6 6 0 0 1 12 0"/><circle cx="17" cy="7" r="2.5"/><path d="M13 20a5 5 0 0 1 9 0"/></svg>',
+  organigrama: '<svg class="ico" viewBox="0 0 24 24" stroke="currentColor" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="4.5" r="2.5"/><circle cx="5" cy="19" r="2.5"/><circle cx="19" cy="19" r="2.5"/><path d="M12 7v4M12 11L5 16.5M12 11l7 5.5"/></svg>',
+  colaboradores: '<svg class="ico" viewBox="0 0 24 24" stroke="currentColor" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="9" cy="8" r="3.5"/><path d="M2 20a7 7 0 0 1 14 0"/><line x1="18" y1="7" x2="18" y2="13"/><line x1="15" y1="10" x2="21" y2="10"/></svg>',
   recursos: '<svg class="ico" viewBox="0 0 24 24" stroke="currentColor" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="4" width="18" height="7" rx="1"/><rect x="3" y="13" width="18" height="7" rx="1"/><circle cx="7" cy="7.5" r="0.75" fill="currentColor" stroke="none"/></svg>',
 };
 export const AREAS = [
-  { id: 'hoy', nombre: 'Hoy', icono: ICONOS.hoy, vistas: [{ clave: 'hoy', nombre: 'Hoy' }] },
-  { id: 'operacion', nombre: 'Operación', icono: ICONOS.operacion, vistas: [{ clave: 'operacion/tablero', nombre: 'Tablero' }, { clave: 'operacion/expedientes', nombre: 'Expedientes' }, { clave: 'operacion/licitaciones', nombre: 'Licitaciones' }] },
-  { id: 'equipo', nombre: 'Equipo', icono: ICONOS.equipo, vistas: [{ clave: 'equipo/organigrama', nombre: 'Organigrama' }, { clave: 'equipo/colaboradores', nombre: 'Colaboradores' }] },
+  { id: 'hoy', nombre: 'Home', icono: ICONOS.hoy, vistas: [{ clave: 'hoy', nombre: 'Home' }] },
+  { id: 'kpis', nombre: 'KPIs', icono: ICONOS.kpis, vistas: [{ clave: 'kpis', nombre: 'KPIs' }] },
+  { id: 'tablero', nombre: 'Tablero', icono: ICONOS.operacion, vistas: [{ clave: 'operacion/tablero', nombre: 'Tablero' }] },
+  { id: 'expedientes', nombre: 'Expedientes', icono: ICONOS.expedientes, vistas: [{ clave: 'operacion/expedientes', nombre: 'Expedientes' }] },
+  { id: 'licitaciones', nombre: 'Licitaciones', icono: ICONOS.licitaciones, vistas: [{ clave: 'operacion/licitaciones', nombre: 'Licitaciones' }] },
+  { id: 'equipo', nombre: 'Equipo', icono: ICONOS.equipo, vistas: [{ clave: 'equipo/organigrama', nombre: 'Organigrama', icono: ICONOS.organigrama }, { clave: 'equipo/colaboradores', nombre: 'Colaboradores', icono: ICONOS.colaboradores }] },
   { id: 'recursos', nombre: 'Recursos', icono: ICONOS.recursos, vistas: [{ clave: 'recursos/computo', nombre: 'Cómputo' }] },
   { id: 'direccion', nombre: 'Plan estratégico', icono: ICONOS.direccion, vistas: [{ clave: 'direccion/objetivo', nombre: 'Plan estratégico' }] },
 ];
 // Claves que tienen vista. 'equipo/agente' no sale en el menú (es la ficha) pero es una ruta válida.
-export const CLAVES = new Set(['hoy', 'direccion/objetivo', 'operacion/tablero', 'operacion/expedientes', 'operacion/licitaciones', 'equipo/organigrama', 'equipo/colaboradores', 'equipo/agente', 'recursos/computo']);
+export const CLAVES = new Set(['hoy', 'kpis', 'direccion/objetivo', 'operacion/tablero', 'operacion/expedientes', 'operacion/licitaciones', 'equipo/organigrama', 'equipo/colaboradores', 'equipo/agente', 'recursos/computo']);
 // Rutas de la v2.0 (tabs): se redirigen para que no se rompa ningún enlace ya enviado en tarjetas o push.
 const VIEJAS = { inicio: 'hoy', plan: 'direccion/objetivo', tablero: 'operacion/tablero', equipo: 'equipo/organigrama', expedientes: 'operacion/expedientes' };
 // Área sin vista (o con vista desconocida): a su vista por defecto. Recursos: Cómputo desde el lote 1e (#1054); Dinero llega en la tanda 3.
-const DEFECTO = { hoy: 'hoy', direccion: 'direccion/objetivo', operacion: 'operacion/tablero', equipo: 'equipo/organigrama', recursos: 'recursos/computo' };
+const DEFECTO = { hoy: 'hoy', kpis: 'kpis', direccion: 'direccion/objetivo', operacion: 'operacion/tablero', equipo: 'equipo/organigrama', recursos: 'recursos/computo' };
 
 export function resolver(hash = '', search = '') {
   const idPush = new URLSearchParams(search || '').get('id');

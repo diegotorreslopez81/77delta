@@ -12,6 +12,14 @@
 // expediente_id (bigint, schema-v2.sql:964), no un objeto con .expediente_id/.nombre. Se resuelve el
 // nombre buscando primero en S.datos.sesiones (misma sesion, mismo agente) y si no aparece en
 // S.datos.expedientes por id; si tampoco esta, se muestra '#' + id en vez de "undefined".
+//
+// Fix ronda de tarjetas ricas (#1057, hallazgo de Diego con capturas): la cabecera de la tarjeta y de
+// la ficha reusaban '.cab' y '.objetivo' (fondo oscuro de la app), con texto oscuro encima: casi
+// invisible en los dos sitios. Cabeceras nuevas en app/cards.css, sin depender de esas dos clases.
+// Avatar con svg propio si falta avatar_url (como en v1), semaforo de latido en la tarjeta y en la
+// ficha, coste del mes cuando d.uso trae dato para el agente. El cuadro de mando se va a Operacion/KPIs
+// (grupo equipo): aqui queda un enlace; cuadroEquipo/TRAMOS/tramo/porDepto se mantienen exportados
+// para ese uso.
 import { rpc } from '../api.js';
 import { el, modal, toast, horas, urlSegura } from '../ui.js';
 import { filtrar } from '../estado.js';
@@ -19,12 +27,28 @@ import { donut, apilada } from '../graficos.js';
 import { panel, cifra, grafico, leyenda, filaBarra } from '../cuadro.js';
 import { tarjetaEncargo } from '../tarjeta.js';
 import { recargar } from '../main.js';
+import { usd } from './recursos.js';
 
 // Fix ronda 2 (B2): avatar_url lo publica hq.py agente avatar-url sin validar esquema en la BD.
 // NIT #9 (parado, aplicado aqui por ser trivial): (a.nombre || a.id) puede ser '' si ambos faltan;
 // se cae a '?' en vez de lanzar en [0] de una cadena vacia.
-function avatar(a) { const url = urlSegura(a.avatar_url); return url ? el('img', { class: 'avatar', src: url, alt: '' }) : el('span', { class: 'avatar letra', text: ((a.nombre || a.id || '?')[0] || '?').toUpperCase() }); }
-function latido(a, ahora = new Date()) { const h = horas(a.ultima_actividad, ahora); return h == null ? 'sin latido' : h < 1 ? 'activo ahora' : h < 24 ? 'hace ' + h + ' h' : 'hace ' + Math.floor(h / 24) + ' d'; }
+// Fix tarjetas ricas: si falta avatar_url se prueba el svg de /hq/avatares/<id>.svg (como en v1) antes
+// de caer a la inicial; si la imagen falla al cargar (svg inexistente, 404), onerror la sustituye por
+// la inicial en vez de dejar el hueco roto del navegador.
+function inicial(a) { return ((a.nombre || a.id || '?')[0] || '?').toUpperCase(); }
+function avatar(a) {
+  const letra = el('span', { class: 'avatar letra', text: inicial(a) });
+  const src = urlSegura(a.avatar_url) || (a.id ? '/hq/avatares/' + encodeURIComponent(a.id) + '.svg' : '');
+  if (!src) return letra;
+  return el('img', { class: 'avatar', src, alt: '', onerror: e => { const t = e?.target; if (t?.replaceWith) t.replaceWith(letra); } });
+}
+// Punto 2 del hallazgo de Diego ("click en avatar abre chat"): si hay sesion_url el avatar es el enlace,
+// sin boton aparte en la tarjeta (texto minimo). Sin sesion_url el avatar no es clicable.
+function avatarConChat(a) {
+  const img = avatar(a);
+  const url = urlSegura(a.sesion_url);
+  return url ? el('a', { class: 'avatar-link', href: url, target: '_blank', rel: 'noopener', 'aria-label': 'Abrir chat de ' + (a.nombre || a.id) }, [img]) : img;
+}
 function nombreExpedienteSesion(id, agenteId, S) {
   const s = (S.datos.sesiones || []).find(x => x.expediente_id === id && x.agente === agenteId);
   if (s?.nombre) return s.nombre;
@@ -41,30 +65,22 @@ function editarFrentes(a, S) {
   } })] });
 }
 
-function ficha(raiz, S, a) {
-  raiz.append(el('a', { href: '#equipo/organigrama', class: 'btn-enlace', text: '← equipo' }));
-  raiz.append(el('section', { class: 'objetivo fila' }, [avatar(a), el('div', {}, [
-    el('h1', { text: a.nombre }),
-    el('p', { class: 'mudo', text: [a.id, a.depto, 'nivel ' + a.nivel, a.modelo, a.cuenta ? 'cuenta ' + a.cuenta + '@' : null, latido(a)].filter(Boolean).join(' · ') })])]));
-  raiz.append(el('section', { class: 'seccion' }, [
-    el('div', { class: 'fila' }, [el('h2', { text: 'Frentes' }), S.datos.rol === 'owner' ? el('button', { class: 'btn-enlace', text: 'editar', onclick: () => editarFrentes(a, S) }) : null]),
-    ...(a.frentes_codigos || []).map(c => { const f = (S.datos.frentes || []).find(x => x.codigo === c); return el('a', { class: 'pill codigo', href: '#operacion/tablero?frente=' + c, text: c + (f ? ' ' + f.linea : '') }); }),
-    (a.frentes_codigos || []).length ? null : el('p', { class: 'mudo', text: 'sin frentes asignados' })]));
-  const enc = filtrar(S.datos.encargos, { agente: a.id }).filter(e => e.estado !== 'hecho' && e.estado !== 'descartado');
-  raiz.append(el('section', { class: 'seccion' }, [el('h2', { text: 'Encargos abiertos (' + enc.length + ')' }), ...enc.map(e => tarjetaEncargo(e))]));
-  const sesionUrl = urlSegura(a.sesion_url);
-  const acciones = [
-    sesionUrl ? el('a', { class: 'btn primario', href: sesionUrl, text: 'Abrir sesión' }) : el('span', { class: 'mudo', text: 'sin sesión publicada' }),
-    a.sesion_abierta ? el('a', { class: 'pill sesion', href: '#operacion/expedientes/' + a.sesion_abierta, text: 'en sesión: ' + nombreExpedienteSesion(a.sesion_abierta, a.id, S) }) : null];
-  raiz.append(el('section', { class: 'seccion fila' }, acciones));
-}
-
-// Perfiles vivos (#1057 tarea 23, HQ 2.0.10): la lista del organigrama pasa a cuadro de mando con la
-// línea del Home visual. Latido en cuatro tramos (activo menos de 1 h, hoy menos de 24 h, dormido, sin
-// latido); verde y ámbar solo en la pill del semáforo, el resto en tinta y neutros.
+// Perfiles vivos (#1057 tarea 23, HQ 2.0.10). Latido en cuatro tramos (activo menos de 1 h, hoy menos
+// de 24 h, dormido, sin latido); TRAMOS alimenta el grafico apilado de cuadroEquipo (paleta neutra del
+// cuadro), COLOR_LATIDO alimenta el semaforo de la tarjeta/ficha (verde/ambar/rojo/gris): son dos
+// escalas distintas a proposito, no se fusionan.
 export const TRAMOS = [['activo', 'activo ahora', 'tinta'], ['hoy', 'hoy', 'tinta-2'], ['dormido', 'más de 24 h', 'neutro-2'], ['sin', 'sin latido', 'neutro-3']];
 export function tramo(a, ahora = new Date()) { const h = horas(a.ultima_actividad, ahora); return h == null ? 'sin' : h < 1 ? 'activo' : h < 24 ? 'hoy' : 'dormido'; }
-const SEMAFORO = { activo: 'verde', hoy: 'ambar' };
+const COLOR_LATIDO = { activo: 'verde', hoy: 'ambar', dormido: 'rojo', sin: 'neutro-2' };
+function textoLatido(a, ahora) {
+  const t = tramo(a, ahora);
+  if (t === 'dormido') return 'hace ' + Math.floor(horas(a.ultima_actividad, ahora) / 24) + ' d';
+  return { activo: 'activo ahora', hoy: 'hoy', sin: 'sin latido' }[t];
+}
+function chipLatido(a, ahora) {
+  const color = COLOR_LATIDO[tramo(a, ahora)];
+  return el('span', { class: 'pill' + (color !== 'neutro-2' ? ' ' + color : '') }, [el('i', { class: 'punto g-' + color }), textoLatido(a, ahora)]);
+}
 const COLORES_DEPTO = ['tinta', 'tinta-2', 'neutro-1', 'neutro-2', 'neutro-3'];
 // Departamentos por número de agentes; a partir del quinto se agrupan en "otros".
 export function porDepto(ags) {
@@ -73,6 +89,43 @@ export function porDepto(ags) {
   const xs = [...m].map(([l, v]) => ({ l, v })).sort((x, y) => (y.v - x.v) || x.l.localeCompare(y.l));
   const top = xs.length > 5 ? [...xs.slice(0, 4), { l: 'otros', v: xs.slice(4).reduce((s, x) => s + x.v, 0) }] : xs;
   return top.map((x, i) => ({ ...x, color: COLORES_DEPTO[i] }));
+}
+
+// Chips comunes a tarjeta y ficha: cuenta, latido en semaforo, encargos abiertos (enlace al tablero
+// filtrado por agente), hasta 3 frentes (con "+N" el resto) y coste del mes si d.uso trae dato para
+// este agente. Encargos y frentes son enlaces: menos texto, menos clics para llegar al detalle.
+function chipsAgente(a, S, ahora) {
+  const f = a.frentes_codigos || [];
+  const uso = (S.datos.uso?.por_agente || []).find(u => u.agente === a.id);
+  return el('div', { class: 'chips' }, [
+    a.cuenta ? el('span', { class: 'pill', text: a.cuenta + '@' }) : null,
+    chipLatido(a, ahora),
+    el('a', { class: 'pill', href: '#operacion/tablero?agente=' + encodeURIComponent(a.id), text: (a.encargos_abiertos || 0) + (a.encargos_abiertos === 1 ? ' encargo' : ' encargos') }),
+    ...f.slice(0, 3).map(c => el('a', { class: 'pill codigo', href: '#operacion/tablero?frente=' + c, text: c })),
+    f.length > 3 ? el('span', { class: 'pill', text: '+' + (f.length - 3) }) : null,
+    uso && Number(uso.coste) ? el('span', { class: 'pill', text: usd(uso.coste) + '/mes' }) : null,
+    a.sesion_abierta ? el('a', { class: 'pill sesion', href: '#operacion/expedientes/' + a.sesion_abierta, text: 'en sesión: ' + nombreExpedienteSesion(a.sesion_abierta, a.id, S) }) : null,
+  ]);
+}
+
+function ficha(raiz, S, a, ahora = new Date()) {
+  raiz.append(el('a', { href: '#equipo/organigrama', class: 'btn-enlace', text: '← equipo' }));
+  const sesionUrl = urlSegura(a.sesion_url);
+  raiz.append(el('section', { class: 'ficha-cab fila' }, [
+    avatarConChat(a),
+    el('div', {}, [
+      el('h1', { text: a.nombre || a.id }),
+      el('p', { class: 'sub', text: [a.depto, 'nivel ' + a.nivel, a.modelo].filter(Boolean).join(' · ') }),
+      chipsAgente(a, S, ahora),
+      sesionUrl ? el('a', { class: 'btn primario', href: sesionUrl, target: '_blank', rel: 'noopener', text: 'Abrir sesión' }) : el('span', { class: 'mudo', text: 'sin sesión publicada' }),
+    ]),
+  ]));
+  raiz.append(el('section', { class: 'seccion' }, [
+    el('div', { class: 'fila' }, [el('h2', { text: 'Frentes' }), S.datos.rol === 'owner' ? el('button', { class: 'btn-enlace', text: 'editar', onclick: () => editarFrentes(a, S) }) : null]),
+    ...(a.frentes_codigos || []).map(c => { const f = (S.datos.frentes || []).find(x => x.codigo === c); return el('a', { class: 'pill codigo', href: '#operacion/tablero?frente=' + c, text: c + (f ? ' ' + f.linea : '') }); }),
+    (a.frentes_codigos || []).length ? null : el('p', { class: 'mudo', text: 'sin frentes asignados' })]));
+  const enc = filtrar(S.datos.encargos, { agente: a.id }).filter(e => e.estado !== 'hecho' && e.estado !== 'descartado');
+  raiz.append(el('section', { class: 'seccion' }, [el('h2', { text: 'Encargos abiertos (' + enc.length + ')' }), ...enc.map(e => tarjetaEncargo(e))]));
 }
 
 export function cuadroEquipo(ags, S, ahora = new Date()) {
@@ -94,15 +147,17 @@ export function cuadroEquipo(ags, S, ahora = new Date()) {
   ];
 }
 
+// Tarjeta rica de un agente: el nombre sigue siendo un enlace de verdad a la ficha (teclado y lector de
+// pantalla), y ademas toda la tarjeta es clicable (mas area de toque en movil), salvo los enlaces y
+// botones internos (encargos, frentes, chat).
 export function tarjetaAgente(a, S, ahora = new Date()) {
-  const t = tramo(a, ahora), f = a.frentes_codigos || [];
-  return el('article', { class: 'tarjeta-rica tarjeta-agente' }, [
-    el('div', { class: 'cab' }, [avatar(a), el('span', { class: 'pill estado' + (SEMAFORO[t] ? ' ' + SEMAFORO[t] : '') }, [el('i', { class: 'punto g-' + TRAMOS.find(x => x[0] === t)[2] }), latido(a, ahora)]),
-      a.sesion_abierta ? el('a', { class: 'pill sesion', href: '#operacion/expedientes/' + a.sesion_abierta, text: 'en sesión: ' + nombreExpedienteSesion(a.sesion_abierta, a.id, S) }) : null]),
-    el('h3', {}, [el('a', { href: '#equipo/agente/' + a.id, text: a.nombre || a.id })]),
-    el('p', { class: 'sub', text: [a.depto, 'nivel ' + a.nivel, a.modelo, a.cuenta ? a.cuenta + '@' : null].filter(Boolean).join(' · ') }),
-    el('div', { class: 'cifra-fila' }, [el('p', { class: 'cifra-l', text: String(a.encargos_abiertos || 0) }), el('span', { class: 'mudo', text: a.encargos_abiertos === 1 ? 'encargo abierto' : 'encargos abiertos' })]),
-    f.length ? el('div', { class: 'enlaces' }, f.map(c => el('a', { class: 'pill codigo', href: '#operacion/tablero?frente=' + c, text: c }))) : el('p', { class: 'solv', text: 'sin frentes asignados' }),
+  return el('article', { class: 'card-agente', onclick: e => { if (e.target?.closest?.('a, button')) return; location.hash = '#equipo/agente/' + a.id; } }, [
+    avatarConChat(a),
+    el('div', { class: 'cuerpo' }, [
+      el('h3', {}, [el('a', { href: '#equipo/agente/' + a.id, text: a.nombre || a.id })]),
+      el('p', { class: 'sub', text: [a.depto, 'nivel ' + a.nivel, a.modelo].filter(Boolean).join(' · ') }),
+      chipsAgente(a, S, ahora),
+    ]),
   ]);
 }
 
@@ -110,8 +165,8 @@ export function render(raiz, S, arg, filtrosRuta = {}, ahora = new Date()) {
   // NIT #9 (parado, aplicado aqui por ser trivial): x.nombre/y.nombre pueden faltar en un agente mal
   // dado de alta; localeCompare sobre undefined lanza TypeError y tira toda la vista.
   const ags = (S.datos.agentes || []).filter(a => a.activo !== false).sort((x, y) => (x.nivel - y.nivel) || (x.nombre || '').localeCompare(y.nombre || ''));
-  if (arg) { const a = ags.find(x => x.id === arg); if (a) return ficha(raiz, S, a); }
-  raiz.append(el('div', { class: 'cuadro' }, cuadroEquipo(ags, S, ahora)));
+  if (arg) { const a = ags.find(x => x.id === arg); if (a) return ficha(raiz, S, a, ahora); }
+  raiz.append(el('div', { class: 'fila enlace-kpis' }, [el('a', { class: 'btn-enlace', href: '#kpis?grupo=equipo', text: 'KPIs ›' })]));
   const deptos = [...new Set(ags.map(a => a.depto))];
   for (const d of deptos) raiz.append(el('section', { class: 'seccion' }, [el('h2', { text: d }), el('div', { class: 'lista-rica' }, ags.filter(a => a.depto === d).map(a => tarjetaAgente(a, S, ahora)))]));
 }

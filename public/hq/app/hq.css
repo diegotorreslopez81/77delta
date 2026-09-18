@@ -23,11 +23,6 @@ a{color:inherit}
 .ico{display:block;width:20px;height:20px;flex:none}
 .menu nav a{display:flex;align-items:center;gap:10px;min-height:44px;padding:0 12px;border-radius:var(--radio-boton);text-decoration:none;color:var(--tinta);font-size:15px}
 .menu nav a.activa{background:var(--oro);color:var(--tinta);font-weight:600}.menu .pronto{margin:0 10px;font-size:12px}
-/* C3 (revision final): en modo expandido el enlace de un area con varias vistas no repite el icono del
-   area-titulo justo encima; en modo plegado (solo iconos, sin texto) si hace falta o la fila queda en
-   blanco. */
-.menu nav a.sub .ico{display:none}
-body.menu-plegado .menu nav a.sub .ico{display:block}
 .menu-cab{display:flex;align-items:center;justify-content:space-between;gap:8px;position:sticky;top:0;background:var(--panel);margin:-10px -8px 8px;padding:calc(8px + env(safe-area-inset-top)) 10px 8px;box-shadow:0 0 32px rgba(0,0,0,.3)}
 .menu-cab .marca-menu{font-family:var(--display);font-weight:700;font-size:16px}
 .menu-cab button{min-width:44px;min-height:44px}
@@ -198,3 +193,29 @@ body.menu-plegado .menu nav a.sub .ico{display:block}
 .barra-filtros{margin-top:16px}
 .tarjeta-agente .avatar{width:36px;height:36px}.tarjeta-agente .avatar.letra{font-size:16px}
 .bandeja{margin-top:24px}.bandeja h3{font-size:15px;margin:12px 0 6px}.bandeja summary h2,.bandeja summary h3{display:inline}.decision textarea{margin:8px 0 4px;resize:vertical}
+
+/* === menu-home-kpis === */
+/* #1057 tarea 29: logo 77 Delta junto a "HQ" (cabecera fija y cajón móvil), campana de notificaciones +
+   botón de recarga dentro de #buscador (index.html no se toca en este lote: se montan por JS desde
+   shell.js), franja "KPIs ›" en las vistas que ya no llevan su cuadro arriba, y ajustes de móvil (chips
+   con scroll horizontal en vez de amontonarse, contador de texto oculto bajo 900px porque ya está la
+   campana). El toast ya vive abajo con safe-area (calc(16px + env(safe-area-inset-bottom))): cumple la
+   opción "bottom con safe-area" del encargo sin tocar esa regla. */
+.cab .marca{display:inline-flex;align-items:center;gap:6px}
+.cab .marca::before{content:'';width:24px;height:24px;background:url('/hq/monograma.svg') no-repeat center/contain;flex:none}
+.marca-menu{display:inline-flex;align-items:center;gap:6px}
+.logo-menu{height:20px;width:auto;flex:none}
+#buscador{display:flex;align-items:center;gap:6px}
+.buscador .campo{flex:1;min-width:0}
+.campana{position:relative}
+.badge-campana{position:absolute;top:0;right:0;min-width:16px;height:16px;padding:0 4px;border-radius:999px;background:var(--error);color:#fff;font-size:10px;line-height:16px;text-align:center;font-weight:700}
+@keyframes girar{to{transform:rotate(360deg)}}
+.btn-icono.girando .ico{animation:girar .8s linear infinite}
+.enlace-kpis{justify-content:flex-end;margin:0 0 10px}
+@media (max-width:899px){
+  #contador{display:none}
+  .campana,#recargar-btn{min-width:44px;min-height:44px}
+  .chips{flex-wrap:nowrap;overflow-x:auto;-webkit-overflow-scrolling:touch;padding-bottom:2px}
+  .chips .chip{flex:none}
+}
+/* === fin menu-home-kpis === */

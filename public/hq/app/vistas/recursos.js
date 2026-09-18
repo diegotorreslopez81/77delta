@@ -108,6 +108,11 @@ function panelSesiones(u) {
 export function render(raiz, S, arg, filtros, ahora = new Date()) {
   const cuentas = (S?.datos?.cuentas || []).filter(Boolean), u = S?.datos?.uso || {};
   raiz.append(el('h1', { text: 'Cómputo' }));
+  // Cuentas y coste solo viajan en el payload del owner: al agente se le dice, no se le enseña un panel vacío.
+  if (S?.datos?.rol && S.datos.rol !== 'owner') {
+    raiz.append(el('p', { class: 'mudo', text: 'Cuentas y coste de cómputo solo visibles para Diego.' }));
+    return;
+  }
   raiz.append(el('div', { class: 'cuadro' }, [panelCuentas(cuentas, ahora), panelMes(u, ahora), panelModelo(u), panelDias(u), panelAgentes(u, S), panelSesiones(u)]));
   raiz.append(el('p', { class: 'mudo', text: 'Coste en USD a precio API (fuente omc_uso, mes natural): equivale a lo consumido con los planes Max, no es una factura. peni retirada el 12-sep: fuera del cómputo.' }));
 }

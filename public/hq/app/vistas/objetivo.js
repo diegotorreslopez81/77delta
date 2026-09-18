@@ -48,11 +48,19 @@ function panelBloque(b) {
   ], 'ancho-2');
 }
 
+// Grupo 'Plan' de KPIs (#1057 tarea 29): mismos paneles que encabezan esta vista, reutilizados desde
+// kpis.js. `d` es S.derivado (objetivos + bloques ya enriquecidos por derivar() en estado.js), igual
+// que consume render() más abajo.
+export function panelesObjetivo(d, ahora = new Date()) {
+  const obs = [...(d.objetivos || [])].sort((a, b) => Number(a.horizonte) - Number(b.horizonte));
+  return [...obs.map(o => panelObjetivo(o, ahora)), ...(d.bloques || []).map(panelBloque)];
+}
+
 export function render(raiz, S, arg, filtros, ahora = new Date()) {
   const d = S.derivado || { objetivos: [], bloques: [] };
   const obs = [...(d.objetivos || [])].sort((a, b) => Number(a.horizonte) - Number(b.horizonte));
   raiz.append(el('h1', { text: 'Plan estratégico' }));
-  raiz.append(el('div', { class: 'cuadro' }, [...obs.map(o => panelObjetivo(o, ahora)), ...(d.bloques || []).map(panelBloque)]));
+  raiz.append(el('div', { class: 'cuadro' }, panelesObjetivo(d, ahora)));
   if (!obs.length && !(d.bloques || []).length) raiz.append(el('p', { class: 'mudo', text: 'Sin objetivos ni líneas en el plan.' }));
   raiz.append(el('p', { class: 'mudo', text: 'Actividades: alta y edición con hq.py plan-linea. La meta de cada línea no está desglosada por año (2026 y 2027).' }));
 }

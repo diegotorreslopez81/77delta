@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { DECIDIBLES, ABIERTAS, pendiente, porDecidir, enCriba, porElegible, solvenciaTexto, embudo, estadoDe } from '../app/licitaciones.js';
+import { DECIDIBLES, ABIERTAS, pendiente, porDecidir, enCriba, porElegible, solvenciaTexto, embudo, estadoDe, tipologia, TIPOLOGIAS, sinSolvencia, filtrar } from '../app/licitaciones.js';
 
 // Fixture de 8 licitaciones (Task 1, plan 3b): cubre decidibles, criba, descartada, aprobada por
 // decision sin ser decidible, presentada y contratada con importe.
@@ -250,4 +250,54 @@ test('embudo: aprobadas y presentadas usan resumen cuando existe (C2)', () => {
   const e = embudo(lics, {}, { aprobadas: { n: 10, eur: 90000 }, presentadas: { n: 5, eur: 45000 } });
   assert.deepEqual(e.find(f => f.clave === 'aprobadas'), { clave: 'aprobadas', nombre: 'Aprobadas', n: 10, eur: 90000 });
   assert.deepEqual(e.find(f => f.clave === 'presentadas'), { clave: 'presentadas', nombre: 'Presentadas', n: 5, eur: 45000 });
+});
+
+// tarjetas ricas (encargo #1057): tipologia deriva la categoria del organo por texto libre; TIPOLOGIAS
+// es la lista de opciones del selector, TIPOLOGIA_RE de licitaciones.js mas 'Otro'.
+test('tipologia: reconoce cada categoria por patron en el texto del organo', () => {
+  assert.equal(tipologia('Ajuntament de Sabadell'), 'Ayuntamiento');
+  assert.equal(tipologia('Ayuntamiento de Madrid'), 'Ayuntamiento');
+  assert.equal(tipologia('Concello de Vigo'), 'Ayuntamiento');
+  assert.equal(tipologia('Diputación de Barcelona'), 'Diputación');
+  assert.equal(tipologia('Consell Insular de Menorca'), 'Diputación');
+  assert.equal(tipologia('Consorci Sanitari de Terrassa'), 'Consorcio');
+  assert.equal(tipologia('Generalitat de Catalunya'), 'Autonómica');
+  assert.equal(tipologia('Servei Català de la Salut'), 'Autonómica');
+  assert.equal(tipologia('Servicio Extremeño de Salud'), 'Autonómica');
+  assert.equal(tipologia('Ministerio de Sanidad'), 'Estatal');
+  assert.equal(tipologia('Universidad Politécnica de Madrid'), 'Universidad');
+  assert.equal(tipologia('Aigües de Barcelona, S.A.'), 'Empresa pública');
+  assert.equal(tipologia('Texto sin patron reconocido'), 'Otro');
+  assert.equal(tipologia(null), 'Otro');
+  assert.equal(tipologia(undefined), 'Otro');
+  assert.deepEqual(TIPOLOGIAS[TIPOLOGIAS.length - 1], 'Otro');
+  assert.ok(TIPOLOGIAS.includes('Ayuntamiento') && TIPOLOGIAS.includes('Diputación'));
+});
+
+test('sinSolvencia: exencion 159.6, "no exige" o "sin acreditaci" es sin solvencia; texto normal exige', () => {
+  assert.equal(sinSolvencia({ solvencia: 'Exenta por el articulo 159.6 LCSP' }), true);
+  assert.equal(sinSolvencia({ solvencia: 'No exige solvencia especifica' }), true);
+  assert.equal(sinSolvencia({ solvencia: 'Sin acreditacion de solvencia' }), true);
+  assert.equal(sinSolvencia({ solvencia: 'Clasificacion grupo G, subgrupo 6' }), false);
+  assert.equal(sinSolvencia({}), false);
+  assert.equal(sinSolvencia({ solvencia: null }), false);
+});
+
+test('filtrar: cada dimension es opcional y se combinan con AND', () => {
+  const rows = [
+    { expediente: 'F1', organo: 'Ajuntament de Reus', solvencia: 'no exige', pestana: 'PLACSP', tipo: 'obras', estado: 'Nueva' },
+    { expediente: 'F2', organo: 'Ministerio de Defensa', solvencia: 'Grupo A', pestana: 'Gencat', tipo: 'servicios', estado: 'Cerrada sin presentar' },
+    { expediente: 'F3', organo: 'Ajuntament de Reus', solvencia: 'Grupo A', pestana: 'PLACSP', tipo: 'servicios', estado: 'Nueva' },
+  ];
+  assert.deepEqual(filtrar(rows, {}).map(l => l.expediente), ['F1', 'F2', 'F3']);
+  assert.deepEqual(filtrar(rows, { tipologia: 'Ayuntamiento' }).map(l => l.expediente), ['F1', 'F3']);
+  assert.deepEqual(filtrar(rows, { tipologia: 'Estatal' }).map(l => l.expediente), ['F2']);
+  assert.deepEqual(filtrar(rows, { solvencia: 'todas' }).map(l => l.expediente), ['F1', 'F2', 'F3']);
+  assert.deepEqual(filtrar(rows, { solvencia: 'sin solvencia' }).map(l => l.expediente), ['F1']);
+  assert.deepEqual(filtrar(rows, { solvencia: 'exige' }).map(l => l.expediente), ['F2', 'F3']);
+  assert.deepEqual(filtrar(rows, { fuente: 'PLACSP' }).map(l => l.expediente), ['F1', 'F3']);
+  assert.deepEqual(filtrar(rows, { tipo: 'servicios' }).map(l => l.expediente), ['F2', 'F3']);
+  assert.deepEqual(filtrar(rows, { desiertas: true }).map(l => l.expediente), ['F2']);
+  assert.deepEqual(filtrar(rows, { tipologia: 'Ayuntamiento', tipo: 'servicios' }).map(l => l.expediente), ['F3']);
+  assert.deepEqual(filtrar(null, {}), []);
 });

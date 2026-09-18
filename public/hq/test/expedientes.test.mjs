@@ -45,7 +45,7 @@ if (typeof globalThis.localStorage === 'undefined') {
   globalThis.localStorage = { getItem: (k) => (mem.has(k) ? mem.get(k) : null), setItem: (k, v) => mem.set(k, String(v)), removeItem: (k) => mem.delete(k) };
 }
 
-const { estadoSesion, render, tarjetaExp, pasoEconomico, porFase, sinActualizar, buscarExp } = await import('../app/vistas/expedientes.js');
+const { estadoSesion, render, tarjetaExp, pasoEconomico, porFase, sinActualizar, buscarExp, panelesExpedientes } = await import('../app/vistas/expedientes.js');
 
 test('estadoSesion prioriza abierta, luego solicitada, luego nada', () => {
   const ses = [{ id: 1, expediente_id: 5, estado: 'cerrada' }, { id: 2, expediente_id: 5, estado: 'solicitada' }, { id: 3, expediente_id: 6, estado: 'abierta' }];
@@ -82,18 +82,29 @@ const paneles = r => buscarNodos(r, n => n.tag === 'section' && clase(n, 'panel-
 const panelDe = (r, t) => paneles(r).find(p => p.children[0].textContent === t);
 const nombres = r => buscarNodos(r, n => n.tag === 'article').map(a => a.children[1].textContent);
 
-test('lista: cuatro paneles con cartera, fase, trabajo y estado sin actualizar', () => {
-  const r = pintar();
-  assert.deepEqual(paneles(r).map(p => p.children[0].textContent), ['Cartera de clientes', 'Por fase', 'Trabajo abierto', 'Sin estado reciente']);
-  assert.ok(panelDe(r, 'Cartera de clientes').textContent.startsWith('Cartera de clientes24 k EUR3 clientes · sin IVA'), panelDe(r, 'Cartera de clientes').textContent);
-  assert.match(buscarNodos(panelDe(r, 'Cartera de clientes'), n => clase(n, 'graf'))[0].innerHTML, /g-neutro-2.*g-tinta-2.*g-tinta"/);
-  assert.equal(buscarNodos(panelDe(r, 'Por fase'), n => clase(n, 'centro'))[0].textContent, '5');
-  const tr = panelDe(r, 'Trabajo abierto');
+// #1057 tarea 29: los cuatro paneles se van a Operación/KPIs (grupo expedientes); lista() ya no los
+// pinta, solo el enlace. panelesExpedientes() se prueba directo con el mismo payload y fixture de antes.
+test('panelesExpedientes: cuatro paneles con cartera, fase, trabajo y estado sin actualizar', () => {
+  const ps = panelesExpedientes(S().datos, AHORA);
+  const panelDe2 = t => ps.find(p => p.children[0].textContent === t);
+  assert.deepEqual(ps.map(p => p.children[0].textContent), ['Cartera de clientes', 'Por fase', 'Trabajo abierto', 'Sin estado reciente']);
+  assert.ok(panelDe2('Cartera de clientes').textContent.startsWith('Cartera de clientes24 k EUR3 clientes · sin IVA'), panelDe2('Cartera de clientes').textContent);
+  assert.match(buscarNodos(panelDe2('Cartera de clientes'), n => clase(n, 'graf'))[0].innerHTML, /g-neutro-2.*g-tinta-2.*g-tinta"/);
+  assert.equal(buscarNodos(panelDe2('Por fase'), n => clase(n, 'centro'))[0].textContent, '5');
+  const tr = panelDe2('Trabajo abierto');
   assert.ok(tr.textContent.startsWith('Trabajo abierto8encargos abiertos en 3 expedientes'), tr.textContent);
   assert.deepEqual(buscarNodos(tr, n => clase(n, 'fila-barra')).map(f => f.attrs.href), ['#operacion/expedientes/4', '#operacion/expedientes/1', '#operacion/expedientes/3']);
-  const sa = panelDe(r, 'Sin estado reciente');
+  const sa = panelDe2('Sin estado reciente');
   assert.match(sa.className, /alerta/);
   assert.ok(sa.textContent.includes('4sin resumen en 7 días'));
+});
+
+test('lista: enlace KPIs en vez del cuadro de mando', () => {
+  const r = pintar();
+  assert.equal(paneles(r).length, 0);
+  const enlace = buscarNodos(r, n => n.tag === 'a' && clase(n, 'btn-enlace'))[0];
+  assert.equal(enlace.attrs.href, '#kpis?grupo=expedientes');
+  assert.equal(enlace.textContent, 'KPIs ›');
 });
 
 test('lista: clientes por defecto ordenados por importe, chips con recuento y sin tipos vacíos', () => {

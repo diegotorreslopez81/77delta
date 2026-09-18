@@ -131,11 +131,18 @@ export function tarjetaExp(x, S, colorFase = {}) {
   ]);
 }
 
+// Grupo 'Expedientes' de Operación/KPIs (#1057 tarea 29): mismos cuatro paneles que antes encabezaban
+// esta vista, reutilizados desde kpis.js sin duplicar código.
+export function panelesExpedientes(d, ahora = new Date()) {
+  const xs = (d.expedientes || []).filter(x => x.activo !== false);
+  return [panelCartera(porTipo(xs, 'cliente')), panelFase(xs), panelTrabajo(xs), panelSinActualizar(xs, ahora)];
+}
+
 function lista(raiz, S, filtrosRuta = {}, ahora = new Date()) {
   const xs = (S.datos.expedientes || []).filter(x => x.activo !== false);
   const tipo = TIPOS.some(([k]) => k === filtrosRuta.tipo) ? filtrosRuta.tipo : 'cliente';
   const colorFase = Object.fromEntries(porFase(xs).map(s => [s.l, s.color]));
-  raiz.append(el('div', { class: 'cuadro' }, [panelCartera(porTipo(xs, 'cliente')), panelFase(xs), panelTrabajo(xs), panelSinActualizar(xs, ahora)]));
+  raiz.append(el('div', { class: 'fila enlace-kpis' }, [el('a', { class: 'btn-enlace', href: '#kpis?grupo=expedientes', text: 'KPIs ›' })]));
   const base = porTipo(xs, tipo).slice().sort((a, b) => (Number(b.importe) || 0) - (Number(a.importe) || 0) || String(a.nombre).localeCompare(String(b.nombre)));
   const cont = el('div', { class: 'lista-rica' });
   const pintarLista = texto => {

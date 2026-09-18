@@ -55,7 +55,7 @@ export function tarjetaColaborador(c) {
 }
 
 export function pintar(raiz, S, cs) {
-  raiz.append(el('div', { class: 'cuadro' }, cuadroColaboradores(cs, S)));
+  raiz.append(el('div', { class: 'fila enlace-kpis' }, [el('a', { class: 'btn-enlace', href: '#kpis?grupo=equipo', text: 'KPIs ›' })]));
   raiz.append(el('section', { class: 'seccion' }, [el('h2', { text: 'Base de colaboradores (' + cs.length + ')' }),
     cs.length ? el('div', { class: 'lista-rica' }, cs.map(tarjetaColaborador)) : el('p', { class: 'mudo', text: 'sin colaboradores dados de alta (hq.py colaborador alta)' })]));
 }
@@ -63,16 +63,22 @@ export function pintar(raiz, S, cs) {
 // main.js vacía raiz y vuelve a llamar a render en cada recarga o cambio de ruta: si mientras se espera
 // la RPC llega otro render (turno) o raiz ya no está en el documento, la respuesta tardía no se pinta.
 let cache = null, turno = 0;
+// Grupo 'Equipo' de KPIs (#1057 tarea 29): kpis.js necesita la misma lista de colaboradores que esta
+// vista sin duplicar la llamada RPC ni el cacheo de 5 minutos; cuadroColaboradores() ya estaba exportada.
+export async function cargarColaboradores(cargar = () => rpc('omc_colaboradores_lista')) {
+  if (!cache || Date.now() - cache.t > 5 * 60e3) cache = { t: Date.now(), cs: (await cargar()) || [] };
+  return cache.cs;
+}
 export async function render(raiz, S, arg, filtrosRuta = {}, cargar = () => rpc('omc_colaboradores_lista')) {
   const mio = ++turno;
-  if (!cache || Date.now() - cache.t > 5 * 60e3) {
-    const espera = el('p', { class: 'mudo', text: 'cargando colaboradores…' });
-    raiz.append(espera);
-    try { cache = { t: Date.now(), cs: (await cargar()) || [] }; }
-    catch (err) { if (mio === turno) espera.textContent = 'HQ no devuelve colaboradores: ' + err.message; return; }
-    if (mio !== turno || raiz.isConnected === false) return;
-    espera.remove();
-  }
-  pintar(raiz, S, cache.cs);
+  const yaCache = cache && Date.now() - cache.t <= 5 * 60e3;
+  const espera = yaCache ? null : el('p', { class: 'mudo', text: 'cargando colaboradores…' });
+  if (espera) raiz.append(espera);
+  let cs;
+  try { cs = await cargarColaboradores(cargar); }
+  catch (err) { if (mio === turno && espera) espera.textContent = 'HQ no devuelve colaboradores: ' + err.message; return; }
+  if (mio !== turno || raiz.isConnected === false) return;
+  if (espera) espera.remove();
+  pintar(raiz, S, cs);
 }
 export function limpiarCache() { cache = null; }

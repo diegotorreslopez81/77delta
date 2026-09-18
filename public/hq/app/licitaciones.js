@@ -111,3 +111,40 @@ export function pipelinePorMes(licitaciones, ahora = new Date(), meses = 6) {
   return cols;
 }
 // Embudo acumulado desde lic_resumen (estados excluyentes): lo presentado incluye lo ya resuelto.
+
+// Tipologia del organo de contratacion (tarjetas ricas, encargo #1057): deriva una categoria legible
+// del texto libre de 'organo' para poder filtrar sin columna nueva en la BD. Gana el primer patron
+// que matchea, en este orden.
+const TIPOLOGIA_RE = [
+  ['Ayuntamiento', /ajuntament|ayuntamiento|concello|udala|alcald/i],
+  ['Diputación', /diputaci|consell insular|cabildo/i],
+  ['Consorcio', /consorci/i],
+  ['Autonómica', /generalitat|conselleria|departament|junta de|gobierno de|xunta|comunidad de|servei|servicio .* de salud/i],
+  ['Estatal', /ministerio|estatal|instituto|agencia|sociedad mercantil|entidad p[uú]blica|m\.p\./i],
+  ['Universidad', /universi/i],
+  ['Empresa pública', /s\.a\.|s\.l\.|empresa/i],
+];
+export const TIPOLOGIAS = [...TIPOLOGIA_RE.map(x => x[0]), 'Otro'];
+export function tipologia(organo) {
+  const t = String(organo || '');
+  for (const [nombre, re] of TIPOLOGIA_RE) if (re.test(t)) return nombre;
+  return 'Otro';
+}
+
+// Sin columna de solvencia normalizada: 'sin solvencia' cuando el texto declara exencion (159.6,
+// 'no exige', 'sin acreditaci'); si hay texto y no la declara, se entiende que exige.
+export function sinSolvencia(l) {
+  const t = String(l?.solvencia || '').toLowerCase();
+  return /159\.6|no exige|sin acreditaci/.test(t);
+}
+
+// Filtro puro para la vista: tipologia/solvencia/fuente/tipo/desiertas, todos opcionales (sin valor
+// no filtra). 'desiertas' lo aplica la vista solo cuando tiene sentido mostrarlo (pestaña criba).
+export function filtrar(rows, f = {}) {
+  return (rows || []).filter(l =>
+    (!f.tipologia || tipologia(l.organo) === f.tipologia)
+    && (!f.solvencia || f.solvencia === 'todas' || (f.solvencia === 'sin solvencia' ? sinSolvencia(l) : !sinSolvencia(l)))
+    && (!f.fuente || l.pestana === f.fuente)
+    && (!f.tipo || l.tipo === f.tipo)
+    && (!f.desiertas || estadoDe(l) === 'Cerrada sin presentar'));
+}

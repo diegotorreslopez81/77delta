@@ -23,7 +23,8 @@ export function modal({ titulo, cuerpo, acciones = [] }) {
 }
 export function toast(texto, accion, fn) {
   const t = el('div', { class: 'toast' }, [el('span', { text: texto }), accion ? el('button', { class: 'btn-enlace', text: accion, onclick: () => { fn(); t.remove(); } }) : null]);
-  document.body.append(t); setTimeout(() => t.remove(), accion ? 8000 : 3500);
+  // #1057 tarea 29: mismo tiempo con o sin botón de acción (antes 8s/3.5s); 4s alcanza para leer y actuar.
+  document.body.append(t); setTimeout(() => t.remove(), 4000);
 }
 const DIAS = ['dom', 'lun', 'mar', 'mié', 'jue', 'vie', 'sáb'];
 export function fecha(iso, { hora = false, tz = 'Europe/Madrid' } = {}) {

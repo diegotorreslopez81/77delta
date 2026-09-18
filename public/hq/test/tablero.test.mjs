@@ -97,9 +97,12 @@ test('vencidos ordena por hito más antiguo e ignora hechos y sin hito; porRespo
   assert.deepEqual(porResponsable(kanban(encargos, {}), []).map(r => [r.id, r.n, r.nombre]), [['chief', 2, 'chief'], ['guillem', 1, 'guillem'], ['nil', 1, 'nil']]);
 });
 
-test('render pinta el cuadro antes de los filtros y del kanban', () => {
+// #1057 tarea 29: el cuadro se va a Operación/KPIs (grupo tablero); render() ya solo deja el enlace.
+test('render pinta el enlace a KPIs antes de los filtros y del kanban', () => {
   const raiz = crearNodo('main');
   render(raiz, Sx(), null, {}, AHORA);
-  assert.deepEqual(raiz.children.map(n => n.className), ['cuadro', 'barra-filtros', 'kanban']);
-  assert.equal(raiz.children[0].children.length, 4);
+  assert.deepEqual(raiz.children.map(n => n.className), ['fila enlace-kpis', 'barra-filtros', 'kanban']);
+  const enlace = buscarNodos(raiz.children[0], n => n.tag === 'a')[0];
+  assert.equal(enlace.attrs.href, '#kpis?grupo=tablero');
+  assert.equal(enlace.textContent, 'KPIs ›');
 });

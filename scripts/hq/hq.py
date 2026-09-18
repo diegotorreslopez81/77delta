@@ -137,6 +137,23 @@ def env():
 
 E = env()
 
+# Motivos de NO de una licitación (Diego 19-sep-2026, encargo #1063). Mismo catálogo y orden que omc_motivos_no()
+# en la BD y MOTIVOS_NO en public/hq/app/licitaciones.js: si cambia uno, cambian los tres.
+MOTIVOS_NO = ('Fuera de España', 'Suministro/hardware', 'No TIC ni formación', 'Solvencia/clasificación', 'Presencial',
+              'Sin pliego', 'Plazo corto', 'Importe bajo', 'Competencia/consorcio', 'Duplicada')
+
+def motivos_no(texto):
+    """'fuera de españa, sin pliego' -> ['Fuera de España', 'Sin pliego']; admite mayúsculas, acentos y prefijos; falla si algo no está en el catálogo."""
+    import unicodedata
+    if not texto: return []
+    norm = lambda s: unicodedata.normalize('NFKD', s).encode('ascii', 'ignore').decode().lower().strip()
+    out = []
+    for parte in [x for x in texto.split(',') if x.strip()]:
+        hit = [m for m in MOTIVOS_NO if norm(m) == norm(parte)] or [m for m in MOTIVOS_NO if norm(m).startswith(norm(parte))]
+        if len(hit) != 1: sys.exit(f"motivo '{parte.strip()}' no está en el catálogo: " + ' · '.join(MOTIVOS_NO))
+        if hit[0] not in out: out.append(hit[0])
+    return out
+
 
 def rpc(fn, **params):
     req = urllib.request.Request(E['HQ_URL'].rstrip('/') + '/rest/v1/rpc/' + fn, data=json.dumps(params).encode(), method='POST',
@@ -439,6 +456,7 @@ def main():
     p = sub.add_parser('lic-cribar', help='cribado de Sales: Nueva -> Por decidir/Descartada/Pausada/Cerrada sin presentar. La decision OK/No sigue siendo de Diego, esto no la toca')
     p.add_argument('id', help='expediente'); p.add_argument('estado', choices=('Nueva', 'Por decidir', 'Descartada', 'Pausada', 'Cerrada sin presentar'))
     p.add_argument('--motivo'); p.add_argument('--resumen-corto', dest='resumen_corto')
+    p.add_argument('--motivos', help='motivos de NO separados por coma, obligatorio al descartar (si no se pasan, HQ intenta deducirlos de --motivo): ' + ' · '.join(MOTIVOS_NO))
     p = sub.add_parser('lic-editar-cierre', help='corrige la fecha de cierre de una licitacion, con rastro en el hilo de quien y desde que valor - una fecha mal no puede cambiar en silencio')
     p.add_argument('id', help='expediente'); p.add_argument('--cierre', required=True, help='ISO: 2026-09-13 (solo fecha, el campo no guarda hora)'); p.add_argument('--agente')
     p = sub.add_parser('lic-nueva', help='da de alta una candidata nueva (Ariadna); admite un JSON de varias filas con --json-file para altas en lote')
@@ -691,8 +709,11 @@ def main():
         print(json.dumps(l, ensure_ascii=False) if a.json else
               (f"{a.id} -> etiqueta 'cierre propuesto #{a.tarjeta}' puesta por {a.agente}" if a.tarjeta else f"{a.id} -> etiqueta de cierre propuesto quitada por {a.agente}"))
     elif a.cmd == 'lic-cribar':
-        l = rpc('omc_licitacion_cribar', p_token=E['HQ_TOKEN'], p_expediente=a.id, p_estado=a.estado, p_motivo_auto=a.motivo, p_resumen_corto=a.resumen_corto)
-        print(json.dumps(l, ensure_ascii=False) if a.json else f"{a.id} -> {l['estado']}")
+        motivos = motivos_no(a.motivos)
+        if a.estado == 'Descartada' and not motivos and not a.motivo:
+            sys.exit('lic-cribar Descartada: pasa --motivos (uno o varios de: ' + ' · '.join(MOTIVOS_NO) + ') o al menos --motivo con el porqué')
+        l = rpc('omc_licitacion_cribar', p_token=E['HQ_TOKEN'], p_expediente=a.id, p_estado=a.estado, p_motivo_auto=a.motivo, p_resumen_corto=a.resumen_corto, p_motivos=motivos or None)
+        print(json.dumps(l, ensure_ascii=False) if a.json else f"{a.id} -> {l['estado']}" + (' · motivos: ' + ', '.join(l.get('motivos') or []) if l.get('motivos') else ''))
     elif a.cmd == 'lic-editar-cierre':
         l = rpc('omc_licitacion_editar_cierre', p_token=E['HQ_TOKEN'], p_expediente=a.id, p_cierre=a.cierre, p_agente=agente_actual(a.agente))
         print(json.dumps(l, ensure_ascii=False) if a.json else f"{a.id} -> cierre corregido a {l['cierre']} (rastro en hq.py lic-hilo {a.id})")
