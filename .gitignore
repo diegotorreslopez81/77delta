@@ -22,3 +22,6 @@ docs/empresa/
 __pycache__/
 .worktrees/
 .superpowers/
+
+# semillas del CRM con datos de clientes (NIF, carpetas de Drive): solo en local y en la base de datos
+scripts/hq/seed-crm-*.sql

@@ -940,10 +940,10 @@ begin
     'version', omc_v2_version(), 'ahora', ahora, 'rol', t.rol, 'empresa', t.empresa,
     'objetivos', (select coalesce(jsonb_agg(jsonb_build_object('horizonte', o.horizonte, 'titulo', o.titulo, 'meta', o.meta, 'unidad', o.unidad, 'fecha_limite', o.fecha_limite,
         'contratado_eur', (select coalesce(sum(i.importe),0) from omc_ingresos i where i.empresa = t.empresa and i.estado in ('contratado','facturado','cobrado') and extract(year from i.fecha) = o.horizonte),
-        -- Fix round 1 (revisor T16): en produccion hay legado 'Aprobada' ademas de 'OK' (3 filas, 66.255 EUR),
-        -- y tambien 'Descartada'/'Descartado'/'NOK' que no son 'No'. Parche minimo sin tocar la columna ni
-        -- normalizar datos: upper() + las dos formas aceptadas. Pendiente normalizar de verdad en plan 2.
-        'presentado_eur', (select coalesce(sum(l.importe),0) from omc_licitaciones l where l.empresa = t.empresa and upper(l.decision) in ('OK','APROBADA') and extract(year from coalesce(l.fecha_decision, l.cierre)) = o.horizonte)) order by o.horizonte), '[]'::jsonb)
+        -- v3 (18-sep-2026): presentado = por ESTADO de la licitacion (omc_lic_presentada, schema-v3-crm.sql), nunca por
+        -- decision: 'OK' solo aprueba ir a por ella (81 'OK'/'Descartada' inflaban este objetivo). Ano = cierre (fecha de
+        -- presentacion) y, si falta, fecha_decision. La columna decision no se normaliza (orden de Diego).
+        'presentado_eur', (select coalesce(sum(l.importe),0) from omc_licitaciones l where l.empresa = t.empresa and omc_lic_presentada(l.estado) and extract(year from coalesce(l.cierre, l.fecha_decision)) = o.horizonte)) order by o.horizonte), '[]'::jsonb)
       from omc_plan_objetivo o where o.empresa = t.empresa),
     'bloques', (select coalesce(jsonb_agg(jsonb_build_object('id', b.id, 'letra', b.letra, 'nombre', b.nombre, 'meta_eur', b.meta_eur, 'director', b.director, 'orden', b.orden,
         'frentes_n', (select count(*) from omc_plan_lineas l where l.bloque_id = b.id and l.activa),
