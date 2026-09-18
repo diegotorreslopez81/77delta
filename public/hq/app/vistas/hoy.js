@@ -9,9 +9,11 @@ import { COLUMNAS, enCurso, prorrateo, cierres, semaforoCuentas } from '../estad
 import { tarjetaEncargo } from '../tarjeta.js';
 import { urgeTercera, peorPct } from './recursos.js';
 import { donut, barras, apilada, progreso, medidor, linea } from '../graficos.js';
+import { eurCorto, anchoLog, panel, cifra, grafico, leyenda, ejeX, filaBarra } from '../cuadro.js';
+import { pipelinePorMes } from '../licitaciones.js';
+export { eurCorto, pipelinePorMes };
 
 const DOS_HORAS = 2 * 36e5, DIA = 864e5;
-const MESES = ['ene', 'feb', 'mar', 'abr', 'may', 'jun', 'jul', 'ago', 'sep', 'oct', 'nov', 'dic'];
 const INICIAL = ['D', 'L', 'M', 'X', 'J', 'V', 'S'];
 function bloque(titulo, kids, vacio) { return el('section', { class: 'seccion' }, [el('h2', { text: titulo }), ...(kids.length ? kids : [el('p', { class: 'mudo', text: vacio })])]); }
 function corto(t, n = 60) { t = String(t || ''); return t.length > n ? t.slice(0, n - 1) + '…' : t; }
@@ -21,16 +23,8 @@ function haceTexto(ms) { const m = Math.max(0, Math.round(ms / 6e4)); return m <
 const dia = t => new Date(t).toISOString().slice(0, 10);
 const pctDe = (v, m) => (Number(m) > 0 ? Math.round(100 * (Number(v) || 0) / Number(m)) : 0);
 // Ancho logarítmico para el embudo: 2.977 detectadas y 9 presentadas caben en la misma escala.
-const anchoLog = (v, max) => (v > 0 ? Math.max(3, Math.round(100 * Math.log10(v + 1) / Math.log10(max + 1))) : 0);
 
 // Euros compactos para las cifras grandes: 2,3 M EUR, 228 k EUR; por debajo de 10.000, eur() entero.
-export function eurCorto(n) {
-  n = Number(n) || 0; const a = Math.abs(n);
-  if (a >= 1e6) return (n / 1e6).toFixed(1).replace('.', ',') + ' M EUR';
-  if (a >= 1e4) return Math.round(n / 1e3) + ' k EUR';
-  return eur(Math.round(n));
-}
-// Urgentes: prioridad 1 o 2 (1 es la más alta), o vencimiento en menos de 24 h (o ya vencida).
 export function urgentes(pendientes, ahora = new Date()) {
   const limite = ahora.getTime() + 24 * 36e5;
   return (pendientes || []).filter(p => {
@@ -48,19 +42,6 @@ export function activosRecientes(agentes, ahora = new Date()) {
 }
 // Pipeline por mes de cierre: importe de las licitaciones aprobadas y presentadas en `meses` columnas
 // desde el mes en curso; lo anterior cae en la primera y lo posterior en la última ("feb+").
-export function pipelinePorMes(licitaciones, ahora = new Date(), meses = 6) {
-  const y0 = ahora.getUTCFullYear(), m0 = ahora.getUTCMonth();
-  const cols = Array.from({ length: meses }, (_, i) => ({ etiqueta: MESES[(m0 + i) % 12] + (i === meses - 1 ? '+' : ''), presentada: 0, aprobada: 0 }));
-  for (const l of licitaciones || []) {
-    const est = String(l.estado || '').toLowerCase();
-    if (est !== 'aprobada' && est !== 'presentada') continue;
-    const c = l.cierre ? new Date(l.cierre) : null;
-    const i = c && !isNaN(c) ? (c.getUTCFullYear() - y0) * 12 + c.getUTCMonth() - m0 : 0;
-    cols[Math.min(meses - 1, Math.max(0, i))][est] += Number(l.importe) || 0;
-  }
-  return cols;
-}
-// Embudo acumulado desde lic_resumen (estados excluyentes): lo presentado incluye lo ya resuelto.
 export function embudoLicitaciones(lr = {}) {
   const n = k => Number((lr[k] || {}).n) || 0;
   const adj = n('adjudicadas') + n('contratadas'), pres = n('presentadas') + n('no_adjudicadas') + adj;
@@ -86,22 +67,6 @@ export function porColumna(encargos) {
   const c = Object.fromEntries(COLUMNAS.map(x => [x[0], 0]));
   for (const e of encargos || []) if (e.columna in c) c[e.columna]++;
   return c;
-}
-
-// Piezas comunes de un panel: título que es el enlace (estirado a todo el panel por CSS), cifra grande
-// con subtítulo y tendencia, gráfico y leyenda.
-function panel(titulo, href, kids, clase) {
-  return el('section', { class: 'panel-kpi' + (clase ? ' ' + clase : '') }, [el('h2', {}, [el('a', { class: 'estirado', href, text: titulo })]), ...kids.filter(Boolean)]);
-}
-function cifra(valor, sub, tend) {
-  return el('div', { class: 'cifra-bloque' }, [el('p', { class: 'cifra-xl', text: valor }), sub ? el('p', { class: 'sub', text: sub }) : null,
-    tend ? el('p', { class: 'tend ' + tend.sentido, text: (tend.sentido === 'sube' ? '▲ ' : tend.sentido === 'baja' ? '▼ ' : '') + tend.texto }) : null]);
-}
-const grafico = (svgTxt, clase) => el('div', { class: 'graf' + (clase ? ' ' + clase : ''), html: svgTxt });
-function leyenda(items) { return el('ul', { class: 'leyenda' }, items.map(i => el('li', {}, [el('i', { class: 'punto g-' + i.color }), el('span', { text: i.l }), i.v != null ? el('b', { text: String(i.v) }) : null]))); }
-function ejeX(etiquetas) { return el('div', { class: 'eje-x' }, etiquetas.map(t => el('span', { text: t }))); }
-function filaBarra(etiqueta, valor, pct, color, href) {
-  return el(href ? 'a' : 'div', { class: 'fila-barra' + (href ? ' enlace' : ''), href }, [el('span', { class: 'et', text: etiqueta }), el('b', { text: valor }), grafico(progreso(pct, etiqueta + ' ' + valor, { color }), 'fina')]);
 }
 
 // Franja de semáforos: lo que pide atención ahora, una píldora por alerta (o "sin alertas" en verde).

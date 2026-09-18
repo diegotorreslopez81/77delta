@@ -94,3 +94,20 @@ export function embudo(lics, kpis = {}, resumen = {}) {
   filas.push(filaResumen('cerradas', 'Cerradas sin presentar', rows.filter(l => estadoDe(l) === 'Cerrada sin presentar'), resumen));
   return filas;
 }
+
+// Pipeline por mes de cierre (Home y Operación/Licitaciones): importe de aprobadas y presentadas desde el mes
+// en curso; lo anterior cae en la primera columna y lo posterior (o sin fecha) en la última.
+const MESES = ['ene', 'feb', 'mar', 'abr', 'may', 'jun', 'jul', 'ago', 'sep', 'oct', 'nov', 'dic'];
+export function pipelinePorMes(licitaciones, ahora = new Date(), meses = 6) {
+  const y0 = ahora.getUTCFullYear(), m0 = ahora.getUTCMonth();
+  const cols = Array.from({ length: meses }, (_, i) => ({ etiqueta: MESES[(m0 + i) % 12] + (i === meses - 1 ? '+' : ''), presentada: 0, aprobada: 0 }));
+  for (const l of licitaciones || []) {
+    const est = String(l.estado || '').toLowerCase();
+    if (est !== 'aprobada' && est !== 'presentada') continue;
+    const c = l.cierre ? new Date(l.cierre) : null;
+    const i = c && !isNaN(c) ? (c.getUTCFullYear() - y0) * 12 + c.getUTCMonth() - m0 : 0;
+    cols[Math.min(meses - 1, Math.max(0, i))][est] += Number(l.importe) || 0;
+  }
+  return cols;
+}
+// Embudo acumulado desde lic_resumen (estados excluyentes): lo presentado incluye lo ya resuelto.

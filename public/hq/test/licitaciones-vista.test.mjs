@@ -27,13 +27,17 @@ globalThis.document = {
   createTextNode: (data) => ({ nodeType: 3, data }),
 };
 
-const { render } = await import('../app/vistas/licitaciones.js');
+const { render, diasA, plazo, plazoConsumido, porFiltro, ordenar, buscar, tarjetaLic } = await import('../app/vistas/licitaciones.js');
 
 const buscarNodos = (n, pred, out = []) => { if (n.nodeType === 1) { if (pred(n)) out.push(n); n.children.forEach(c => buscarNodos(c, pred, out)); } return out; };
 const clase = (n, c) => n.className.split(' ').includes(c);
 const h2s = raiz => buscarNodos(raiz, n => n.tag === 'h2');
-const minis = raiz => buscarNodos(raiz, n => clase(n, 'mini'));
-const miniPor = (raiz, nombre) => minis(raiz).find(m => buscarNodos(m, n => clase(n, 'l'))[0].textContent === nombre);
+const paneles = raiz => buscarNodos(raiz, n => n.tag === 'section' && clase(n, 'panel-kpi'));
+const panel = (raiz, t) => paneles(raiz).find(p => p.children[0].textContent === t);
+const filaDe = (raiz, et) => buscarNodos(panel(raiz, 'Embudo'), n => clase(n, 'fila-barra')).find(f => f.children[0].textContent === et);
+const tarjetas = raiz => buscarNodos(raiz, n => n.tag === 'article' && clase(n, 'tarjeta-lic'));
+const codigos = raiz => tarjetas(raiz).map(t => buscarNodos(t, n => clase(n, 'codigo'))[0].textContent);
+const chips = raiz => buscarNodos(raiz, n => n.tag === 'a' && clase(n, 'chip'));
 const grupos = raiz => buscarNodos(raiz, n => n.tag === 'details' && clase(n, 'grupo-criba'));
 const raizVacia = () => crearNodo('main');
 
@@ -46,139 +50,119 @@ const lics = [
   { expediente: 'L6', elegible: 'Probable', estado: 'Aprobada', decision: 'OK', cierre: '2026-09-30', importe: '40000', resumen_corto: 'Resumen L6', objeto: 'Objeto L6' },
   { expediente: 'L7', elegible: null, estado: 'Presentada', decision: 'OK', cierre: '2026-09-15', importe: '15000', resumen_corto: 'Resumen L7', objeto: 'Objeto L7' },
 ];
+const AHORA = new Date('2026-09-17T10:00:00Z');
+const pintar = (datos, filtros = {}) => { const raiz = raizVacia(); render(raiz, { datos }, undefined, filtros, AHORA); return raiz; };
 
-test('embudo: la fila "Por decidir" cuenta L1 y L2, con la suma de importes', () => {
-  const raiz = raizVacia();
-  render(raiz, { datos: { licitaciones: lics } });
-  assert.ok(h2s(raiz).some(h => h.textContent === 'Embudo'));
-  const m = miniPor(raiz, 'Por decidir');
-  assert.ok(m, 'debe existir la mini de Por decidir');
-  const v = buscarNodos(m, n => clase(n, 'v'))[0];
-  assert.equal(v.children[0].data, '2');
-  const small = buscarNodos(v, n => n.tag === 'small')[0];
-  assert.equal(small.textContent, eurTexto(30000));
+test('cuadro: cinco paneles en orden, cada uno con su enlace', () => {
+  const raiz = pintar({ licitaciones: lics });
+  assert.deepEqual(paneles(raiz).map(p => p.children[0].textContent), ['Pipeline activo', 'Embudo', 'Por estado', 'Por decidir', 'Próximos cierres']);
+  assert.deepEqual(paneles(raiz).map(p => p.children[0].children[0].attrs.href), ['#operacion/licitaciones?estado=activas', '#operacion/licitaciones', '#operacion/licitaciones', '#reglas/decisiones', '#operacion/licitaciones?estado=activas']);
 });
 
-function eurTexto(n) { return Math.round(n).toLocaleString('es-ES') + ' EUR'; }
-
-test('embudo: sin kpis.lic.detectadas.n ni resumen.total no hay fila Detectadas', () => {
-  const raiz = raizVacia();
-  render(raiz, { datos: { licitaciones: lics } });
-  assert.equal(miniPor(raiz, 'Detectadas'), undefined);
+test('Pipeline activo: suma de aprobadas y presentadas sin IVA y barras por mes de cierre', () => {
+  const p = panel(pintar({ licitaciones: lics }), 'Pipeline activo');
+  assert.ok(p.textContent.includes('55 k EUR1 aprobadas · 1 presentadas · sin IVA'), p.textContent);
+  assert.match(buscarNodos(p, n => clase(n, 'graf'))[0].innerHTML, /^<svg viewBox="0 0 100 60"/);
+  assert.match(p.className, /ancho-2/);
 });
 
-test('embudo: una fila con eur 0 (Adjudicadas, sin filas) no pinta <small>', () => {
-  const raiz = raizVacia();
-  render(raiz, { datos: { licitaciones: lics } });
-  const m = miniPor(raiz, 'Adjudicadas');
-  const v = buscarNodos(m, n => clase(n, 'v'))[0];
-  assert.equal(v.children[0].data, '0');
-  assert.equal(buscarNodos(v, n => n.tag === 'small').length, 0);
+test('Embudo: filas con barra, Por decidir cuenta L1 y L2, presentadas en oro, Detectadas desde lic_resumen', () => {
+  const raiz = pintar({ licitaciones: lics, lic_resumen: { total: { n: 1500, eur: 9 } }, kpis: { 'lic.tasa_exito': { valor: 12 } } });
+  assert.equal(filaDe(raiz, 'Por decidir').children[1].textContent, '2');
+  assert.equal(filaDe(raiz, 'Detectadas').children[1].textContent, '1500');
+  assert.match(filaDe(raiz, 'Presentadas').children[2].innerHTML, /g-oro/);
+  assert.ok(panel(raiz, 'Embudo').textContent.includes('tasa de éxito 12 %'));
+  assert.equal(filaDe(raiz, 'Contratadas'), undefined); // a 0 no se pinta
 });
 
-test('embudo: enlace reciproco a Reglas/Decisiones con el total de por decidir', () => {
-  const raiz = raizVacia();
-  render(raiz, { datos: { licitaciones: lics } });
-  const a = buscarNodos(raiz, n => n.tag === 'a' && n.attrs.href === '#reglas/decisiones' && n.textContent.includes('por decidir'))[0];
-  assert.ok(a);
-  assert.equal(a.textContent, '2 por decidir en Reglas/Decisiones');
+test('Por estado: donut con un arco por estado presente y el total en el centro', () => {
+  const p = panel(pintar({ licitaciones: lics }), 'Por estado');
+  assert.equal((buscarNodos(p, n => clase(n, 'graf'))[0].innerHTML.match(/stroke-dasharray/g) || []).length, 4);
+  assert.equal(buscarNodos(p, n => clase(n, 'centro'))[0].textContent, '7');
 });
 
-test('embudo: kpis.lic.tasa_exito, lic.proximo_cierre y lic.actualizado se pintan solo si existen', () => {
-  const raiz1 = raizVacia();
-  render(raiz1, { datos: { licitaciones: lics } });
-  assert.ok(!buscarNodos(raiz1, n => clase(n, 'mudo')).some(n => n.textContent.includes('tasa de éxito')));
-  const raiz2 = raizVacia();
-  render(raiz2, { datos: { licitaciones: lics, kpis: { 'lic.tasa_exito': { valor: 42.3 }, 'lic.proximo_cierre': { texto: 'L2 · 2026-09-20' }, 'lic.actualizado': { texto: '2026-09-17T10:00' } } } });
-  const textos = buscarNodos(raiz2, n => clase(n, 'mudo')).map(n => n.textContent);
-  assert.ok(textos.some(t => t.includes('tasa de éxito 42.3 %') && t.includes('próximo cierre L2 · 2026-09-20')));
-  assert.ok(textos.some(t => t === 'KPIs del barrido actualizados 2026-09-17T10:00'));
+test('Por decidir y Próximos cierres: cifra, alerta y lista corta', () => {
+  const raiz = pintar({ licitaciones: lics });
+  const pd = panel(raiz, 'Por decidir');
+  assert.match(pd.className, /alerta/);
+  assert.ok(pd.textContent.startsWith('Por decidir230 k EUR sin IVA en juego'), pd.textContent);
+  const pc = panel(raiz, 'Próximos cierres');
+  assert.ok(pc.textContent.startsWith('Próximos cierres13 d'), pc.textContent);
+  assert.ok(!/alerta/.test(pc.className));
 });
 
-test('embudo: caption unica "Importes sin IVA" bajo el embudo, no repetida por tile (Minor 1)', () => {
-  const raiz = raizVacia();
-  render(raiz, { datos: { licitaciones: lics } });
-  const textos = buscarNodos(raiz, n => clase(n, 'mudo')).map(n => n.textContent);
-  assert.ok(textos.includes('Importes sin IVA'));
+test('filtros: activas por defecto, ordenadas por cierre, chips con recuento y enlace que conserva el orden', () => {
+  const raiz = pintar({ licitaciones: lics });
+  assert.deepEqual(codigos(raiz), ['L7', 'L6']);
+  assert.deepEqual(chips(raiz).map(c => [c.textContent, c.attrs.href, clase(c, 'activo')]), [
+    ['Activas 2', '#operacion/licitaciones?estado=activas', true], ['Por decidir 2', '#operacion/licitaciones?estado=decidir', false],
+    ['Pausadas 0', '#operacion/licitaciones?estado=pausadas', false], ['En criba 3', '#operacion/licitaciones?estado=criba', false],
+    ['por cierre', '#operacion/licitaciones?estado=activas', true], ['por importe', '#operacion/licitaciones?estado=activas&orden=importe', false]]);
+  assert.deepEqual(codigos(pintar({ licitaciones: lics }, { orden: 'importe' })), ['L6', 'L7']);
+  assert.deepEqual(codigos(pintar({ licitaciones: lics }, { estado: 'raro' })), ['L7', 'L6']);
 });
 
-test('embudo: sin licitaciones pausadas, la mini "Pausadas" no se pinta (I1)', () => {
-  const raiz = raizVacia();
-  render(raiz, { datos: { licitaciones: lics } });
-  assert.equal(miniPor(raiz, 'Pausadas'), undefined);
-});
-
-test('embudo: con una licitacion en estado Pausada, se pinta la mini "Pausadas" con su importe (I1)', () => {
-  const raiz = raizVacia();
-  const conPausada = [...lics, { expediente: 'L8', elegible: 'Probable', estado: 'Pausada', decision: null, cierre: '2026-09-25', importe: '7000', resumen_corto: 'Resumen L8', objeto: 'Objeto L8' }];
-  render(raiz, { datos: { licitaciones: conPausada } });
-  const m = miniPor(raiz, 'Pausadas');
-  assert.ok(m, 'debe existir la mini de Pausadas cuando hay al menos una');
-  const v = buscarNodos(m, n => clase(n, 'v'))[0];
-  assert.equal(v.children[0].data, '1');
-  const small = buscarNodos(v, n => n.tag === 'small')[0];
-  assert.equal(small.textContent, eurTexto(7000));
-});
-
-test('criba: los grupos salen ordenados por tamano desc (Revisar 2, No viable 1) y el primero abierto', () => {
-  const raiz = raizVacia();
-  render(raiz, { datos: { licitaciones: lics } });
-  const gs = grupos(raiz);
-  assert.equal(gs.length, 2);
-  const summaries = gs.map(g => buscarNodos(g, n => n.tag === 'summary')[0].textContent);
-  assert.deepEqual(summaries, ['Revisar (2)', 'No viable (1)']);
+test('filtros: por decidir con enlace Decidir; en criba agrupada por elegible, la mayor abierta, Perfil solo con http', () => {
+  const dec = pintar({ licitaciones: lics }, { estado: 'decidir' });
+  assert.deepEqual(codigos(dec), ['L2', 'L1']);
+  assert.ok(tarjetas(dec).every(t => buscarNodos(t, n => n.tag === 'a' && n.textContent === 'Decidir').length === 1));
+  const cri = pintar({ licitaciones: lics }, { estado: 'criba' });
+  const gs = buscarNodos(cri, n => n.tag === 'details');
+  assert.deepEqual(gs.map(g => g.children[0].textContent), ['Revisar (2)', 'No viable (1)']);
   assert.equal(gs[0].attrs.open, '');
   assert.equal(gs[1].attrs.open, undefined);
+  const perfiles = buscarNodos(cri, n => n.tag === 'a' && n.textContent === 'Perfil');
+  assert.deepEqual(perfiles.map(a => a.attrs.href), ['https://perfil.example.com/l3']);
+  assert.equal(tarjetas(cri).length, 0);
 });
 
-test('criba: h2 con el total de enCriba y filas con expediente, resumen, cierre e importe; Perfil solo si la url es http', () => {
-  const raiz = raizVacia();
-  render(raiz, { datos: { licitaciones: lics } });
-  assert.ok(h2s(raiz).some(h => h.textContent === 'En criba de Guillem (3)'));
-  const revisar = grupos(raiz)[0];
-  const filas = buscarNodos(revisar, n => n.tag === 'p');
-  const filaL3 = filas.find(p => p.textContent.includes('L3'));
-  assert.ok(filaL3.textContent.includes('Resumen L3'));
-  assert.ok(filaL3.textContent.includes('cierra'));
-  assert.ok(filaL3.textContent.includes(eurTexto(5000) + ' sin IVA'));
-  const enlaceL3 = buscarNodos(filaL3, n => n.tag === 'a')[0];
-  assert.equal(enlaceL3.attrs.href, 'https://perfil.example.com/l3');
-  assert.equal(enlaceL3.attrs.target, '_blank');
-  assert.equal(enlaceL3.attrs.rel, 'noopener');
-  const filaL5 = filas.find(p => p.textContent.includes('L5'));
-  assert.equal(buscarNodos(filaL5, n => n.tag === 'a').length, 0, 'L5 trae un enlace javascript: que urlSegura descarta');
+test('buscador: filtra la lista sin acentos por expediente, objeto u órgano, y avisa si no queda nada', () => {
+  const raiz = pintar({ licitaciones: lics });
+  const input = buscarNodos(raiz, n => n.tag === 'input')[0];
+  input.listeners.input[0]({ target: { value: 'l6' } });
+  assert.deepEqual(codigos(raiz), ['L6']);
+  input.listeners.input[0]({ target: { value: 'zzz' } });
+  assert.ok(raiz.textContent.includes('nada con este filtro'));
 });
 
-test('Aprobadas y presentadas: solo Aprobada/Presentada, ordenadas por cierre asc, enlazan a Reglas/Decisiones', () => {
-  const raiz = raizVacia();
-  render(raiz, { datos: { licitaciones: lics } });
-  const tarjetas = buscarNodos(raiz, n => n.tag === 'a' && clase(n, 'tarjeta') && clase(n, 'enlace'));
-  assert.equal(tarjetas.length, 2);
-  assert.equal(tarjetas[0].textContent.includes('L7'), true, 'L7 cierra antes (2026-09-15) que L6 (2026-09-30)');
-  assert.equal(tarjetas[1].textContent.includes('L6'), true);
-  for (const t of tarjetas) assert.equal(t.attrs.href, '#reglas/decisiones');
+test('tarjetaLic: estado, código, plazo con semáforo, importe, órgano, barra de plazo, solvencia y enlaces seguros', () => {
+  const t = tarjetaLic({ expediente: 'X1', estado: 'Aprobada', decision: 'OK', cierre: '2026-09-20', importe: '227990', resumen_corto: 'Plataforma', organo: 'Ajuntament', provincia: 'Barcelona',
+    detectada: '2026-09-07T00:00:00Z', solvencia: 'Clasificación no exigida', enlace: 'https://perfil/x', carpeta: 'https://drive/x', ppt: 'javascript:alert(1)', pcap: 'https://pcap/x' }, AHORA);
+  const txt = t.textContent;
+  for (const x of ['Aprobada', 'X1', 'cierra en 3 d', 'Plataforma', 'Ajuntament · Barcelona', '228 k EUR', 'sin IVA', 'decisión OK', '80 % del plazo consumido', 'Solvencia: Clasificación no exigida']) assert.ok(txt.includes(x), x);
+  assert.match(buscarNodos(t, n => clase(n, 'plazo'))[0].children[0].className, /g-rojo/);
+  assert.deepEqual(buscarNodos(t, n => n.tag === 'a').map(a => [a.textContent, a.attrs.href]), [['Perfil', 'https://perfil/x'], ['Carpeta', 'https://drive/x'], ['PCAP', 'https://pcap/x']]);
+});
+
+test('diasA, plazo y plazoConsumido: bordes', () => {
+  assert.equal(diasA(null, AHORA), null);
+  assert.equal(diasA('2026-09-17T23:00:00Z', AHORA), 0);
+  assert.deepEqual(plazo('2026-09-15', AHORA), { d: -2, color: 'neutro-2', texto: 'cerró hace 2 d' });
+  assert.equal(plazo('2026-09-17', AHORA).texto, 'cierra hoy');
+  assert.equal(plazo('2026-09-28', AHORA).color, 'ambar');
+  assert.equal(plazo('2026-10-28', AHORA).color, 'verde');
+  assert.equal(plazoConsumido({ cierre: '2026-09-20' }, AHORA), null);
+  assert.equal(plazoConsumido({ detectada: '2026-09-01', cierre: '2026-09-10' }, AHORA), 100);
+});
+
+test('porFiltro, ordenar y buscar: funciones puras', () => {
+  assert.deepEqual(porFiltro([{ estado: 'Pausada', expediente: 'P' }, { estado: 'Aprobada' }], 'pausadas').map(l => l.expediente), ['P']);
+  assert.deepEqual(ordenar([{ expediente: 'a', importe: '1' }, { expediente: 'b', importe: '9' }], 'importe').map(l => l.expediente), ['b', 'a']);
+  assert.deepEqual(buscar([{ organo: 'Ajuntament de Badalona' }, { organo: 'Calonge' }], 'BADALONA').length, 1);
+  assert.equal(buscar(lics, '  ').length, lics.length);
 });
 
 test('sin licitaciones ni resumen: pinta "sin licitaciones" y nada mas', () => {
-  const raiz = raizVacia();
-  render(raiz, { datos: { licitaciones: [], lic_resumen: {} } });
+  const raiz = pintar({ licitaciones: [], lic_resumen: {} });
   assert.equal(raiz.textContent, 'sin licitaciones');
   assert.equal(h2s(raiz).length, 0);
+  assert.equal(pintar({}).textContent, 'sin licitaciones');
 });
 
-test('sin licitaciones pero con lic_resumen: no dice "sin licitaciones", pinta el embudo con los datos del resumen', () => {
-  const raiz = raizVacia();
-  render(raiz, { datos: { licitaciones: [], lic_resumen: { total: { n: 1500, eur: 9000000 }, contratadas: { n: 20, eur: 200000 } } } });
-  assert.ok(!raiz.textContent.includes('sin licitaciones'));
-  const detectadas = miniPor(raiz, 'Detectadas');
-  assert.ok(detectadas);
-  assert.equal(buscarNodos(detectadas, n => clase(n, 'v'))[0].children[0].data, '1500');
-  const contratadas = miniPor(raiz, 'Contratadas');
-  assert.equal(buscarNodos(contratadas, n => clase(n, 'v'))[0].children[0].data, '20');
-});
-
-test('sin datos en absoluto (S.datos vacio) no rompe: pinta "sin licitaciones"', () => {
-  const raiz = raizVacia();
-  render(raiz, { datos: {} });
-  assert.equal(raiz.textContent, 'sin licitaciones');
+test('sin licitaciones pero con lic_resumen: cuadro con el embudo del resumen y lista vacía', () => {
+  const raiz = pintar({ licitaciones: [], lic_resumen: { total: { n: 1500, eur: 9000000 }, contratadas: { n: 20, eur: 200000 } } });
+  assert.equal(paneles(raiz).length, 5);
+  assert.equal(filaDe(raiz, 'Detectadas').children[1].textContent, '1500');
+  assert.equal(filaDe(raiz, 'Contratadas').children[1].textContent, '20');
+  assert.ok(raiz.textContent.includes('nada con este filtro'));
 });
