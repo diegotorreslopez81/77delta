@@ -363,19 +363,24 @@ def alta_agente(a):
             sys.exit(f"4/5 el parche de hq-ahorro.py no compilaba, revertido sin tocar nada: {r.stderr.strip()[:300]}")
         print(f"4/5 nivel de ahorro {a.nivel} añadido para '{a.id}' en ~/bin/hq-ahorro.py")
 
-    # 5) tarjeta obligatoria a Diego con el alias propuesto (sin esto, gmail-agente.py send se niega)
-    detalle = (f"- Alias propuesto: {alias}@77delta.com\n"
-               f"- Workspace Admin > Usuarios > team@ > Direcciones alternativas: añadir el alias\n"
-               f"- Gmail de team@ > Ajustes > Cuentas > Enviar como > Añadir: nombre {a.nombre}, "
-               f"dirección {alias}@77delta.com, Tratar como alias\n"
-               f"- Al terminar, 'hecho' aquí; Pol lo añade a ALIAS_OK")
-    payload = {'agente': agente_actual(a.agente), 'tipo': 'accion',
-               'titulo': f"Alias de correo para {a.nombre}: {alias}@77delta.com (Enviar como)", 'detalle': detalle}
-    s = rpc('omc_pedir', p_token=E['HQ_TOKEN'], p=payload)
-    avisar(s)
-    print(f"5/5 tarjeta #{s['id']} abierta a Diego pidiendo el alias {alias}@77delta.com")
-    print(f"\nPendiente a mano: 3) CLAUDE.md en {a.carpeta} · 6) '~/bin/relanzar {a.ventana}', comprobar el latido "
-          f"y 'hq.py parte --agente {a.id}'. El alias no funciona para enviar hasta que se cierre la tarjeta #{s['id']} y se rellene ALIAS_OK.")
+    # 5) tarjeta a Diego con el alias propuesto (opt-in, encargo #1031: antes obligatoria en todo alta)
+    if getattr(a, 'pedir_alias', False):
+        detalle = (f"- Alias propuesto: {alias}@77delta.com\n"
+                   f"- Workspace Admin > Usuarios > team@ > Direcciones alternativas: añadir el alias\n"
+                   f"- Gmail de team@ > Ajustes > Cuentas > Enviar como > Añadir: nombre {a.nombre}, "
+                   f"dirección {alias}@77delta.com, Tratar como alias\n"
+                   f"- Al terminar, 'hecho' aquí; Pol lo añade a ALIAS_OK")
+        payload = {'agente': agente_actual(a.agente), 'tipo': 'accion',
+                   'titulo': f"Alias de correo para {a.nombre}: {alias}@77delta.com (Enviar como)", 'detalle': detalle}
+        s = rpc('omc_pedir', p_token=E['HQ_TOKEN'], p=payload)
+        avisar(s)
+        print(f"5/5 tarjeta #{s['id']} abierta a Diego pidiendo el alias {alias}@77delta.com")
+        print(f"\nPendiente a mano: 3) CLAUDE.md en {a.carpeta} · 6) '~/bin/relanzar {a.ventana}', comprobar el latido "
+              f"y 'hq.py parte --agente {a.id}'. El alias no funciona para enviar hasta que se cierre la tarjeta #{s['id']} y se rellene ALIAS_OK.")
+    else:
+        print("5/5 sin tarjeta de alias (por defecto): el agente envía por team@ o a través de su director.")
+        print(f"\nPendiente a mano: 3) CLAUDE.md en {a.carpeta} · 6) '~/bin/relanzar {a.ventana}', comprobar el latido "
+              f"y 'hq.py parte --agente {a.id}'.")
 
 
 def main():
@@ -496,6 +501,7 @@ def main():
     p.add_argument('--modelo', default='sonnet')
     p.add_argument('--cuenta', choices=('a', 'b'), required=True, help='a = cuenta de Diego, b = segunda cuenta Max team@77delta.com')
     p.add_argument('--alias', help='alias de correo para "enviar como", minúsculas sin acentos; por defecto se deriva de --nombre')
+    p.add_argument('--pedir-alias', dest='pedir_alias', action='store_true', help='abre tarjeta a Diego pidiendo alta del alias de correo; solo si el agente va a enviar o recibir correo a su nombre')
     p.add_argument('--agente', help='quien pide la tarjeta del alias (por defecto quien ejecuta esto)')
     if hq_v2:
         # Se registra aquí, después de 'alta-agente' (T12: 'agente alta' copia sus argumentos de
