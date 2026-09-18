@@ -69,6 +69,8 @@ a{color:inherit}
 .entrar{max-width:420px;margin:20vh auto;display:grid;gap:12px}
 .cargando,.error{text-align:center;color:var(--tinta-2);padding:40px 0}
 @media (min-width:900px){.fondo{align-items:center}.modal{border-radius:var(--radio)}.vista{padding:20px}}
+/* Móvil: un token largo (expediente, URL, título sin espacios) ensanchaba el viewport a 441 px y dejaba el pie de los modales fuera de pantalla (19-sep). */
+@media (max-width:599px){.vista,.modal{overflow-wrap:anywhere}}
 
 /* inicio y plan */
 .seccion{margin:18px 0}.seccion h2{font-size:17px;margin-bottom:8px}
