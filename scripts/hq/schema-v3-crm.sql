@@ -255,3 +255,121 @@ begin
 end $$;
 revoke all on function omc_crm_resumen(text) from public;
 grant execute on function omc_crm_resumen(text) to anon, authenticated, service_role;
+
+-- ---------------------------------------------------------------------------------------------------
+-- T6 · interacciones por canal (encargo #1053, 18-sep-2026). Gmail, LinkedIn, llamadas y plataformas son
+-- canales; la fuente es HQ: cada entrada relevante queda en omc_interacciones enlazada al cliente (por
+-- correo de persona conocida o por dominio de la web del cliente) y con pendiente=true hasta que alguien
+-- la atiende. Los agentes consultan HQ, no el buzón. Sin cuerpo del correo: asunto y resumen corto.
+-- ---------------------------------------------------------------------------------------------------
+create or replace function omc_v3_version() returns text language sql immutable as $$ select '3.1.0' $$;
+
+create or replace function omc_dominio_correo(p_email text) returns text
+language sql immutable as $$
+  select nullif(regexp_replace(lower(trim(coalesce(p_email, ''))), '^.*@', ''), '')
+$$;
+
+create or replace function omc_dominio_web(p_web text) returns text
+language sql immutable as $$
+  select nullif(split_part(regexp_replace(regexp_replace(lower(trim(coalesce(p_web, ''))), '^[a-z]+://', ''), '^www\.', ''), '/', 1), '')
+$$;
+
+-- Dominios de correo genéricos: nunca identifican a un cliente.
+create or replace function omc_dominio_generico(p_dominio text) returns boolean
+language sql immutable as $$
+  select coalesce(p_dominio, '') in ('gmail.com', 'googlemail.com', 'hotmail.com', 'hotmail.es', 'outlook.com', 'outlook.es', 'live.com', 'msn.com',
+                                     'yahoo.com', 'yahoo.es', 'icloud.com', 'me.com', 'protonmail.com', 'proton.me', 'telefonica.net', '77delta.com')
+$$;
+
+create or replace function omc_cliente_por_email(p_empresa text, p_email text) returns bigint
+language plpgsql stable as $$
+declare d text; cid bigint; em text;
+begin
+  em := nullif(lower(trim(coalesce(p_email, ''))), '');
+  if em is null then return null; end if;
+  select p.cliente_id into cid from omc_personas p join omc_clientes c on c.id = p.cliente_id
+   where c.empresa = p_empresa and lower(p.email) = em order by p.activo desc, p.principal desc, p.id limit 1;
+  if cid is not null then return cid; end if;
+  d := omc_dominio_correo(em);
+  if d is null or omc_dominio_generico(d) then return null; end if;
+  select c.id into cid from omc_clientes c where c.empresa = p_empresa and omc_dominio_web(c.web) = d
+   order by (c.estado = 'activo') desc, c.id limit 1;
+  if cid is not null then return cid; end if;
+  select p.cliente_id into cid from omc_personas p join omc_clientes c on c.id = p.cliente_id
+   where c.empresa = p_empresa and omc_dominio_correo(p.email) = d order by p.id limit 1;
+  return cid;
+end $$;
+
+-- Alta idempotente: con ref (Message-ID, URL de LinkedIn...) la misma interacción no se duplica; la segunda
+-- llamada solo rellena huecos (cliente, persona, expediente, contacto, resumen). p = jsonb con canal,
+-- sentido, ref, email, asunto, resumen, fecha, agente, pendiente, cliente_id, expediente_id, colaborador_id, contacto_id.
+create or replace function omc_interaccion_alta(p_token text, p jsonb) returns jsonb
+language plpgsql security definer set search_path = public as $$
+declare t record; r omc_interacciones; cid bigint; pid bigint; em text; nuevo boolean := false; v_canal text;
+begin
+  select * into t from omc_tok(p_token);
+  v_canal := coalesce(nullif(p->>'canal', ''), 'correo');
+  em := nullif(lower(trim(coalesce(p->>'email', ''))), '');
+  cid := nullif(p->>'cliente_id', '')::bigint;
+  if cid is null then cid := omc_cliente_por_email(t.empresa, em); end if;
+  if cid is not null and em is not null then
+    select id into pid from omc_personas where cliente_id = cid and lower(email) = em order by activo desc, id limit 1;
+  end if;
+  if nullif(p->>'ref', '') is not null then
+    select * into r from omc_interacciones x where x.empresa = t.empresa and x.canal = v_canal and x.ref = p->>'ref';
+  end if;
+  if r.id is null then
+    insert into omc_interacciones (empresa, cliente_id, persona_id, expediente_id, colaborador_id, contacto_id, canal, sentido, fecha, asunto, resumen, ref, agente, pendiente)
+    values (t.empresa, cid, pid, nullif(p->>'expediente_id', '')::bigint, nullif(p->>'colaborador_id', '')::bigint, nullif(p->>'contacto_id', '')::bigint,
+            v_canal, coalesce(nullif(p->>'sentido', ''), 'entrada'), coalesce(nullif(p->>'fecha', '')::timestamptz, now()),
+            left(nullif(p->>'asunto', ''), 300), left(nullif(p->>'resumen', ''), 2000), nullif(p->>'ref', ''),
+            coalesce(nullif(p->>'agente', ''), nullif(t.nombre, ''), 'sistema'), coalesce((p->>'pendiente')::boolean, false))
+    returning * into r;
+    nuevo := true;
+  else
+    update omc_interacciones set cliente_id = coalesce(cliente_id, cid), persona_id = coalesce(persona_id, pid),
+      expediente_id = coalesce(expediente_id, nullif(p->>'expediente_id', '')::bigint),
+      contacto_id = coalesce(contacto_id, nullif(p->>'contacto_id', '')::bigint),
+      resumen = coalesce(resumen, left(nullif(p->>'resumen', ''), 2000))
+      where id = r.id returning * into r;
+  end if;
+  return to_jsonb(r) || jsonb_build_object('nuevo', nuevo, 'cliente', (select c.nombre_corto from omc_clientes c where c.id = r.cliente_id));
+end $$;
+
+-- Atender por id o por (canal, ref). Devuelve la fila o null si no había nada pendiente que casara.
+create or replace function omc_interaccion_atender(p_token text, p_id bigint default null, p_canal text default 'correo', p_ref text default null,
+                                                    p_agente text default null, p_motivo text default null) returns jsonb
+language plpgsql security definer set search_path = public as $$
+declare t record; r omc_interacciones;
+begin
+  select * into t from omc_tok(p_token);
+  if p_id is null and nullif(p_ref, '') is null then raise exception 'omc_interaccion_atender: hace falta p_id o p_ref'; end if;
+  update omc_interacciones x set pendiente = false, atendido_por = coalesce(nullif(p_agente, ''), nullif(t.nombre, ''), 'sistema'), atendido_fecha = now(),
+      resumen = case when nullif(p_motivo, '') is not null then left(coalesce(x.resumen, '') || ' · atendido: ' || p_motivo, 2000) else x.resumen end
+    where x.empresa = t.empresa and x.pendiente and ((p_id is not null and x.id = p_id) or (p_id is null and x.canal = p_canal and x.ref = p_ref))
+    returning * into r;
+  if r.id is null then return null; end if;
+  return to_jsonb(r);
+end $$;
+
+-- Lista con filtros: cliente_id, expediente_id, canal, pendientes (bool), desde (fecha), limite (50 por defecto, máximo 500).
+create or replace function omc_interacciones_lista(p_token text, p_filtro jsonb default '{}'::jsonb) returns jsonb
+language plpgsql security definer set search_path = public as $$
+declare t record; lim int;
+begin
+  select * into t from omc_tok(p_token);
+  lim := least(coalesce(nullif(p_filtro->>'limite', '')::int, 50), 500);
+  return (select coalesce(jsonb_agg(j), '[]'::jsonb) from (
+    select to_jsonb(x) - 'empresa' || jsonb_build_object('cliente', c.nombre_corto, 'expediente', e.nombre) as j
+      from omc_interacciones x left join omc_clientes c on c.id = x.cliente_id left join omc_expedientes e on e.id = x.expediente_id
+     where x.empresa = t.empresa
+       and (nullif(p_filtro->>'cliente_id', '') is null or x.cliente_id = (p_filtro->>'cliente_id')::bigint)
+       and (nullif(p_filtro->>'expediente_id', '') is null or x.expediente_id = (p_filtro->>'expediente_id')::bigint)
+       and (nullif(p_filtro->>'canal', '') is null or x.canal = p_filtro->>'canal')
+       and (coalesce((p_filtro->>'pendientes')::boolean, false) = false or x.pendiente)
+       and (nullif(p_filtro->>'desde', '') is null or x.fecha >= (p_filtro->>'desde')::timestamptz)
+     order by x.fecha desc limit lim) s);
+end $$;
+
+revoke all on function omc_interaccion_alta(text, jsonb), omc_interaccion_atender(text, bigint, text, text, text, text), omc_interacciones_lista(text, jsonb) from public;
+grant execute on function omc_interaccion_alta(text, jsonb), omc_interaccion_atender(text, bigint, text, text, text, text), omc_interacciones_lista(text, jsonb) to anon, authenticated, service_role;

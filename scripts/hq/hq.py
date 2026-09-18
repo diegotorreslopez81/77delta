@@ -887,7 +887,7 @@ def main():
         if a.json: print(json.dumps(ds, ensure_ascii=False))
         else:
             for d in ds: print(f"[{d['fecha'][:10]}] {d['decision']} · {d['quien']}" + (f" · línea #{d['linea_id']}" if d.get('linea_id') else ''))
-    elif a.cmd in ('frentes', 'bloques', 'feed', 'kit', 'contacto', 'expediente', 'sesion', 'agente') or (a.cmd == 'encargo' and (a.sub in ('tomar', 'hecho', 'editar', 'estado', 'ficha') or (a.sub == 'alta' and a.id is None and getattr(a, 'frente', None)))):
+    elif a.cmd in ('frentes', 'bloques', 'feed', 'kit', 'contacto', 'interaccion', 'expediente', 'sesion', 'agente') or (a.cmd == 'encargo' and (a.sub in ('tomar', 'hecho', 'editar', 'estado', 'ficha') or (a.sub == 'alta' and a.id is None and getattr(a, 'frente', None)))):
         if hq_v2 is None:
             sys.exit('CLI v2 no disponible: hq_v2.py no se pudo cargar.')
         contexto_v2 = {'rpc': rpc, 'E': E, 'agente_actual': agente_actual, 'engram': engram, 'json': json}
