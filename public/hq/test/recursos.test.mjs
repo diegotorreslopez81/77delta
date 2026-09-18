@@ -8,7 +8,7 @@ function crearNodo(tag) {
     set textContent(v) { this._text = v; this.children = []; } };
 }
 globalThis.document = { createElement: t => crearNodo(t), createTextNode: d => ({ nodeType: 3, data: d }) };
-const { render, urgeTercera, peorPct } = await import('../app/vistas/recursos.js');
+const { render, urgeTercera, peorPct, usd, proyeccion, porModelo } = await import('../app/vistas/recursos.js');
 const buscarNodos = (n, pred, out = []) => { if (n.nodeType === 1) { if (pred(n)) out.push(n); n.children.forEach(c => buscarNodos(c, pred, out)); } return out; };
 const ahora = new Date('2026-09-18T21:30:00Z');
 // Payload real del 18-sep (omc_cuentas_estado): diego@ 12 % de ventana y 93 % de semana; team@ 5 % y 97 %.
@@ -26,29 +26,57 @@ test('peorPct toma el mayor de ventana y semana; urgeTercera solo cuando todas l
   assert.equal(urgeTercera([cuentas[0], { ...cuentas[1], pct_semana: 40, saturada: false }]), false);
 });
 
-test('una tarjeta por cuenta con % de semana y de ventana, reinicio, antigüedad, pausados y aviso de tercera cuenta', () => {
-  const raiz = crearNodo('main'); render(raiz, { datos: { cuentas } }, undefined, {}, ahora);
-  const tarjetas = raiz.children.filter(c => c.className.includes('cuenta'));
-  assert.equal(tarjetas.length, 2);
-  const t = tarjetas[0].textContent;
+const uso = {
+  mes: { coste: 14881.38, mensajes: 100711 }, mes_anterior: 2525.86,
+  dias: [{ fecha: '2026-09-16', coste: 500 }, { fecha: '2026-09-17', coste: 617.78 }, { fecha: '2026-09-18', coste: 744.85 }],
+  por_agente: [{ agente: 'sales-licita', coste: 3185.73 }, { agente: 'chief', coste: 2525.62 }, { agente: '', coste: 10 }],
+  por_sesion: [{ sesion_id: '5a14d48f-612a', titulo: 'sales', ruta: '/x/webapp', coste: 2092.93, ultimo: '2026-09-11' }, { sesion_id: 'abcdef123456', titulo: null, ruta: '/Users/diego/dev/77delta', coste: 900, ultimo: '2026-09-18' }],
+  por_agente_modelo: [{ agente: 'chief', modelo: 'claude-opus-5', coste: 2000 }, { agente: 'coo', modelo: 'claude-fable-5-1', coste: 3000 }, { agente: 'coo', modelo: 'claude-fable-5', coste: 500 }, { agente: '', modelo: 'claude-haiku-4-5-20251001', coste: 20 }, { agente: 'x', modelo: '<synthetic>', coste: 0 }],
+};
+const agentes = [{ id: 'sales-licita', nombre: 'Guillem-Licitaciones' }, { id: 'chief', nombre: 'Marc-Chief' }];
+
+test('usd, proyección del mes natural y agregado por familia de modelo', () => {
+  assert.equal(usd(14881.38), '14,9 k USD');
+  assert.equal(usd(2525.86), '2526 USD');
+  assert.equal(usd(null), '0 USD');
+  assert.equal(Math.round(proyeccion(1800, new Date(2026, 8, 18, 12))), 3000);
+  const m = porModelo(uso.por_agente_modelo);
+  assert.deepEqual(m.map(x => [x.l, x.v, x.color]), [['Fable', 3500, 'tinta'], ['Opus', 2000, 'tinta-2'], ['Haiku', 20, 'neutro-2']]);
+  assert.deepEqual(porModelo(undefined), []);
+});
+
+test('cuadro: un bloque por cuenta con medidor, semana, ventana, reinicio, antigüedad, pausados y aviso de tercera cuenta', () => {
+  const raiz = crearNodo('main'); render(raiz, { datos: { cuentas, uso, agentes } }, undefined, {}, ahora);
+  const bloques = buscarNodos(raiz, n => n.className.startsWith('medidor cuenta'));
+  assert.equal(bloques.length, 2);
+  const t = bloques[0].textContent;
   for (const s of ['diego@', '93 %', '12 %', 'saturada', 'muestra de hace 15 min', 'Opus: 40 %', 'reinicio']) assert.ok(t.includes(s), s);
-  assert.ok(tarjetas[0].className.includes('ambar'), 'diego@ al 93: ámbar');
-  assert.ok(tarjetas[1].className.includes('rojo'), 'team@ al 97: rojo');
-  assert.ok(tarjetas[1].textContent.includes('pausados por ahorro: admin-books'));
-  assert.ok(!tarjetas[1].textContent.includes('Opus'), 'sin dato de Opus no se pinta');
-  const barras = buscarNodos(tarjetas[0], n => n.className.startsWith('barra'));
-  assert.equal(barras.length, 2);
-  assert.equal(barras[0].children[0].attrs.style, 'width:93%');
-  assert.equal(barras[1].children[0].attrs.style, 'width:12%');
-  assert.ok(raiz.children.some(c => c.className.includes('aviso') && c.textContent.includes('urge la tercera cuenta')));
+  assert.ok(bloques[0].className.includes('ambar'), 'diego@ al 93: ámbar');
+  assert.ok(bloques[1].className.includes('rojo'), 'team@ al 97: rojo');
+  assert.ok(bloques[1].textContent.includes('pausados por ahorro: admin-books'));
+  assert.ok(!bloques[1].textContent.includes('Opus'), 'sin dato de Opus no se pinta');
+  assert.equal(buscarNodos(bloques[0], n => n.className.startsWith('fila-barra')).length, 2);
+  const panelC = buscarNodos(raiz, n => n.className.startsWith('panel-kpi'))[0];
+  assert.ok(panelC.className.includes('alerta'));
+  assert.ok(buscarNodos(raiz, n => n.className.includes('aviso')).some(n => n.textContent.includes('urge la tercera cuenta')));
   assert.ok(raiz.textContent.includes('peni retirada'));
 });
 
-test('sin cuentas: mensaje de sin muestras y sin aviso; una sola cuenta libre tampoco avisa', () => {
+test('coste: mes con proyección y mes anterior, días, modelos, agentes con enlace a la ficha y sesiones, siempre en USD con fuente', () => {
+  const raiz = crearNodo('main'); render(raiz, { datos: { cuentas, uso, agentes } }, undefined, {}, ahora);
+  const t = raiz.textContent;
+  for (const s of ['14,9 k USD', 'mes anterior 2526 USD', 'a este ritmo', 'USD a precio API · fuente omc_uso', '745 USD', 'día 18-09', 'Fable', 'Guillem-Licitaciones', 'sin agente', 'sales · 11-09', '77delta · 18-09']) assert.ok(t.includes(s), s);
+  const enlaces = buscarNodos(raiz, n => n.tag === 'a' && String(n.attrs.href || '').startsWith('#equipo/agente/')).map(n => n.attrs.href);
+  assert.deepEqual(enlaces, ['#equipo/agente/sales-licita', '#equipo/agente/chief']);
+  assert.ok(!t.includes('EUR'), 'el coste de tokens nunca en EUR');
+});
+
+test('sin cuentas ni uso: sin muestras, sin aviso y paneles de coste vacíos; una cuenta libre tampoco avisa', () => {
   const raiz = crearNodo('main'); render(raiz, { datos: {} }, undefined, {}, ahora);
   assert.ok(raiz.textContent.includes('Sin muestras'));
-  assert.ok(!raiz.children.some(c => c.className.includes('aviso')));
+  assert.ok(raiz.textContent.includes('sin datos de coste en omc_uso'));
+  assert.ok(!buscarNodos(raiz, n => n.className.includes('aviso')).length);
   const r2 = crearNodo('main'); render(r2, { datos: { cuentas: [{ ...cuentas[0], pct_semana: 30, saturada: false }] } }, undefined, {}, ahora);
-  assert.ok(!r2.children.some(c => c.className.includes('aviso')));
-  assert.ok(r2.children.find(c => c.className.includes('cuenta')).textContent.includes('libre'));
+  assert.ok(!buscarNodos(r2, n => n.className.includes('aviso')).length);
+  assert.ok(buscarNodos(r2, n => n.className.startsWith('medidor cuenta'))[0].textContent.includes('libre'));
 });
