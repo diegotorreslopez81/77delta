@@ -130,22 +130,28 @@ def main():
     e = env(); tok = access_token()
     vivas, cols = parsear(leer(tok, 'Licitaciones!A1:AZ'), 'Licitaciones')
     try:
-        desc, _ = parsear(leer(tok, 'Descartadas!A1:AZ'), 'Descartadas')
+        desc, cols_desc = parsear(leer(tok, 'Descartadas!A1:AZ'), 'Descartadas')
     except urllib.error.HTTPError:
-        desc = []
+        desc, cols_desc = [], {}
+    cols_pestana = {'Licitaciones': cols, 'Descartadas': cols_desc}
     # 1) Decisiones de HQ pendientes de devolver al Sheet (antes de traer, para no pisarlas)
+    # Bug 07/09-18/09 (Marc-Chief, "volcado HQ-Sheet roto"): por_exp solo indexaba 'vivas'
+    # (pestaña Licitaciones). Un expediente ya movido a Descartadas nunca se encontraba, el
+    # script hacía continue sin marcarlo sincronizado, y HQ lo reintentaba cada 10 min sin
+    # éxito para siempre (13 expedientes atascados desde entonces, ver omc_licitaciones.sincronizado=false).
     pendientes = [] if a.seco else rpc(e, 'omc_licitaciones_pendientes_sync', e['HQ_TOKEN'])
-    por_exp = {f['expediente']: f for f in vivas}
+    por_exp = {f['expediente']: f for f in vivas + desc}
     datos, hechas = [], []
     for l in pendientes:
         f = por_exp.get(l['expediente'])
         if not f or not f.get('fila'):
             continue
-        n = f['fila']; motivo = ', '.join(l.get('motivos') or []) + ((' · ' if l.get('motivos') else '') + l['motivo_texto'] if l.get('motivo_texto') else '')
+        n = f['fila']; pestana = f['pestana']; cols_f = cols_pestana.get(pestana) or {}
+        motivo = ', '.join(l.get('motivos') or []) + ((' · ' if l.get('motivos') else '') + l['motivo_texto'] if l.get('motivo_texto') else '')
         coment = (f.get('comentarios') or '').strip()
         nota = f"HQ {l['decision']} ({l.get('fecha_decision') or date.today().isoformat()}): {motivo}".strip()
-        if cols.get('decision') is not None: datos.append({'range': f"Licitaciones!{letra(cols['decision'])}{n}", 'values': [[l['decision']]]})
-        if cols.get('fecha_decision') is not None: datos.append({'range': f"Licitaciones!{letra(cols['fecha_decision'])}{n}", 'values': [[l.get('fecha_decision') or date.today().isoformat()]]})
+        if cols_f.get('decision') is not None: datos.append({'range': f"{pestana}!{letra(cols_f['decision'])}{n}", 'values': [[l['decision']]]})
+        if cols_f.get('fecha_decision') is not None: datos.append({'range': f"{pestana}!{letra(cols_f['fecha_decision'])}{n}", 'values': [[l.get('fecha_decision') or date.today().isoformat()]]})
         # Gate obligatorio (09/09, Jordi/Ferran): no se escribe Presentada sin checklist de coherencia real
         # (reglas.md, "Checklist de coherencia de declaraciones"), marcado a mano DESPUÉS de abrir los
         # documentos del sobre, no solo leyendo el Sheet. Mismo gate que setEstado() en webapp/Code.gs,
@@ -155,9 +161,9 @@ def main():
         if bloqueado:
             print(f"BLOQUEADO {l['expediente']}: HQ pide Presentada pero falta el checklist de coherencia real (columna 'Checklist coherencia OK' vacía o no empieza por 'Sí'). No se marca sincronizada: se reintenta cada 10 min hasta que se rellene.")
             nota = f"BLOQUEADO por checklist de coherencia sin marcar (gate 09/09): {nota}"
-        elif cols.get('estado') is not None and estado_nuevo:
-            datos.append({'range': f"Licitaciones!{letra(cols['estado'])}{n}", 'values': [[estado_nuevo]]})
-        if cols.get('comentarios') is not None and nota not in coment: datos.append({'range': f"Licitaciones!{letra(cols['comentarios'])}{n}", 'values': [[(coment + '\n' if coment else '') + nota]]})
+        elif cols_f.get('estado') is not None and estado_nuevo:
+            datos.append({'range': f"{pestana}!{letra(cols_f['estado'])}{n}", 'values': [[estado_nuevo]]})
+        if cols_f.get('comentarios') is not None and nota not in coment: datos.append({'range': f"{pestana}!{letra(cols_f['comentarios'])}{n}", 'values': [[(coment + '\n' if coment else '') + nota]]})
         if not bloqueado:
             hechas.append(l['expediente'])
             f['decision'], f['fecha_decision'], f['estado'] = l['decision'], l.get('fecha_decision') or date.today().isoformat(), l.get('estado') or f['estado']
