@@ -2,7 +2,7 @@
 -- Convención: cada sección lleva el número de tarea del plan 2026-09-16-hq-v2-plan-1-base.md.
 
 -- T1 · versión del esquema v2 (los tests la usan como centinela)
-create or replace function omc_v2_version() returns text language sql immutable as $$ select '2.0.9' $$;
+create or replace function omc_v2_version() returns text language sql immutable as $$ select '2.0.10' $$;
 grant execute on function omc_v2_version() to anon, authenticated;
 
 -- T2 · objetivo por horizonte
@@ -930,6 +930,13 @@ language sql immutable as $$
     else case when p_fecha_hito is null or coalesce(p_prioridad, 0) >= 8 then 'backlog' else 'por_hacer' end end; -- prioridad es int (0 alta ... 9 baja) en omc_encargos
 $$;
 
+-- #1056: KPIs vivos para Home. Objeto {clave: {valor, texto, updated_at}} con las claves correo.% y cuentas.%
+-- de omc_kpis (las lic.% ya viajan en lic_resumen). Lo consume public/hq/app/vistas/hoy.js.
+create or replace function omc_kpis_home(p_empresa text) returns jsonb language sql stable as $$
+  select coalesce(jsonb_object_agg(k.clave, jsonb_build_object('valor', k.valor, 'texto', k.texto, 'updated_at', k.updated_at)), '{}'::jsonb)
+  from omc_kpis k where k.empresa = p_empresa and (k.clave like 'correo.%' or k.clave like 'cuentas.%');
+$$;
+
 create or replace function omc_hq_v2(p_token text) returns jsonb
 language plpgsql security definer set search_path=public as $$
 declare t record; base jsonb; ahora timestamptz := now(); es_owner boolean;
@@ -1031,6 +1038,8 @@ begin
         from omc_licitaciones l where l.empresa = t.empresa
       ) else '{}'::jsonb end,
     'cuentas', case when es_owner then omc_cuentas_estado(p_token) else '[]'::jsonb end,
+    -- #1056 (Home): KPIs vivos de omc_kpis (correo.% de hq-correo y cuentas.% del trigger de omc_plan). Solo owner.
+    'kpis', case when es_owner then omc_kpis_home(t.empresa) else '{}'::jsonb end,
     'uso', case when es_owner and exists (select 1 from pg_proc where proname = 'omc_hq_uso') then omc_hq_uso(p_token) else '{}'::jsonb end
   );
 end $$;

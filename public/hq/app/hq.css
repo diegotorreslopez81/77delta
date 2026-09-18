@@ -123,3 +123,14 @@ body.menu-plegado .menu nav a.sub .ico{display:block}
 .barra.verde i{background:var(--exito)}.barra.ambar i{background:var(--oro-luz)}.barra.rojo i{background:var(--error)}
 .pill.verde{background:var(--exito-suave);color:var(--exito)}.pill.ambar{background:var(--oro-suave);color:var(--oro-oscuro)}.pill.rojo{background:var(--error);color:#fff}
 .aviso{padding:10px 14px;border-radius:8px;background:var(--oro-suave);color:var(--tinta);margin:10px 0}.aviso.rojo{background:var(--error);color:#fff}
+/* Home (#1056, lote 2 de #259): cifras grandes, filas de cifras, urgentes, KPIs vivos y consumo. */
+.cifra{font-size:28px;font-weight:600;line-height:1.15;margin:0 0 4px;color:var(--tinta)}
+.fila-cifras{display:flex;flex-wrap:wrap;align-items:center;gap:6px 18px;margin:6px 0}
+.fila-cifras .enlace{font-weight:600}
+.tarjeta.enlace .barra{margin:8px 0 6px}
+.fila.urgente{border-left:3px solid var(--error);padding-left:8px}
+.mini .s{display:block;font-size:11px;color:var(--tinta-2);margin-top:2px}
+.mini.rojo .v{color:var(--error)}
+.pill.activo{display:inline-block;margin:2px 0}
+.aviso.enlace{display:block;text-decoration:none}
+.tarjeta .barra{background:var(--pizarra-tenue)}
