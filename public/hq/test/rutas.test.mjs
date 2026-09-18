@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { AREAS, CLAVES, resolver } from '../app/rutas.js';
 
 test('AREAS tiene las seis áreas en orden y cada vista del menú es una clave válida', () => {
-  assert.deepEqual(AREAS.map(a => a.id), ['hoy', 'operacion', 'equipo', 'recursos', 'direccion', 'reglas']);
+  assert.deepEqual(AREAS.map(a => a.id), ['hoy', 'operacion', 'equipo', 'recursos', 'direccion']);
   for (const a of AREAS) for (const v of a.vistas) assert.ok(CLAVES.has(v.clave), v.clave);
   assert.deepEqual(AREAS.find(a => a.id === 'recursos').vistas.map(v => v.clave), ['recursos/computo'], 'Recursos: Cómputo desde #1054; Dinero llega en la tanda 3');
 });
@@ -20,9 +20,12 @@ const casos = [
   ['#tablero/12', '', 'operacion/tablero', '12', {}, '#operacion/tablero/12', true],
   ['#operacion/tablero?frente=A1&agente=sales-motor', '', 'operacion/tablero', undefined, { frente: 'A1', agente: 'sales-motor' }, '#operacion/tablero?frente=A1&agente=sales-motor', false],
   ['#operacion', '', 'operacion/tablero', undefined, {}, '#operacion/tablero', true],
-  ['#decisiones', '', 'reglas/decisiones', undefined, {}, '#reglas/decisiones', true],
-  ['#decisiones/77', '', 'reglas/decisiones', '77', {}, '#reglas/decisiones/77', true],
-  ['#reglas', '', 'reglas/decisiones', undefined, {}, '#reglas/decisiones', true],
+  ['#decisiones', '', 'hoy', 'bandeja', {}, '#hoy/bandeja', true],
+  ['#decisiones/77', '', 'hoy', '77', {}, '#hoy/77', true],
+  ['#reglas/decisiones/77', '', 'hoy', '77', {}, '#hoy/77', true],
+  ['#hoy/bandeja', '', 'hoy', 'bandeja', {}, '#hoy/bandeja', false],
+  ['#hoy/12', '', 'hoy', '12', {}, '#hoy/12', false],
+  ['#reglas', '', 'hoy', 'bandeja', {}, '#hoy/bandeja', true],
   ['#equipo', '', 'equipo/organigrama', undefined, {}, '#equipo/organigrama', true],
   ['#equipo/sales-motor', '', 'equipo/agente', 'sales-motor', {}, '#equipo/agente/sales-motor', true],
   ['#equipo/agente/sales-motor', '', 'equipo/agente', 'sales-motor', {}, '#equipo/agente/sales-motor', false],
@@ -32,7 +35,7 @@ const casos = [
   ['#recursos/computo', '', 'recursos/computo', undefined, {}, '#recursos/computo', false],
   ['#recursos/dinero', '', 'recursos/computo', undefined, {}, '#recursos/computo', true],
   ['#loquesea/x', '', 'hoy', undefined, {}, '#hoy', true],
-  ['#tablero', '?id=55', 'reglas/decisiones', '55', {}, '#reglas/decisiones/55', true],
+  ['#tablero', '?id=55', 'hoy', '55', {}, '#hoy/55', true],
   ['#hoy', '?id=abc', 'hoy', undefined, {}, '#hoy', false],
 ];
 for (const [hash, search, clave, arg, filtros, canonico, redirigido] of casos) {

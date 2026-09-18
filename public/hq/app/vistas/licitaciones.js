@@ -88,7 +88,7 @@ function panelEstados(lics) {
 }
 function panelDecidir(lics) {
   const pd = porDecidir(lics);
-  return panel('Por decidir', '#reglas/decisiones', [
+  return panel('Por decidir', '#hoy/bandeja', [
     cifra(String(pd.length), pd.length ? eurCorto(suma(pd)) + ' sin IVA en juego' : 'nada pendiente'),
     pd.length ? el('ul', { class: 'lista-corta' }, pd.slice(0, 3).map(l => el('li', { text: corto(l.resumen_corto || l.objeto || l.expediente, 60) + ' · ' + plazo(l.cierre).texto }))) : null,
   ], pd.length ? 'alerta' : null);
@@ -121,7 +121,7 @@ export function tarjetaLic(l, ahora = new Date()) {
     solv !== 'sin dato' ? el('p', { class: 'solv', text: 'Solvencia: ' + solv }) : null,
     el('div', { class: 'enlaces' }, [
       ...enlaces.map(([t, u]) => el('a', { class: 'btn-enlace', href: u, target: '_blank', rel: 'noopener', text: t })),
-      pendiente(l) && ABIERTAS.has(est) && DECIDIBLES.has(l.elegible) ? el('a', { class: 'btn-enlace', href: '#reglas/decisiones', text: 'Decidir' }) : null,
+      pendiente(l) && ABIERTAS.has(est) && DECIDIBLES.has(l.elegible) ? el('a', { class: 'btn-enlace', href: '#hoy/bandeja', text: 'Decidir' }) : null,
     ]),
   ]);
 }

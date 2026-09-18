@@ -11,7 +11,7 @@ const datos = {
 };
 test('por número devuelve todo lo que tenga ese id, con su casa', () => {
   const r = buscar(datos, '#996');
-  assert.deepEqual(r.map(x => [x.tipo, x.href]), [['encargo', '#operacion/tablero/996'], ['decision', '#reglas/decisiones/996']]);
+  assert.deepEqual(r.map(x => [x.tipo, x.href]), [['encargo', '#operacion/tablero/996'], ['decision', '#hoy/996']]);
   assert.equal(r[0].titulo, 'Cobertura total de fuentes de licitaciones');
 });
 test('por texto ignora acentos y mayúsculas y busca en título e id', () => {

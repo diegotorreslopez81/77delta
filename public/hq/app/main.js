@@ -15,7 +15,9 @@ import * as licitaciones from './vistas/licitaciones.js';
 import * as recursos from './vistas/recursos.js';
 
 // Plan 3a: una vista por clave de ruta (rutas.js). 'equipo/agente' es la ficha de equipo.js (arg = id).
-const VISTAS = { 'hoy': hoy, 'direccion/objetivo': objetivo, 'operacion/tablero': tablero, 'operacion/expedientes': expedientes, 'operacion/licitaciones': licitaciones, 'equipo/organigrama': equipo, 'equipo/agente': equipo, 'equipo/colaboradores': colaboradores, 'recursos/computo': recursos, 'reglas/decisiones': decisiones };
+// #1057 tarea 27: Hoy lleva debajo la bandeja de decisiones (decisiones.montar, solo owner).
+const inicio = { render(raiz, S, arg, filtros) { hoy.render(raiz, S, arg, filtros); decisiones.montar(raiz, S, arg); } };
+const VISTAS = { 'hoy': inicio, 'direccion/objetivo': objetivo, 'operacion/tablero': tablero, 'operacion/expedientes': expedientes, 'operacion/licitaciones': licitaciones, 'equipo/organigrama': equipo, 'equipo/agente': equipo, 'equipo/colaboradores': colaboradores, 'recursos/computo': recursos };
 const raiz = document.getElementById('vista');
 document.getElementById('ver').textContent = 'v' + HQ_VERSION.v;
 montarMenu(document.getElementById('nav'));
@@ -80,11 +82,11 @@ if ('serviceWorker' in navigator) {
     else if (Notification.permission === 'granted') activarPush(reg);
   }).catch(() => {});
   // Fix ronda 2 (revision final, D5): enlace profundo del push cuando la app ya esta abierta (sw.js
-  // hace postMessage en vez de navegar la pestana existente). Plan 3a: las rutas nuevas viven bajo
-  // 'reglas/decisiones' (no hay ruta propia para licitaciones en la v2: viven dentro de esa area).
+  // hace postMessage en vez de navegar la pestana existente). #1057 tarea 27: las decisiones viven en
+  // la bandeja de Hoy ('#hoy/N'; las licitaciones por decidir, plegadas en la misma bandeja).
   navigator.serviceWorker.addEventListener('message', ev => {
-    if (ev.data?.tipo === 'abrir' && ev.data.id) location.hash = '#reglas/decisiones/' + ev.data.id;
-    else if (ev.data?.tipo === 'abrir-lic' && ev.data.lic) location.hash = '#reglas/decisiones';
+    if (ev.data?.tipo === 'abrir' && ev.data.id) location.hash = '#hoy/' + ev.data.id;
+    else if (ev.data?.tipo === 'abrir-lic' && ev.data.lic) location.hash = '#hoy/bandeja';
   });
 }
 

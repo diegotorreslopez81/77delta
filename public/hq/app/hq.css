@@ -197,3 +197,4 @@ body.menu-plegado .menu nav a.sub .ico{display:block}
 .tarjeta-rica h3 a{color:inherit;text-decoration:none}.tarjeta-rica h3 a:hover{text-decoration:underline}
 .barra-filtros{margin-top:16px}
 .tarjeta-agente .avatar{width:36px;height:36px}.tarjeta-agente .avatar.letra{font-size:16px}
+.bandeja{margin-top:24px}.bandeja h3{font-size:15px;margin:12px 0 6px}.bandeja summary h2,.bandeja summary h3{display:inline}.decision textarea{margin:8px 0 4px;resize:vertical}

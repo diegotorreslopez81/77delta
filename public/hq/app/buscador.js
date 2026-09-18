@@ -5,7 +5,7 @@ import { sinAcentos } from './estado.js';
 
 const FUENTES = [
   ['encargo', d => d.encargos, e => e.id, e => e.texto, e => '#operacion/tablero/' + e.id],
-  ['decision', d => d.pendientes, p => p.id, p => p.titulo, p => '#reglas/decisiones/' + p.id],
+  ['decision', d => d.pendientes, p => p.id, p => p.titulo, p => '#hoy/' + p.id],
   ['expediente', d => d.expedientes, x => x.id, x => x.nombre, x => '#operacion/expedientes/' + x.id],
   ['agente', d => d.agentes, a => a.id, a => a.nombre, a => '#equipo/agente/' + a.id],
   ['frente', d => d.frentes, f => f.codigo, f => f.linea, f => '#operacion/tablero?frente=' + f.codigo],

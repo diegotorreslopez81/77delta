@@ -1,4 +1,4 @@
-// Decisiones de Diego: tarjetas pendientes (aprobar, rechazar, responder, posponer, comentar) y
+// Decisiones de Diego, desde #1057 tarea 27 como bandeja debajo de Hoy (montar/bandeja): tarjetas pendientes
 // licitaciones por decidir. Paridad con public/hq/v1/index.html (bandeja + licitaciones), adaptado a
 // las claves reales de omc_hq_v2.
 //
@@ -39,13 +39,22 @@ export function agrupar(pendientes, ahora = new Date()) {
   return g;
 }
 
-async function resolver(p, estado) {
-  const verbo = estado === 'aprobada' ? 'Aprobar' : estado === 'rechazada' ? 'Rechazar' : 'Responder';
-  const etiqueta = estado === 'aprobada' ? 'Instrucción para quien ejecuta (opcional)' : 'Motivo o respuesta';
-  const respuesta = await pedirTexto(verbo + ' #' + p.id + ': ' + p.titulo, etiqueta, estado !== 'aprobada');
-  if (respuesta == null) return;
-  try { await rpc('omc_resolver', { p_id: p.id, p_estado: estado, p_respuesta: respuesta }); toast('#' + p.id + ' ' + estado); await recargar(); }
-  catch (err) { toast('HQ rechaza: ' + err.message); }
+// #1057 tarea 27 (Diego, 17-sep): "me siento raro rellenando dos campos". Un solo campo por tarjeta: lo
+// escrito viaja con el botón que se pulse (aprobar, rechazar, responder o comentar), sin segundo modal.
+// "Copiar para el chat" deja en el portapapeles '#id título: texto' para pegarlo en el chat del chief.
+async function actuar(p, accion, campo) {
+  const texto = campo.value.trim();
+  if (accion !== 'aprobada' && !texto) { toast(accion === 'comentar' ? 'Escribe el comentario' : 'Escribe el motivo o la respuesta'); campo.focus?.(); return; }
+  try {
+    if (accion === 'comentar') { await rpc('omc_comentar', { p_id: p.id, p_texto: texto }); toast('#' + p.id + ' comentado'); }
+    else { await rpc('omc_resolver', { p_id: p.id, p_estado: accion, p_respuesta: texto }); toast('#' + p.id + ' ' + accion); }
+    await recargar();
+  } catch (err) { toast('HQ rechaza: ' + err.message); }
+}
+export function textoChat(p, texto) { return '#' + p.id + ' ' + p.titulo + ': ' + String(texto || '').trim(); }
+async function copiar(p, campo) {
+  try { await navigator.clipboard.writeText(textoChat(p, campo.value)); toast('Copiado: pégalo en el chat del chief'); }
+  catch { toast('No se pudo copiar'); }
 }
 
 async function posponer(p) {
@@ -62,21 +71,21 @@ function tarjeta(p, abierta, hilo) {
   // (omc_solicitudes.enlace no valida esquema en la BD); un `javascript:...` ahi ejecutaria codigo en
   // el origen de HQ con el token owner a mano. urlSegura() lo descarta antes de pintarlo.
   const enlaceSeguro = urlSegura(p.enlace);
+  const campo = el('textarea', { class: 'campo', rows: 2, placeholder: p.tipo === 'duda' ? 'Tu respuesta' : 'Instrucción o motivo (opcional para aprobar)' });
   const det = el('details', { open: abierta }, [
     el('summary', {}, [el('div', { class: 'fila' }, [el('span', { class: 'pill', text: p.tipo }), el('strong', { text: p.titulo })]),
       el('p', { class: 'mudo', text: [p.agente, p.importe ? eur(p.importe) : null, p.vence ? 'vence ' + fecha(p.vence, { hora: true }) : null, p.riesgo].filter(Boolean).join(' · ') })]),
     el('div', { class: 'detalle' }, enlazar(p.detalle || '')),
     enlaceSeguro ? el('a', { href: enlaceSeguro, target: '_blank', rel: 'noopener', class: 'btn-enlace', text: 'abrir enlace' }) : null,
     el('div', { class: 'hilo' }, (hilo || []).map(mm => el('div', { class: 'avance' }, [el('span', { class: 'mudo', text: fecha(mm.ts, { hora: true }) + ' · ' + mm.autor }), el('p', { text: mm.texto })]))),
-    el('div', { class: 'fila' }, [(() => {
-      const c = el('input', { class: 'campo', placeholder: 'Comentar sin resolver' });
-      c.onkeydown = async ev => { if (ev.key === 'Enter' && c.value.trim()) { try { await rpc('omc_comentar', { p_id: p.id, p_texto: c.value.trim() }); c.value = ''; toast('comentado'); await recargar(); } catch (err) { toast('HQ rechaza: ' + err.message); } } };
-      return c;
-    })()]),
+    campo,
     el('div', { class: 'modal-acciones' }, [
+      el('button', { class: 'btn', text: 'Copiar para el chat', onclick: () => copiar(p, campo) }),
+      el('button', { class: 'btn', text: 'Comentar', onclick: () => actuar(p, 'comentar', campo) }),
       el('button', { class: 'btn', text: 'Posponer', onclick: () => posponer(p) }),
-      el('button', { class: 'btn peligro', text: 'Rechazar', onclick: () => resolver(p, 'rechazada') }),
-      p.tipo === 'duda' ? el('button', { class: 'btn primario', text: 'Responder', onclick: () => resolver(p, 'respondida') }) : el('button', { class: 'btn primario', text: 'Aprobar', onclick: () => resolver(p, 'aprobada') })])]);
+      el('button', { class: 'btn peligro', text: 'Rechazar', onclick: () => actuar(p, 'rechazada', campo) }),
+      p.tipo === 'duda' ? el('button', { class: 'btn primario', text: 'Responder', onclick: () => actuar(p, 'respondida', campo) })
+        : el('button', { class: 'btn primario', text: 'Aprobar', onclick: () => actuar(p, 'aprobada', campo) })])]);
   return el('article', { class: 'tarjeta decision', id: 'd' + p.id }, [det]);
 }
 
@@ -123,28 +132,34 @@ function licitacion(l) {
       el('button', { class: 'btn primario', text: 'Presentar', onclick: () => decidir('presentar') })])]);
 }
 
-export function render(raiz, S, arg) {
-  if (S.datos.rol !== 'owner') { raiz.append(el('p', { class: 'mudo', text: 'Las decisiones son de Diego. Tus tarjetas: hq.py activo.' })); return; }
+// #1057 tarea 27: Decisiones deja de ser vista propia y vive en Hoy como bandeja (Diego: "el inbox de lo
+// que yo tengo que ir limpiando"). Arriba solo lo urgente (vence hoy y esta semana); sin fecha, pospuestas
+// y licitaciones van plegadas. arg: id de la tarjeta a abrir (push, buscador) o 'bandeja' para bajar aquí.
+export function bandeja(S, arg, ahora = new Date()) {
   const d = S.datos, hilos = d.hilos || {};
-  const ahora = new Date();
   const g = agrupar([...(d.pendientes || []), ...(d.pospuestas || [])], ahora);
   const abierta = Number(arg) || null;
-  const sec = (t, xs) => xs.length ? el('section', { class: 'seccion' }, [el('h2', { text: t + ' (' + xs.length + ')' }), ...xs.map(p => tarjeta(p, p.id === abierta, hilos[p.id] || []))]) : null;
-  raiz.append(sec('Vence hoy', g.hoy), sec('Esta semana', g.semana), sec('Sin fecha', g.resto), sec('Pospuestas', g.pospuestas));
-  // Fix ronda 3 (plan 3b, tarea 2): la cola solo mostraba "sin decision o Pendiente", sin mirar estado
-  // ni elegible - salian las ~1.475 filas del feed, no las ~60 realmente decidibles. porDecidir()
-  // (licitaciones.js) aplica los tres filtros de golpe; enCriba() cuenta las abiertas que aun le faltan
-  // a Guillem (Revisar, No viable, Sin pliego) para la linea informativa de debajo del titulo.
-  const lic = porDecidir(d.licitaciones);
-  const criba = enCriba(d.licitaciones).length;
-  // Minor 9 (revision final): sin nada en criba, la linea "0 en criba..." no aporta nada; se omite.
+  const tarjetas = xs => xs.map(p => tarjeta(p, p.id === abierta, hilos[p.id] || []));
+  const sec = (t, xs) => xs.length ? el('section', { class: 'seccion' }, [el('h3', { text: t + ' (' + xs.length + ')' }), ...tarjetas(xs)]) : null;
+  const plegada = (t, xs, abrir, extra = []) => xs.length || extra.length ? el('details', { class: 'grupo-criba', open: abrir }, [el('summary', {}, [el('h3', { text: t })]), ...extra, ...tarjetas(xs)]) : null;
+  const otras = [...g.resto, ...g.pospuestas];
+  // Fix ronda 3 (plan 3b, tarea 2): porDecidir() deja solo las decidibles; enCriba() cuenta lo que aún
+  // analiza Guillem (Revisar, No viable, Sin pliego) para la línea informativa.
+  const lic = porDecidir(d.licitaciones), criba = enCriba(d.licitaciones).length;
   const lineaCriba = criba ? el('p', { class: 'mudo' }, [el('a', { href: '#operacion/licitaciones', text: criba + ' en criba de Guillem (Revisar, No viable, Sin pliego): se deciden cuando estén analizadas' })]) : null;
-  raiz.append(el('section', { class: 'seccion' }, [
-    el('h2', { text: 'Licitaciones por decidir (' + lic.length + ')' }),
-    lineaCriba,
-    ...lic.map(licitacion),
-    el('a', { class: 'btn-enlace', href: '/hq/v1/#licita', text: 'histórico y fichas completas en HQ v1' })]));
-  const total = g.hoy.length + g.semana.length + g.resto.length + g.pospuestas.length;
-  if (!total && !lic.length) raiz.append(el('p', { class: 'mudo', text: 'Nada que decidir.' }));
-  if (abierta) setTimeout(() => document.getElementById('d' + abierta)?.scrollIntoView({ block: 'start' }), 50);
+  const urgentes = g.hoy.length + g.semana.length, total = urgentes + otras.length;
+  return el('section', { class: 'seccion bandeja', id: 'bandeja' }, [
+    el('h2', { text: 'Bandeja · depende de ti (' + total + ')' }),
+    urgentes ? null : el('p', { class: 'mudo', text: total ? 'Nada urgente esta semana.' : 'Nada que decidir.' }),
+    sec('Vence hoy', g.hoy), sec('Esta semana', g.semana),
+    plegada('Sin fecha (' + g.resto.length + ') · pospuestas (' + g.pospuestas.length + ')', otras, otras.some(p => p.id === abierta)),
+    lic.length ? el('details', { class: 'grupo-criba' }, [el('summary', {}, [el('h2', { text: 'Licitaciones por decidir (' + lic.length + ')' })]), lineaCriba, ...lic.map(licitacion),
+      el('a', { class: 'btn-enlace', href: '/hq/v1/#licita', text: 'histórico y fichas completas en HQ v1' })]) : lineaCriba,
+  ]);
+}
+export function montar(raiz, S, arg) {
+  if (S.datos?.rol !== 'owner') return;
+  raiz.append(bandeja(S, arg));
+  const destino = Number(arg) ? 'd' + Number(arg) : arg === 'bandeja' ? 'bandeja' : null;
+  if (destino) setTimeout(() => document.getElementById(destino)?.scrollIntoView({ block: 'start' }), 50);
 }

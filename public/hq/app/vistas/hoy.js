@@ -76,7 +76,7 @@ function franja(d, urg) {
   const correo = kpi('correo.pendientes.n', d.kpis) || 0;
   const tercera = kpi('cuentas.urge_tercera', d.kpis) === 1 || urgeTercera(d.cuentas);
   const pills = [
-    urg ? ['rojo', urg + ' urgentes tuyas', '#reglas/decisiones'] : null,
+    urg ? ['rojo', urg + ' urgentes tuyas', '#hoy/bandeja'] : null,
     parados ? ['rojo', parados + ' encargos parados', '#operacion/tablero'] : null,
     tercera ? ['rojo', 'cuentas saturadas', '#recursos/computo'] : null,
     correo ? ['ambar', correo + ' correos sin contestar', '#operacion/expedientes'] : null,
@@ -107,7 +107,7 @@ function panelObjetivo(dv, ahora) {
 function panelDependeDeTi(pendientes, ahora) {
   const urg = urgentes(pendientes, ahora), hoyIso = dia(ahora.getTime());
   const vencenHoy = pendientes.filter(p => p.vence && String(p.vence).slice(0, 10) === hoyIso).length;
-  return panel('Depende de ti', '#reglas/decisiones', [
+  return panel('Depende de ti', '#hoy/bandeja', [
     cifra(String(pendientes.length), urg.length + ' urgentes · ' + vencenHoy + ' vencen hoy'),
     grafico(apilada([{ v: urg.length, color: 'rojo' }, { v: pendientes.length - urg.length, color: 'neutro-2' }], urg.length + ' urgentes de ' + pendientes.length), 'fina'),
     urg.length ? el('ul', { class: 'lista-corta' }, urg.slice(0, 3).map(p => el('li', { text: (p.vence ? fecha(p.vence) : 'P' + p.prioridad) + ' · ' + corto(p.titulo, 48) }))) : null,

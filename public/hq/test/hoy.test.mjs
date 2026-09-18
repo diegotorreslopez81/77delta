@@ -137,7 +137,7 @@ test('owner: franja de semáforos y diez paneles en orden, cada uno con su enlac
   const raiz = pintar();
   assert.equal(raiz.children[0].className, 'franja');
   assert.deepEqual(paneles(raiz).map(p => p.children[0].textContent), ['Objetivo 2026', 'Depende de ti', 'Pipeline de licitaciones', 'Embudo de licitaciones', 'Expedientes', 'Frentes', 'Encargos', 'Cierres en 7 días', 'Equipo', 'Consumo de cuentas']);
-  assert.deepEqual(paneles(raiz).map(p => p.children[0].children[0].attrs.href), ['#direccion/objetivo', '#reglas/decisiones', '#operacion/licitaciones', '#operacion/licitaciones', '#operacion/expedientes', '#operacion/tablero', '#operacion/tablero', '#operacion/tablero', '#equipo/organigrama', '#recursos/computo']);
+  assert.deepEqual(paneles(raiz).map(p => p.children[0].children[0].attrs.href), ['#direccion/objetivo', '#hoy/bandeja', '#operacion/licitaciones', '#operacion/licitaciones', '#operacion/expedientes', '#operacion/tablero', '#operacion/tablero', '#operacion/tablero', '#equipo/organigrama', '#recursos/computo']);
   assert.equal(secciones(raiz).length, 0); // nada de las secciones de texto del 2.0.5
 });
 

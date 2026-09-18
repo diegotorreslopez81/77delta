@@ -56,7 +56,7 @@ const pintar = (datos, filtros = {}) => { const raiz = raizVacia(); render(raiz,
 test('cuadro: cinco paneles en orden, cada uno con su enlace', () => {
   const raiz = pintar({ licitaciones: lics });
   assert.deepEqual(paneles(raiz).map(p => p.children[0].textContent), ['Pipeline activo', 'Embudo', 'Por estado', 'Por decidir', 'Próximos cierres']);
-  assert.deepEqual(paneles(raiz).map(p => p.children[0].children[0].attrs.href), ['#operacion/licitaciones?estado=activas', '#operacion/licitaciones', '#operacion/licitaciones', '#reglas/decisiones', '#operacion/licitaciones?estado=activas']);
+  assert.deepEqual(paneles(raiz).map(p => p.children[0].children[0].attrs.href), ['#operacion/licitaciones?estado=activas', '#operacion/licitaciones', '#operacion/licitaciones', '#hoy/bandeja', '#operacion/licitaciones?estado=activas']);
 });
 
 test('Pipeline activo: suma de aprobadas y presentadas sin IVA y barras por mes de cierre', () => {

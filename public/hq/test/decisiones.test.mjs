@@ -49,7 +49,8 @@ if (typeof globalThis.localStorage === 'undefined') {
   globalThis.localStorage = { getItem: (k) => (mem.has(k) ? mem.get(k) : null), setItem: (k, v) => mem.set(k, String(v)), removeItem: (k) => mem.delete(k) };
 }
 
-const { agrupar, render } = await import('../app/vistas/decisiones.js');
+const { agrupar, bandeja, textoChat } = await import('../app/vistas/decisiones.js');
+const render = (raiz, S) => raiz.append(bandeja(S, undefined, new Date('2026-09-16T12:00:00Z')));
 const ahora = new Date('2026-09-16T12:00:00Z');
 test('agrupar por vencimiento', () => {
   const g = agrupar([{ id: 1, vence: '2026-09-16T18:00:00Z' }, { id: 2, vence: '2026-09-19T10:00:00Z' }, { id: 3, vence: null }, { id: 4, vence: '2026-09-30', pospuesta_hasta: '2026-09-20T08:00:00Z' }], ahora);
@@ -126,4 +127,25 @@ test('ficha de licitacion: enlaces PCAP/PPT/Drive solo si empiezan por http; jav
   assert.ok(!porTexto('PCAP'), 'PCAP no se pinta: la url no empezaba por http');
   const f2 = fichaCon(raiz, 'EXP-2');
   assert.equal(buscarNodos(f2, n => n.tag === 'a').length, 0, 'EXP-2 no trae ningun enlace: no se pinta div.enlaces-doc');
+});
+
+// #1057 tarea 27: bandeja en Hoy. Arriba solo lo urgente; sin fecha y pospuestas plegadas; un solo campo
+// por tarjeta y el texto prefabricado para pegar en el chat del chief.
+test('bandeja: urgentes arriba, sin fecha y pospuestas plegadas, un solo campo por tarjeta', () => {
+  const raiz = crearNodo('main');
+  raiz.append(bandeja({ datos: { rol: 'owner', pendientes: [{ id: 1, tipo: 'aprobacion', titulo: 'Firmar A', vence: '2026-09-16T18:00:00Z' }, { id: 3, tipo: 'duda', titulo: 'Duda C' }], pospuestas: [{ id: 4, tipo: 'aprobacion', titulo: 'D', pospuesta_hasta: '2026-09-20T08:00:00Z' }] } }, '3', ahora));
+  assert.equal(buscarNodos(raiz, n => n.tag === 'h2')[0].textContent, 'Bandeja · depende de ti (3)');
+  const plegada = buscarNodos(raiz, n => n.tag === 'details' && n.className === 'grupo-criba')[0];
+  assert.equal(plegada.children[0].textContent, 'Sin fecha (1) · pospuestas (1)');
+  assert.equal(plegada.attrs.open, '', 'se abre si la tarjeta pedida (#3) está dentro');
+  const t1 = buscarNodos(raiz, n => n.tag === 'article' && n.attrs.id === 'd1')[0];
+  assert.equal(buscarNodos(t1, n => n.tag === 'textarea' || n.tag === 'input').length, 1, 'un solo campo');
+  assert.deepEqual(buscarNodos(t1, n => n.tag === 'button').map(b => b.textContent), ['Copiar para el chat', 'Comentar', 'Posponer', 'Rechazar', 'Aprobar']);
+  const t3 = buscarNodos(raiz, n => n.tag === 'article' && n.attrs.id === 'd3')[0];
+  assert.ok(buscarNodos(t3, n => n.tag === 'button').some(b => b.textContent === 'Responder'));
+  assert.equal(textoChat({ id: 7, titulo: 'Firmar A' }, '  sí, adelante '), '#7 Firmar A: sí, adelante');
+});
+test('bandeja: sin nada, "Nada que decidir."', () => {
+  const raiz = crearNodo('main'); raiz.append(bandeja({ datos: { rol: 'owner' } }, undefined, ahora));
+  assert.ok(raiz.textContent.includes('Nada que decidir.'));
 });
