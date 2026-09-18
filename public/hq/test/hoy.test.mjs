@@ -13,7 +13,7 @@ function crearNodo(tag) {
     remove() { if (this.parent) { const i = this.parent.children.indexOf(this); if (i >= 0) this.parent.children.splice(i, 1); this.parent = null; } },
     get textContent() { return this.children.length ? this.children.map(c => (c.nodeType === 3 ? c.data : c.textContent)).join('') : this._text; },
     set textContent(v) { this._text = v; this.children = []; },
-    set innerHTML(v) { this.children = []; }, get innerHTML() { return ''; },
+    set innerHTML(v) { this.children = []; this._html = v; }, get innerHTML() { return this._html || ''; },
     querySelector() { return null; }, querySelectorAll() { return []; },
   };
   return n;
@@ -22,7 +22,7 @@ globalThis.document = { createElement: t => crearNodo(t), createTextNode: d => (
 globalThis.location = { hash: '', search: '', pathname: '/hq/' }; globalThis.history = { replaceState() {} }; globalThis.window = { addEventListener() {} }; globalThis.HQ_VERSION = { v: 'test' };
 if (typeof globalThis.localStorage === 'undefined') { const mem = new Map(); globalThis.localStorage = { getItem: k => (mem.has(k) ? mem.get(k) : null), setItem: (k, v) => mem.set(k, String(v)), removeItem: k => mem.delete(k) }; }
 
-const { render, urgentes, activosRecientes } = await import('../app/vistas/hoy.js');
+const { render, urgentes, activosRecientes, eurCorto, pipelinePorMes, embudoLicitaciones, avancesPorDia, cierresPorDia, porColumna } = await import('../app/vistas/hoy.js');
 const { enCurso, cierres } = await import('../app/estado.js');
 
 const ahora = new Date('2026-09-17T07:00:00Z');
@@ -30,8 +30,9 @@ const secciones = raiz => raiz.children.filter(c => c.tag === 'section');
 const titulos = raiz => secciones(raiz).map(s => s.children[0].textContent);
 const buscarNodos = (n, pred, out = []) => { if (n.nodeType === 1) { if (pred(n)) out.push(n); n.children.forEach(c => buscarNodos(c, pred, out)); } return out; };
 const hrefs = raiz => buscarNodos(raiz, n => n.tag === 'a').map(a => a.attrs.href);
-const TITULOS = ['Objetivo', 'Depende de ti', 'Indicadores', 'Cierres en 7 días', 'Equipo', 'Consumo', 'Alertas'];
-const seccion = (raiz, titulo) => secciones(raiz)[TITULOS.indexOf(titulo)];
+const paneles = raiz => buscarNodos(raiz, n => n.tag === 'section' && /panel-kpi/.test(n.className));
+const panel = (raiz, titulo) => paneles(raiz).find(p => p.children[0].textContent.startsWith(titulo));
+const svgs = n => buscarNodos(n, x => /graf/.test(x.className)).map(x => x.innerHTML);
 
 // Fixture con la forma real del payload owner del 18-sep (omc_hq_v2 2.0.10: pendientes con prioridad 1-5,
 // frentes con kpi/valor_actual/meta, agentes con ultima_actividad, cuentas de omc_cuentas_estado y kpis).
@@ -95,108 +96,120 @@ test('activosRecientes: actividad hace menos de 2 h por sesión o último encarg
   assert.deepEqual(activosRecientes(undefined, ahora), []);
 });
 
-test('owner: los siete bloques del cuadro de mando, en orden', () => {
-  assert.deepEqual(titulos(pintar()), TITULOS);
+test('eurCorto: M con una decimal y coma, k redondeado, entero por debajo de 10.000', () => {
+  assert.equal(eurCorto(2272000), '2,3 M EUR');
+  assert.equal(eurCorto(227990.46), '228 k EUR');
+  assert.equal(eurCorto(null), '0 EUR');
 });
 
-test('owner: Objetivo es la cifra de contratado sobre la meta con barra de progreso y desviación, enlazando a Dirección', () => {
-  const bloque = seccion(pintar(), 'Objetivo');
-  assert.ok(bloque.textContent.includes('20.000 EUR'));
-  assert.ok(bloque.textContent.includes('desviación'));
-  const barras = buscarNodos(bloque, n => n.className === 'barra');
-  assert.equal(barras.length, 1);
-  assert.equal(barras[0].children[0].attrs.style, 'width:7%', '20.000 de 300.000 redondea al 7 %');
-  assert.deepEqual(hrefs(bloque), ['#direccion/objetivo']);
+test('pipelinePorMes: aprobadas y presentadas por mes de cierre desde el mes en curso, lo anterior a la primera y lo posterior a la última', () => {
+  const cols = pipelinePorMes([
+    { estado: 'Presentada', cierre: '2026-08-30', importe: 100 }, // anterior: cae en sep
+    { estado: 'Presentada', cierre: '2026-09-17', importe: 50 },
+    { estado: 'Aprobada', cierre: '2026-10-02', importe: '200' },
+    { estado: 'Aprobada', cierre: '2030-04-29', importe: 7 }, // posterior: cae en la última
+    { estado: 'Nueva', cierre: '2026-09-20', importe: 999 }, // no cuenta
+    { estado: 'aprobada', cierre: null, importe: 1 }, // sin cierre: primera
+  ], ahora);
+  assert.deepEqual(cols.map(c => c.etiqueta), ['sep', 'oct', 'nov', 'dic', 'ene', 'feb+']);
+  assert.deepEqual(cols.map(c => [c.presentada, c.aprobada]), [[150, 1], [0, 200], [0, 0], [0, 0], [0, 0], [0, 7]]);
 });
 
-test('owner: Depende de ti es el número, las urgentes y las que vencen hoy, sin ancla a tarjetas individuales ni botones', () => {
-  const raiz = pintar(), bloque = seccion(raiz, 'Depende de ti');
-  assert.ok(bloque.textContent.includes('2'), 'dos pendientes');
-  assert.ok(bloque.textContent.includes('1 urgentes · 1 vencen hoy'));
-  assert.ok(bloque.textContent.includes('Responder a Guillem'), 'la urgente sale en una línea');
-  assert.ok(!bloque.textContent.includes('Otra'), 'la que no urge no sale');
-  assert.ok(bloque.children[1].className.includes('roja'), 'con urgentes la tarjeta va en rojo');
-  assert.ok(!hrefs(raiz).includes('#reglas/decisiones/635'), 'nunca un ancla a una decisión concreta');
-  for (const a of hrefs(bloque)) assert.equal(a, '#reglas/decisiones');
-  assert.equal(buscarNodos(bloque, n => n.tag === 'button').length, 0);
-  const sinUrgentes = seccion(pintar({ ...datosOwner, pendientes: [datosOwner.pendientes[1]] }), 'Depende de ti');
-  assert.ok(sinUrgentes.textContent.includes('0 urgentes · 0 vencen hoy'));
-  assert.ok(!sinUrgentes.children[1].className.includes('roja'));
+test('embudoLicitaciones: acumulado desde lic_resumen', () => {
+  const e = embudoLicitaciones({ total: { n: 1888 }, descartadas: { n: 1383 }, aprobadas: { n: 26 }, presentadas: { n: 9 }, no_adjudicadas: { n: 1 }, adjudicadas: { n: 0 }, contratadas: { n: 0 } });
+  assert.deepEqual(e.map(x => [x.l, x.n]), [['Detectadas', 1888], ['Sin descartar', 505], ['Aprobadas', 36], ['Presentadas', 10], ['Adjudicadas', 0]]);
+  assert.equal(embudoLicitaciones(undefined)[0].n, 0);
 });
 
-test('owner: Indicadores pinta el correo sin contestar y los KPIs vivos de las líneas con meta o valor, enlazados al tablero por frente', () => {
-  const bloque = seccion(pintar(), 'Indicadores');
-  const t = bloque.textContent;
-  assert.ok(t.includes('2correos sin contestar') || t.includes('2') && t.includes('correos sin contestar'));
-  assert.ok(t.includes('el más antiguo hace 5 h'));
-  assert.ok(t.includes('3 / 12 ofertas') && t.includes('A3 · Ofertas presentadas'));
-  assert.ok(!t.includes('B2'), 'sin meta ni valor no sale');
-  assert.ok(!t.includes('E1'), 'sin kpi no sale');
-  assert.ok(hrefs(bloque).includes('#operacion/tablero?frente=A3'));
-  assert.ok(hrefs(bloque).includes('#operacion/expedientes'));
-  const correo = buscarNodos(bloque, n => n.className.includes('mini'))[0];
-  assert.ok(correo.className.includes('rojo'), 'correo pendiente en rojo');
-  const sinKpis = seccion(pintar({ ...datosOwner, kpis: {}, frentes: [] }), 'Indicadores');
-  assert.ok(sinKpis.textContent.includes('sin indicadores'));
+test('avancesPorDia y cierresPorDia: series por día (UTC), hoy el último en avances y la semana siguiente en cierres', () => {
+  const av = avancesPorDia([{ fecha: '2026-09-17T06:00:00Z' }, { fecha: '2026-09-17T01:00:00Z' }, { fecha: '2026-09-16T10:00:00Z' }, { fecha: '2026-09-10T10:00:00Z' }, {}], ahora, 3);
+  assert.deepEqual(av.map(x => [x.dia, x.n]), [['2026-09-15', 0], ['2026-09-16', 1], ['2026-09-17', 2]]);
+  const ci = cierresPorDia(datosOwner.encargos, ahora, 7);
+  assert.equal(ci.length, 7);
+  assert.deepEqual(ci.slice(0, 3).map(x => [x.dia, x.n, x.rojos]), [['2026-09-18', 1, 0], ['2026-09-19', 1, 1], ['2026-09-20', 1, 0]]);
 });
 
-test('owner: Cierres en 7 días, máximo 5 filas ordenadas por fecha_hito, con "y N más"', () => {
-  const bloque = seccion(pintar(), 'Cierres en 7 días');
-  const esperados = cierres(datosOwner.encargos, ahora, 7);
-  assert.ok(esperados.length > 5, 'la fixture debe forzar el "y N más"');
-  const filas = buscarNodos(bloque, n => n.tag === 'a' && n.className.includes('fila'));
-  assert.equal(filas.length, 5, 'máximo 5 filas de hito, aparte del enlace "y N más"');
-  assert.ok(bloque.textContent.includes('y ' + (esperados.length - 5) + ' más'));
-  assert.ok(bloque.textContent.includes('#1'));
-  assert.ok(!bloque.textContent.includes('Fuera de ventana'), 'fuera de la ventana de 7 días no sale');
-  for (const a of hrefs(bloque)) assert.equal(a, '#operacion/tablero');
+test('porColumna: cuenta por columna del tablero, lo desconocido fuera', () => {
+  assert.deepEqual(porColumna([{ columna: 'en_curso' }, { columna: 'en_curso' }, { columna: 'hecho' }, { columna: 'raro' }, {}]), { backlog: 0, por_hacer: 0, en_curso: 2, bloqueado: 0, hecho: 1 });
 });
 
-test('owner: Equipo cuenta activos, en curso y parados, y lista quién trabajó en las últimas 2 h con enlace a su ficha', () => {
-  const bloque = seccion(pintar(), 'Equipo');
-  assert.ok(bloque.textContent.includes('2 activos'), 'dos agentes activos (el tercero tiene activo:false)');
-  assert.ok(bloque.textContent.includes(enCurso(datosOwner.encargos).length + ' en curso'));
-  assert.ok(bloque.textContent.includes('1 parados'));
-  assert.ok(hrefs(bloque).includes('#equipo/organigrama'));
-  assert.ok(hrefs(bloque).includes('#operacion/tablero'), 'parados enlaza al tablero');
-  assert.ok(bloque.textContent.includes('Ariadna · hace 30 min'));
-  assert.ok(!bloque.textContent.includes('Guillem'), 'hace 5 h ya no cuenta como activo');
-  assert.ok(!bloque.textContent.includes('Viejo'), 'inactivo fuera aunque tenga actividad reciente');
-  assert.ok(hrefs(bloque).includes('#equipo/agente/ariadna'));
-  const nadie = seccion(pintar({ ...datosOwner, agentes: [datosOwner.agentes[1]] }), 'Equipo');
-  assert.ok(nadie.textContent.includes('nadie activo en las últimas 2 h'));
+test('owner: franja de semáforos y diez paneles en orden, cada uno con su enlace de destino', () => {
+  const raiz = pintar();
+  assert.equal(raiz.children[0].className, 'franja');
+  assert.deepEqual(paneles(raiz).map(p => p.children[0].textContent), ['Objetivo 2026', 'Depende de ti', 'Pipeline de licitaciones', 'Embudo de licitaciones', 'Expedientes', 'Frentes', 'Encargos', 'Cierres en 7 días', 'Equipo', 'Consumo de cuentas']);
+  assert.deepEqual(paneles(raiz).map(p => p.children[0].children[0].attrs.href), ['#direccion/objetivo', '#reglas/decisiones', '#operacion/licitaciones', '#operacion/licitaciones', '#operacion/expedientes', '#operacion/tablero', '#operacion/tablero', '#operacion/tablero', '#equipo/organigrama', '#recursos/computo']);
+  assert.equal(secciones(raiz).length, 0); // nada de las secciones de texto del 2.0.5
 });
 
-test('owner: Consumo pinta cada cuenta con su semáforo y el aviso de tercera cuenta, todo hacia Recursos/Cómputo y sin EUR', () => {
-  const bloque = seccion(pintar(), 'Consumo');
-  const t = bloque.textContent;
-  assert.ok(t.includes('diego@ 93 %') && t.includes('semana 93 % · ventana 12 %'));
-  assert.ok(t.includes('team@ 97 %'));
-  assert.ok(t.includes('reinicio semana'));
-  assert.ok(t.includes('urge la tercera cuenta'));
-  assert.ok(!t.includes('EUR'), 'el coste en EUR de tokens solo vive en Recursos/Cómputo (spec §8)');
-  for (const a of hrefs(bloque)) assert.equal(a, '#recursos/computo');
-  const pills = buscarNodos(bloque, n => n.className.startsWith('pill'));
-  assert.ok(pills[0].className.includes('ambar') && pills[1].className.includes('rojo'));
-  // Sin KPI y con una cuenta libre no hay aviso.
-  const libre = seccion(pintar({ ...datosOwner, kpis: {}, cuentas: [{ ...datosOwner.cuentas[0], pct_semana: 30, saturada: false }, datosOwner.cuentas[1]] }), 'Consumo');
-  assert.ok(!libre.textContent.includes('urge la tercera cuenta'));
+test('owner: la franja enciende urgentes, parados, cuentas, correo y sesiones; sin nada, "sin alertas" en verde', () => {
+  const t = pintar().children[0].textContent;
+  for (const x of ['1 urgentes tuyas', '1 encargos parados', 'cuentas saturadas', '2 correos sin contestar', '1 sesiones abiertas']) assert.ok(t.includes(x), x);
+  const vacia = pintar({ rol: 'owner' }, { objetivos: [] }).children[0];
+  assert.equal(vacia.textContent, 'sin alertas');
+  assert.match(vacia.children[0].className, /verde/);
 });
 
-test('owner: Alertas resume sesiones abiertas, encargos parados, correo sin contestar y cuentas saturadas', () => {
-  const bloque = seccion(pintar(), 'Alertas');
-  const t = bloque.textContent;
-  assert.ok(t.includes('1 sesiones abiertas'));
-  assert.ok(t.includes('1 encargos parados'));
-  assert.ok(t.includes('2 correos sin contestar'));
-  assert.ok(t.includes('urge la tercera'));
-  assert.ok(hrefs(bloque).includes('#operacion/expedientes'));
-  assert.ok(hrefs(bloque).includes('#recursos/computo'));
+test('owner: Objetivo con cifra grande, progreso con la raya del prorrateo en SVG y desviación como tendencia', () => {
+  const p = panel(pintar(), 'Objetivo');
+  const t = p.textContent;
+  assert.ok(t.startsWith('Objetivo 202620 k EUR'), t);
+  assert.ok(t.includes('de 300 k EUR · 7 %'), t);
+  assert.ok(/por (debajo|encima) de lo previsto a hoy/.test(t), t);
+  const svg = svgs(p)[0];
+  assert.match(svg, /^<svg viewBox="0 0 100 10" role="img"/);
+  assert.match(svg, /class="g-oro" x="0" y="0" width="7"/);
+  assert.match(svg, /class="g-tinta"/); // la raya de "a hoy tocaría"
 });
 
-test('owner: vacíos', () => {
-  const t = pintar({ rol: 'owner' }, { objetivos: [] }).textContent;
-  for (const s of ['sin objetivo', '0 urgentes · 0 vencen hoy', 'sin indicadores', 'ningún hito en 7 días', 'sin agentes', 'sin muestras de consumo', 'sin alertas']) assert.ok(t.includes(s), s);
+test('owner: Depende de ti con número, urgentes y hasta tres líneas, marcado como alerta si hay urgentes', () => {
+  const p = panel(pintar(), 'Depende de ti');
+  assert.match(p.className, /alerta/);
+  assert.ok(p.textContent.startsWith('Depende de ti2'));
+  assert.ok(p.textContent.includes('1 urgentes · 1 vencen hoy'));
+  assert.ok(p.textContent.includes('Responder a Guillem'));
+  assert.equal(buscarNodos(p, n => n.tag === 'button').length, 0);
+});
+
+test('owner: Pipeline, Embudo y Expedientes pintan SVG propio y leyendas con cifras', () => {
+  const datos = { ...datosOwner,
+    licitaciones: [{ estado: 'Presentada', cierre: '2026-09-10', importe: 165489 }, { estado: 'Aprobada', cierre: '2026-10-20', importe: 2106960 }],
+    lic_resumen: { total: { n: 1888 }, descartadas: { n: 1383 }, aprobadas: { n: 26 }, presentadas: { n: 9 } },
+    expedientes: [{ estado_funnel: 'ejecución', importe: 8000 }, { estado_funnel: 'ejecución', importe: 8000 }, { estado_funnel: 'propuesta', importe: 8000 }, { estado_funnel: null }] };
+  const raiz = pintar(datos);
+  const pip = panel(raiz, 'Pipeline');
+  assert.ok(pip.textContent.includes('2,3 M EUR'));
+  assert.equal((svgs(pip)[0].match(/<rect /g) || []).length, 6); // 2 meses con barra + 4 rayas a 0
+  const emb = panel(raiz, 'Embudo');
+  assert.ok(emb.textContent.includes('presentadas de 1888 detectadas'));
+  assert.equal(svgs(emb).filter(s => s.includes('g-oro')).length, 1); // solo presentadas en oro
+  const exp = panel(raiz, 'Expedientes');
+  assert.ok(exp.textContent.includes('24 k EUR'));
+  assert.ok(exp.textContent.includes('ejecución2'));
+  assert.equal((svgs(exp)[0].match(/stroke-dasharray/g) || []).length, 3);
+});
+
+test('owner: Frentes ordenados por avance con enlace al tablero filtrado; Encargos, Cierres, Equipo y Consumo', () => {
+  const raiz = pintar();
+  const fr = panel(raiz, 'Frentes');
+  assert.deepEqual(buscarNodos(fr, n => n.tag === 'a' && /fila-barra/.test(n.className)).map(a => a.attrs.href), ['#operacion/tablero?frente=A3']);
+  assert.ok(panel(raiz, 'Encargos').textContent.includes('parados'));
+  const ci = panel(raiz, 'Cierres');
+  assert.ok(ci.textContent.startsWith('Cierres en 7 días6hitos esta semana'), ci.textContent);
+  assert.ok(ci.textContent.includes('siguiente: '));
+  const eq = panel(raiz, 'Equipo');
+  assert.deepEqual(buscarNodos(eq, n => n.tag === 'a' && /pill/.test(n.className)).map(a => a.attrs.href), ['#equipo/agente/ariadna']);
+  const co = panel(raiz, 'Consumo');
+  assert.equal(svgs(co).length, 2);
+  assert.match(svgs(co)[0], /t-(rojo|ambar)/);
+  assert.ok(co.textContent.includes('urge la tercera cuenta'));
+  assert.ok(!/EUR/.test(co.textContent));
+});
+
+test('owner: vacíos no rompen', () => {
+  const raiz = pintar({ rol: 'owner' }, { objetivos: [] });
+  assert.equal(paneles(raiz).length, 10);
+  assert.ok(panel(raiz, 'Objetivo').textContent.includes('sin objetivo'));
+  assert.ok(panel(raiz, 'Consumo').textContent.includes('sin muestras de consumo'));
 });
 
 test('agente: sin cambios, "Tus tarjetas" con lo en curso y sesiones abiertas; nada de cuentas ni KPIs aunque viajen', () => {
