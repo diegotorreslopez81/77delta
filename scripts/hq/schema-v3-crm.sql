@@ -373,3 +373,100 @@ end $$;
 
 revoke all on function omc_interaccion_alta(text, jsonb), omc_interaccion_atender(text, bigint, text, text, text, text), omc_interacciones_lista(text, jsonb) from public;
 grant execute on function omc_interaccion_alta(text, jsonb), omc_interaccion_atender(text, bigint, text, text, text, text), omc_interacciones_lista(text, jsonb) to anon, authenticated, service_role;
+
+-- ---------------------------------------------------------------------------------------------------
+-- T7 · cierre automático de encargos (encargo #1053, tarea 11 del rediseño HQ, 18-sep-2026).
+-- Una interacción puede nacer ligada a un encargo (encargo_id): el correo de un lead esperado abre un
+-- encargo, la notificación de LinkedIn abre el de Biel. Cuando la interacción se atiende (respuesta
+-- detectada en Enviados o cierre manual) el encargo se cierra solo como hecho con fuente_cierre
+-- "interacción #n atendida". Y al revés: si el agente cierra el encargo con encargo hecho, las
+-- interacciones pendientes ligadas quedan atendidas (trigger). Aditivo e idempotente.
+-- ---------------------------------------------------------------------------------------------------
+alter table omc_interacciones add column if not exists encargo_id bigint references omc_encargos(id) on delete set null;
+create index if not exists omc_interacciones_encargo_idx on omc_interacciones(encargo_id) where encargo_id is not null;
+
+create or replace function omc_v3_version() returns text language sql immutable as $$ select '3.2.0' $$;
+
+create or replace function omc_interaccion_alta(p_token text, p jsonb) returns jsonb
+language plpgsql security definer set search_path = public as $$
+declare t record; r omc_interacciones; cid bigint; pid bigint; em text; nuevo boolean := false; v_canal text; eid bigint;
+begin
+  select * into t from omc_tok(p_token);
+  v_canal := coalesce(nullif(p->>'canal', ''), 'correo');
+  em := nullif(lower(trim(coalesce(p->>'email', ''))), '');
+  cid := nullif(p->>'cliente_id', '')::bigint;
+  if cid is null then cid := omc_cliente_por_email(t.empresa, em); end if;
+  if cid is not null and em is not null then
+    select id into pid from omc_personas where cliente_id = cid and lower(email) = em order by activo desc, id limit 1;
+  end if;
+  eid := nullif(p->>'encargo_id', '')::bigint;
+  if eid is not null and not exists (select 1 from omc_encargos e where e.id = eid and e.empresa = t.empresa) then
+    raise exception 'omc_interaccion_alta: el encargo % no existe', eid;
+  end if;
+  if nullif(p->>'ref', '') is not null then
+    select * into r from omc_interacciones x where x.empresa = t.empresa and x.canal = v_canal and x.ref = p->>'ref';
+  end if;
+  if r.id is null then
+    insert into omc_interacciones (empresa, cliente_id, persona_id, expediente_id, colaborador_id, contacto_id, encargo_id, canal, sentido, fecha, asunto, resumen, ref, agente, pendiente)
+    values (t.empresa, cid, pid, nullif(p->>'expediente_id', '')::bigint, nullif(p->>'colaborador_id', '')::bigint, nullif(p->>'contacto_id', '')::bigint, eid,
+            v_canal, coalesce(nullif(p->>'sentido', ''), 'entrada'), coalesce(nullif(p->>'fecha', '')::timestamptz, now()),
+            left(nullif(p->>'asunto', ''), 300), left(nullif(p->>'resumen', ''), 2000), nullif(p->>'ref', ''),
+            coalesce(nullif(p->>'agente', ''), nullif(t.nombre, ''), 'sistema'), coalesce((p->>'pendiente')::boolean, false))
+    returning * into r;
+    nuevo := true;
+  else
+    update omc_interacciones set cliente_id = coalesce(cliente_id, cid), persona_id = coalesce(persona_id, pid),
+      expediente_id = coalesce(expediente_id, nullif(p->>'expediente_id', '')::bigint),
+      contacto_id = coalesce(contacto_id, nullif(p->>'contacto_id', '')::bigint),
+      encargo_id = coalesce(encargo_id, eid),
+      resumen = coalesce(resumen, left(nullif(p->>'resumen', ''), 2000))
+      where id = r.id returning * into r;
+  end if;
+  return to_jsonb(r) || jsonb_build_object('nuevo', nuevo, 'cliente', (select c.nombre_corto from omc_clientes c where c.id = r.cliente_id));
+end $$;
+
+-- Atender por id o por (canal, ref). Devuelve la fila (con encargo_cerrado) o null si no había nada pendiente que casara.
+create or replace function omc_interaccion_atender(p_token text, p_id bigint default null, p_canal text default 'correo', p_ref text default null,
+                                                    p_agente text default null, p_motivo text default null) returns jsonb
+language plpgsql security definer set search_path = public as $$
+declare t record; r omc_interacciones; v_agente text; cerrado boolean := false; e omc_encargos;
+begin
+  select * into t from omc_tok(p_token);
+  if p_id is null and nullif(p_ref, '') is null then raise exception 'omc_interaccion_atender: hace falta p_id o p_ref'; end if;
+  v_agente := coalesce(nullif(p_agente, ''), nullif(t.nombre, ''), 'sistema');
+  update omc_interacciones x set pendiente = false, atendido_por = v_agente, atendido_fecha = now(),
+      resumen = case when nullif(p_motivo, '') is not null then left(coalesce(x.resumen, '') || ' · atendido: ' || p_motivo, 2000) else x.resumen end
+    where x.empresa = t.empresa and x.pendiente and ((p_id is not null and x.id = p_id) or (p_id is null and x.canal = p_canal and x.ref = p_ref))
+    returning * into r;
+  if r.id is null then return null; end if;
+  if r.encargo_id is not null then
+    select * into e from omc_encargos where id = r.encargo_id and empresa = t.empresa and estado in ('encolado', 'en_curso', 'bloqueado_diego');
+    if e.id is not null then
+      update omc_encargos set estado = 'hecho', espera = '',
+          fuente_cierre = left('interacción #' || r.id || ' atendida' || coalesce(' · ' || nullif(p_motivo, ''), ''), 600)
+        where id = e.id;
+      perform omc_avance_insertar(t.empresa, e.id, v_agente, 'cierre',
+        left('cierre automático: interacción #' || r.id || ' (' || r.canal || ') atendida por ' || v_agente || coalesce(' · ' || nullif(p_motivo, ''), ''), 600));
+      cerrado := true;
+    end if;
+  end if;
+  return to_jsonb(r) || jsonb_build_object('encargo_cerrado', cerrado);
+end $$;
+
+-- Al revés: encargo hecho (por RPC omc_encargo_hecho o cualquier update) deja atendidas sus interacciones pendientes.
+create or replace function omc_encargo_hecho_atiende_interacciones() returns trigger
+language plpgsql security definer set search_path = public as $$
+begin
+  if new.estado = 'hecho' and coalesce(old.estado, '') <> 'hecho' then
+    update omc_interacciones set pendiente = false, atendido_por = coalesce(nullif(new.agente, ''), 'sistema'), atendido_fecha = now(),
+        resumen = left(coalesce(resumen, '') || ' · atendido: encargo #' || new.id || ' hecho', 2000)
+      where encargo_id = new.id and pendiente;
+  end if;
+  return new;
+end $$;
+drop trigger if exists trg_omc_encargo_hecho_interacciones on omc_encargos;
+create trigger trg_omc_encargo_hecho_interacciones after update of estado on omc_encargos
+  for each row execute function omc_encargo_hecho_atiende_interacciones();
+
+revoke all on function omc_interaccion_alta(text, jsonb), omc_interaccion_atender(text, bigint, text, text, text, text) from public;
+grant execute on function omc_interaccion_alta(text, jsonb), omc_interaccion_atender(text, bigint, text, text, text, text) to anon, authenticated, service_role;

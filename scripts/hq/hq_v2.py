@@ -59,6 +59,7 @@ def registrar(sub, esub):
     ixa.add_argument('--sentido', default='entrada', choices=('entrada', 'salida')); ixa.add_argument('--ref', help='Message-ID, URL o id externo: hace la alta idempotente')
     ixa.add_argument('--email', help='correo del tercero: enlaza al cliente por persona conocida o por dominio de su web'); ixa.add_argument('--asunto'); ixa.add_argument('--resumen'); ixa.add_argument('--fecha')
     ixa.add_argument('--cliente', type=int); ixa.add_argument('--expediente', type=int); ixa.add_argument('--colaborador', type=int); ixa.add_argument('--contacto', type=int)
+    ixa.add_argument('--encargo', type=int, help='encargo ligado: al atender la interacción el encargo se cierra solo, y al cerrar el encargo la interacción queda atendida')
     ixa.add_argument('--pendiente', action='store_true', help='queda pendiente de atender (aparece en HQ hasta interaccion atendida)'); ixa.add_argument('--agente')
     ixt = ixsub.add_parser('atendida'); ixt.add_argument('id', type=int, nargs='?'); ixt.add_argument('--ref'); ixt.add_argument('--canal', default='correo'); ixt.add_argument('--motivo'); ixt.add_argument('--agente')
     ixl = ixsub.add_parser('lista'); ixl.add_argument('--cliente', type=int); ixl.add_argument('--expediente', type=int); ixl.add_argument('--canal'); ixl.add_argument('--pendientes', action='store_true'); ixl.add_argument('--desde'); ixl.add_argument('--limite', type=int)
@@ -159,17 +160,17 @@ def ejecutar(a, c):
         if a.sub == 'alta':
             p = {k: v for k, v in {'canal': a.canal, 'sentido': a.sentido, 'ref': a.ref, 'email': a.email, 'asunto': a.asunto, 'resumen': a.resumen, 'fecha': a.fecha,
                                    'cliente_id': a.cliente, 'expediente_id': a.expediente, 'colaborador_id': a.colaborador, 'contacto_id': a.contacto,
-                                   'pendiente': a.pendiente, 'agente': agente_actual(a.agente)}.items() if v is not None}
+                                   'encargo_id': a.encargo, 'pendiente': a.pendiente, 'agente': agente_actual(a.agente)}.items() if v is not None}
             r = rpc('omc_interaccion_alta', p_token=E['HQ_TOKEN'], p=p)
             salida(r, f"interacción #{r['id']} {'nueva' if r.get('nuevo') else 'ya existía'} · {r['canal']} {r['sentido']} · cliente {r.get('cliente') or '-'} · {'pendiente' if r.get('pendiente') else 'atendida'}")
         elif a.sub == 'atendida':
             if a.id is None and not a.ref: raise SystemExit('interaccion atendida: id o --ref')
             r = rpc('omc_interaccion_atender', p_token=E['HQ_TOKEN'], p_id=a.id, p_canal=a.canal, p_ref=a.ref, p_agente=agente_actual(a.agente), p_motivo=a.motivo)
-            salida(r, f"interacción #{r['id']} atendida por {r['atendido_por']}" if r else 'sin interacción pendiente que case')
+            salida(r, (f"interacción #{r['id']} atendida por {r['atendido_por']}" + (f" · encargo #{r['encargo_id']} cerrado" if r.get('encargo_cerrado') else '')) if r else 'sin interacción pendiente que case')
         elif a.sub == 'lista':
             f = {k: v for k, v in {'cliente_id': a.cliente, 'expediente_id': a.expediente, 'canal': a.canal, 'pendientes': a.pendientes or None, 'desde': a.desde, 'limite': a.limite}.items() if v is not None}
             xs = rpc('omc_interacciones_lista', p_token=E['HQ_TOKEN'], p_filtro=f)
-            salida(xs, '\n'.join(f"#{x['id']} {x['fecha'][:16]} {'PENDIENTE' if x['pendiente'] else 'ok'} {x['canal']} {x['sentido']} · {x.get('cliente') or '-'} · {(x.get('asunto') or '')[:70]} · {x.get('agente') or ''}" for x in xs) or '(sin interacciones)')
+            salida(xs, '\n'.join(f"#{x['id']} {x['fecha'][:16]} {'PENDIENTE' if x['pendiente'] else 'ok'} {x['canal']} {x['sentido']} · {x.get('cliente') or '-'} · {(x.get('asunto') or '')[:70]} · {x.get('agente') or ''}" + (f" · encargo #{x['encargo_id']}" if x.get('encargo_id') else '') for x in xs) or '(sin interacciones)')
         return True
     if a.cmd == 'expediente':
         tok = E.get('HQ_OWNER_TOKEN') or E['HQ_TOKEN']
