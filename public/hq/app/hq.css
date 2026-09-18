@@ -64,6 +64,7 @@ a{color:inherit}
 .modal-cab{display:flex;justify-content:space-between;align-items:center;margin-bottom:10px}
 .btn-x{font-size:24px;background:none;border:0;cursor:pointer;color:var(--tinta-2)}
 .modal-acciones{display:flex;gap:8px;justify-content:flex-end;margin-top:14px;flex-wrap:wrap}
+.modal .chips{flex-wrap:wrap;overflow:visible}.modal textarea{width:100%;box-sizing:border-box;margin-top:10px}
 .toast{position:fixed;left:50%;bottom:calc(16px + env(safe-area-inset-bottom));transform:translateX(-50%);background:var(--tinta);color:var(--papel);padding:10px 14px;border-radius:var(--radio-boton);z-index:30;display:flex;gap:12px;align-items:center;max-width:92vw}
 .entrar{max-width:420px;margin:20vh auto;display:grid;gap:12px}
 .cargando,.error{text-align:center;color:var(--tinta-2);padding:40px 0}
@@ -172,10 +173,14 @@ a{color:inherit}
 @media(min-width:640px){.panel-kpi.ancho-2{grid-column:span 2}}
 .filtros-rica{display:flex;flex-wrap:wrap;gap:8px 14px;align-items:center;margin:18px 0 12px}
 .chips{display:flex;flex-wrap:wrap;gap:6px}
+/* Organigrama en móvil: la fila de pills no puede empujar la card fuera de la pantalla (19-sep, sw 425 con W 390). */
+.card-agente{min-width:0}
+.card-agente .chips{flex-wrap:wrap;overflow:visible}
+.pill.sesion{max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .chip{padding:5px 12px;border-radius:999px;border:1px solid var(--linea);background:var(--panel);color:var(--tinta-2);text-decoration:none;font-size:13px;font-weight:600}
 .chip.activo{background:var(--tinta);border-color:var(--tinta);color:var(--papel)}
 .filtros-rica .campo.mini{flex:1 1 220px;max-width:360px}
-.lista-rica{display:grid;grid-template-columns:1fr;gap:12px}
+.lista-rica{display:grid;grid-template-columns:minmax(0,1fr);gap:12px}
 @media(min-width:760px){.lista-rica{grid-template-columns:repeat(2,minmax(0,1fr))}}
 @media(min-width:1300px){.lista-rica{grid-template-columns:repeat(3,minmax(0,1fr))}}
 .tarjeta-rica{background:var(--panel);border:1px solid var(--linea);border-radius:var(--radio);padding:14px 16px;display:flex;flex-direction:column;gap:8px;min-width:0}

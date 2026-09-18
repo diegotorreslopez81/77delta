@@ -24,9 +24,9 @@
 // rompia el atributo href del enlace autogenerado e inyectaba atributos (XSS). Se sustituye por enlazar(),
 // que construye los nodos <a>/<br> via el() (atributos DOM reales, no interpolacion de string en innerHTML).
 import { rpc } from '../api.js';
-import { el, modal, toast, fecha, eur, pedirTexto, enlazar, urlSegura } from '../ui.js';
+import { el, modal, toast, fecha, eur, pedirTexto, pedirMotivos, enlazar, urlSegura } from '../ui.js';
 import { recargar } from '../main.js';
-import { porDecidir, enCriba, solvenciaTexto } from '../licitaciones.js';
+import { porDecidir, enCriba, solvenciaTexto, MOTIVOS_NO } from '../licitaciones.js';
 
 export function agrupar(pendientes, ahora = new Date()) {
   const finHoy = new Date(ahora); finHoy.setUTCHours(23, 59, 59, 999); const finSemana = new Date(ahora.getTime() + 7 * 864e5);
@@ -109,12 +109,25 @@ function enlacesDoc(l) {
 }
 
 function licitacion(l) {
+  // #1063: descartar exige motivo(s) del catalogo cerrado (pedirMotivos, chips multiseleccion); no
+  // se puede guardar sin ninguno. presentar/estudiar no cambian: siguen con el texto libre de pedirTexto.
   const decidir = async (verbo) => {
     const decision = DECISION[verbo];
-    const texto = decision === 'OK' ? '' : await pedirTexto(verbo + ' ' + l.expediente, 'Motivo', false);
-    if (texto == null) return;
-    try { await rpc('omc_licitacion_decidir', { p_expediente: l.expediente, p_decision: decision, p_motivos: [], p_texto: texto || '' }); toast(l.expediente + ': ' + verbo); await recargar(); }
-    catch (err) { toast('HQ rechaza: ' + err.message); }
+    let texto = '', motivos = [];
+    if (decision === 'No') {
+      const r = await pedirMotivos('Descartar ' + l.expediente, MOTIVOS_NO);
+      if (r == null) return;
+      ({ motivos, texto } = r);
+    } else if (decision !== 'OK') {
+      const t = await pedirTexto(verbo + ' ' + l.expediente, 'Motivo', false);
+      if (t == null) return;
+      texto = t;
+    }
+    try {
+      await rpc('omc_licitacion_decidir', { p_expediente: l.expediente, p_decision: decision, p_motivos: motivos, p_texto: texto || '' });
+      toast(l.expediente + ': ' + verbo + (motivos.length ? ' · ' + motivos.join(' · ') : ''));
+      await recargar();
+    } catch (err) { toast('HQ rechaza: ' + err.message); }
   };
   const enlaces = enlacesDoc(l);
   return el('article', { class: 'tarjeta licitacion' }, [

@@ -7,7 +7,7 @@
 // La vista no gatea por rol: omc_hq_v2 solo sirve licitaciones al owner.
 import { el, fecha, urlSegura } from '../ui.js';
 import { sinAcentos } from '../estado.js';
-import { embudo, enCriba, porElegible, porDecidir, ordenCierre, estadoDe, solvenciaTexto, pipelinePorMes, pendiente, ABIERTAS, DECIDIBLES, tipologia, TIPOLOGIAS, filtrar } from '../licitaciones.js';
+import { embudo, enCriba, porElegible, porDecidir, ordenCierre, estadoDe, solvenciaTexto, pipelinePorMes, pendiente, ABIERTAS, DECIDIBLES, tipologia, TIPOLOGIAS, filtrar, motivosNo, MOTIVOS_NO } from '../licitaciones.js';
 import { donut, barras } from '../graficos.js';
 import { eurCorto, anchoLog, panel, cifra, grafico, leyenda, ejeX, filaBarra } from '../cuadro.js';
 
@@ -41,11 +41,15 @@ export function plazoConsumido(l, ahora = new Date()) {
 
 // Filtros de la lista: estado (activas por defecto), orden (cierre por defecto) y texto libre sin acentos.
 export const FILTROS = [['activas', 'Activas'], ['decidir', 'Por decidir'], ['pausadas', 'Pausadas'], ['criba', 'En criba']];
+// 'descartadas' no tiene chip propio (no se pide una pestaña nueva): solo llega por URL desde el panel
+// "Por qué no vamos" de KPIs, para poder ver y filtrar por motivo las descartadas sin tocar FILTROS.
+const ESTADOS_VALIDOS = new Set([...FILTROS.map(f => f[0]), 'descartadas']);
 export function porFiltro(lics, estado = 'activas') {
   const rows = lics || [];
   if (estado === 'decidir') return porDecidir(rows);
   if (estado === 'criba') return enCriba(rows);
   if (estado === 'pausadas') return rows.filter(l => estadoDe(l) === 'Pausada');
+  if (estado === 'descartadas') return rows.filter(l => estadoDe(l) === 'Descartada');
   return rows.filter(l => ACTIVAS.has(estadoDe(l)));
 }
 export function ordenar(rows, orden = 'cierre') {
@@ -120,6 +124,12 @@ export function tarjetaLic(l, ahora = new Date()) {
   const enlaces = [['Perfil', l.enlace], ['Carpeta', l.carpeta], ['PPT', l.ppt], ['PCAP', l.pcap]].map(([t, u]) => [t, urlSegura(u)]).filter(x => x[1]);
   const solv = solvenciaTexto(l);
   const tipo = tipologia(l.organo);
+  // #1063: motivos de NO como tags neutros (misma clase 'pill' que tipo/procedimiento, nunca oro), solo
+  // en descartadas; si no tiene ninguno del catalogo, un tag "sin motivo" en vez de dejarlo en blanco.
+  const motivos = est === 'Descartada' ? motivosNo(l) : [];
+  const tagsMotivo = est === 'Descartada'
+    ? (motivos.length ? motivos.map(m => el('span', { class: 'pill', text: m })) : [el('span', { class: 'pill', text: 'sin motivo' })])
+    : [];
   const alClic = e => { if (e.target?.closest?.('a, button')) return; alternar(e.currentTarget || art); };
   const art = el('article', {
     class: 'card-lic', tabindex: '0', 'aria-expanded': 'false', 'data-expediente': l.expediente || '',
@@ -130,6 +140,7 @@ export function tarjetaLic(l, ahora = new Date()) {
       el('span', { class: 'pill', text: tipo }),
       el('span', { class: 'pill', text: l.importe ? eurCorto(l.importe) + ' sin IVA' : 'sin importe' }),
       l.procedimiento ? el('span', { class: 'pill', text: l.procedimiento }) : null,
+      ...tagsMotivo,
       el('span', { class: 'plazo' }, [el('i', { class: 'punto g-' + p.color }), p.texto]),
     ]),
     el('h3', { class: 'lic-titulo', text: corto(l.resumen_corto || l.objeto || l.expediente, 160) }),
@@ -167,6 +178,7 @@ function construirRuta(base, over) {
   if (v.solvencia && v.solvencia !== 'todas') q.set('solvencia', v.solvencia);
   if (v.fuente) q.set('fuente', v.fuente);
   if (v.tipo) q.set('tipo', v.tipo);
+  if (v.motivo) q.set('motivo', v.motivo);
   if (v.desiertas) q.set('desiertas', '1');
   const s = q.toString();
   return '#operacion/licitaciones' + (s ? '?' + s : '');
@@ -177,13 +189,14 @@ export function render(raiz, S, arg, filtrosRuta = {}, ahora = new Date()) {
   const lics = d.licitaciones || [], resumen = d.lic_resumen || {};
   if (!lics.length && !Object.keys(resumen).length) { raiz.append(el('p', { class: 'mudo', text: 'sin licitaciones' })); return; }
 
-  const estado = FILTROS.some(f => f[0] === filtrosRuta.estado) ? filtrosRuta.estado : 'activas';
+  const estado = ESTADOS_VALIDOS.has(filtrosRuta.estado) ? filtrosRuta.estado : 'activas';
   const orden = filtrosRuta.orden === 'importe' ? 'importe' : 'cierre';
   const f = {
     tipologia: filtrosRuta.tipologia || '',
     solvencia: filtrosRuta.solvencia || '',
     fuente: filtrosRuta.fuente || '',
     tipo: filtrosRuta.tipo || '',
+    motivo: filtrosRuta.motivo || '',
     desiertas: filtrosRuta.desiertas === '1',
   };
   const activos = { estado, orden, ...f };
@@ -207,6 +220,11 @@ export function render(raiz, S, arg, filtrosRuta = {}, ahora = new Date()) {
     tipos.length ? el('select', { 'aria-label': 'Tipo', onchange: e => { location.hash = ruta({ tipo: e.target.value }); } }, [
       opcion('', 'Tipo (todos)', f.tipo), ...tipos.map(v => opcion(v, v, f.tipo)),
     ]) : null,
+    // #1063: catalogo cerrado y fijo (como TIPOLOGIAS), siempre visible aunque el payload no traiga
+    // descartadas cargadas en este momento; 'sin' cierra las descartadas sin motivo del catalogo.
+    el('select', { 'aria-label': 'Motivo de NO', onchange: e => { location.hash = ruta({ motivo: e.target.value }); } }, [
+      opcion('', 'Motivo de NO (todos)', f.motivo), ...MOTIVOS_NO.map(v => opcion(v, v, f.motivo)), opcion('sin', 'Sin motivo', f.motivo),
+    ]),
     estado === 'criba' ? el('label', {}, [el('input', { type: 'checkbox', checked: f.desiertas || undefined, onchange: e => { location.hash = ruta({ desiertas: e.target.checked ? '1' : '' }); } }), 'Solo desiertas']) : null,
   ];
 

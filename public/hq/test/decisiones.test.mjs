@@ -1,5 +1,8 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
+// pedirMotivos vive en ui.js, que no toca document al importarse (solo dentro de sus funciones, igual
+// que pedirTexto): import estatico seguro aunque los globals de document/window se definan mas abajo.
+import { pedirMotivos } from '../app/ui.js';
 
 // decisiones.js importa `rpc` de api.js y `recargar` de main.js (mismo patron que tablero.js, exigido
 // por la tarea: "copiar el patron exacto, no inventes otro"). api.js lee `location.search` y
@@ -148,4 +151,45 @@ test('bandeja: urgentes arriba, sin fecha y pospuestas plegadas, un solo campo p
 test('bandeja: sin nada, "Nada que decidir."', () => {
   const raiz = crearNodo('main'); raiz.append(bandeja({ datos: { rol: 'owner' } }, undefined, ahora));
   assert.ok(raiz.textContent.includes('Nada que decidir.'));
+});
+
+// pedirMotivos (#1063): contrato del modal de motivos de NO. El shim de getElementById siempre crea un
+// div nuevo (no cachea 'capa'), asi que para poder localizar los botones que monta modal() dentro se
+// intercepta getElementById durante la vida de la promesa, igual que se restaura despues.
+test('pedirMotivos: Guardar deshabilitado sin chips; marcar uno lo habilita y Guardar resuelve motivos + texto', async () => {
+  const capa = crearNodo('div');
+  const original = document.getElementById;
+  document.getElementById = () => capa;
+  try {
+    const promesa = pedirMotivos('Descartar EXP-9', ['A', 'B', 'C']);
+    const botones = buscarNodos(capa, n => n.tag === 'button');
+    const chipA = botones.find(b => b.textContent === 'A');
+    const guardar = botones.find(b => b.textContent === 'Guardar');
+    const detalle = buscarNodos(capa, n => n.tag === 'textarea')[0];
+    detalle.value = 'demasiado caro';
+    assert.equal(guardar.disabled, true, 'sin chips marcados, Guardar empieza deshabilitado');
+    chipA.listeners.click[0]();
+    assert.equal(chipA.attrs['aria-pressed'], 'true');
+    assert.equal(guardar.disabled, false, 'marcar un chip habilita Guardar');
+    guardar.listeners.click[0]();
+    assert.deepEqual(await promesa, { motivos: ['A'], texto: 'demasiado caro' });
+  } finally { document.getElementById = original; }
+});
+
+test('pedirMotivos: desmarcar el unico chip vuelve a deshabilitar Guardar; Cancelar resuelve null', async () => {
+  const capa = crearNodo('div');
+  const original = document.getElementById;
+  document.getElementById = () => capa;
+  try {
+    const promesa = pedirMotivos('Descartar EXP-9', ['A', 'B']);
+    const botones = buscarNodos(capa, n => n.tag === 'button');
+    const chipA = botones.find(b => b.textContent === 'A');
+    const guardar = botones.find(b => b.textContent === 'Guardar');
+    const cancelar = botones.find(b => b.textContent === 'Cancelar');
+    chipA.listeners.click[0]();
+    chipA.listeners.click[0]();
+    assert.equal(guardar.disabled, true, 'sin ningun chip marcado, Guardar vuelve a deshabilitarse');
+    cancelar.listeners.click[0]();
+    assert.equal(await promesa, null);
+  } finally { document.getElementById = original; }
 });

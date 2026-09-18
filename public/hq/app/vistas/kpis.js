@@ -6,6 +6,8 @@
 // expedientes son datos de owner (si faltan en el payload, el chip ni se pinta).
 import { el } from '../ui.js';
 import { kanban } from '../estado.js';
+import { estadoDe, motivosNo, MOTIVOS_NO } from '../licitaciones.js';
+import { panel, filaBarra, anchoLog } from '../cuadro.js';
 import * as objetivo from './objetivo.js';
 import * as licitaciones from './licitaciones.js';
 import * as expedientes from './expedientes.js';
@@ -33,6 +35,40 @@ function seccion(nombre, paneles) {
   return paneles && paneles.length ? el('section', { class: 'seccion kpi-grupo' }, [el('h2', { text: nombre }), el('div', { class: 'cuadro' }, paneles)]) : null;
 }
 
+// #1063: recuento puro de motivos de NO sobre todo el payload de licitaciones, para el panel "Por qué
+// no vamos". Multietiqueta (una descartada con dos motivos cuenta en los dos), catálogo primero de
+// mayor a menor y sin ceros, "Sin motivo" siempre al final si hay alguna descartada sin catálogo.
+export function porMotivo(lics) {
+  const cuenta = {};
+  let sinMotivo = 0;
+  for (const l of lics || []) {
+    if (estadoDe(l) !== 'Descartada') continue;
+    const motivos = motivosNo(l);
+    if (motivos.length) motivos.forEach(m => { cuenta[m] = (cuenta[m] || 0) + 1; });
+    else sinMotivo++;
+  }
+  const filas = MOTIVOS_NO.map(m => ({ motivo: m, n: cuenta[m] || 0 })).filter(f => f.n > 0).sort((a, b) => b.n - a.n);
+  if (sinMotivo > 0) filas.push({ motivo: 'Sin motivo', n: sinMotivo });
+  return filas;
+}
+
+// Panel de la pestaña Licitaciones (vive aquí y no en vistas/licitaciones.js porque es el único de los
+// paneles de esa pestaña que no reutiliza otra vista: agrega directo sobre el payload). null si no hay
+// ninguna descartada con datos que mostrar, para que seccion() no pinte un panel vacío.
+function panelPorQueNo(d) {
+  const lics = d.licitaciones || [];
+  const filas = porMotivo(lics);
+  if (!filas.length) return null;
+  const descartadas = lics.filter(l => estadoDe(l) === 'Descartada');
+  const conMotivo = descartadas.filter(l => motivosNo(l).length > 0).length;
+  const max = Math.max(1, ...filas.map(f => f.n));
+  return panel('Por qué no vamos', '#operacion/licitaciones?estado=descartadas', [
+    el('div', { class: 'filas' }, filas.map(f => filaBarra(f.motivo, String(f.n), anchoLog(f.n, max), 'tinta-2',
+      '#operacion/licitaciones?estado=descartadas&motivo=' + encodeURIComponent(f.motivo === 'Sin motivo' ? 'sin' : f.motivo)))),
+    el('p', { class: 'sub', text: 'descartadas con motivo del catálogo · ' + conMotivo + ' de ' + descartadas.length }),
+  ]);
+}
+
 // main.js vacía raiz y vuelve a llamar a render en cada recarga o cambio de ruta (mismo patrón que
 // colaboradores.js): si mientras se espera la lista de colaboradores llega otro render, la respuesta
 // tardía no se pinta.
@@ -47,7 +83,10 @@ export async function render(raiz, S, arg, filtrosRuta = {}, ahora = new Date())
   raiz.append(cont);
   const bloques = [];
   if (quiere('plan')) bloques.push(seccion('Plan', objetivo.panelesObjetivo(S.derivado || { objetivos: [], bloques: [] }, ahora)));
-  if (quiere('licitaciones')) bloques.push(seccion('Licitaciones', licitaciones.panelesLicitaciones(d, ahora)));
+  if (quiere('licitaciones')) {
+    const pqn = panelPorQueNo(d);
+    bloques.push(seccion('Licitaciones', [...licitaciones.panelesLicitaciones(d, ahora), ...(pqn ? [pqn] : [])]));
+  }
   if (quiere('expedientes')) bloques.push(seccion('Expedientes', expedientes.panelesExpedientes(d, ahora)));
   if (quiere('tablero')) bloques.push(seccion('Tablero', tablero.cuadroTablero(S, kanban(d.encargos, {}), ahora)));
   if (quiere('equipo')) {

@@ -41,7 +41,7 @@ if (typeof globalThis.localStorage === 'undefined') {
   globalThis.localStorage = { getItem: (k) => (mem.has(k) ? mem.get(k) : null), setItem: (k, v) => mem.set(k, String(v)), removeItem: (k) => mem.delete(k) };
 }
 
-const { render, GRUPOS } = await import('../app/vistas/kpis.js');
+const { render, GRUPOS, porMotivo } = await import('../app/vistas/kpis.js');
 const { derivar } = await import('../app/estado.js');
 const { cargarColaboradores, limpiarCache } = await import('../app/vistas/colaboradores.js');
 
@@ -131,6 +131,43 @@ test('un grupo de owner pedido explícitamente sobre un payload de agente no se 
   const r = await pintar(sAgente(), { grupo: 'plan' });
   assert.deepEqual(grupos(r).map(nombreGrupo), []);
   assert.ok(r.textContent.includes('Sin KPIs disponibles para este filtro'));
+});
+
+// Motivos de NO (#1063): recuento puro multietiqueta para el panel "Por qué no vamos".
+test('porMotivo: cuenta multietiqueta por motivo del catalogo, descendente, sin ceros, "Sin motivo" al final', () => {
+  const conMotivos = [
+    { expediente: 'D1', estado: 'Descartada', motivos: ['Sin pliego', 'Plazo corto'] },
+    { expediente: 'D2', estado: 'Descartada', motivos: ['Sin pliego'] },
+    { expediente: 'D3', estado: 'Descartada', motivos: [] },
+    { expediente: 'D4', estado: 'Nueva', motivos: ['Sin pliego'] },
+    { expediente: 'D5', estado: 'Aprobada', decision: 'OK', motivos: ['Cliente conocido'] },
+  ];
+  assert.deepEqual(porMotivo(conMotivos), [
+    { motivo: 'Sin pliego', n: 2 },
+    { motivo: 'Plazo corto', n: 1 },
+    { motivo: 'Sin motivo', n: 1 },
+  ]);
+});
+
+test('porMotivo: sin descartadas devuelve []; todas con motivo no añaden fila "Sin motivo"', () => {
+  assert.deepEqual(porMotivo([]), []);
+  assert.deepEqual(porMotivo([{ expediente: 'D1', estado: 'Descartada', motivos: ['Duplicada'] }]), [{ motivo: 'Duplicada', n: 1 }]);
+});
+
+test('render: panel "Por qué no vamos" en Licitaciones cuando hay descartadas con motivo, con subtitulo N de M', async () => {
+  const conDescartadas = { ...datosOwner, licitaciones: [...lics,
+    { expediente: 'D1', estado: 'Descartada', motivos: ['Sin pliego'] },
+    { expediente: 'D2', estado: 'Descartada', motivos: [] },
+  ] };
+  const r = await pintar({ datos: conDescartadas, derivado: derivar(conDescartadas) });
+  assert.ok(r.textContent.includes('Por qué no vamos'));
+  assert.ok(r.textContent.includes('Sin pliego'));
+  assert.ok(r.textContent.includes('descartadas con motivo del catálogo · 1 de 2'));
+});
+
+test('render: sin descartadas, no se pinta el panel "Por qué no vamos"', async () => {
+  const r = await pintar(sOwner());
+  assert.ok(!r.textContent.includes('Por qué no vamos'));
 });
 
 // Mismo patrón de guarda de carrera que colaboradores.test.mjs: turno es de módulo, así que basta con

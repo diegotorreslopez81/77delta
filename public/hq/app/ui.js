@@ -60,6 +60,33 @@ export function pedirTexto(titulo, etiqueta, obligatorio = true, { opciones } = 
   });
 }
 
+// Modal de motivos de un catalogo cerrado con multiseleccion (chips) mas un textarea opcional de
+// detalle (encargo #1063: motivos de NO al descartar una licitacion). Cancelar resuelve null; Guardar
+// exige al menos un motivo marcado, asi que empieza deshabilitado.
+export function pedirMotivos(titulo, catalogo) {
+  return new Promise(res => {
+    const seleccionados = new Set();
+    const detalle = el('textarea', { rows: 3, placeholder: 'Detalle (opcional)' });
+    const guardar = el('button', { class: 'btn primario', text: 'Guardar', onclick: () => {
+      if (!seleccionados.size) return;
+      m.cerrar(); res({ motivos: [...seleccionados], texto: detalle.value.trim() });
+    } });
+    guardar.disabled = true;
+    const chips = catalogo.map(motivo => {
+      const btn = el('button', { class: 'chip', type: 'button', 'aria-pressed': 'false', text: motivo, onclick: () => {
+        const activo = btn.getAttribute('aria-pressed') === 'true';
+        btn.setAttribute('aria-pressed', String(!activo));
+        btn.classList.toggle('activo', !activo);
+        activo ? seleccionados.delete(motivo) : seleccionados.add(motivo);
+        guardar.disabled = seleccionados.size === 0;
+      } });
+      return btn;
+    });
+    const m = modal({ titulo, cuerpo: [el('div', { class: 'chips' }, chips), detalle],
+      acciones: [el('button', { class: 'btn', text: 'Cancelar', onclick: () => { m.cerrar(); res(null); } }), guardar] });
+  });
+}
+
 // Convierte texto plano de la BD en nodos DOM: URLs en <a href> (atributo real via el(), nunca `html:` con
 // datos de la BD: una comilla en el texto no puede escapar del atributo porque no hay parseo de HTML de por
 // medio) y saltos de línea en <br>. Reemplaza el patrón `html:` con reemplazos de string usado antes en

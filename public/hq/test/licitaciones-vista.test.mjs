@@ -94,12 +94,13 @@ test('buscador: filtra la lista sin acentos por expediente, objeto u órgano, y 
   assert.ok(raiz.textContent.includes('nada con este filtro'));
 });
 
-test('filtros nuevos: tipologia y solvencia siempre visibles; fuente y tipo solo si el payload los trae; desiertas solo en la pestaña criba', () => {
+test('filtros nuevos: tipologia, solvencia y motivo de NO siempre visibles; fuente y tipo solo si el payload los trae; desiertas solo en la pestaña criba', () => {
   const base = pintar({ licitaciones: lics });
-  assert.equal(selects(base).length, 2);
+  // #1063: tipologia, solvencia y Motivo de NO (catalogo fijo, como TIPOLOGIAS).
+  assert.equal(selects(base).length, 3);
   assert.equal(buscarNodos(base, n => n.tag === 'input' && n.attrs.type === 'checkbox').length, 0);
   const conFuenteTipo = lics.map(l => ({ ...l, pestana: 'PLACSP', tipo: 'servicios' }));
-  assert.equal(selects(pintar({ licitaciones: conFuenteTipo })).length, 4);
+  assert.equal(selects(pintar({ licitaciones: conFuenteTipo })).length, 5);
   assert.equal(buscarNodos(pintar({ licitaciones: lics }, { estado: 'criba' }), n => n.tag === 'input' && n.attrs.type === 'checkbox').length, 1);
 });
 
@@ -137,6 +138,55 @@ test('tarjetaLic: clic o Intro/espacio alterna aria-expanded; un clic en un enla
   assert.equal(t.attrs['aria-expanded'], 'true', 'un clic sobre un enlace interno no debe alternar la tarjeta');
 });
 
+// Motivos de NO en la tarjeta (#1063): mismo tag 'pill' neutro que tipo/procedimiento, nunca oro.
+test('tarjetaLic: descartada con motivos de NO muestra un tag por motivo', () => {
+  const t = tarjetaLic({ expediente: 'D1', estado: 'Descartada', motivos: ['Sin pliego', 'Plazo corto'] }, AHORA);
+  const tags = buscarNodos(t, n => n.tag === 'span' && clase(n, 'pill')).map(n => n.textContent);
+  assert.ok(tags.includes('Sin pliego'));
+  assert.ok(tags.includes('Plazo corto'));
+  assert.ok(!tags.includes('sin motivo'));
+});
+
+test('tarjetaLic: descartada sin motivo del catalogo muestra el tag "sin motivo"', () => {
+  const t = tarjetaLic({ expediente: 'D2', estado: 'Descartada', motivos: [] }, AHORA);
+  assert.ok(buscarNodos(t, n => n.tag === 'span' && clase(n, 'pill')).map(n => n.textContent).includes('sin motivo'));
+  const t2 = tarjetaLic({ expediente: 'D3', estado: 'Descartada' }, AHORA);
+  assert.ok(buscarNodos(t2, n => n.tag === 'span' && clase(n, 'pill')).map(n => n.textContent).includes('sin motivo'));
+});
+
+test('tarjetaLic: aprobada con motivos de SI no muestra tags de NO ni "sin motivo"', () => {
+  const t = tarjetaLic({ expediente: 'A1', estado: 'Aprobada', decision: 'OK', motivos: ['Buen encaje', 'Cliente conocido'] }, AHORA);
+  const tags = buscarNodos(t, n => n.tag === 'span' && clase(n, 'pill')).map(n => n.textContent);
+  assert.ok(!tags.includes('Buen encaje'));
+  assert.ok(!tags.includes('Cliente conocido'));
+  assert.ok(!tags.includes('sin motivo'));
+});
+
+test('select "Motivo de NO": opciones Todos + catalogo + Sin motivo, filtra la lista de descartadas', () => {
+  const conMotivos = [
+    { expediente: 'D1', estado: 'Descartada', motivos: ['Sin pliego'] },
+    { expediente: 'D2', estado: 'Descartada', motivos: [] },
+  ];
+  const raiz = pintar({ licitaciones: conMotivos }, { estado: 'descartadas' });
+  const sel = selects(raiz).find(s => s.attrs['aria-label'] === 'Motivo de NO');
+  assert.ok(sel);
+  const opts = buscarNodos(sel, n => n.tag === 'option').map(o => o.textContent);
+  assert.equal(opts[0], 'Motivo de NO (todos)');
+  assert.ok(opts.includes('Sin pliego'));
+  assert.equal(opts[opts.length - 1], 'Sin motivo');
+  assert.equal(opts.length, 12);
+  assert.deepEqual(expedientes(pintar({ licitaciones: conMotivos }, { estado: 'descartadas', motivo: 'Sin pliego' })), ['D1']);
+  assert.deepEqual(expedientes(pintar({ licitaciones: conMotivos }, { estado: 'descartadas', motivo: 'sin' })), ['D2']);
+});
+
+test('select "Motivo de NO": el cambio persiste el filtro en la URL junto al resto de filtros activos', () => {
+  globalThis.location.hash = '';
+  const raiz = pintar({ licitaciones: lics }, { estado: 'decidir' });
+  const sel = selects(raiz).find(s => s.attrs['aria-label'] === 'Motivo de NO');
+  sel.listeners.change[0]({ target: { value: 'Sin pliego' } });
+  assert.equal(globalThis.location.hash, '#operacion/licitaciones?estado=decidir&motivo=Sin+pliego');
+});
+
 test('diasA, plazo y plazoConsumido: bordes', () => {
   assert.equal(diasA(null, AHORA), null);
   assert.equal(diasA('2026-09-17T23:00:00Z', AHORA), 0);
@@ -164,6 +214,6 @@ test('sin licitaciones ni resumen: pinta "sin licitaciones" y nada mas', () => {
 test('sin licitaciones pero con lic_resumen: enlace a KPIs y lista vacía, sin fuente ni tipo (el payload no los trae)', () => {
   const raiz = pintar({ licitaciones: [], lic_resumen: { total: { n: 1500, eur: 9000000 }, contratadas: { n: 20, eur: 200000 } } });
   assert.ok(buscarNodos(raiz, n => n.tag === 'a' && n.attrs.href === '#kpis?grupo=licitaciones').length === 1);
-  assert.equal(selects(raiz).length, 2);
+  assert.equal(selects(raiz).length, 3);
   assert.ok(raiz.textContent.includes('nada con este filtro'));
 });

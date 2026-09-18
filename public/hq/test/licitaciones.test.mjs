@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { DECIDIBLES, ABIERTAS, pendiente, porDecidir, enCriba, porElegible, solvenciaTexto, embudo, estadoDe, tipologia, TIPOLOGIAS, sinSolvencia, filtrar } from '../app/licitaciones.js';
+import { DECIDIBLES, ABIERTAS, pendiente, porDecidir, enCriba, porElegible, solvenciaTexto, embudo, estadoDe, tipologia, TIPOLOGIAS, sinSolvencia, filtrar, MOTIVOS_NO, motivosNo } from '../app/licitaciones.js';
 
 // Fixture de 8 licitaciones (Task 1, plan 3b): cubre decidibles, criba, descartada, aprobada por
 // decision sin ser decidible, presentada y contratada con importe.
@@ -300,4 +300,43 @@ test('filtrar: cada dimension es opcional y se combinan con AND', () => {
   assert.deepEqual(filtrar(rows, { desiertas: true }).map(l => l.expediente), ['F2']);
   assert.deepEqual(filtrar(rows, { tipologia: 'Ayuntamiento', tipo: 'servicios' }).map(l => l.expediente), ['F3']);
   assert.deepEqual(filtrar(null, {}), []);
+});
+
+// Motivos de NO (encargo #1063): catalogo cerrado, mismo orden que omc_motivos_no() en SQL y
+// MOTIVOS_NO en scripts/hq/hq.py.
+test('MOTIVOS_NO: 10 elementos en el orden exacto del catalogo', () => {
+  assert.deepEqual(MOTIVOS_NO, ['Fuera de España', 'Suministro/hardware', 'No TIC ni formación', 'Solvencia/clasificación',
+    'Presencial', 'Sin pliego', 'Plazo corto', 'Importe bajo', 'Competencia/consorcio', 'Duplicada']);
+  assert.equal(MOTIVOS_NO.length, 10);
+});
+
+test('motivosNo: solo devuelve los elementos de l.motivos que estan en el catalogo', () => {
+  assert.deepEqual(motivosNo({ motivos: ['Sin pliego', 'Plazo corto'] }), ['Sin pliego', 'Plazo corto']);
+  // una aprobada/presentada trae motivos de SI (texto libre de Sales), ajenos al catalogo de NO.
+  assert.deepEqual(motivosNo({ motivos: ['Buen encaje con el equipo', 'Cliente conocido'] }), []);
+  assert.deepEqual(motivosNo({ motivos: [] }), []);
+  assert.deepEqual(motivosNo({}), []);
+  assert.deepEqual(motivosNo({ motivos: null }), []);
+});
+
+test('filtrar con motivo: pasa las filas cuyo motivosNo incluye el motivo pedido', () => {
+  const rows = [
+    { expediente: 'M1', estado: 'Descartada', motivos: ['Sin pliego'] },
+    { expediente: 'M2', estado: 'Descartada', motivos: ['Plazo corto', 'Sin pliego'] },
+    { expediente: 'M3', estado: 'Descartada', motivos: [] },
+    { expediente: 'M4', estado: 'Aprobada', motivos: ['Cliente conocido'] },
+  ];
+  assert.deepEqual(filtrar(rows, { motivo: 'Sin pliego' }).map(l => l.expediente), ['M1', 'M2']);
+  assert.deepEqual(filtrar(rows, { motivo: 'Plazo corto' }).map(l => l.expediente), ['M2']);
+  assert.deepEqual(filtrar(rows, {}).map(l => l.expediente), ['M1', 'M2', 'M3', 'M4']);
+});
+
+test('filtrar con motivo "sin": solo descartadas sin ningun motivo del catalogo', () => {
+  const rows = [
+    { expediente: 'M1', estado: 'Descartada', motivos: ['Sin pliego'] },
+    { expediente: 'M2', estado: 'Descartada', motivos: [] },
+    { expediente: 'M3', estado: 'Descartada', motivos: null },
+    { expediente: 'M4', estado: 'Aprobada', motivos: [] },
+  ];
+  assert.deepEqual(filtrar(rows, { motivo: 'sin' }).map(l => l.expediente), ['M2', 'M3']);
 });

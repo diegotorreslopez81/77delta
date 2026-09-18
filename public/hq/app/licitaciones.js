@@ -138,13 +138,28 @@ export function sinSolvencia(l) {
   return /159\.6|no exige|sin acreditaci/.test(t);
 }
 
-// Filtro puro para la vista: tipologia/solvencia/fuente/tipo/desiertas, todos opcionales (sin valor
-// no filtra). 'desiertas' lo aplica la vista solo cuando tiene sentido mostrarlo (pestaña criba).
+// Catalogo cerrado de motivos de NO (encargo #1063), mismo orden que omc_motivos_no() en SQL y
+// MOTIVOS_NO en scripts/hq/hq.py: es el orden en que Diego los ve, tanto en los chips del modal de
+// descarte como en el panel de KPIs.
+export const MOTIVOS_NO = ['Fuera de España', 'Suministro/hardware', 'No TIC ni formación', 'Solvencia/clasificación',
+  'Presencial', 'Sin pliego', 'Plazo corto', 'Importe bajo', 'Competencia/consorcio', 'Duplicada'];
+
+// Motivos de NO reales de una licitacion: solo lo de l.motivos que esta en el catalogo cerrado. Una
+// aprobada/presentada trae en 'motivos' los motivos de SI del Sheet (texto libre de Sales), asi que
+// para ellas esto siempre devuelve [] en vez de colar texto ajeno al catalogo.
+export function motivosNo(l) {
+  return (l?.motivos || []).filter(m => MOTIVOS_NO.includes(m));
+}
+
+// Filtro puro para la vista: tipologia/solvencia/fuente/tipo/motivo/desiertas, todos opcionales (sin
+// valor no filtra). 'desiertas' lo aplica la vista solo cuando tiene sentido mostrarlo (pestaña criba).
+// 'motivo' es un motivo del catalogo, o 'sin' para las descartadas sin ningun motivo reconocido.
 export function filtrar(rows, f = {}) {
   return (rows || []).filter(l =>
     (!f.tipologia || tipologia(l.organo) === f.tipologia)
     && (!f.solvencia || f.solvencia === 'todas' || (f.solvencia === 'sin solvencia' ? sinSolvencia(l) : !sinSolvencia(l)))
     && (!f.fuente || l.pestana === f.fuente)
     && (!f.tipo || l.tipo === f.tipo)
+    && (!f.motivo || (f.motivo === 'sin' ? (estadoDe(l) === 'Descartada' && motivosNo(l).length === 0) : motivosNo(l).includes(f.motivo)))
     && (!f.desiertas || estadoDe(l) === 'Cerrada sin presentar'));
 }
