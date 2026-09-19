@@ -48,6 +48,8 @@ async function actuar(p, accion, campo) {
   try {
     if (accion === 'comentar') { await rpc('omc_comentar', { p_id: p.id, p_texto: texto }); toast('#' + p.id + ' comentado'); }
     else { await rpc('omc_resolver', { p_id: p.id, p_estado: accion, p_respuesta: texto }); toast('#' + p.id + ' ' + accion); }
+    // Brief 2021 (capa C): la accion ya triunfo por RPC, el borrador de este campo ya no hace falta.
+    campo.olvidarBorrador?.();
     await recargar();
   } catch (err) { toast('HQ rechaza: ' + err.message); }
 }
@@ -71,7 +73,9 @@ function tarjeta(p, abierta, hilo) {
   // (omc_solicitudes.enlace no valida esquema en la BD); un `javascript:...` ahi ejecutaria codigo en
   // el origen de HQ con el token owner a mano. urlSegura() lo descarta antes de pintarlo.
   const enlaceSeguro = urlSegura(p.enlace);
-  const campo = campoTexto({ class: 'campo', rows: 2, placeholder: p.tipo === 'duda' ? 'Tu respuesta' : 'Instrucción o motivo (opcional para aprobar)' });
+  // Brief 2021 (capa C): 'd'+p.id da un borrador propio por tarjeta en localStorage (sobrevive a un
+  // cierre de pestaña, no solo a la recarga automatica que ya cubre conservar.js).
+  const campo = campoTexto({ class: 'campo', rows: 2, placeholder: p.tipo === 'duda' ? 'Tu respuesta' : 'Instrucción o motivo (opcional para aprobar)', 'data-conservar': 'd' + p.id });
   const det = el('details', { open: abierta }, [
     el('summary', {}, [el('div', { class: 'fila' }, [el('span', { class: 'pill', text: p.tipo }), el('strong', { text: p.titulo })]),
       el('p', { class: 'mudo', text: [p.agente, p.importe ? eur(p.importe) : null, p.vence ? 'vence ' + fecha(p.vence, { hora: true }) : null, p.riesgo].filter(Boolean).join(' · ') })]),
@@ -86,6 +90,15 @@ function tarjeta(p, abierta, hilo) {
       el('button', { class: 'btn peligro', text: 'Rechazar', onclick: () => actuar(p, 'rechazada', campo) }),
       p.tipo === 'duda' ? el('button', { class: 'btn primario', text: 'Responder', onclick: () => actuar(p, 'respondida', campo) })
         : el('button', { class: 'btn primario', text: 'Aprobar', onclick: () => actuar(p, 'aprobada', campo) })])]);
+  // Brief 2021 (capa D): abrir/cerrar la tarjeta a mano deja rastro en la URL (sin navegar, replaceState),
+  // para que un refresco manual del navegador (F5, no el de conservar.js) reabra la misma tarjeta. Al
+  // cerrar solo se limpia si el hash sigue siendo el de esta tarjeta (si Diego ya navego a otra vista
+  // mientras tanto, no hay que tocarle el hash).
+  det.addEventListener('toggle', () => {
+    const propio = '#hoy/' + p.id;
+    if (det.open) history.replaceState(null, '', location.pathname + propio);
+    else if (location.hash === propio) history.replaceState(null, '', location.pathname + '#hoy');
+  });
   return el('article', { class: 'tarjeta decision', id: 'd' + p.id }, [det]);
 }
 

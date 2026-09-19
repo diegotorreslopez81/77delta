@@ -147,6 +147,33 @@ test('bandeja: urgentes arriba, sin fecha y pospuestas plegadas, un solo campo p
   const t3 = buscarNodos(raiz, n => n.tag === 'article' && n.attrs.id === 'd3')[0];
   assert.ok(buscarNodos(t3, n => n.tag === 'button').some(b => b.textContent === 'Responder'));
   assert.equal(textoChat({ id: 7, titulo: 'Firmar A' }, '  sí, adelante '), '#7 Firmar A: sí, adelante');
+  // Brief 2021 (capa C): el campo de cada tarjeta lleva su propia clave de borrador ('d' + id).
+  const campo1 = buscarNodos(t1, n => n.tag === 'textarea')[0];
+  assert.equal(campo1.attrs['data-conservar'], 'd1');
+});
+
+// Brief 2021 (capa D): abrir/cerrar la tarjeta a mano actualiza la URL sin navegar (history.replaceState),
+// para que un refresco manual del navegador reabra la misma tarjeta.
+test('tarjeta: abrir actualiza el hash a #hoy/<id>; cerrar lo limpia solo si seguia siendo esa tarjeta', () => {
+  const raiz = crearNodo('main');
+  raiz.append(bandeja({ datos: { rol: 'owner', pendientes: [{ id: 9, tipo: 'aprobacion', titulo: 'Firmar Z' }] } }, undefined, ahora));
+  const articulo9 = buscarNodos(raiz, n => n.tag === 'article' && n.attrs.id === 'd9')[0];
+  const det = buscarNodos(articulo9, n => n.tag === 'details')[0];
+  const llamadas = [];
+  const original = globalThis.history.replaceState;
+  globalThis.history.replaceState = (...args) => llamadas.push(args);
+  try {
+    det.open = true; det.listeners.toggle[0]();
+    assert.deepEqual(llamadas.at(-1), [null, '', '/hq/#hoy/9']);
+    globalThis.location.hash = '#hoy/9';
+    det.open = false; det.listeners.toggle[0]();
+    assert.deepEqual(llamadas.at(-1), [null, '', '/hq/#hoy']);
+    // Si mientras tanto el hash ya cambio de tarjeta, cerrar esta no debe tocarlo.
+    globalThis.location.hash = '#hoy/otra';
+    det.open = true; det.listeners.toggle[0]();
+    det.open = false; det.listeners.toggle[0]();
+    assert.equal(llamadas.length, 3, 'cerrar con el hash ya en otra tarjeta no llama a replaceState otra vez');
+  } finally { globalThis.history.replaceState = original; globalThis.location.hash = ''; }
 });
 test('bandeja: sin nada, "Nada que decidir."', () => {
   const raiz = crearNodo('main'); raiz.append(bandeja({ datos: { rol: 'owner' } }, undefined, ahora));

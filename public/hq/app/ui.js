@@ -16,8 +16,35 @@ export function el(tag, attrs = {}, kids = []) {
 // falta para que el teclado se comporte como en cualquier chat: autocomplete off (no son datos
 // guardados), autocorrect/autocapitalize/spellcheck activos, enterkeyhint 'enter'. `attrs` puede añadir
 // o pisar cualquiera de estos (p.ej. autocapitalize:'off' si algun campo concreto lo necesitara).
+// Brief 2021 (feedback movil de Diego, 19-sep): ademas de fotografiar/restaurar (app/conservar.js, que
+// salva un render de main.js), cada campo con `data-conservar` guarda un borrador en localStorage
+// mientras se escribe. Cubre el caso que conservar.js no puede: un cierre de pestaña, un refresco manual
+// del navegador o cualquier otro accidente entre el tick de 60s. Clave real: 'hq_borrador:' + la clave
+// que pase quien llama (p.ej. 'd123' en decisiones.js, 'tablero:nuevo' en tablero.js). localStorage puede
+// no existir o lanzar (modo privado de iOS): todo va en try/catch para no romper el campo.
+const VEINTICUATRO_HORAS_MS = 24 * 60 * 60 * 1000;
 export function campoTexto(attrs = {}, kids = []) {
-  return el('textarea', { autocomplete: 'off', autocorrect: 'on', autocapitalize: 'sentences', spellcheck: 'true', enterkeyhint: 'enter', ...attrs }, kids);
+  const campo = el('textarea', { autocomplete: 'off', autocorrect: 'on', autocapitalize: 'sentences', spellcheck: 'true', enterkeyhint: 'enter', ...attrs }, kids);
+  const clave = attrs['data-conservar'];
+  if (clave) {
+    const llave = 'hq_borrador:' + clave;
+    const leerBorrador = () => {
+      try {
+        const bruto = localStorage.getItem(llave);
+        if (!bruto) return null;
+        const { v, t } = JSON.parse(bruto);
+        if (!v || !t || Date.now() - t > VEINTICUATRO_HORAS_MS) { localStorage.removeItem(llave); return null; }
+        return v;
+      } catch { return null; }
+    };
+    const guardarBorrador = v => {
+      try { v ? localStorage.setItem(llave, JSON.stringify({ v, t: Date.now() })) : localStorage.removeItem(llave); } catch { /* modo privado: sin borrador, el campo sigue funcionando */ }
+    };
+    if (!campo.value) { const guardado = leerBorrador(); if (guardado) campo.value = guardado; }
+    campo.addEventListener('input', () => guardarBorrador(campo.value));
+    campo.olvidarBorrador = () => { try { localStorage.removeItem(llave); } catch { /* nada que borrar si ya fallaba */ } };
+  }
+  return campo;
 }
 export function modal({ titulo, cuerpo, acciones = [] }) {
   const capa = document.getElementById('capa');

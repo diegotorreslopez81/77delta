@@ -7,15 +7,26 @@ import { eur, fecha, horas, enlazar, urlSegura, campoTexto } from '../app/ui.js'
 // decisiones.test.mjs, pero sin necesitar import() dinamico porque ui.js no importa api.js ni main.js).
 function crearNodo(tag) {
   return {
-    tag, nodeType: 1, children: [], attrs: {}, className: '', _text: '',
+    tag, nodeType: 1, children: [], attrs: {}, className: '', _text: '', listeners: {},
     setAttribute(k, v) { this.attrs[k] = v; },
-    addEventListener() {},
-    append(...kids) { for (const k of kids) if (k != null) this.children.push(k); },
+    addEventListener(ev, fn) { (this.listeners[ev] ||= []).push(fn); },
+    // Un <textarea> real toma su valor inicial del texto que se le pasa como hijo (asi lo usan
+    // detalle.js/decisiones.js: campoTexto({...}, [texto])); se replica aqui para poder probar "el campo
+    // ya nace con contenido" con el mismo patron que usa la app.
+    append(...kids) { for (const k of kids) { if (k == null) continue; this.children.push(k); if (this.tag === 'textarea' && k.nodeType === 3) this.value = (this.value || '') + k.data; } },
     set textContent(v) { this._text = v; },
     get textContent() { return this._text; },
   };
 }
 globalThis.document = { createElement: (tag) => crearNodo(tag), createTextNode: (data) => ({ nodeType: 3, data }) };
+// Borrador local de campoTexto (brief 2021, capa C): localStorage propio de este fichero, con memoria
+// aparte para poder simular "storage que lanza" (modo privado de iOS) sin tocar los demas tests.
+const memoriaLS = new Map();
+globalThis.localStorage = {
+  getItem: k => (memoriaLS.has(k) ? memoriaLS.get(k) : null),
+  setItem: (k, v) => memoriaLS.set(k, String(v)),
+  removeItem: k => memoriaLS.delete(k),
+};
 
 test('eur formatea sin decimales y con EUR', () => {
   assert.equal(eur(300000), '300.000 EUR');
@@ -66,4 +77,71 @@ test('urlSegura solo deja pasar http(s) absoluto (fix ronda 2, B2)', () => {
   assert.equal(urlSegura(undefined), null);
   assert.equal(urlSegura('#tablero/f/A3'), null);
   assert.equal(urlSegura('data:text/html,x'), null);
+});
+
+// Brief 2021 (feedback iPhone, 19-sep, capa C): campoTexto con data-conservar guarda un borrador en
+// localStorage mientras se escribe, para sobrevivir a un cierre de pestaña o a un fallo que la capa B
+// (conservar.js, restaurar entre renders) no llegue a cubrir. Clave real: 'hq_borrador:' + la clave.
+test('campoTexto sin data-conservar no toca localStorage (comportamiento de antes intacto)', () => {
+  memoriaLS.clear();
+  const c = campoTexto({ rows: 2 });
+  c.listeners.input?.[0]?.();
+  assert.equal(memoriaLS.size, 0);
+});
+
+test('campoTexto con data-conservar: si hay borrador guardado y el campo nace vacio, lo rellena', () => {
+  memoriaLS.clear();
+  memoriaLS.set('hq_borrador:d1', JSON.stringify({ v: 'prueba borrador', t: Date.now() }));
+  const c = campoTexto({ rows: 2, 'data-conservar': 'd1' });
+  assert.equal(c.value, 'prueba borrador');
+});
+
+test('campoTexto con data-conservar: si el campo ya nace con contenido, no pisa ese valor con el borrador', () => {
+  memoriaLS.clear();
+  memoriaLS.set('hq_borrador:d1', JSON.stringify({ v: 'borrador viejo', t: Date.now() }));
+  const c = campoTexto({ rows: 2, 'data-conservar': 'd1' }, ['ya tenia texto']);
+  assert.notEqual(c.value, 'borrador viejo');
+});
+
+test('campoTexto con data-conservar: al escribir (evento input) guarda el valor, y lo borra si queda vacio', () => {
+  memoriaLS.clear();
+  const c = campoTexto({ rows: 2, 'data-conservar': 'd2' });
+  c.value = 'estoy escribiendo';
+  c.listeners.input[0]();
+  assert.equal(JSON.parse(memoriaLS.get('hq_borrador:d2')).v, 'estoy escribiendo');
+  c.value = '';
+  c.listeners.input[0]();
+  assert.equal(memoriaLS.has('hq_borrador:d2'), false);
+});
+
+test('campoTexto con data-conservar: olvidarBorrador() borra la clave', () => {
+  memoriaLS.clear();
+  const c = campoTexto({ rows: 2, 'data-conservar': 'd3' });
+  c.value = 'algo'; c.listeners.input[0]();
+  assert.equal(memoriaLS.has('hq_borrador:d3'), true);
+  c.olvidarBorrador();
+  assert.equal(memoriaLS.has('hq_borrador:d3'), false);
+});
+
+test('campoTexto con data-conservar: un borrador de mas de 24h caduca, se ignora y se borra', () => {
+  memoriaLS.clear();
+  const hace25h = Date.now() - 25 * 60 * 60 * 1000;
+  memoriaLS.set('hq_borrador:d4', JSON.stringify({ v: 'texto viejo', t: hace25h }));
+  const c = campoTexto({ rows: 2, 'data-conservar': 'd4' });
+  assert.notEqual(c.value, 'texto viejo');
+  assert.equal(memoriaLS.has('hq_borrador:d4'), false, 'la lectura borra la clave caducada');
+});
+
+test('campoTexto con data-conservar: si localStorage lanza (modo privado), no rompe el campo', () => {
+  const original = globalThis.localStorage;
+  globalThis.localStorage = {
+    getItem() { throw new Error('modo privado'); },
+    setItem() { throw new Error('modo privado'); },
+    removeItem() { throw new Error('modo privado'); },
+  };
+  try {
+    const c = campoTexto({ rows: 2, 'data-conservar': 'd5' });
+    assert.doesNotThrow(() => { c.value = 'x'; c.listeners.input[0](); });
+    assert.doesNotThrow(() => c.olvidarBorrador());
+  } finally { globalThis.localStorage = original; }
 });

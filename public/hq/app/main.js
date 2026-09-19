@@ -1,7 +1,8 @@
 import { conf, TOKEN, cargar, rpc, guardarToken, salir } from './api.js';
 import { S, poner } from './estado.js';
 import { el, toast } from './ui.js';
-import { crearRecargador } from './recargador.js';
+import { crearRecargador, decidirRecargaAutomatica } from './recargador.js';
+import { fotografiar, restaurar } from './conservar.js';
 import { resolver } from './rutas.js';
 import { montarMenu, marcarActiva, pintarBarra, cablearShell } from './shell.js';
 import * as hoy from './vistas/hoy.js';
@@ -27,6 +28,11 @@ cablearShell();
 // si difiere del actual (o hay que limpiar la query) se sustituye en el historial para no dejar enlaces
 // viejos colgados. Ruling del controlador (17-sep): comparar contra r.canonico, no solo r.redirigido,
 // porque '#hoy/extra' resuelve a canonico '#hoy' con redirigido=false y aun asi hay que limpiar la URL.
+// Brief 2021 (feedback movil de Diego, 19-sep): ultimaVista recuerda la clave de la ultima vista pintada
+// para saber, en la siguiente llamada, si render() reconstruye la MISMA vista (recarga automatica, tick
+// de 60s) o si el usuario navego a otra (clic de menu, buscador): solo en el primer caso tiene sentido
+// restaurar lo que habia en pantalla (un <details> abierto, un textarea a medio escribir).
+let ultimaVista = null;
 export function render() {
   // Fix Important 3 de la revisión final: sin token, cualquier hashchange (clic en el menú, en "HQ" o
   // Enter en el buscador) llegaba hasta aquí, borraba el formulario de pedirToken() y dejaba "Cargando
@@ -36,10 +42,14 @@ export function render() {
   const r = resolver(location.hash, location.search);
   if (r.canonico !== location.hash || location.search) history.replaceState(null, '', location.pathname + r.canonico);
   marcarActiva(r.clave);
+  const mismaVista = ultimaVista === r.clave;
+  const foto = mismaVista ? fotografiar(raiz, document.activeElement) : null;
   raiz.innerHTML = ''; raiz.className = 'vista vista-' + r.clave.replace('/', '-');
-  if (!S.datos) { raiz.append(el('p', { class: 'cargando', text: 'Cargando HQ...' })); return; }
+  if (!S.datos) { raiz.append(el('p', { class: 'cargando', text: 'Cargando HQ...' })); ultimaVista = r.clave; return; }
   window.HQ_DATOS = S.datos; pintarBarra(S.datos);
   VISTAS[r.clave].render(raiz, S, r.arg, r.filtros);
+  if (foto) restaurar(raiz, foto);
+  ultimaVista = r.clave;
 }
 // Fix ronda 2 (revision final, D3): recargar() coalescido via crearRecargador (modulo sin DOM, con test
 // propio en test/recargador.test.mjs). cargarFn atrapa el error y muestra el toast (igual que antes:
@@ -118,6 +128,22 @@ else {
   // (revision final, D3): el propio tick del intervalo tambien mira document.hidden (antes solo lo
   // miraba el comentario, no el codigo). #1057 tarea 29: al volver a la pestaña solo si ya pasaron 60s
   // desde la última recarga (si el tick de abajo acaba de recargar hace 5s, no hace falta repetir).
-  setInterval(() => { if (!document.hidden) recargarYMarcar(); }, 60000);
-  document.addEventListener('visibilitychange', () => { if (!document.hidden && Date.now() - ultimaRecarga > 60000) recargarYMarcar(); });
+  // Brief 2021 (feedback movil de Diego, 19-sep, capa A): si hay un campo de texto enfocado (escribiendo()
+  // === true) ni el tick de 60s ni el volver-a-la-pestaña deben recargar (eso era lo que cerraba la
+  // tarjeta y borraba el textarea a medio escribir): se deja recargaPendiente = true y un listener de
+  // focusout (con un margen de ~300ms, para que cambiar el foco entre dos campos de la misma tarjeta no
+  // dispare una recarga de mas) la dispara en cuanto deja de haber ningun campo enfocado. Las recargas
+  // explicitas (tras un RPC, el boton manual HQ_RECARGAR) siguen llamando a recargarYMarcar() directo, sin
+  // pasar por aqui.
+  let recargaPendiente = false;
+  function recargaAutomatica() {
+    const { disparar, pendiente } = decidirRecargaAutomatica(escribiendo());
+    if (disparar) recargarYMarcar(); else recargaPendiente = pendiente;
+  }
+  setInterval(() => { if (!document.hidden) recargaAutomatica(); }, 60000);
+  document.addEventListener('visibilitychange', () => { if (!document.hidden && Date.now() - ultimaRecarga > 60000) recargaAutomatica(); });
+  document.addEventListener('focusout', () => {
+    if (!recargaPendiente) return;
+    setTimeout(() => { if (recargaPendiente && !escribiendo()) { recargaPendiente = false; recargarYMarcar(); } }, 300);
+  });
 }

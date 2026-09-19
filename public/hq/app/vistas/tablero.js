@@ -57,7 +57,8 @@ export function cabeceraAhora(S, ahora = new Date()) {
 // añade una segunda llamada a omc_encargo_editar (que además es solo-owner, ver nota en detalle.js).
 function nuevoEncargo(S) {
   const d = S.datos, f = S.filtros;
-  const texto = campoTexto({ rows: 3, placeholder: 'Qué hay que hacer (empieza por el verbo)' });
+  // Brief 2021 (capa C): clave fija 'tablero:nuevo' (un solo modal de alta a la vez, no hace falta id).
+  const texto = campoTexto({ rows: 3, placeholder: 'Qué hay que hacer (empieza por el verbo)', 'data-conservar': 'tablero:nuevo' });
   const frente = el('select', {}, [el('option', { value: '', text: 'Frente (obligatorio)' }), ...(d.frentes || []).map(x => el('option', { value: x.codigo, selected: x.codigo === f.frente, text: x.codigo + ' ' + x.linea }))]);
   const resp = el('select', {}, [el('option', { value: '', text: 'Responsable (por defecto el del frente)' }), ...(d.agentes || []).map(a => el('option', { value: a.id, text: a.nombre }))]);
   const hito = el('input', { class: 'campo', type: 'date' }), etiq = el('input', { class: 'campo', placeholder: 'etiquetas separadas por coma' });
@@ -65,6 +66,7 @@ function nuevoEncargo(S) {
     if (!texto.value.trim() || !frente.value) { toast('texto y frente son obligatorios'); return; }
     try {
       const r = await rpc('omc_encargo_alta', { p: { texto: texto.value.trim(), frente: frente.value, responsable: resp.value || null, fecha_hito: hito.value || null, etiquetas: etiq.value.split(',').map(s => s.trim()).filter(Boolean), origen: 'Diego HQ ' + new Date().toISOString().slice(0, 16).replace('T', ' ') } });
+      texto.olvidarBorrador?.();
       m.cerrar(); toast('encargo #' + r.id + ' creado'); await recargar();
     } catch (err) { toast('HQ rechaza: ' + err.message); }
   } })] });

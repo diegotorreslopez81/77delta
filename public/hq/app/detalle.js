@@ -31,20 +31,28 @@ export async function moverEncargo(e, accion, S, recargar) {
 export async function abrirDetalle(id, S, recargar) {
   let f; try { f = await rpc('omc_encargo_ficha', { p_id: id }); } catch (err) { toast('HQ rechaza: ' + err.message); return; }
   const e = f.encargo, owner = S.datos.rol === 'owner';
-  const campos = { texto: campoTexto({ rows: 3 }, [e.texto || '']), interpretacion: campoTexto({ rows: 2, placeholder: 'Interpretación del chief' }, [e.interpretacion || '']),
+  // Brief 2021 (capa C): solo los textarea de campoTexto llevan data-conservar (borrador en localStorage).
+  // Los select/number/date/texto-input de abajo (frente, agente, prioridad, fecha_hito, etiquetas) viven
+  // en el modal (#capa), fuera del alcance de la recarga automatica que arregla conservar.js, y no pasan
+  // por campoTexto: anadirles la clave no tendria ningun efecto.
+  const campos = { texto: campoTexto({ rows: 3, 'data-conservar': 'e' + e.id + ':texto' }, [e.texto || '']), interpretacion: campoTexto({ rows: 2, placeholder: 'Interpretación del chief', 'data-conservar': 'e' + e.id + ':interpretacion' }, [e.interpretacion || '']),
     frente: el('select', {}, (S.datos.frentes || []).map(x => el('option', { value: x.codigo, selected: x.codigo === e.codigo, text: x.codigo + ' ' + x.linea }))),
     agente: el('select', {}, (S.datos.agentes || []).map(a => el('option', { value: a.id, selected: a.id === e.agente, text: a.nombre + ' (' + a.id + ')' }))),
     prioridad: el('input', { class: 'campo', type: 'number', min: 0, max: 9, value: e.prioridad ?? 0 }), fecha_hito: el('input', { class: 'campo', type: 'date', value: e.fecha_hito || '' }),
-    etiquetas: el('input', { class: 'campo', placeholder: 'etiquetas separadas por coma', value: (e.etiquetas || []).join(', ') }), enlaces: campoTexto({ rows: 2, placeholder: 'un enlace por línea' }, [(e.enlaces || []).join('\n')]) };
+    etiquetas: el('input', { class: 'campo', placeholder: 'etiquetas separadas por coma', value: (e.etiquetas || []).join(', ') }), enlaces: campoTexto({ rows: 2, placeholder: 'un enlace por línea', 'data-conservar': 'e' + e.id + ':enlaces' }, [(e.enlaces || []).join('\n')]) };
   const fila = (nombre, c) => el('label', { class: 'campo-l' }, [el('span', { class: 'mudo', text: nombre }), c]);
   const hilo = el('div', { class: 'hilo' }, (f.avances || []).map(a => el('div', { class: 'avance' }, [el('span', { class: 'mudo', text: fecha(a.ts || a.fecha, { hora: true }) + ' · ' + a.autor + ' · ' + a.tipo }), el('p', { text: a.texto })])));
-  const nuevo = campoTexto({ rows: 2, placeholder: 'Comentario o avance' });
+  const nuevo = campoTexto({ rows: 2, placeholder: 'Comentario o avance', 'data-conservar': 'e' + e.id + ':avance' });
   const guardar = async () => {
     const p = { texto: campos.texto.value.trim(), interpretacion: campos.interpretacion.value.trim(), frente: campos.frente.value, responsable: campos.agente.value, prioridad: Number(campos.prioridad.value), fecha_hito: campos.fecha_hito.value || null,
       etiquetas: campos.etiquetas.value.split(',').map(s => s.trim()).filter(Boolean), enlaces: campos.enlaces.value.split('\n').map(s => s.trim()).filter(Boolean) };
-    try { await rpc('omc_encargo_editar', { p_id: id, p }); toast('#' + id + ' guardado'); m.cerrar(); await recargar(); } catch (err) { toast('HQ rechaza: ' + err.message); }
+    try {
+      await rpc('omc_encargo_editar', { p_id: id, p }); toast('#' + id + ' guardado');
+      campos.texto.olvidarBorrador?.(); campos.interpretacion.olvidarBorrador?.(); campos.enlaces.olvidarBorrador?.();
+      m.cerrar(); await recargar();
+    } catch (err) { toast('HQ rechaza: ' + err.message); }
   };
-  const comentar = async () => { if (!nuevo.value.trim()) return; try { await rpc('omc_encargo_avance', { p_id: id, p_texto: nuevo.value.trim(), p_agente: yo(S) }); m.cerrar(); await recargar(); abrirDetalle(id, S, recargar); } catch (err) { toast('HQ rechaza: ' + err.message); } };
+  const comentar = async () => { if (!nuevo.value.trim()) return; try { await rpc('omc_encargo_avance', { p_id: id, p_texto: nuevo.value.trim(), p_agente: yo(S) }); nuevo.olvidarBorrador?.(); m.cerrar(); await recargar(); abrirDetalle(id, S, recargar); } catch (err) { toast('HQ rechaza: ' + err.message); } };
   const acciones = [el('button', { class: 'btn peligro', text: 'Descartar', onclick: () => { m.cerrar(); moverEncargo(e, { tipo: 'descartar' }, S, recargar); } }),
     e.estado !== 'hecho' ? el('button', { class: 'btn', text: 'Cerrar con fuente', onclick: () => { m.cerrar(); moverEncargo(e, { tipo: 'hecho' }, S, recargar); } }) : null,
     owner ? el('button', { class: 'btn primario', text: 'Guardar', onclick: guardar }) : null];

@@ -25,3 +25,13 @@ export function crearRecargador(cargarFn, renderFn) {
     return enVuelo;
   };
 }
+
+// Brief 2021 (feedback iPhone, 19-sep): el tick de 60s y el visibilitychange de main.js no deben cerrar
+// una tarjeta abierta ni borrar un textarea a medio escribir. Esta funcion es la decision pura ("¿disparo
+// la recarga automatica ya, o la dejo pendiente porque hay un campo de texto enfocado?"), sin tocar DOM:
+// quien llama (main.js) decide que hacer con recargaPendiente y con el listener de focusout que dispara
+// la recarga en cuanto deja de haber un campo enfocado. Las recargas explicitas (tras escribir por RPC,
+// boton manual HQ_RECARGAR) no pasan por aqui: llaman a recargar()/recargarYMarcar() directamente.
+export function decidirRecargaAutomatica(escribiendo) {
+  return { disparar: !escribiendo, pendiente: !!escribiendo };
+}

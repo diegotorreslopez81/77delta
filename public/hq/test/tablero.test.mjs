@@ -176,3 +176,20 @@ test('cabecera Ahora mismo con estado=en_curso: recuento y una pill por agente a
   assert.ok(cabeceraAhora(solos, ahora).textContent.includes('0 agentes activos'));
   assert.ok(cabeceraAhora(solos, ahora).textContent.includes('ningún agente activo'));
 });
+
+// Brief 2021 (capa C): el textarea del modal "Nuevo encargo" lleva data-conservar fijo para que
+// campoTexto() le enganche el borrador de localStorage (mismo patron de intercepcion de getElementById
+// que usa decisiones.test.mjs para pedirMotivos, porque el shim de este fichero no cachea 'capa').
+test('nuevoEncargo: el textarea del modal lleva data-conservar fijo', () => {
+  const raiz = crearNodo('main');
+  render(raiz, Sx(), null, {}, AHORA);
+  const boton = buscarNodos(raiz, n => n.tag === 'button' && n.textContent === '+ Encargo')[0];
+  const capa = crearNodo('div');
+  const original = document.getElementById;
+  document.getElementById = () => capa;
+  try {
+    boton.listeners.click[0]();
+    const textarea = buscarNodos(capa, n => n.tag === 'textarea')[0];
+    assert.equal(textarea.attrs['data-conservar'], 'tablero:nuevo');
+  } finally { document.getElementById = original; }
+});
