@@ -45,9 +45,18 @@ test('usd, proyección del mes natural y agregado por familia de modelo', () => 
   assert.deepEqual(porModelo(undefined), []);
 });
 
+test('bloque de cuenta: usa "medidor-cuenta" y no "medidor cuenta" (2.0.19, colision con el .medidor de tokens.css)', () => {
+  // Regresion del bug de Computo del 19-sep: tokens.css (generado, no se toca) define su propio '.medidor'
+  // de 8px para otro componente; si esta card volviera a llamarse 'medidor cuenta' esa regla la aplasta
+  // otra vez a 8px con overflow oculto y la primera card de Computo vuelve a verse vacia.
+  const raiz = crearNodo('main'); render(raiz, { datos: { cuentas, uso, agentes } }, undefined, {}, ahora);
+  assert.equal(buscarNodos(raiz, n => n.className.startsWith('medidor cuenta')).length, 0);
+  assert.equal(buscarNodos(raiz, n => n.className.startsWith('medidor-cuenta')).length, 2);
+});
+
 test('cuadro: un bloque por cuenta con medidor, semana, ventana, reinicio, antigüedad, pausados y aviso de tercera cuenta', () => {
   const raiz = crearNodo('main'); render(raiz, { datos: { cuentas, uso, agentes } }, undefined, {}, ahora);
-  const bloques = buscarNodos(raiz, n => n.className.startsWith('medidor cuenta'));
+  const bloques = buscarNodos(raiz, n => n.className.startsWith('medidor-cuenta'));
   assert.equal(bloques.length, 2);
   const t = bloques[0].textContent;
   for (const s of ['diego@', '93 %', '12 %', 'saturada', 'muestra de hace 15 min', 'Opus: 40 %', 'reinicio']) assert.ok(t.includes(s), s);
@@ -78,5 +87,5 @@ test('sin cuentas ni uso: sin muestras, sin aviso y paneles de coste vacíos; un
   assert.ok(!buscarNodos(raiz, n => n.className.includes('aviso')).length);
   const r2 = crearNodo('main'); render(r2, { datos: { cuentas: [{ ...cuentas[0], pct_semana: 30, saturada: false }] } }, undefined, {}, ahora);
   assert.ok(!buscarNodos(r2, n => n.className.includes('aviso')).length);
-  assert.ok(buscarNodos(r2, n => n.className.startsWith('medidor cuenta'))[0].textContent.includes('libre'));
+  assert.ok(buscarNodos(r2, n => n.className.startsWith('medidor-cuenta'))[0].textContent.includes('libre'));
 });

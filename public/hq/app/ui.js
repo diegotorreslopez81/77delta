@@ -10,6 +10,15 @@ export function el(tag, attrs = {}, kids = []) {
   for (const k of [].concat(kids)) if (k != null) n.append(k.nodeType ? k : document.createTextNode(String(k)));
   return n;
 }
+// Fix 7 (2.0.19, feedback movil de Diego): en iOS, un textarea sin atributos de teclado declarados a
+// veces se trata como un campo de contacto/direccion (barra "AutoFill Contact" en vez de autocorrector
+// normal). campoTexto() centraliza los textarea de comentario de la app con los atributos que hacen
+// falta para que el teclado se comporte como en cualquier chat: autocomplete off (no son datos
+// guardados), autocorrect/autocapitalize/spellcheck activos, enterkeyhint 'enter'. `attrs` puede añadir
+// o pisar cualquiera de estos (p.ej. autocapitalize:'off' si algun campo concreto lo necesitara).
+export function campoTexto(attrs = {}, kids = []) {
+  return el('textarea', { autocomplete: 'off', autocorrect: 'on', autocapitalize: 'sentences', spellcheck: 'true', enterkeyhint: 'enter', ...attrs }, kids);
+}
 export function modal({ titulo, cuerpo, acciones = [] }) {
   const capa = document.getElementById('capa');
   const cerrar = () => { capa.innerHTML = ''; document.body.classList.remove('con-modal'); };
@@ -21,10 +30,12 @@ export function modal({ titulo, cuerpo, acciones = [] }) {
   document.body.classList.add('con-modal');
   return { cerrar, caja };
 }
-export function toast(texto, accion, fn) {
+// Brief B (19-sep): el aviso de "Trabajar con" cuando no se puede abrir el chat necesita quedarse al
+// menos 6s (hay que leer motivo + qué hacer). `duracion` por defecto sigue en 4000 para no tocar ningún
+// toast existente.
+export function toast(texto, accion, fn, duracion = 4000) {
   const t = el('div', { class: 'toast' }, [el('span', { text: texto }), accion ? el('button', { class: 'btn-enlace', text: accion, onclick: () => { fn(); t.remove(); } }) : null]);
-  // #1057 tarea 29: mismo tiempo con o sin botón de acción (antes 8s/3.5s); 4s alcanza para leer y actuar.
-  document.body.append(t); setTimeout(() => t.remove(), 4000);
+  document.body.append(t); setTimeout(() => t.remove(), duracion);
 }
 const DIAS = ['dom', 'lun', 'mar', 'mié', 'jue', 'vie', 'sáb'];
 export function fecha(iso, { hora = false, tz = 'Europe/Madrid' } = {}) {
@@ -49,7 +60,7 @@ export function urlSegura(u) { return /^https?:\/\//i.test(String(u || '')) ? St
 // delante del textarea (para un motivo de una lista cerrada) sin duplicar el modal.
 export function pedirTexto(titulo, etiqueta, obligatorio = true, { opciones } = {}) {
   return new Promise(res => {
-    const campo = el('textarea', { rows: 3, placeholder: etiqueta });
+    const campo = campoTexto({ rows: 3, placeholder: etiqueta });
     const sel = opciones ? el('select', {}, [el('option', { value: '', text: 'Motivo (opcional)' }), ...opciones.map(o => el('option', { value: o, text: o }))]) : null;
     const m = modal({ titulo, cuerpo: [sel, campo].filter(Boolean), acciones: [el('button', { class: 'btn', text: 'Cancelar', onclick: () => { m.cerrar(); res(null); } }),
       el('button', { class: 'btn primario', text: 'Guardar', onclick: () => {
@@ -66,7 +77,7 @@ export function pedirTexto(titulo, etiqueta, obligatorio = true, { opciones } = 
 export function pedirMotivos(titulo, catalogo) {
   return new Promise(res => {
     const seleccionados = new Set();
-    const detalle = el('textarea', { rows: 3, placeholder: 'Detalle (opcional)' });
+    const detalle = campoTexto({ rows: 3, placeholder: 'Detalle (opcional)' });
     const guardar = el('button', { class: 'btn primario', text: 'Guardar', onclick: () => {
       if (!seleccionados.size) return;
       m.cerrar(); res({ motivos: [...seleccionados], texto: detalle.value.trim() });

@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { DECIDIBLES, ABIERTAS, pendiente, porDecidir, enCriba, porElegible, solvenciaTexto, embudo, estadoDe, tipologia, TIPOLOGIAS, sinSolvencia, filtrar, MOTIVOS_NO, motivosNo } from '../app/licitaciones.js';
+import { DECIDIBLES, ABIERTAS, pendiente, porDecidir, enCriba, porElegible, solvenciaTexto, embudo, estadoDe, tipologia, TIPOLOGIAS, sinSolvencia, filtrar, MOTIVOS_NO, motivosNo, enlacesLic } from '../app/licitaciones.js';
 
 // Fixture de 8 licitaciones (Task 1, plan 3b): cubre decidibles, criba, descartada, aprobada por
 // decision sin ser decidible, presentada y contratada con importe.
@@ -339,4 +339,10 @@ test('filtrar con motivo "sin": solo descartadas sin ningun motivo del catalogo'
     { expediente: 'M4', estado: 'Aprobada', motivos: [] },
   ];
   assert.deepEqual(filtrar(rows, { motivo: 'sin' }).map(l => l.expediente), ['M2', 'M3']);
+});
+
+test('enlacesLic prefiere los pliegos de Drive y cae al portal si no hay copia', () => {
+  const con = { enlace: 'https://p.example/1', carpeta: 'https://drive.google.com/drive/folders/abc', ppt: 'https://p.example/ppt', pcap: 'https://p.example/pcap', ppt_drive: 'https://drive.google.com/file/d/PPT1/view', pcap_drive: '' };
+  assert.deepEqual(enlacesLic(con), [['Perfil', 'https://p.example/1'], ['Carpeta', 'https://drive.google.com/drive/folders/abc'], ['PPT', 'https://drive.google.com/file/d/PPT1/view'], ['PCAP', 'https://p.example/pcap']]);
+  assert.deepEqual(enlacesLic({ enlace: 'https://p.example/2' }), [['Perfil', 'https://p.example/2']]);
 });

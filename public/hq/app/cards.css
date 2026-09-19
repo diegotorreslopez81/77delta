@@ -11,7 +11,7 @@
 .card-agente:hover{box-shadow:0 10px 24px rgba(6,16,31,.08);transform:translateY(-1px)}
 .card-agente .avatar{width:56px;height:56px}
 .card-agente .avatar.letra{font-size:22px}
-.card-agente .cuerpo{display:flex;flex-direction:column;gap:4px;min-width:0;flex:1}
+.card-agente .cuerpo-agente{display:flex;flex-direction:column;gap:4px;min-width:0;flex:1}
 .card-agente h3{margin:0;font-size:15px;line-height:1.3}
 .card-agente h3 a{color:inherit;text-decoration:none}
 .card-agente h3 a:hover{text-decoration:underline}

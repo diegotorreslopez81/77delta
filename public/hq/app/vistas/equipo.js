@@ -153,7 +153,9 @@ export function cuadroEquipo(ags, S, ahora = new Date()) {
 export function tarjetaAgente(a, S, ahora = new Date()) {
   return el('article', { class: 'card-agente', onclick: e => { if (e.target?.closest?.('a, button')) return; location.hash = '#equipo/agente/' + a.id; } }, [
     avatarConChat(a),
-    el('div', { class: 'cuerpo' }, [
+    // 'cuerpo-agente' y no 'cuerpo': ese nombre ya es la clase global del layout del shell (hq.css), y
+    // colisionaba por especificidad heredando align-items:stretch y min-height:100vh en esta tarjeta (19-sep).
+    el('div', { class: 'cuerpo-agente' }, [
       el('h3', {}, [el('a', { href: '#equipo/agente/' + a.id, text: a.nombre || a.id })]),
       el('p', { class: 'sub', text: [a.depto, 'nivel ' + a.nivel, a.modelo].filter(Boolean).join(' · ') }),
       chipsAgente(a, S, ahora),

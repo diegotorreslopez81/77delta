@@ -1005,6 +1005,7 @@ begin
           'tipo', x->>'tipo', 'procedimiento', x->>'procedimiento', 'elegible', x->>'elegible',
           'motivo_auto', left(x->>'motivo_auto', 300), 'solvencia', left(x->>'solvencia', 300),
           'cierre', (x->>'cierre')::date, 'enlace', x->>'enlace', 'pcap', x->>'pcap', 'ppt', x->>'ppt', 'carpeta', x->>'carpeta',
+          'pcap_drive', x->>'pcap_drive', 'ppt_drive', x->>'ppt_drive',
           -- C1 (revision final del controlador): estado '' (cadena vacia, valor por defecto de la
           -- columna) se trata como 'Nueva', no como un estado desconocido que se cae del filtro.
           'estado', coalesce(nullif(x->>'estado', ''), 'Nueva'), 'decision', x->>'decision', 'detectada', x->>'detectada'
@@ -1014,7 +1015,8 @@ begin
         -- todavia no tienen una decision firme (Nueva, Por decidir); Aprobada/Presentada/Pausada se
         -- mandan siempre, aunque su cierre ya haya pasado o sea nulo (si no, Operacion/Licitaciones y
         -- Reglas/Decisiones perdian filas que Diego ya habia aprobado o presentado).
-        where (coalesce(nullif(x->>'estado', ''), 'Nueva') in ('Aprobada', 'Presentada', 'Pausada'))
+        -- 2.0.20: 'En redacción' y 'Analizada' también viajan siempre (chips del embudo de Operación/Licitaciones).
+        where (coalesce(nullif(x->>'estado', ''), 'Nueva') in ('Aprobada', 'Presentada', 'Pausada', 'En redacción', 'Analizada'))
            or (
              ((x->>'cierre') is null or (x->>'cierre')::date >= (ahora - interval '7 days')::date)
              and coalesce(nullif(x->>'estado', ''), 'Nueva') in ('Nueva', 'Por decidir')

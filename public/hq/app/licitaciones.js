@@ -163,3 +163,9 @@ export function filtrar(rows, f = {}) {
     && (!f.motivo || (f.motivo === 'sin' ? (estadoDe(l) === 'Descartada' && motivosNo(l).length === 0) : motivosNo(l).includes(f.motivo)))
     && (!f.desiertas || estadoDe(l) === 'Cerrada sin presentar'));
 }
+
+// Enlaces de la tarjeta de licitación. PPT y PCAP prefieren la copia de Drive que sube el bot
+// (abre en el móvil sin sesión del portal); si aún no está, el enlace del portal (PLACSP, Gencat...).
+export function enlacesLic(l) {
+  return [['Perfil', l.enlace], ['Carpeta', l.carpeta], ['PPT', l.ppt_drive || l.ppt], ['PCAP', l.pcap_drive || l.pcap]].filter(x => x[1]);
+}

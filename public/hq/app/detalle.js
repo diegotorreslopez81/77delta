@@ -1,6 +1,6 @@
 // Modal de un encargo: ficha, edición, hilo, acciones.
 import { rpc } from './api.js';
-import { el, modal, toast, fecha, pedirTexto, urlSegura } from './ui.js';
+import { el, modal, toast, fecha, pedirTexto, urlSegura, campoTexto } from './ui.js';
 import { yo } from './estado.js';
 
 // T5 fix ronda 1: pedirTexto vivia aqui y estaba reimplementado (copiado) en decisiones.js; ahora es
@@ -31,14 +31,14 @@ export async function moverEncargo(e, accion, S, recargar) {
 export async function abrirDetalle(id, S, recargar) {
   let f; try { f = await rpc('omc_encargo_ficha', { p_id: id }); } catch (err) { toast('HQ rechaza: ' + err.message); return; }
   const e = f.encargo, owner = S.datos.rol === 'owner';
-  const campos = { texto: el('textarea', { rows: 3 }, [e.texto || '']), interpretacion: el('textarea', { rows: 2, placeholder: 'Interpretación del chief' }, [e.interpretacion || '']),
+  const campos = { texto: campoTexto({ rows: 3 }, [e.texto || '']), interpretacion: campoTexto({ rows: 2, placeholder: 'Interpretación del chief' }, [e.interpretacion || '']),
     frente: el('select', {}, (S.datos.frentes || []).map(x => el('option', { value: x.codigo, selected: x.codigo === e.codigo, text: x.codigo + ' ' + x.linea }))),
     agente: el('select', {}, (S.datos.agentes || []).map(a => el('option', { value: a.id, selected: a.id === e.agente, text: a.nombre + ' (' + a.id + ')' }))),
     prioridad: el('input', { class: 'campo', type: 'number', min: 0, max: 9, value: e.prioridad ?? 0 }), fecha_hito: el('input', { class: 'campo', type: 'date', value: e.fecha_hito || '' }),
-    etiquetas: el('input', { class: 'campo', placeholder: 'etiquetas separadas por coma', value: (e.etiquetas || []).join(', ') }), enlaces: el('textarea', { rows: 2, placeholder: 'un enlace por línea' }, [(e.enlaces || []).join('\n')]) };
+    etiquetas: el('input', { class: 'campo', placeholder: 'etiquetas separadas por coma', value: (e.etiquetas || []).join(', ') }), enlaces: campoTexto({ rows: 2, placeholder: 'un enlace por línea' }, [(e.enlaces || []).join('\n')]) };
   const fila = (nombre, c) => el('label', { class: 'campo-l' }, [el('span', { class: 'mudo', text: nombre }), c]);
   const hilo = el('div', { class: 'hilo' }, (f.avances || []).map(a => el('div', { class: 'avance' }, [el('span', { class: 'mudo', text: fecha(a.ts || a.fecha, { hora: true }) + ' · ' + a.autor + ' · ' + a.tipo }), el('p', { text: a.texto })])));
-  const nuevo = el('textarea', { rows: 2, placeholder: 'Comentario o avance' });
+  const nuevo = campoTexto({ rows: 2, placeholder: 'Comentario o avance' });
   const guardar = async () => {
     const p = { texto: campos.texto.value.trim(), interpretacion: campos.interpretacion.value.trim(), frente: campos.frente.value, responsable: campos.agente.value, prioridad: Number(campos.prioridad.value), fecha_hito: campos.fecha_hito.value || null,
       etiquetas: campos.etiquetas.value.split(',').map(s => s.trim()).filter(Boolean), enlaces: campos.enlaces.value.split('\n').map(s => s.trim()).filter(Boolean) };

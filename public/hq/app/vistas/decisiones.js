@@ -24,7 +24,7 @@
 // rompia el atributo href del enlace autogenerado e inyectaba atributos (XSS). Se sustituye por enlazar(),
 // que construye los nodos <a>/<br> via el() (atributos DOM reales, no interpolacion de string en innerHTML).
 import { rpc } from '../api.js';
-import { el, modal, toast, fecha, eur, pedirTexto, pedirMotivos, enlazar, urlSegura } from '../ui.js';
+import { el, modal, toast, fecha, eur, pedirTexto, pedirMotivos, enlazar, urlSegura, campoTexto } from '../ui.js';
 import { recargar } from '../main.js';
 import { porDecidir, enCriba, solvenciaTexto, MOTIVOS_NO } from '../licitaciones.js';
 
@@ -71,7 +71,7 @@ function tarjeta(p, abierta, hilo) {
   // (omc_solicitudes.enlace no valida esquema en la BD); un `javascript:...` ahi ejecutaria codigo en
   // el origen de HQ con el token owner a mano. urlSegura() lo descarta antes de pintarlo.
   const enlaceSeguro = urlSegura(p.enlace);
-  const campo = el('textarea', { class: 'campo', rows: 2, placeholder: p.tipo === 'duda' ? 'Tu respuesta' : 'Instrucción o motivo (opcional para aprobar)' });
+  const campo = campoTexto({ class: 'campo', rows: 2, placeholder: p.tipo === 'duda' ? 'Tu respuesta' : 'Instrucción o motivo (opcional para aprobar)' });
   const det = el('details', { open: abierta }, [
     el('summary', {}, [el('div', { class: 'fila' }, [el('span', { class: 'pill', text: p.tipo }), el('strong', { text: p.titulo })]),
       el('p', { class: 'mudo', text: [p.agente, p.importe ? eur(p.importe) : null, p.vence ? 'vence ' + fecha(p.vence, { hora: true }) : null, p.riesgo].filter(Boolean).join(' · ') })]),

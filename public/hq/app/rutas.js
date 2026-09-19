@@ -3,10 +3,10 @@
 // `icono` (plan 3b, T4): svg 24x24 dibujado a mano, sin librerías ni fuente de iconos. shell.js lo
 // inserta con innerHTML (no con document.createElement('svg'), que en un documento HTML no crea un
 // nodo SVG real): así el navegador lo parsea como namespace SVG de verdad y se ve.
-// Menú (encargo #1057, lote 3 tarea 29): Home, KPIs, Tablero, Expedientes y Licitaciones salen cada
-// uno como área propia de una sola vista (antes Tablero/Expedientes/Licitaciones vivían juntos bajo
-// "Operación"); Equipo sigue siendo la única área con más de una vista (Organigrama, Colaboradores),
-// cada una con su propio icono via `icono` en el objeto de la vista (si no lo lleva, usa el del área).
+// Menú (brief B, 19-sep): Home, KPIs, Licitaciones, Expedientes, Tablero, Organigrama, Colaboradores,
+// Recursos y Plan estratégico salen cada uno como área propia de una sola vista. Equipo ya no agrupa
+// Organigrama y Colaboradores (Diego: dos entradas directas donde antes estaba Equipo); las claves de
+// ruta 'equipo/organigrama' y 'equipo/colaboradores' no cambian, solo se reparten en dos áreas.
 const ICONOS = {
   hoy: '<svg class="ico" viewBox="0 0 24 24" stroke="currentColor" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 11l9-7 9 7"/><path d="M5 10v10h14V10"/><path d="M9 20v-6h6v6"/></svg>',
   kpis: '<svg class="ico" viewBox="0 0 24 24" stroke="currentColor" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="3" y1="21" x2="21" y2="21"/><rect x="5" y="14" width="3" height="7"/><rect x="11" y="9" width="3" height="12"/><rect x="17" y="4" width="3" height="17"/></svg>',
@@ -22,10 +22,11 @@ const ICONOS = {
 export const AREAS = [
   { id: 'hoy', nombre: 'Home', icono: ICONOS.hoy, vistas: [{ clave: 'hoy', nombre: 'Home' }] },
   { id: 'kpis', nombre: 'KPIs', icono: ICONOS.kpis, vistas: [{ clave: 'kpis', nombre: 'KPIs' }] },
-  { id: 'tablero', nombre: 'Tablero', icono: ICONOS.operacion, vistas: [{ clave: 'operacion/tablero', nombre: 'Tablero' }] },
-  { id: 'expedientes', nombre: 'Expedientes', icono: ICONOS.expedientes, vistas: [{ clave: 'operacion/expedientes', nombre: 'Expedientes' }] },
   { id: 'licitaciones', nombre: 'Licitaciones', icono: ICONOS.licitaciones, vistas: [{ clave: 'operacion/licitaciones', nombre: 'Licitaciones' }] },
-  { id: 'equipo', nombre: 'Equipo', icono: ICONOS.equipo, vistas: [{ clave: 'equipo/organigrama', nombre: 'Organigrama', icono: ICONOS.organigrama }, { clave: 'equipo/colaboradores', nombre: 'Colaboradores', icono: ICONOS.colaboradores }] },
+  { id: 'expedientes', nombre: 'Expedientes', icono: ICONOS.expedientes, vistas: [{ clave: 'operacion/expedientes', nombre: 'Expedientes' }] },
+  { id: 'tablero', nombre: 'Tablero', icono: ICONOS.operacion, vistas: [{ clave: 'operacion/tablero', nombre: 'Tablero' }] },
+  { id: 'organigrama', nombre: 'Organigrama', icono: ICONOS.organigrama, vistas: [{ clave: 'equipo/organigrama', nombre: 'Organigrama' }] },
+  { id: 'colaboradores', nombre: 'Colaboradores', icono: ICONOS.colaboradores, vistas: [{ clave: 'equipo/colaboradores', nombre: 'Colaboradores' }] },
   { id: 'recursos', nombre: 'Recursos', icono: ICONOS.recursos, vistas: [{ clave: 'recursos/computo', nombre: 'Cómputo' }] },
   { id: 'direccion', nombre: 'Plan estratégico', icono: ICONOS.direccion, vistas: [{ clave: 'direccion/objetivo', nombre: 'Plan estratégico' }] },
 ];
@@ -34,7 +35,11 @@ export const CLAVES = new Set(['hoy', 'kpis', 'direccion/objetivo', 'operacion/t
 // Rutas de la v2.0 (tabs): se redirigen para que no se rompa ningún enlace ya enviado en tarjetas o push.
 const VIEJAS = { inicio: 'hoy', plan: 'direccion/objetivo', tablero: 'operacion/tablero', equipo: 'equipo/organigrama', expedientes: 'operacion/expedientes' };
 // Área sin vista (o con vista desconocida): a su vista por defecto. Recursos: Cómputo desde el lote 1e (#1054); Dinero llega en la tanda 3.
-const DEFECTO = { hoy: 'hoy', kpis: 'kpis', direccion: 'direccion/objetivo', operacion: 'operacion/tablero', equipo: 'equipo/organigrama', recursos: 'recursos/computo' };
+// Diego 19-sep: "Licitaciones, Expedientes y Tablero" es el orden, así que '#operacion' a secas cae en
+// Licitaciones. No hay entrada 'equipo': ese prefijo lo intercepta siempre VIEJAS (línea de abajo) antes
+// de llegar aquí, así que sería código muerto; tampoco hacen falta 'organigrama'/'colaboradores' (como
+// tablero/expedientes/licitaciones, nadie genera un hash de un solo segmento con esos ids).
+const DEFECTO = { hoy: 'hoy', kpis: 'kpis', direccion: 'direccion/objetivo', operacion: 'operacion/licitaciones', recursos: 'recursos/computo' };
 
 export function resolver(hash = '', search = '') {
   const idPush = new URLSearchParams(search || '').get('id');

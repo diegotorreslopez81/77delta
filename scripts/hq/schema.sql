@@ -363,6 +363,7 @@ begin
     'licitaciones', (select coalesce(jsonb_agg(jsonb_build_object('expediente', l.expediente, 'pestana', l.pestana, 'detectada', l.detectada, 'organo', l.organo, 'provincia', l.provincia,
                         'objeto', l.objeto, 'resumen', l.resumen, 'resumen_corto', l.resumen_corto, 'importe', l.importe, 'tipo', l.tipo, 'procedimiento', l.procedimiento,
                         'elegible', l.elegible, 'motivo_auto', l.motivo_auto, 'solvencia', l.solvencia, 'cierre', l.cierre, 'enlace', l.enlace, 'pcap', l.pcap, 'ppt', l.ppt, 'carpeta', l.carpeta,
+                        'pcap_drive', l.pcap_drive, 'ppt_drive', l.ppt_drive,
                         'estado', l.estado, 'decision', l.decision, 'fecha_decision', l.fecha_decision, 'decidido_por', l.decidido_por, 'motivos', to_jsonb(l.motivos), 'motivo_texto', l.motivo_texto,
                         'comentarios', l.comentarios, 'sincronizado', l.sincronizado, 'progreso', l.progreso, 'progreso_nota', l.progreso_nota) order by l.cierre asc nulls last, l.detectada desc), '[]'::jsonb)
                      from public.omc_licitaciones l where l.empresa = e.id and (l.pestana = 'Licitaciones' or l.updated_at > now() - interval '30 days')),
@@ -1117,11 +1118,13 @@ begin
     select jsonb_build_object('expediente', expediente, 'organo', organo, 'provincia', provincia, 'objeto', objeto,
              'resumen_corto', resumen_corto, 'importe', importe, 'tipo', tipo, 'procedimiento', procedimiento, 'elegible', elegible,
              'motivo_auto', left(motivo_auto, 300), 'solvencia', left(solvencia, 300), 'cierre', cierre, 'enlace', enlace,
-             'pcap', pcap, 'ppt', ppt, 'carpeta', carpeta, 'estado', estado, 'decision', decision, 'detectada', detectada,
+             'pcap', pcap, 'ppt', ppt, 'carpeta', carpeta, 'pcap_drive', pcap_drive, 'ppt_drive', ppt_drive, 'estado', estado, 'decision', decision, 'detectada', detectada,
              'pestana', pestana, 'fecha_decision', fecha_decision, 'decidido_por', decidido_por,
              'motivos', to_jsonb(coalesce(motivos, '{}'::text[])), 'motivo_texto', motivo_texto) j
     from public.omc_licitaciones
-    where empresa = t.empresa and estado = 'Descartada'
+    -- 2.0.20: el chip 'Descartadas' de HQ agrupa tambien cerradas sin presentar, retiradas, no adjudicadas
+    -- y el estado sucio 'Descartada: ...' (prefijo); la tarjeta muestra el estado real en una pill.
+    where empresa = t.empresa and (estado like 'Descartada%' or estado in ('Cerrada sin presentar', 'Retirada', 'No adjudicada'))
       and (coalesce(p_motivo, '') = ''
            or (p_motivo = 'sin' and not coalesce(motivos && public.omc_motivos_no(), false))
            or (p_motivo <> 'sin' and p_motivo = any(coalesce(motivos, '{}'::text[]))))

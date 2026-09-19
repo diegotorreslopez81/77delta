@@ -25,6 +25,7 @@ import { sinAcentos } from '../estado.js';
 import { donut, apilada, progreso } from '../graficos.js';
 import { eurCorto, anchoLog, panel, cifra, grafico, leyenda, filaBarra } from '../cuadro.js';
 import { recargar } from '../main.js';
+import { tramo } from './equipo.js';
 
 export function estadoSesion(exp, sesiones) {
   const mias = (sesiones || []).filter(s => s.expediente_id === exp.id);
@@ -32,15 +33,43 @@ export function estadoSesion(exp, sesiones) {
   return { hay: !!s, estado: s ? s.estado : null, sesion: s };
 }
 
-async function trabajarCon(exp, S) {
+// Brief B (19-sep): "Trabajar con" redirigia a ciegas a ag.sesion_url, y esa url puede ser de una
+// sesion muerta (agente inactivo, p.ej. delivery-cupones con activo=false) o de la cuenta equivocada
+// (team@ en vez de diego@). Funcion pura y testeable: decide si se puede abrir de verdad, reutilizando
+// el mismo criterio de "punto verde" que equipo.js (tramo(a, ahora) === 'activo') para el latido, en vez
+// de duplicar esa regla. El mensaje lleva un '{id}' de plantilla porque decidirSesion no llama a la RPC
+// (es pura): quien la llama (trabajarCon) sustituye '{id}' por el id de la solicitud ya creada.
+export function decidirSesion(exp, agentes, ahora = new Date()) {
+  const ag = (agentes || []).find(a => a.id === exp.responsable);
+  if (!ag) return { accion: 'avisar', url: null, mensaje: 'sin responsable' };
+  const url = urlSegura(ag.sesion_url);
+  // ag.activo === false es el caso raiz del bug (Diego: "6 de los 9 expedientes vivos son de
+  // delivery-cupones", que esta inactivo); un latido viejo pese a activo!==false (agente que se
+  // colgo sin avisar) da el mismo resultado practico para quien pulsa el boton, asi que comparte
+  // mensaje: no hay una sesion viva a la que ir.
+  if (ag.activo === false || tramo(ag, ahora) !== 'activo') {
+    return { accion: 'avisar', url: null, mensaje: 'El agente ' + ag.nombre + ' está inactivo: sesión solicitada #{id}, la publicará al arrancar' };
+  }
+  if (!url) return { accion: 'avisar', url: null, mensaje: 'El agente ' + ag.nombre + ' no ha publicado su sesión: solicitada #{id}' };
+  // ag.cuenta la trae el payload cuando el agente corre bajo team@; nunca se adivina con que cuenta ha
+  // entrado quien esta mirando la pantalla, solo se dice la del agente.
+  if (ag.cuenta === 'team') return { accion: 'avisar', url: null, mensaje: 'La sesión de ' + ag.nombre + ' es de la cuenta team@: ábrela con esa cuenta' };
+  return { accion: 'abrir', url, mensaje: null };
+}
+
+async function trabajarCon(exp, S, ahora = new Date()) {
   const ag = (S.datos.agentes || []).find(a => a.id === exp.responsable);
   try {
+    // La peticion queda registrada siempre, se pueda abrir o no (como antes).
     const s = await rpc('omc_sesion_solicitar', { p_expediente: exp.id });
-    // Fix ronda 2 (B2): sesion_url ya la valida omc_agente_sesion_url en la BD (^https://(claude\.ai|
-    // claude\.com)/), pero se pasa por urlSegura tambien aqui por coherencia con el resto de href/src.
-    const url = urlSegura(ag?.sesion_url);
-    if (url) { toast('abriendo la sesión de ' + ag.nombre); setTimeout(() => { location.href = url; }, 400); }
-    else { toast(ag ? ag.nombre + ' no ha publicado su sesión (hq.py agente sesion-url). Queda solicitada #' + s.id : 'sin responsable'); await recargar(); }
+    const d = decidirSesion(exp, S.datos.agentes, ahora);
+    if (d.accion === 'abrir') { toast('abriendo la sesión de ' + ag.nombre); setTimeout(() => { location.href = d.url; }, 400); }
+    else {
+      // Toast persistente (8s, no los 4s de por defecto): hay que leer el motivo y que hacer, no solo
+      // un aviso de un vistazo. Nunca location.href en este caso.
+      toast(d.mensaje.replace('{id}', s.id), null, null, 8000);
+      await recargar();
+    }
   } catch (err) { toast('HQ rechaza: ' + err.message); }
 }
 
@@ -172,7 +201,7 @@ function alta(S) {
   } })] });
 }
 
-async function ficha(raiz, S, id) {
+async function ficha(raiz, S, id, ahora = new Date()) {
   let f; try { f = await rpc('omc_expediente_ficha', { p_id: id }); } catch (err) { toast('HQ rechaza: ' + err.message); raiz.append(el('p', { class: 'error', text: 'No se pudo cargar el expediente.' })); return; }
   const x = f.expediente;
   // f.sesiones (respuesta de omc_expediente_ficha) hace se.* sobre omc_sesiones (schema-v2.sql:633),
@@ -181,15 +210,19 @@ async function ficha(raiz, S, id) {
   const es = estadoSesion(x, f.sesiones?.length ? f.sesiones : S.datos.sesiones), ag = (S.datos.agentes || []).find(a => a.id === x.responsable);
   // Fix ronda 2 (B2): sesion_url, ficha_url y carpeta_url vienen de la BD sin validar esquema.
   const sesionUrl = urlSegura(ag?.sesion_url), fichaUrl = urlSegura(x.ficha_url), carpetaUrl = urlSegura(x.carpeta_url);
+  // Brief B (19-sep): "Volver a la sesión" solo si de verdad hay alguien al otro lado (mismo criterio
+  // de latido que el punto verde de equipo.js); si no, un pill en vez de un botón que lleva a un chat muerto.
+  const activoFresco = !!ag && ag.activo !== false && tramo(ag, ahora) === 'activo';
   raiz.append(el('a', { href: '#operacion/expedientes', class: 'btn-enlace', text: '← expedientes' }));
   raiz.append(el('section', { class: 'objetivo' }, [
     el('p', { class: 'mudo', text: x.tipo + ' · ' + (f.frente ? f.frente.codigo + ' ' + f.frente.linea : '') }),
     el('h1', { text: x.nombre }),
     el('p', { class: 'mudo', text: [x.responsable, x.estado_funnel, x.importe ? eur(x.importe) : null].filter(Boolean).join(' · ') }),
     el('div', { class: 'fila acciones-exp' }, [
-      S.datos.rol === 'owner' && !es.hay ? el('button', { class: 'btn primario', text: 'Trabajar con ' + (ag?.nombre || x.responsable || '…'), onclick: () => trabajarCon(x, S) }) : null,
+      S.datos.rol === 'owner' && !es.hay ? el('button', { class: 'btn primario', text: 'Trabajar con ' + (ag?.nombre || x.responsable || '…'), onclick: () => trabajarCon(x, S, ahora) }) : null,
       es.estado === 'solicitada' ? el('span', { class: 'pill sesion', text: 'sesión solicitada, ' + (ag?.nombre || '') + ' la abre en <1 min' }) : null,
-      es.estado === 'abierta' && sesionUrl ? el('a', { class: 'btn primario', href: sesionUrl, text: 'Volver a la sesión' }) : null,
+      es.estado === 'abierta' && sesionUrl && activoFresco ? el('a', { class: 'btn primario', href: sesionUrl, text: 'Volver a la sesión' }) : null,
+      es.estado === 'abierta' && !(sesionUrl && activoFresco) ? el('span', { class: 'pill sesion', text: 'agente inactivo' }) : null,
       es.hay && S.datos.rol === 'owner' ? el('button', { class: 'btn', text: 'Cerrar sesión', onclick: () => cerrarSesion(es.sesion, S) }) : null,
       fichaUrl ? el('a', { class: 'btn', href: fichaUrl, target: '_blank', rel: 'noopener', text: 'Ficha (Doc)' }) : null,
       carpetaUrl ? el('a', { class: 'btn', href: carpetaUrl, target: '_blank', rel: 'noopener', text: 'Carpeta' }) : null])]));
@@ -202,4 +235,4 @@ async function ficha(raiz, S, id) {
   if (f.kit?.length) raiz.append(el('details', {}, [el('summary', { text: 'Kit del frente (' + f.kit.length + ')' }), ...f.kit.map(k => { const h = urlSegura(k.url); return h ? el('a', { href: h, target: '_blank', rel: 'noopener', class: 'kit', text: k.titulo }) : el('span', { class: 'kit mudo', text: k.titulo }); })]));
 }
 
-export function render(raiz, S, arg, filtrosRuta = {}, ahora = new Date()) { if (arg && /^\d+$/.test(arg)) ficha(raiz, S, Number(arg)); else lista(raiz, S, filtrosRuta, ahora); }
+export function render(raiz, S, arg, filtrosRuta = {}, ahora = new Date()) { if (arg && /^\d+$/.test(arg)) ficha(raiz, S, Number(arg), ahora); else lista(raiz, S, filtrosRuta, ahora); }

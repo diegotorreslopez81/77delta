@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { eur, fecha, horas, enlazar, urlSegura } from '../app/ui.js';
+import { eur, fecha, horas, enlazar, urlSegura, campoTexto } from '../app/ui.js';
 
 // enlazar() solo toca `document` dentro de sus funciones (via el()), nunca al importar el modulo, asi que
 // un shim minimo definido tras un import estatico normal es suficiente (mismo razonamiento que en
@@ -44,6 +44,18 @@ test('enlazar convierte URLs en <a> por atributo real (nunca html:) y saltos de 
   assert.equal(nodos.filter(n => n.tag === 'br').length, 1);
   assert.equal(enlazar('').length, 0);
   assert.equal(enlazar(null).length, 0);
+});
+test('campoTexto crea un textarea con los atributos de teclado que iOS necesita para no ofrecer autofill de contacto (2.0.19, fix 7)', () => {
+  const c = campoTexto({ rows: 3, placeholder: 'Comentario o avance' });
+  assert.equal(c.tag, 'textarea');
+  assert.equal(c.attrs.autocomplete, 'off');
+  assert.equal(c.attrs.autocorrect, 'on');
+  assert.equal(c.attrs.autocapitalize, 'sentences');
+  assert.equal(c.attrs.spellcheck, 'true');
+  assert.equal(c.attrs.enterkeyhint, 'enter');
+  // attrs propios de cada sitio de uso se conservan tal cual.
+  assert.equal(c.attrs.rows, 3);
+  assert.equal(c.attrs.placeholder, 'Comentario o avance');
 });
 test('urlSegura solo deja pasar http(s) absoluto (fix ronda 2, B2)', () => {
   assert.equal(urlSegura('javascript:alert(1)'), null);

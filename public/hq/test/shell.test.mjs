@@ -29,9 +29,9 @@ globalThis.matchMedia = () => ({ matches: false });
 const { montarMenu, marcarActiva, pintarBarra, cablearShell } = await import('../app/shell.js');
 const { AREAS } = await import('../app/rutas.js');
 
-test('montarMenu pinta las ocho áreas del menú nuevo, un enlace por vista y Cómputo en Recursos', () => {
+test('montarMenu pinta las nueve áreas del menú nuevo, un enlace por vista y Cómputo en Recursos', () => {
   const nav = document.createElement('nav'); const m = montarMenu(nav);
-  assert.equal(nav.children.length, 8); assert.equal(m.enlaces.size, 9); // #1057 tarea 29: Home, KPIs, Tablero, Expedientes y Licitaciones separados; Equipo con 2 vistas
+  assert.equal(nav.children.length, 9); assert.equal(m.enlaces.size, 9); // brief B 19-sep: nueve áreas, todas de una sola vista (Equipo ya no agrupa)
   assert.equal(m.enlaces.get('operacion/tablero').attrs.href, '#operacion/tablero');
   // C3 (revision final): data-inicial era codigo muerto (nunca lo leia el CSS ni ningun otro modulo);
   // se retira, y en su lugar se comprueba lo que realmente hace visible el icono en modo plegado.
@@ -61,13 +61,15 @@ test('montarMenu: enlaces de areas con varias vistas llevan class "sub"; los de 
     }
   }
 });
-test('marcarActiva marca el enlace y abre su área; la ficha de agente activa Equipo', () => {
+test('marcarActiva marca el enlace y abre su área; la ficha de agente activa Organigrama', () => {
   const nav = document.createElement('nav'); const m = montarMenu(nav);
   marcarActiva('operacion/tablero');
   assert.ok(m.enlaces.get('operacion/tablero').classList.contains('activa')); assert.ok(!m.enlaces.get('hoy').classList.contains('activa'));
   assert.ok(m.areas.get('tablero').classList.contains('abierta')); assert.ok(!m.areas.get('hoy').classList.contains('abierta'));
+  // 'equipo/agente' (la ficha) no tiene entrada de menú propia; ya no hay área 'equipo' (brief B lo
+  // repartió en organigrama/colaboradores), asi que debe caer en Organigrama.
   marcarActiva('equipo/agente');
-  assert.ok(m.areas.get('equipo').classList.contains('abierta')); assert.ok(!m.enlaces.get('operacion/tablero').classList.contains('activa'));
+  assert.ok(m.areas.get('organigrama').classList.contains('abierta')); assert.ok(!m.enlaces.get('operacion/tablero').classList.contains('activa'));
 });
 test('pintarBarra: contador con número y href; semáforo oculto sin cuentas y con color si las hay', () => {
   pintarBarra({ rol: 'owner', pendientes: [{ id: 1 }, { id: 2 }] });

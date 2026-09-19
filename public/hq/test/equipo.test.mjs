@@ -89,6 +89,16 @@ test('tarjeta de agente: chip de latido en semáforo, cuenta, encargos, frentes 
   assert.match(tarjetaAgente(ags[3], S, AHORA).textContent, /sin latido/);
 });
 
+test('tarjeta de agente: el cuerpo usa "cuerpo-agente" y no "cuerpo" (2.0.19, colision con el layout global del shell)', () => {
+  // Regresion del bug de movil del 19-sep: '.cuerpo' es tambien la clase del layout del shell (hq.css),
+  // con align-items:stretch y min-height:100vh. Si algun dia se renombra por error de vuelta a 'cuerpo'
+  // vuelve a colapsar la card a pantalla completa en 390px. Este test no ve CSS, solo fija el nombre.
+  const c = tarjetaAgente(ags[0], Sx(), AHORA);
+  const cuerpos = buscarNodos(c, n => n.className === 'cuerpo-agente');
+  assert.equal(cuerpos.length, 1);
+  assert.equal(buscarNodos(c, n => n.className === 'cuerpo').length, 0);
+});
+
 test('avatar: sin avatar_url usa el svg propio por id; si falla al cargar, onerror cae a la inicial', () => {
   const c = tarjetaAgente(ags[1], Sx(), AHORA);
   const img = buscarNodos(c, n => n.tag === 'img' && n.className === 'avatar')[0];

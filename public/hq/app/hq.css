@@ -3,9 +3,15 @@
 body{margin:0;background:var(--papel);color:var(--tinta);font-family:var(--body);font-size:16px;line-height:1.45;padding-bottom:env(safe-area-inset-bottom)}
 h1,h2,h3{font-family:var(--display);font-weight:600;letter-spacing:-.02em;line-height:1.15;margin:0}
 a{color:inherit}
-.cab{position:sticky;top:0;z-index:5;display:flex;align-items:center;gap:10px;padding:calc(8px + env(safe-area-inset-top)) 12px 8px;background:var(--marino);color:var(--marfil);min-height:52px}
+/* Sticky en iPhone (19-sep): no hay ningun contenedor con overflow entre '.cab' y 'body' (revisado
+   hq.css/tokens.css/cards.css y main.js), asi que no es un 'scroll dentro de .vista'. El fallo real en
+   iOS Safari con 'position:sticky' sin scroll-ancestor con overflow es casi siempre de composicion
+   (el header se queda en la capa de pintado normal y el motor lo "pierde" durante el scroll inercial):
+   se fuerza su propia capa GPU con translateZ(0) y se añade el prefijo -webkit-sticky por si acaso el
+   iPhone de Diego va con una version vieja de Safari que aun lo requiere. */
+.cab{position:-webkit-sticky;position:sticky;top:0;z-index:5;display:flex;align-items:center;gap:10px;padding:calc(8px + env(safe-area-inset-top)) 12px 8px;background:var(--marino);color:var(--marfil);min-height:52px;transform:translateZ(0)}
 .marca{font-family:var(--display);font-weight:700;text-decoration:none;font-size:18px;color:inherit}
-.btn-icono{font:inherit;font-size:20px;line-height:1;background:none;border:0;color:inherit;cursor:pointer;padding:4px 6px}
+.btn-icono{font:inherit;font-size:22px;line-height:1;background:none;border:0;color:inherit;cursor:pointer;padding:4px 6px;display:inline-flex;align-items:center;justify-content:center}
 #hamburguesa{min-width:44px;min-height:44px}
 .buscador{position:relative;flex:1;max-width:520px;margin-left:auto;min-width:0}
 .buscador .campo{padding:6px 10px;font-size:14px;background:rgba(255,255,255,.1);border-color:transparent;color:var(--marfil)}
@@ -14,13 +20,20 @@ a{color:inherit}
 .resultados a{display:block;padding:8px 10px;text-decoration:none;color:inherit;font-size:14px}.resultados a:hover,.resultados a.marcado{background:var(--oro-suave)}
 .resultados .tipo{font-family:var(--mono);font-size:11px;text-transform:uppercase;color:var(--tinta-2);margin-right:6px}
 .contador{background:var(--oro);color:var(--tinta);border-radius:999px;padding:3px 10px;font-size:13px;font-weight:600;text-decoration:none;white-space:nowrap;min-width:0;overflow:hidden;text-overflow:ellipsis}
-.semaforo{width:14px;height:14px;border-radius:50%;flex:none;display:block}.semaforo.verde{background:var(--exito)}.semaforo.ambar{background:var(--oro-luz)}.semaforo.rojo{background:var(--error)}
+/* Punto rosa de la cabecera (19-sep): es el semaforo de saturacion de cuentas (estado.js
+   semaforoCuentas), no decorativo. Antes era un punto de 14px sin area de toque; ahora el span mide
+   44x44 (mismo objetivo tactil que el resto de botones de la cabecera) con el punto de color en
+   ::before, y shell.js le añade cursor y el toast al tocarlo en movil (aria-label/title ya se rellenan
+   ahi con el texto real, p.ej. 'team@ al 98 % de la ventana'). */
+.semaforo{width:44px;height:44px;flex:none;display:flex;align-items:center;justify-content:center;padding:0;background:none;border:0;cursor:pointer}
+.semaforo::before{content:'';display:block;width:14px;height:14px;border-radius:50%;background:currentColor}
+.semaforo.verde{color:var(--exito)}.semaforo.ambar{color:var(--oro-luz)}.semaforo.rojo{color:var(--error)}
 .cab .salir{color:var(--pizarra-clara);font-size:13px}
 .ver{font-family:var(--mono);font-size:11px;opacity:.6}
 .cuerpo{display:flex;align-items:stretch;min-height:calc(100vh - 52px)}
 .menu{background:var(--panel);border-right:1px solid var(--linea);width:232px;flex:none;display:flex;flex-direction:column;justify-content:space-between;padding:10px 8px;box-sizing:border-box}
 .menu .area{margin-bottom:6px}.area-titulo{display:flex;align-items:center;gap:8px;font-family:var(--display);font-weight:600;font-size:12px;text-transform:uppercase;letter-spacing:.05em;color:var(--tinta-2);margin:8px 10px 2px}
-.ico{display:block;width:20px;height:20px;flex:none}
+.ico{display:block;width:22px;height:22px;flex:none}
 .menu nav a{display:flex;align-items:center;gap:10px;min-height:44px;padding:0 12px;border-radius:var(--radio-boton);text-decoration:none;color:var(--tinta);font-size:15px}
 .menu nav a.activa{background:var(--oro);color:var(--tinta);font-weight:600}.menu .pronto{margin:0 10px;font-size:12px}
 .menu-cab{display:flex;align-items:center;justify-content:space-between;gap:8px;position:sticky;top:0;background:var(--panel);margin:-10px -8px 8px;padding:calc(8px + env(safe-area-inset-top)) 10px 8px;box-shadow:0 0 32px rgba(0,0,0,.3)}
@@ -56,7 +69,13 @@ a{color:inherit}
 .btn-enlace{background:none;border:0;color:var(--oro-oscuro);text-decoration:underline;cursor:pointer;font:inherit}
 .campo,textarea,select{font:inherit;width:100%;padding:8px 10px;border:1px solid var(--linea-fuerte);border-radius:var(--radio-boton);background:var(--papel);color:var(--tinta)}
 .fila{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
-.pill{font-size:12px;padding:2px 8px;border-radius:999px;background:var(--pizarra-tenue);color:var(--tinta-2)}
+/* Pills en oro de marca (2.0.19): antes gris sobre gris, ilegible en oscuro. Nunca se parten en dos
+   lineas (nowrap+ellipsis); el wrap entre pills lo hace el contenedor .chips/.enlaces. */
+.pill{display:inline-flex;align-items:center;gap:5px;font-size:12px;padding:2px 8px;border-radius:999px;white-space:nowrap;max-width:100%;overflow:hidden;text-overflow:ellipsis;background:var(--oro-suave);color:var(--tinta);border:1px solid rgba(167,120,27,.35)}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]) .pill{background:rgba(212,160,58,.18);color:var(--oro-oscuro);border-color:rgba(212,160,58,.45)}
+}
+:root[data-theme="dark"] .pill{background:rgba(212,160,58,.18);color:var(--oro-oscuro);border-color:rgba(212,160,58,.45)}
 .pill.codigo{font-family:var(--mono);background:var(--oro-suave);color:var(--tinta)}
 .mudo{color:var(--tinta-2);font-size:14px}
 .fondo{position:fixed;inset:0;background:rgba(0,0,0,.45);display:flex;align-items:flex-end;justify-content:center;z-index:20}
@@ -102,7 +121,7 @@ a{color:inherit}
 
 /* equipo y expedientes */
 .avatar{width:44px;height:44px;border-radius:50%;flex:none;object-fit:cover;background:var(--marino)}.avatar.letra{display:grid;place-items:center;color:var(--oro);font-family:var(--display);font-weight:700;font-size:20px}
-.agente{align-items:center}.pill.sesion{background:var(--oro-suave);color:var(--tinta)}.acciones-exp{margin-top:10px}.objetivo .btn{color:var(--tinta)}.resumen{margin:4px 0 0;font-size:14px}
+.agente{align-items:center}.acciones-exp{margin-top:10px}.objetivo .btn{color:var(--tinta)}.resumen{margin:4px 0 0;font-size:14px}
 .objetivo .datos{display:flex;gap:18px;flex-wrap:wrap;margin-top:6px}.objetivo .dato{display:grid}.objetivo .dato strong{font-size:16px}.objetivo .dato.mal strong{color:var(--oro-luz)}.objetivo .dato.bien strong{color:#8CB897}
 
 /* operacion/licitaciones */
@@ -168,8 +187,11 @@ a{color:inherit}
 .donut-fila{display:flex;align-items:center;gap:16px;flex-wrap:wrap}.donut{position:relative;width:120px;flex:none}
 .donut .centro{position:absolute;inset:0;display:grid;place-items:center;font-family:var(--display);font-weight:700;font-size:22px;color:var(--tinta)}
 .donut-fila .leyenda{flex-direction:column;flex:1;min-width:120px}
-.medidores{display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:12px}.medidor{text-align:center}.medidor .sub{margin:0}
-.medidores.cuentas{grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:16px}.medidor.cuenta .fila-barra{text-align:left;margin-top:6px}.medidor.cuenta .pill{margin-right:4px}
+.medidores{display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:12px}
+/* '.medidor-cuenta' y no '.medidor': tokens.css (generado, no se toca) ya define un '.medidor' propio de
+   8 px que colisionaba por nombre y aplastaba este medidor circular (19-sep, ver recursos.js). */
+.medidor-cuenta{text-align:center}.medidor-cuenta .sub{margin:0}
+.medidores.cuentas{grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:16px}.medidor-cuenta .fila-barra{text-align:left;margin-top:6px}.medidor-cuenta .pill{margin-right:4px}
 .lista-corta{margin:0;padding-left:16px;font-size:13px;color:var(--tinta-2)}.lista-corta li{margin:2px 0}
 /* Operación/Licitaciones en la línea del cuadro de mando (#1057, HQ 2.0.7) */
 @media(min-width:640px){.panel-kpi.ancho-2{grid-column:span 2}}
@@ -178,7 +200,6 @@ a{color:inherit}
 /* Organigrama en móvil: la fila de pills no puede empujar la card fuera de la pantalla (19-sep, sw 425 con W 390). */
 .card-agente{min-width:0}
 .card-agente .chips{flex-wrap:wrap;overflow:visible}
-.pill.sesion{max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .chip{padding:5px 12px;border-radius:999px;border:1px solid var(--linea);background:var(--panel);color:var(--tinta-2);text-decoration:none;font-size:13px;font-weight:600}
 .chip.activo{background:var(--tinta);border-color:var(--tinta);color:var(--papel)}
 .filtros-rica .campo.mini{flex:1 1 220px;max-width:360px}

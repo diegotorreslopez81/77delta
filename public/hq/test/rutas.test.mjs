@@ -2,12 +2,14 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { AREAS, CLAVES, resolver } from '../app/rutas.js';
 
-// #1057 tarea 29: menú nuevo con ocho áreas (Home, KPIs, Tablero, Expedientes, Licitaciones separados;
-// Equipo sigue siendo la única con más de una vista; Plan estratégico al final).
-test('AREAS tiene las ocho áreas del menú nuevo en orden y cada vista es una clave válida', () => {
-  assert.deepEqual(AREAS.map(a => a.id), ['hoy', 'kpis', 'tablero', 'expedientes', 'licitaciones', 'equipo', 'recursos', 'direccion']);
+// Brief B (19-sep): menú nuevo con nueve áreas, todas de una sola vista. Operación va Licitaciones,
+// Expedientes, Tablero (Diego: "así deberían ir ordenados y no al revés"); Equipo ya no agrupa: se
+// reparte en Organigrama y Colaboradores, en la posición que ocupaba Equipo (justo antes de Recursos).
+test('AREAS tiene las nueve áreas del menú nuevo en orden y cada vista es una clave válida', () => {
+  assert.deepEqual(AREAS.map(a => a.id), ['hoy', 'kpis', 'licitaciones', 'expedientes', 'tablero', 'organigrama', 'colaboradores', 'recursos', 'direccion']);
   for (const a of AREAS) for (const v of a.vistas) assert.ok(CLAVES.has(v.clave), v.clave);
-  assert.deepEqual(AREAS.find(a => a.id === 'equipo').vistas.map(v => v.clave), ['equipo/organigrama', 'equipo/colaboradores']);
+  assert.deepEqual(AREAS.find(a => a.id === 'organigrama').vistas.map(v => v.clave), ['equipo/organigrama']);
+  assert.deepEqual(AREAS.find(a => a.id === 'colaboradores').vistas.map(v => v.clave), ['equipo/colaboradores']);
   assert.deepEqual(AREAS.find(a => a.id === 'recursos').vistas.map(v => v.clave), ['recursos/computo'], 'Recursos: Cómputo desde #1054; Dinero llega en la tanda 3');
 });
 
@@ -22,7 +24,7 @@ const casos = [
   ['#tablero/f/A3', '', 'operacion/tablero', undefined, { frente: 'A3' }, '#operacion/tablero?frente=A3', true],
   ['#tablero/12', '', 'operacion/tablero', '12', {}, '#operacion/tablero/12', true],
   ['#operacion/tablero?frente=A1&agente=sales-motor', '', 'operacion/tablero', undefined, { frente: 'A1', agente: 'sales-motor' }, '#operacion/tablero?frente=A1&agente=sales-motor', false],
-  ['#operacion', '', 'operacion/tablero', undefined, {}, '#operacion/tablero', true],
+  ['#operacion', '', 'operacion/licitaciones', undefined, {}, '#operacion/licitaciones', true],
   ['#decisiones', '', 'hoy', 'bandeja', {}, '#hoy/bandeja', true],
   ['#decisiones/77', '', 'hoy', '77', {}, '#hoy/77', true],
   ['#reglas/decisiones/77', '', 'hoy', '77', {}, '#hoy/77', true],

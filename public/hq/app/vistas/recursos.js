@@ -44,7 +44,10 @@ function bloqueCuenta(c, ahora) {
   const peor = peorPct(c), col = color(peor);
   const fila = (nombre, pct, fin) => { const p = pctEntero(pct), h = horasHasta(fin, ahora);
     return filaBarra(nombre + (fin ? ' · reinicio ' + fecha(fin, { hora: true }) + (h != null ? ' (en ' + h + ' h)' : '') : ''), p + ' %', p, color(p)); };
-  return el('div', { class: 'medidor cuenta ' + col }, [
+  // 'medidor-cuenta' y no 'medidor': tokens.css ya define un '.medidor' de 8px (barra lineal de otro
+  // componente) y colisionaba por especificidad, aplastando el medidor circular a 8px con overflow oculto
+  // y dejando la primera card de Computo vacia en apariencia (19-sep).
+  return el('div', { class: 'medidor-cuenta ' + col }, [
     grafico(medidor(peor, (c.cuenta || c.clave || '?') + ' ' + peor + ' %', col)),
     el('p', { class: 'cifra-m', text: peor + ' %' }),
     el('p', {}, [el('span', { class: 'pill ' + col, text: etiqueta(peor) }), el('b', { text: ' ' + (c.cuenta || c.clave || '?') })]),

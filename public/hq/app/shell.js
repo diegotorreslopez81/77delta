@@ -12,6 +12,9 @@
 // #buscador, que sí existe ya en index.html.
 import { AREAS } from './rutas.js';
 import { el, toast } from './ui.js';
+// 2.0.19: mismo texto para el title (hover en escritorio) y el toast del tap en movil del punto de
+// saturacion de cuentas, para no repetirlo en dos sitios.
+const textoSemaforo = s => s.cuenta + ' al ' + s.pct + ' % de la ventana';
 import { buscar } from './buscador.js';
 import { contador, semaforoCuentas } from './estado.js';
 
@@ -24,11 +27,10 @@ const ICONO_RECARGAR = '<svg class="ico" viewBox="0 0 24 24" stroke="currentColo
 export function montarMenu(nav) {
   nav.innerHTML = ''; ref.enlaces.clear(); ref.areas.clear();
   for (const a of AREAS) {
-    // Menú (#1057 tarea 29): un área con una sola vista sale como un único enlace icono+texto, sin
-    // 'area-titulo' encima (sería repetir la misma línea dos veces). Equipo es la única área con más
-    // de una vista: lleva su título y cada sub-vista con su propio icono (`v.icono`, si no cae al de
-    // el área). hq.css ya no oculta el icono de '.sub' (regla retirada, era de cuando todas las
-    // sub-vistas compartían el icono del área y se repetía).
+    // Menú (#1057 tarea 29; brief B 19-sep quitó el grupo Equipo): un área con una sola vista sale como
+    // un único enlace icono+texto, sin 'area-titulo' encima (sería repetir la misma línea dos veces).
+    // Hoy ninguna área tiene más de una vista, pero el camino de 'varias vistas' (título + '.sub') se
+    // deja tal cual por si vuelve a hacer falta agrupar algo.
     const unaVista = a.vistas.length === 1;
     const titulo = unaVista ? null : el('p', { class: 'area-titulo' }, [el('span', { class: 'ico', html: a.icono }), a.nombre]);
     const div = el('div', { class: 'area', 'data-area': a.id }, [titulo,
@@ -72,12 +74,14 @@ function montarAcciones() {
   ref.badgeCampana = badge; ref.campana = campana; ref.recargarBtn = btnRecargar;
 }
 export function marcarActiva(clave) {
-  // #1057 tarea 29: Tablero, Expedientes y Licitaciones pasan a ser áreas propias (id 'tablero',
-  // 'expedientes', 'licitaciones') aunque su clave de ruta siga bajo el prefijo 'operacion/' (las
-  // claves de ruta no cambian). El id del área ya no coincide con ese prefijo, así que se busca el
-  // área por la vista que contiene la clave; 'equipo/agente' (la ficha, sin entrada de menú) cae al
-  // prefijo de siempre.
-  const area = AREAS.find(a => a.vistas.some(v => v.clave === clave))?.id || clave.split('/')[0];
+  // #1057 tarea 29: Tablero, Expedientes y Licitaciones son áreas propias (id 'tablero', 'expedientes',
+  // 'licitaciones') aunque su clave de ruta siga bajo el prefijo 'operacion/' (las claves de ruta no
+  // cambian). El id del área ya no coincide con ese prefijo, así que se busca el área por la vista que
+  // contiene la clave. 'equipo/agente' (la ficha, sin entrada de menú) no está en ninguna vista del
+  // menú: cae al prefijo 'equipo', pero desde el brief B (19-sep) ya no hay área 'equipo' (se repartió
+  // en 'organigrama' y 'colaboradores'), así que ese prefijo se remapea a 'organigrama'.
+  const area = AREAS.find(a => a.vistas.some(v => v.clave === clave))?.id
+    || (clave.split('/')[0] === 'equipo' ? 'organigrama' : clave.split('/')[0]);
   for (const [k, e] of ref.enlaces) e.classList.toggle('activa', k === clave);
   for (const [id, d] of ref.areas) d.classList.toggle('abierta', id === area);
 }
@@ -100,7 +104,11 @@ export function pintarBarra(datos) {
   if (ref.badgeCampana) { ref.badgeCampana.textContent = String(c.n); ref.badgeCampana.hidden = !c.n; }
   const s = semaforoCuentas(datos), sem = $('semaforo');
   sem.hidden = !s;
-  if (s) { sem.className = 'semaforo ' + s.color; sem.setAttribute('title', s.cuenta + ' al ' + s.pct + ' % de la ventana'); }
+  // Punto de saturacion de cuentas (19-sep, feedback movil de Diego: "punto rosa" sin explicar que era).
+  // aria-label y title llevan ya el estado real (antes el aria-label era el fijo 'Cuentas' de index.html);
+  // ref.semaforo guarda el texto para el toast del click, que se cablea una sola vez en cablearShell().
+  if (s) { sem.className = 'semaforo ' + s.color; const t = textoSemaforo(s); sem.setAttribute('title', t); sem.setAttribute('aria-label', t); ref.semaforo = t; }
+  else ref.semaforo = null;
 }
 // Minor 4 (revision final): aria-label del hamburguesa alterna Abrir/Cerrar menu junto con aria-expanded.
 export function cerrarMenu() {
@@ -125,12 +133,21 @@ export function cablearShell() {
   cerrarMenu();
   $('hamburguesa').addEventListener('click', () => (document.body.classList.contains('menu-abierto') ? cerrarMenu() : abrirMenu()));
   $('velo').addEventListener('click', cerrarMenu);
+  // Punto de saturacion de cuentas: en escritorio ya se lee al pasar el raton (title); en movil no hay
+  // hover, asi que un toque muestra el mismo texto en un toast (19-sep).
+  $('semaforo').addEventListener('click', () => { if (ref.semaforo) toast(ref.semaforo); });
   // Plegado del menú (solo escritorio). Se recuerda en localStorage hq_menu ('plegado' o 'abierto').
   let plegado = false; try { plegado = localStorage.getItem('hq_menu') === 'plegado'; } catch {}
   document.body.classList.toggle('menu-plegado', plegado);
   $('plegar').addEventListener('click', () => { const p = !document.body.classList.contains('menu-plegado'); document.body.classList.toggle('menu-plegado', p); try { localStorage.setItem('hq_menu', p ? 'plegado' : 'abierto'); } catch {} });
   // Buscador: pinta hasta 12 resultados bajo el campo; Enter abre el primero; Escape cierra.
   const campo = $('busqueda'), lista = $('resultados');
+  // index.html es de solo lectura en este lote: el placeholder real (busca por encargo/tarjeta o por
+  // expediente de licitacion, ver buscador.js FUENTES) y el teclado de iOS (sin autocorrector ni
+  // mayuscula automatica en un campo de busqueda) se ajustan aqui (19-sep).
+  campo.setAttribute('placeholder', 'Buscar tarjeta o expediente');
+  campo.setAttribute('autocorrect', 'off');
+  campo.setAttribute('autocapitalize', 'off');
   const cerrarLista = () => { lista.hidden = true; lista.innerHTML = ''; };
   const pintar = () => {
     const r = buscar(window.HQ_DATOS || {}, campo.value);

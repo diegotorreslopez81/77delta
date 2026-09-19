@@ -1,6 +1,6 @@
 // Tablero Kanban: filtros, alta de encargo, arrastre y detalle.
 import { rpc } from '../api.js';
-import { el, modal, toast, fecha } from '../ui.js';
+import { el, modal, toast, fecha, campoTexto } from '../ui.js';
 import { apilada } from '../graficos.js';
 import { panel, cifra, grafico, leyenda, filaBarra } from '../cuadro.js';
 import { kanban, COLUMNAS, yo } from '../estado.js';
@@ -35,7 +35,7 @@ function filtros(S, pintar) {
 // añade una segunda llamada a omc_encargo_editar (que además es solo-owner, ver nota en detalle.js).
 function nuevoEncargo(S) {
   const d = S.datos, f = S.filtros;
-  const texto = el('textarea', { rows: 3, placeholder: 'Qué hay que hacer (empieza por el verbo)' });
+  const texto = campoTexto({ rows: 3, placeholder: 'Qué hay que hacer (empieza por el verbo)' });
   const frente = el('select', {}, [el('option', { value: '', text: 'Frente (obligatorio)' }), ...(d.frentes || []).map(x => el('option', { value: x.codigo, selected: x.codigo === f.frente, text: x.codigo + ' ' + x.linea }))]);
   const resp = el('select', {}, [el('option', { value: '', text: 'Responsable (por defecto el del frente)' }), ...(d.agentes || []).map(a => el('option', { value: a.id, text: a.nombre }))]);
   const hito = el('input', { class: 'campo', type: 'date' }), etiq = el('input', { class: 'campo', placeholder: 'etiquetas separadas por coma' });

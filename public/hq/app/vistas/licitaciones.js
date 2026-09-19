@@ -7,7 +7,7 @@
 // La vista no gatea por rol: omc_hq_v2 solo sirve licitaciones al owner.
 import { el, fecha, urlSegura } from '../ui.js';
 import { sinAcentos } from '../estado.js';
-import { embudo, enCriba, porElegible, porDecidir, ordenCierre, estadoDe, solvenciaTexto, pipelinePorMes, pendiente, ABIERTAS, DECIDIBLES, tipologia, TIPOLOGIAS, filtrar, motivosNo, MOTIVOS_NO } from '../licitaciones.js';
+import { embudo, enCriba, porElegible, porDecidir, ordenCierre, estadoDe, solvenciaTexto, pipelinePorMes, pendiente, ABIERTAS, DECIDIBLES, tipologia, TIPOLOGIAS, filtrar, motivosNo, MOTIVOS_NO, enlacesLic } from '../licitaciones.js';
 import { donut, barras } from '../graficos.js';
 import { eurCorto, anchoLog, panel, cifra, grafico, leyenda, ejeX, filaBarra } from '../cuadro.js';
 
@@ -130,7 +130,7 @@ function alternar(art) {
 }
 export function tarjetaLic(l, ahora = new Date()) {
   const p = plazo(l.cierre, ahora), est = estadoDe(l);
-  const enlaces = [['Perfil', l.enlace], ['Carpeta', l.carpeta], ['PPT', l.ppt], ['PCAP', l.pcap]].map(([t, u]) => [t, urlSegura(u)]).filter(x => x[1]);
+  const enlaces = enlacesLic(l).map(([t, u]) => [t, urlSegura(u)]).filter(x => x[1]);
   const solv = solvenciaTexto(l);
   const tipo = tipologia(l.organo);
   // #1063: motivos de NO como tags neutros (misma clase 'pill' que tipo/procedimiento, nunca oro), solo

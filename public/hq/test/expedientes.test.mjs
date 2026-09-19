@@ -45,7 +45,7 @@ if (typeof globalThis.localStorage === 'undefined') {
   globalThis.localStorage = { getItem: (k) => (mem.has(k) ? mem.get(k) : null), setItem: (k, v) => mem.set(k, String(v)), removeItem: (k) => mem.delete(k) };
 }
 
-const { estadoSesion, render, tarjetaExp, pasoEconomico, porFase, sinActualizar, buscarExp, panelesExpedientes } = await import('../app/vistas/expedientes.js');
+const { estadoSesion, render, tarjetaExp, pasoEconomico, porFase, sinActualizar, buscarExp, panelesExpedientes, decidirSesion } = await import('../app/vistas/expedientes.js');
 
 test('estadoSesion prioriza abierta, luego solicitada, luego nada', () => {
   const ses = [{ id: 1, expediente_id: 5, estado: 'cerrada' }, { id: 2, expediente_id: 5, estado: 'solicitada' }, { id: 3, expediente_id: 6, estado: 'abierta' }];
@@ -140,6 +140,50 @@ test('tarjetaExp: fase con punto, sesión, responsable por nombre, importe, paso
   const sinDato = tarjetaExp(xs[4], S());
   assert.ok(sinDato.textContent.includes('importe sin dato') && sinDato.textContent.includes('0 encargos abiertos'));
   assert.equal(buscarNodos(sinDato, n => clase(n, 'plazo-barra')).length, 0);
+});
+
+// Brief B (19-sep): "Trabajar con" ya no redirige a ciegas. decidirSesion es pura (sin RPC ni DOM):
+// el '{id}' de los mensajes lo sustituye trabajarCon con el id que devuelve omc_sesion_solicitar.
+// Umbral de "latido reciente" = tramo(a, ahora) === 'activo' en equipo.js, o sea menos de 1 hora.
+const agenteVivo = { id: 'agente-x', nombre: 'Agente X', activo: true, sesion_url: 'https://claude.ai/chat/abc', ultima_actividad: new Date(AHORA.getTime() - 10 * 60000).toISOString() };
+const agenteSinSesion = { id: 'agente-y', nombre: 'Agente Y', activo: true, ultima_actividad: new Date(AHORA.getTime() - 10 * 60000).toISOString() };
+const agenteInactivo = { id: 'delivery-cupones', nombre: 'Nil', activo: false, sesion_url: 'https://claude.ai/chat/def', ultima_actividad: new Date(AHORA.getTime() - 2 * 3600000).toISOString() };
+const agenteCuentaTeam = { id: 'agente-z', nombre: 'Agente Z', activo: true, cuenta: 'team', sesion_url: 'https://claude.ai/chat/ghi', ultima_actividad: new Date(AHORA.getTime() - 10 * 60000).toISOString() };
+const agenteLatidoViejo = { id: 'agente-w', nombre: 'Agente W', activo: true, sesion_url: 'https://claude.ai/chat/jkl', ultima_actividad: new Date(AHORA.getTime() - 25 * 3600000).toISOString() };
+const agentesGuardia = [agenteVivo, agenteSinSesion, agenteInactivo, agenteCuentaTeam, agenteLatidoViejo];
+
+test('decidirSesion: activo con latido reciente abre la sesion de verdad', () => {
+  const d = decidirSesion({ id: 1, responsable: 'agente-x' }, agentesGuardia, AHORA);
+  assert.deepEqual(d, { accion: 'abrir', url: 'https://claude.ai/chat/abc', mensaje: null });
+});
+
+test('decidirSesion: activo pero sin sesion publicada avisa con el id de la solicitud', () => {
+  const d = decidirSesion({ id: 2, responsable: 'agente-y' }, agentesGuardia, AHORA);
+  assert.equal(d.accion, 'avisar'); assert.equal(d.url, null);
+  assert.equal(d.mensaje, 'El agente Agente Y no ha publicado su sesión: solicitada #{id}');
+});
+
+test('decidirSesion: inactivo con sesion avisa que la publicara al arrancar, nunca abre', () => {
+  const d = decidirSesion({ id: 3, responsable: 'delivery-cupones' }, agentesGuardia, AHORA);
+  assert.equal(d.accion, 'avisar'); assert.equal(d.url, null);
+  assert.equal(d.mensaje, 'El agente Nil está inactivo: sesión solicitada #{id}, la publicará al arrancar');
+});
+
+test('decidirSesion: agente inexistente avisa sin responsable', () => {
+  const d = decidirSesion({ id: 4, responsable: 'no-existe' }, agentesGuardia, AHORA);
+  assert.deepEqual(d, { accion: 'avisar', url: null, mensaje: 'sin responsable' });
+});
+
+test('decidirSesion: sesion de la cuenta team@ nunca se abre sola, se dice de que cuenta es', () => {
+  const d = decidirSesion({ id: 5, responsable: 'agente-z' }, agentesGuardia, AHORA);
+  assert.equal(d.accion, 'avisar'); assert.equal(d.url, null);
+  assert.equal(d.mensaje, 'La sesión de Agente Z es de la cuenta team@: ábrela con esa cuenta');
+});
+
+test('decidirSesion: activo=true pero latido de mas de un dia cuenta como inactivo (mismo umbral que el punto verde)', () => {
+  const d = decidirSesion({ id: 6, responsable: 'agente-w' }, agentesGuardia, AHORA);
+  assert.equal(d.accion, 'avisar'); assert.equal(d.url, null);
+  assert.match(d.mensaje, /está inactivo/);
 });
 
 test('pasoEconomico, porFase, sinActualizar y buscarExp: funciones puras', () => {
