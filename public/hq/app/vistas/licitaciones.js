@@ -12,6 +12,15 @@ import { donut, barras } from '../graficos.js';
 import { eurCorto, anchoLog, panel, cifra, grafico, leyenda, ejeX, filaBarra } from '../cuadro.js';
 
 const ACTIVAS = new Set(['Aprobada', 'Presentada']);
+
+// #1063: las descartadas no viajan en omc_hq_v2 (peso), asi que la pestana 'descartadas' las pide a
+// omc_licitaciones_descartadas al entrar (por motivo, tope 300) y las cachea en S cinco minutos. api.js
+// se importa en diferido porque toca location/localStorage al cargarse y los tests importan esta vista
+// sin DOM; usarCargador() permite a los tests sustituir la RPC por una funcion propia.
+let cargador = async motivo => (await import('../api.js')).rpc('omc_licitaciones_descartadas', { p_motivo: motivo || null, p_limite: 300 });
+export function usarCargador(fn) { cargador = fn; }
+const CACHE_MS = 5 * 60e3;
+let turno = 0;
 const COLOR_ESTADO = { Aprobada: 'tinta', Presentada: 'tinta-2', 'Por decidir': 'neutro-1', Pausada: 'neutro-2', Nueva: 'neutro-3' };
 const DIA = 864e5;
 const importe = l => Number(l.importe) || 0;
@@ -228,7 +237,7 @@ export function render(raiz, S, arg, filtrosRuta = {}, ahora = new Date()) {
     estado === 'criba' ? el('label', {}, [el('input', { type: 'checkbox', checked: f.desiertas || undefined, onchange: e => { location.hash = ruta({ desiertas: e.target.checked ? '1' : '' }); } }), 'Solo desiertas']) : null,
   ];
 
-  const base = filtrar(ordenar(porFiltro(lics, estado), orden), f);
+  let base = filtrar(ordenar(porFiltro(lics, estado), orden), f);
   const lista = el('div', { class: estado === 'criba' ? 'lista-criba' : 'lista-rica' });
   const pintarLista = texto => {
     const rows = buscar(base, texto);
@@ -245,4 +254,26 @@ export function render(raiz, S, arg, filtrosRuta = {}, ahora = new Date()) {
   ]));
   raiz.append(lista);
   pintarLista('');
+
+  // Pestana 'descartadas': el payload no las trae (o trae solo las recientes); se piden al servidor y se
+  // repinta la lista cuando llegan, salvo que otro render haya tomado el relevo mientras tanto.
+  if (estado !== 'descartadas') return;
+  const mio = ++turno;
+  const clave = f.motivo || '';
+  const cache = S.cacheDescartadas;
+  const pintarServidor = rows => {
+    base = filtrar(rows, f);
+    pintarLista('');
+    if (rows.length >= 300) lista.append(el('p', { class: 'mudo', text: 'se muestran las 300 descartadas más recientes' }));
+  };
+  if (cache && cache.clave === clave && Date.now() - cache.ts < CACHE_MS) { pintarServidor(cache.rows); return; }
+  const aviso = el('p', { class: 'mudo', text: 'cargando descartadas…' });
+  if (!base.length) lista.innerHTML = '';
+  lista.append(aviso);
+  return cargador(clave).then(rows => {
+    if (mio !== turno || raiz.isConnected === false) return;
+    if (!Array.isArray(rows)) { aviso.remove(); return; }
+    S.cacheDescartadas = { clave, rows, ts: Date.now() };
+    pintarServidor(rows);
+  }).catch(() => { if (mio === turno) aviso.textContent = 'no se pudieron cargar las descartadas del servidor'; });
 }

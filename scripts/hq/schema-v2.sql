@@ -1037,6 +1037,18 @@ begin
           'contratadas', jsonb_build_object('n', count(*) filter (where l.estado = 'Contratada'), 'eur', coalesce(sum(l.importe) filter (where l.estado = 'Contratada'), 0)))
         from omc_licitaciones l where l.empresa = t.empresa
       ) else '{}'::jsonb end,
+    -- #1063: motivos de NO ya contados en SQL. Las descartadas no viajan en 'licitaciones' (peso), asi que
+    -- el panel "Por que no vamos" de KPIs se sirve agregado; el listado por motivo lo da
+    -- omc_licitaciones_descartadas bajo demanda. Solo owner.
+    'lic_motivos', case when es_owner then (
+        select jsonb_build_object(
+          'descartadas', count(*),
+          'con_motivo', count(*) filter (where l.motivos && omc_motivos_no()),
+          'motivos', (select coalesce(jsonb_agg(jsonb_build_object('motivo', s.m, 'n', s.n) order by s.n desc, s.m), '[]'::jsonb)
+                      from (select m, count(*) n from omc_licitaciones l2, unnest(l2.motivos) m
+                            where l2.empresa = t.empresa and l2.estado = 'Descartada' and m = any(omc_motivos_no()) group by m) s))
+        from omc_licitaciones l where l.empresa = t.empresa and l.estado = 'Descartada'
+      ) else '{}'::jsonb end,
     'cuentas', case when es_owner then omc_cuentas_estado(p_token) else '[]'::jsonb end,
     -- #1056 (Home): KPIs vivos de omc_kpis (correo.% de hq-correo y cuentas.% del trigger de omc_plan). Solo owner.
     'kpis', case when es_owner then omc_kpis_home(t.empresa) else '{}'::jsonb end,

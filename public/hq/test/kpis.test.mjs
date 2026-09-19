@@ -41,7 +41,7 @@ if (typeof globalThis.localStorage === 'undefined') {
   globalThis.localStorage = { getItem: (k) => (mem.has(k) ? mem.get(k) : null), setItem: (k, v) => mem.set(k, String(v)), removeItem: (k) => mem.delete(k) };
 }
 
-const { render, GRUPOS, porMotivo } = await import('../app/vistas/kpis.js');
+const { render, GRUPOS, porMotivo, filasMotivos } = await import('../app/vistas/kpis.js');
 const { derivar } = await import('../app/estado.js');
 const { cargarColaboradores, limpiarCache } = await import('../app/vistas/colaboradores.js');
 
@@ -163,6 +163,34 @@ test('render: panel "Por qué no vamos" en Licitaciones cuando hay descartadas c
   assert.ok(r.textContent.includes('Por qué no vamos'));
   assert.ok(r.textContent.includes('Sin pliego'));
   assert.ok(r.textContent.includes('descartadas con motivo del catálogo · 1 de 2'));
+});
+
+// Desde la 2.0.18 el payload trae lic_motivos agregado en SQL (las descartadas no viajan en 'licitaciones').
+test('filasMotivos: con lic_motivos usa el agregado del servidor, ordena desc, anade "Sin motivo" y omite ceros', () => {
+  const d = { licitaciones: [], lic_motivos: { descartadas: 10, con_motivo: 7, motivos: [
+    { motivo: 'Presencial', n: 2 }, { motivo: 'Fuera de España', n: 5 }, { motivo: 'Duplicada', n: 0 } ] } };
+  assert.deepEqual(filasMotivos(d), { filas: [
+    { motivo: 'Fuera de España', n: 5 }, { motivo: 'Presencial', n: 2 }, { motivo: 'Sin motivo', n: 3 } ], total: 10, conMotivo: 7 });
+});
+
+test('filasMotivos: sin lic_motivos cae al recuento del payload (porMotivo); agregado vacio devuelve filas []', () => {
+  const d = { licitaciones: [
+    { expediente: 'D1', estado: 'Descartada', motivos: ['Sin pliego'] },
+    { expediente: 'D2', estado: 'Descartada', motivos: [] } ] };
+  assert.deepEqual(filasMotivos(d), { filas: [{ motivo: 'Sin pliego', n: 1 }, { motivo: 'Sin motivo', n: 1 }], total: 2, conMotivo: 1 });
+  assert.deepEqual(filasMotivos({ licitaciones: [], lic_motivos: { descartadas: 0, con_motivo: 0, motivos: [] } }).filas, []);
+  assert.deepEqual(filasMotivos({ licitaciones: [], lic_motivos: {} }).filas, []);
+});
+
+test('render: panel "Por qué no vamos" servido por lic_motivos aunque el payload no traiga descartadas', async () => {
+  const d = { ...datosOwner, lic_motivos: { descartadas: 1391, con_motivo: 1185, motivos: [{ motivo: 'Fuera de España', n: 638 }, { motivo: 'Sin pliego', n: 29 }] } };
+  const r = await pintar({ datos: d, derivado: derivar(d) });
+  assert.ok(r.textContent.includes('Por qué no vamos'));
+  assert.ok(r.textContent.includes('Fuera de España'));
+  assert.ok(r.textContent.includes('descartadas con motivo del catálogo · 1185 de 1391'));
+  const enlaces = buscarNodos(r, n => n.tag === 'a' && (n.attrs.href || '').includes('motivo=')).map(a => a.attrs.href);
+  assert.ok(enlaces.includes('#operacion/licitaciones?estado=descartadas&motivo=Sin%20pliego'));
+  assert.ok(enlaces.includes('#operacion/licitaciones?estado=descartadas&motivo=sin'));
 });
 
 test('render: sin descartadas, no se pinta el panel "Por qué no vamos"', async () => {

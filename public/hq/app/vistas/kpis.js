@@ -52,20 +52,33 @@ export function porMotivo(lics) {
   return filas;
 }
 
+// #1063: filas del panel "Por qué no vamos". Desde la 2.0.18 omc_hq_v2 trae 'lic_motivos' ya contado en
+// SQL ({ descartadas, con_motivo, motivos: [{ motivo, n }] }), porque las descartadas no viajan en el
+// array 'licitaciones' (peso del payload); si falta, se cuenta sobre el payload con porMotivo.
+export function filasMotivos(d) {
+  const r = d?.lic_motivos;
+  if (r && Array.isArray(r.motivos)) {
+    const filas = r.motivos.map(f => ({ motivo: f.motivo, n: Number(f.n) || 0 })).filter(f => f.n > 0).sort((a, b) => b.n - a.n);
+    const total = Number(r.descartadas) || 0, conMotivo = Number(r.con_motivo) || 0;
+    if (total - conMotivo > 0) filas.push({ motivo: 'Sin motivo', n: total - conMotivo });
+    return { filas, total, conMotivo };
+  }
+  const lics = d?.licitaciones || [];
+  const descartadas = lics.filter(l => estadoDe(l) === 'Descartada');
+  return { filas: porMotivo(lics), total: descartadas.length, conMotivo: descartadas.filter(l => motivosNo(l).length > 0).length };
+}
+
 // Panel de la pestaña Licitaciones (vive aquí y no en vistas/licitaciones.js porque es el único de los
 // paneles de esa pestaña que no reutiliza otra vista: agrega directo sobre el payload). null si no hay
 // ninguna descartada con datos que mostrar, para que seccion() no pinte un panel vacío.
 function panelPorQueNo(d) {
-  const lics = d.licitaciones || [];
-  const filas = porMotivo(lics);
+  const { filas, total, conMotivo } = filasMotivos(d);
   if (!filas.length) return null;
-  const descartadas = lics.filter(l => estadoDe(l) === 'Descartada');
-  const conMotivo = descartadas.filter(l => motivosNo(l).length > 0).length;
   const max = Math.max(1, ...filas.map(f => f.n));
   return panel('Por qué no vamos', '#operacion/licitaciones?estado=descartadas', [
     el('div', { class: 'filas' }, filas.map(f => filaBarra(f.motivo, String(f.n), anchoLog(f.n, max), 'tinta-2',
       '#operacion/licitaciones?estado=descartadas&motivo=' + encodeURIComponent(f.motivo === 'Sin motivo' ? 'sin' : f.motivo)))),
-    el('p', { class: 'sub', text: 'descartadas con motivo del catálogo · ' + conMotivo + ' de ' + descartadas.length }),
+    el('p', { class: 'sub', text: 'descartadas con motivo del catálogo · ' + conMotivo + ' de ' + total }),
   ]);
 }
 

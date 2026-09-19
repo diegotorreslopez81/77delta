@@ -30,7 +30,10 @@ globalThis.document = {
 };
 globalThis.location = { hash: '' };
 
-const { render, diasA, plazo, plazoConsumido, porFiltro, ordenar, buscar, tarjetaLic } = await import('../app/vistas/licitaciones.js');
+const { render, diasA, plazo, plazoConsumido, porFiltro, ordenar, buscar, tarjetaLic, usarCargador } = await import('../app/vistas/licitaciones.js');
+// La pestana 'descartadas' pide las filas al servidor tras pintar el payload (#1063): en los tests no hay
+// red ni api.js, asi que el cargador por defecto se sustituye por uno mudo (null = no repintar).
+usarCargador(async () => null);
 
 const buscarNodos = (n, pred, out = []) => { if (n.nodeType === 1) { if (pred(n)) out.push(n); n.children.forEach(c => buscarNodos(c, pred, out)); } return out; };
 const clase = (n, c) => n.className.split(' ').includes(c);
@@ -177,6 +180,45 @@ test('select "Motivo de NO": opciones Todos + catalogo + Sin motivo, filtra la l
   assert.equal(opts.length, 12);
   assert.deepEqual(expedientes(pintar({ licitaciones: conMotivos }, { estado: 'descartadas', motivo: 'Sin pliego' })), ['D1']);
   assert.deepEqual(expedientes(pintar({ licitaciones: conMotivos }, { estado: 'descartadas', motivo: 'sin' })), ['D2']);
+});
+
+test('descartadas: tras pintar el payload, la lista se repinta con las filas del servidor (cargador) y se cachea en S', async () => {
+  const llamadas = [];
+  usarCargador(async motivo => { llamadas.push(motivo); return [
+    { expediente: 'S1', estado: 'Descartada', motivos: ['Sin pliego'], motivo_texto: 'sin pliego en el perfil' },
+    { expediente: 'S2', estado: 'Descartada', motivos: ['Sin pliego', 'Plazo corto'] },
+  ]; });
+  try {
+    const S = { datos: { licitaciones: [{ expediente: 'D1', estado: 'Descartada', motivos: ['Sin pliego'] }] } };
+    const raiz = raizVacia();
+    const p = render(raiz, S, undefined, { estado: 'descartadas', motivo: 'Sin pliego' }, AHORA);
+    assert.deepEqual(expedientes(raiz), ['D1']);
+    assert.ok(raiz.textContent.includes('cargando descartadas'));
+    await p;
+    assert.deepEqual(expedientes(raiz), ['S1', 'S2']);
+    assert.ok(!raiz.textContent.includes('cargando descartadas'));
+    assert.deepEqual(llamadas, ['Sin pliego']);
+    assert.equal(S.cacheDescartadas.clave, 'Sin pliego');
+    assert.equal(S.cacheDescartadas.rows.length, 2);
+    // Segundo render con el mismo filtro: sale de la cache, sin llamar al servidor.
+    const raiz2 = raizVacia();
+    render(raiz2, S, undefined, { estado: 'descartadas', motivo: 'Sin pliego' }, AHORA);
+    assert.deepEqual(expedientes(raiz2), ['S1', 'S2']);
+    assert.deepEqual(llamadas, ['Sin pliego']);
+    // Otra pestana no toca el cargador.
+    render(raizVacia(), S, undefined, { estado: 'decidir' }, AHORA);
+    assert.deepEqual(llamadas, ['Sin pliego']);
+  } finally { usarCargador(async () => null); }
+});
+
+test('descartadas: si el cargador falla, el payload se queda y se avisa en mudo', async () => {
+  usarCargador(async () => { throw new Error('red'); });
+  try {
+    const raiz = raizVacia();
+    await render(raiz, { datos: { licitaciones: [{ expediente: 'D1', estado: 'Descartada', motivos: [] }] } }, undefined, { estado: 'descartadas' }, AHORA);
+    assert.deepEqual(expedientes(raiz), ['D1']);
+    assert.ok(raiz.textContent.includes('no se pudieron cargar las descartadas'));
+  } finally { usarCargador(async () => null); }
 });
 
 test('select "Motivo de NO": el cambio persiste el filtro en la URL junto al resto de filtros activos', () => {

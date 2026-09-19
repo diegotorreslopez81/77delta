@@ -1103,6 +1103,32 @@ begin
           from public.omc_licitaciones where empresa = t.empresa and (p_todas or pestana = 'Licitaciones'));
 end $$;
 
+-- #1063: descartadas bajo demanda para Operacion/Licitaciones (no viajan en el array 'licitaciones' de
+-- omc_hq_v2 por peso). p_motivo: null o '' = todas, 'sin' = sin ningun motivo del catalogo, otro valor =
+-- las que llevan ese motivo. Mismos campos que omc_hq_v2 mas motivos, motivo_texto y fecha_decision.
+-- Solo owner: al agente le devuelve '[]'.
+create or replace function public.omc_licitaciones_descartadas(p_token text, p_motivo text default null, p_limite integer default 300)
+returns jsonb language plpgsql security definer set search_path = public as $$
+declare t public.omc_tokens;
+begin
+  t := public.omc_tok(p_token);
+  if t.rol <> 'owner' then return '[]'::jsonb; end if;
+  return (select coalesce(jsonb_agg(s.j), '[]'::jsonb) from (
+    select jsonb_build_object('expediente', expediente, 'organo', organo, 'provincia', provincia, 'objeto', objeto,
+             'resumen_corto', resumen_corto, 'importe', importe, 'tipo', tipo, 'procedimiento', procedimiento, 'elegible', elegible,
+             'motivo_auto', left(motivo_auto, 300), 'solvencia', left(solvencia, 300), 'cierre', cierre, 'enlace', enlace,
+             'pcap', pcap, 'ppt', ppt, 'carpeta', carpeta, 'estado', estado, 'decision', decision, 'detectada', detectada,
+             'pestana', pestana, 'fecha_decision', fecha_decision, 'decidido_por', decidido_por,
+             'motivos', to_jsonb(coalesce(motivos, '{}'::text[])), 'motivo_texto', motivo_texto) j
+    from public.omc_licitaciones
+    where empresa = t.empresa and estado = 'Descartada'
+      and (coalesce(p_motivo, '') = ''
+           or (p_motivo = 'sin' and not coalesce(motivos && public.omc_motivos_no(), false))
+           or (p_motivo <> 'sin' and p_motivo = any(coalesce(motivos, '{}'::text[]))))
+    order by fecha_decision desc nulls last, detectada desc nulls last, expediente
+    limit greatest(1, least(coalesce(p_limite, 300), 1000))) s);
+end $$;
+
 -- Conversación por licitación: mismo patrón que omc_comentar/omc_estado pero colgando de licitacion_id (expediente) en vez de solicitud_id.
 -- Diego (owner) firma como 'diego'; el agente firma con el id que pasa (no hay "dueño" fijo de la licitación: Ariadna la trabaja antes de decidir, Guillem después).
 create or replace function public.omc_lic_comentar(p_token text, p_lic_id text, p_texto text, p_agente text default null)
@@ -1214,7 +1240,7 @@ revoke all on function public.omc_token_info(text), public.omc_hq(text), public.
   public.omc_agente_set(text, text, jsonb), public.omc_pedir(text, jsonb), public.omc_estado(text, bigint), public.omc_reportar(text, bigint, boolean, text), public.omc_escalar(text, bigint), public.omc_pendientes_chief(text),
   public.omc_latido(text, text), public.omc_mis_solicitudes(text, text), public.omc_subir_uso(text, jsonb), public.omc_guardar_push(text, jsonb), public.omc_subir_plan(text, jsonb), public.omc_subir_actividad(text, jsonb),
   public.omc_kpi_set(text, jsonb), public.omc_ingreso_set(text, jsonb), public.omc_ingresos(text), public.omc_comentar(text, bigint, text, text), public.omc_retirar(text, bigint, text),
-  public.omc_licitaciones_subir(text, jsonb), public.omc_licitacion_decidir(text, text, text, jsonb, text), public.omc_licitaciones_pendientes_sync(text), public.omc_licitaciones_sincronizadas(text, jsonb), public.omc_licitaciones_lista(text, boolean), public.omc_posponer(text, bigint, timestamptz), public.omc_pospuestas_vencidas(text), public.omc_eventos(text, timestamptz),
+  public.omc_licitaciones_subir(text, jsonb), public.omc_licitacion_decidir(text, text, text, jsonb, text), public.omc_licitaciones_pendientes_sync(text), public.omc_licitaciones_sincronizadas(text, jsonb), public.omc_licitaciones_lista(text, boolean), public.omc_licitaciones_descartadas(text, text, integer), public.omc_posponer(text, bigint, timestamptz), public.omc_pospuestas_vencidas(text), public.omc_eventos(text, timestamptz),
   public.omc_lic_comentar(text, text, text, text), public.omc_lic_hilo(text, text),
   public.omc_marcar_notificado(text, jsonb), public.omc_pendientes_sin_notificar(text),
   public.omc_plan_objetivo_set(text, jsonb), public.omc_plan_objetivo(text), public.omc_plan_linea_set(text, jsonb),
@@ -1226,7 +1252,7 @@ grant execute on function public.omc_token_info(text), public.omc_hq(text), publ
   public.omc_agente_set(text, text, jsonb), public.omc_pedir(text, jsonb), public.omc_estado(text, bigint), public.omc_reportar(text, bigint, boolean, text), public.omc_escalar(text, bigint), public.omc_pendientes_chief(text),
   public.omc_latido(text, text), public.omc_mis_solicitudes(text, text), public.omc_subir_uso(text, jsonb), public.omc_guardar_push(text, jsonb), public.omc_subir_plan(text, jsonb), public.omc_subir_actividad(text, jsonb),
   public.omc_kpi_set(text, jsonb), public.omc_ingreso_set(text, jsonb), public.omc_ingresos(text), public.omc_comentar(text, bigint, text, text), public.omc_retirar(text, bigint, text),
-  public.omc_licitaciones_subir(text, jsonb), public.omc_licitacion_decidir(text, text, text, jsonb, text), public.omc_licitaciones_pendientes_sync(text), public.omc_licitaciones_sincronizadas(text, jsonb), public.omc_licitaciones_lista(text, boolean), public.omc_posponer(text, bigint, timestamptz), public.omc_pospuestas_vencidas(text), public.omc_eventos(text, timestamptz),
+  public.omc_licitaciones_subir(text, jsonb), public.omc_licitacion_decidir(text, text, text, jsonb, text), public.omc_licitaciones_pendientes_sync(text), public.omc_licitaciones_sincronizadas(text, jsonb), public.omc_licitaciones_lista(text, boolean), public.omc_licitaciones_descartadas(text, text, integer), public.omc_posponer(text, bigint, timestamptz), public.omc_pospuestas_vencidas(text), public.omc_eventos(text, timestamptz),
   public.omc_lic_comentar(text, text, text, text), public.omc_lic_hilo(text, text),
   public.omc_marcar_notificado(text, jsonb), public.omc_pendientes_sin_notificar(text),
   public.omc_plan_objetivo_set(text, jsonb), public.omc_plan_objetivo(text), public.omc_plan_linea_set(text, jsonb),
