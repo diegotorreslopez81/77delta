@@ -6,8 +6,8 @@
 // sigue en filas compactas agrupadas por elegible. Decidir una licitación sigue en Reglas/Decisiones.
 // La vista no gatea por rol: omc_hq_v2 solo sirve licitaciones al owner.
 import { el, fecha, urlSegura } from '../ui.js';
-import { sinAcentos } from '../estado.js';
-import { embudo, enCriba, porElegible, porDecidir, ordenCierre, estadoDe, solvenciaTexto, pipelinePorMes, pendiente, ABIERTAS, DECIDIBLES, tipologia, TIPOLOGIAS, filtrar, motivosNo, MOTIVOS_NO, enlacesLic } from '../licitaciones.js';
+import { embudo, enCriba, porElegible, porDecidir, ordenCierre, estadoDe, estadoBase, estadoPartido, solvenciaTexto, pipelinePorMes, pendiente, ABIERTAS, DECIDIBLES, tipologia, TIPOLOGIAS, filtrar, motivosNo, MOTIVOS_NO, enlacesLic } from '../licitaciones.js';
+import { hojaFiltros, pillsActivos } from '../filtros.js';
 import { donut, barras } from '../graficos.js';
 import { eurCorto, anchoLog, panel, cifra, grafico, leyenda, ejeX, filaBarra } from '../cuadro.js';
 
@@ -48,27 +48,44 @@ export function plazoConsumido(l, ahora = new Date()) {
   return Math.max(0, Math.min(100, Math.round(100 * (ahora.getTime() - a) / (c - a))));
 }
 
-// Filtros de la lista: estado (activas por defecto), orden (cierre por defecto) y texto libre sin acentos.
-export const FILTROS = [['activas', 'Activas'], ['decidir', 'Por decidir'], ['pausadas', 'Pausadas'], ['criba', 'En criba']];
-// 'descartadas' no tiene chip propio (no se pide una pestaña nueva): solo llega por URL desde el panel
-// "Por qué no vamos" de KPIs, para poder ver y filtrar por motivo las descartadas sin tocar FILTROS.
-const ESTADOS_VALIDOS = new Set([...FILTROS.map(f => f[0]), 'descartadas']);
-export function porFiltro(lics, estado = 'activas') {
-  const rows = lics || [];
-  if (estado === 'decidir') return porDecidir(rows);
-  if (estado === 'criba') return enCriba(rows);
-  if (estado === 'pausadas') return rows.filter(l => estadoDe(l) === 'Pausada');
-  if (estado === 'descartadas') return rows.filter(l => estadoDe(l) === 'Descartada');
-  return rows.filter(l => ACTIVAS.has(estadoDe(l)));
+// Chips del embudo (2.0.20, palabras de Diego: "arriba solo unos filtros predefinidos, uno por estado
+// del embudo"). Sustituyen a los cuatro FILTROS viejos (activas/decidir/pausadas/criba); ALIAS mantiene
+// vivos los enlaces que ya existen en hoy.js, kpis.js, objetivo.js, cuadro.js y los marcadores de Diego.
+// El tercer elemento son los estados reales de BD que caen en ese chip; 'Analizada' y 'En redacción'
+// viajan siempre en omc_hq_v2 desde la 2.0.19.
+export const ESTADOS = [
+  ['nuevas', 'Nuevas', ['Nueva']],
+  ['decidir', 'Por decidir', ['Por decidir', 'Analizada']],
+  ['aprobadas', 'Aprobadas', ['Aprobada']],
+  ['redaccion', 'En redacción', ['En redacción']],
+  ['presentadas', 'Presentadas', ['Presentada']],
+  ['pausadas', 'Pausadas', ['Pausada']],
+  ['descartadas', 'Descartadas', ['Descartada', 'Cerrada sin presentar', 'Retirada', 'No adjudicada']],
+];
+const ALIAS = { activas: 'aprobadas', criba: 'nuevas' };
+export function estadoChip(valorRuta) {
+  const v = String(valorRuta || ''), k = ALIAS[v] || v;
+  return ESTADOS.some(([x]) => x === k) ? k : '';
+}
+// Filtra por chip del embudo con el estado real (estadoBase limpia el "Descartada: motivo" del Sheet).
+export function porEstado(lics, estado) {
+  const e = ESTADOS.find(([k]) => k === estado);
+  if (!e) return lics || [];
+  const set = new Set(e[2]);
+  return (lics || []).filter(l => set.has(estadoBase(l)));
+}
+// "Por defecto lo que está por decidir; si no queda nada, lo que se está redactando; si tampoco, las
+// aprobadas" (Diego, 19-sep). No se escribe en la ruta: así el defecto cambia cuando cambian los datos.
+export function estadoPorDefecto(lics) {
+  if (porEstado(lics, 'decidir').length) return 'decidir';
+  if (porEstado(lics, 'redaccion').length) return 'redaccion';
+  return 'aprobadas';
 }
 export function ordenar(rows, orden = 'cierre') {
   return [...rows].sort(orden === 'importe' ? (a, b) => importe(b) - importe(a) || ordenCierre(a, b) : ordenCierre);
 }
-export function buscar(rows, texto) {
-  const q = sinAcentos(texto).trim();
-  if (!q) return rows;
-  return rows.filter(l => sinAcentos([l.expediente, l.resumen_corto, l.objeto, l.organo, l.provincia].join(' ')).includes(q));
-}
+// El buscador de la hoja es el filtro 'texto' de filtrar(); buscar() se mantiene como atajo.
+export function buscar(rows, texto) { return filtrar(rows, { texto }); }
 
 // Paneles del cuadro (se mueven a Operación/KPIs vía panelesLicitaciones; se dejan intactos aquí como
 // funciones internas para que ese export los reutilice sin duplicar código).
@@ -135,17 +152,22 @@ export function tarjetaLic(l, ahora = new Date()) {
   const tipo = tipologia(l.organo);
   // #1063: motivos de NO como tags neutros (misma clase 'pill' que tipo/procedimiento, nunca oro), solo
   // en descartadas; si no tiene ninguno del catalogo, un tag "sin motivo" en vez de dejarlo en blanco.
-  const motivos = est === 'Descartada' ? motivosNo(l) : [];
-  const tagsMotivo = est === 'Descartada'
-    ? (motivos.length ? motivos.map(m => el('span', { class: 'pill', text: m })) : [el('span', { class: 'pill', text: 'sin motivo' })])
-    : [];
+  // 2.0.20: el estado sucio "Descartada: solo viable en UTE" se parte (estadoPartido) para que la pill
+  // diga solo "Descartada" y el resto se lea como un motivo mas.
+  const par = estadoPartido(l), motivos = par.estado === 'Descartada' ? motivosNo(l) : [];
+  const tagsMotivo = [
+    ...(par.estado === 'Descartada'
+      ? (motivos.length ? motivos.map(m => el('span', { class: 'pill', text: m })) : [el('span', { class: 'pill', text: 'sin motivo' })])
+      : []),
+    ...(par.motivo ? [el('span', { class: 'pill', text: corto(par.motivo, 60) })] : []),
+  ];
   const alClic = e => { if (e.target?.closest?.('a, button')) return; alternar(e.currentTarget || art); };
   const art = el('article', {
     class: 'card-lic', tabindex: '0', 'aria-expanded': 'false', 'data-expediente': l.expediente || '',
     onclick: alClic, onkeydown: e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault?.(); alternar(e.currentTarget || art); } },
   }, [
     el('div', { class: 'lic-tags' }, [
-      el('span', { class: 'pill' }, [el('i', { class: 'punto g-' + (COLOR_ESTADO[est] || 'neutro-3') }), est]),
+      el('span', { class: 'pill' }, [el('i', { class: 'punto g-' + (COLOR_ESTADO[par.estado] || 'neutro-3') }), par.estado]),
       el('span', { class: 'pill', text: tipo }),
       el('span', { class: 'pill', text: l.importe ? eurCorto(l.importe) + ' sin IVA' : 'sin importe' }),
       l.procedimiento ? el('span', { class: 'pill', text: l.procedimiento }) : null,
@@ -177,18 +199,15 @@ function grupoCriba([nombre, rows], abierto) {
   return el('details', { class: 'grupo-criba', open: abierto }, [el('summary', { text: nombre + ' (' + rows.length + ')' }), ...rows.map(filaCriba)]);
 }
 
-// Construye la ruta con los filtros activos + los que cambian en 'over'; omite los que quedan vacíos.
-function construirRuta(base, over) {
+// Ruta canónica de la vista con los filtros puestos; se omite lo vacío y lo que ya es el defecto. Los
+// valores viven en la ruta (no en memoria) para que los enlaces de KPIs/Home y el botón atrás del
+// iPhone sigan funcionando.
+export function construirRuta(v = {}) {
   const q = new URLSearchParams();
-  const v = { ...base, ...over };
   if (v.estado) q.set('estado', v.estado);
   if (v.orden === 'importe') q.set('orden', 'importe');
-  if (v.tipologia) q.set('tipologia', v.tipologia);
-  if (v.solvencia && v.solvencia !== 'todas') q.set('solvencia', v.solvencia);
-  if (v.fuente) q.set('fuente', v.fuente);
-  if (v.tipo) q.set('tipo', v.tipo);
-  if (v.motivo) q.set('motivo', v.motivo);
-  if (v.desiertas) q.set('desiertas', '1');
+  for (const k of ['tipologia', 'solvencia', 'fuente', 'tipo', 'motivo', 'presencial', 'texto']) if (v[k] && v[k] !== 'todas') q.set(k, v[k]);
+  if (v.desiertas === '1' || v.desiertas === true) q.set('desiertas', '1');
   const s = q.toString();
   return '#operacion/licitaciones' + (s ? '?' + s : '');
 }
@@ -198,77 +217,99 @@ export function render(raiz, S, arg, filtrosRuta = {}, ahora = new Date()) {
   const lics = d.licitaciones || [], resumen = d.lic_resumen || {};
   if (!lics.length && !Object.keys(resumen).length) { raiz.append(el('p', { class: 'mudo', text: 'sin licitaciones' })); return; }
 
-  const estado = ESTADOS_VALIDOS.has(filtrosRuta.estado) ? filtrosRuta.estado : 'activas';
-  const orden = filtrosRuta.orden === 'importe' ? 'importe' : 'cierre';
-  const f = {
-    tipologia: filtrosRuta.tipologia || '',
-    solvencia: filtrosRuta.solvencia || '',
-    fuente: filtrosRuta.fuente || '',
-    tipo: filtrosRuta.tipo || '',
-    motivo: filtrosRuta.motivo || '',
-    desiertas: filtrosRuta.desiertas === '1',
-  };
-  const activos = { estado, orden, ...f };
-  const ruta = over => construirRuta(activos, over);
+  const estado = estadoChip(filtrosRuta.estado) || estadoPorDefecto(lics);
+  const valores = { estado, orden: filtrosRuta.orden === 'importe' ? 'importe' : 'cierre' };
+  for (const k of ['tipologia', 'solvencia', 'fuente', 'tipo', 'motivo', 'presencial', 'texto']) if (filtrosRuta[k]) valores[k] = filtrosRuta[k];
+  if (filtrosRuta.desiertas === '1') valores.desiertas = '1';
 
-  raiz.append(el('div', { class: 'fila enlace-kpis' }, [el('a', { class: 'btn-enlace', href: '#kpis?grupo=licitaciones', text: 'KPIs ›' })]));
+  let descartadas = null;                                   // filas del servidor, cuando llegan
+  const nr = k => Number(resumen?.[k]?.n) || 0;
+  // Antes de cargarlas no se sabe cuántas hay: se usa el resumen del payload (descartadas + cerradas sin
+  // presentar + no adjudicadas, las tres familias que devuelve omc_licitaciones_descartadas).
+  const cuenta = k => k === 'descartadas'
+    ? (descartadas ? descartadas.length : Math.max(porEstado(lics, k).length, nr('descartadas') + nr('cerradas') + nr('no_adjudicadas')))
+    : porEstado(lics, k).length;
+  const filtroDe = v => ({ tipologia: v.tipologia || '', solvencia: v.solvencia || '', fuente: v.fuente || '', tipo: v.tipo || '',
+    motivo: v.motivo || '', presencial: v.presencial || '', texto: v.texto || '', desiertas: v.desiertas === '1' });
+  const filasDe = v => {
+    const est = estadoChip(v.estado) || estado;
+    const base = est === 'descartadas' && descartadas ? descartadas : porEstado(lics, est);
+    return filtrar(ordenar(base, v.orden === 'importe' ? 'importe' : 'cierre'), filtroDe(v));
+  };
 
   const fuentes = [...new Set(lics.map(l => l.pestana).filter(Boolean))];
   const tipos = [...new Set(lics.map(l => l.tipo).filter(Boolean))];
-  const opcion = (v, t, sel) => el('option', { value: v, selected: v === sel || undefined, text: t });
-  const selects = [
-    el('select', { 'aria-label': 'Tipología', onchange: e => { location.hash = ruta({ tipologia: e.target.value }); } }, [
-      opcion('', 'Tipología (todas)', f.tipologia), ...TIPOLOGIAS.map(t => opcion(t, t, f.tipologia)),
-    ]),
-    el('select', { 'aria-label': 'Solvencia', onchange: e => { location.hash = ruta({ solvencia: e.target.value }); } }, [
-      opcion('', 'Solvencia (todas)', f.solvencia), opcion('sin solvencia', 'Sin solvencia', f.solvencia), opcion('exige', 'Exige solvencia', f.solvencia),
-    ]),
-    fuentes.length ? el('select', { 'aria-label': 'Fuente', onchange: e => { location.hash = ruta({ fuente: e.target.value }); } }, [
-      opcion('', 'Fuente (todas)', f.fuente), ...fuentes.map(v => opcion(v, v, f.fuente)),
-    ]) : null,
-    tipos.length ? el('select', { 'aria-label': 'Tipo', onchange: e => { location.hash = ruta({ tipo: e.target.value }); } }, [
-      opcion('', 'Tipo (todos)', f.tipo), ...tipos.map(v => opcion(v, v, f.tipo)),
-    ]) : null,
-    // #1063: catalogo cerrado y fijo (como TIPOLOGIAS), siempre visible aunque el payload no traiga
-    // descartadas cargadas en este momento; 'sin' cierra las descartadas sin motivo del catalogo.
-    el('select', { 'aria-label': 'Motivo de NO', onchange: e => { location.hash = ruta({ motivo: e.target.value }); } }, [
-      opcion('', 'Motivo de NO (todos)', f.motivo), ...MOTIVOS_NO.map(v => opcion(v, v, f.motivo)), opcion('sin', 'Sin motivo', f.motivo),
-    ]),
-    estado === 'criba' ? el('label', {}, [el('input', { type: 'checkbox', checked: f.desiertas || undefined, onchange: e => { location.hash = ruta({ desiertas: e.target.checked ? '1' : '' }); } }), 'Solo desiertas']) : null,
+  const secciones = [
+    { clave: 'estado', titulo: 'Estado', fija: true, opciones: ESTADOS.map(([k, t]) => [k, t, cuenta(k)]) },
+    { clave: 'orden', titulo: 'Orden', defecto: 'cierre', opciones: [['cierre', 'Cierre'], ['importe', 'Importe']] },
+    { clave: 'tipologia', titulo: 'Tipología', opciones: TIPOLOGIAS.map(t => [t, t]) },
+    { clave: 'solvencia', titulo: 'Solvencia', opciones: [['sin solvencia', 'Sin solvencia'], ['exige', 'Exige solvencia']] },
+    { clave: 'tipo', titulo: 'Tipo', opciones: tipos.map(t => [t, t]) },
+    { clave: 'presencial', titulo: 'Presencial', opciones: [['no', 'Sin presencia'], ['si', 'Requiere presencia']] },
+    // Motivo de NO solo tiene sentido sobre las descartadas (#1063, catálogo cerrado + 'sin motivo').
+    { clave: 'motivo', titulo: 'Motivo de NO', visible: v => (estadoChip(v.estado) || estado) === 'descartadas',
+      opciones: [...MOTIVOS_NO.map(m => [m, m]), ['sin', 'Sin motivo']] },
+    // Fuente y desiertas solo llegan por la ruta (enlaces de KPIs): salen como pill con x, no en la hoja.
+    { clave: 'fuente', titulo: 'Fuente', visible: () => false, opciones: fuentes.map(t => [t, t]) },
+    { clave: 'desiertas', titulo: 'Desiertas', visible: () => false, opciones: [['1', 'Solo desiertas']] },
+    { clave: 'texto', titulo: 'Buscar', libre: true },
   ];
 
-  let base = filtrar(ordenar(porFiltro(lics, estado), orden), f);
-  const lista = el('div', { class: estado === 'criba' ? 'lista-criba' : 'lista-rica' });
-  const pintarLista = texto => {
-    const rows = buscar(base, texto);
-    lista.innerHTML = '';
-    if (!rows.length) { lista.append(el('p', { class: 'mudo', text: 'nada con este filtro' })); return; }
-    if (estado === 'criba') porElegible(rows).forEach((g, i) => lista.append(grupoCriba(g, i === 0)));
-    else rows.forEach(l => lista.append(tarjetaLic(l, ahora)));
-  };
-  raiz.append(el('div', { class: 'filtros-rica' }, [
-    el('div', { class: 'chips' }, FILTROS.map(([k, t]) => el('a', { class: 'chip' + (k === estado ? ' activo' : ''), href: ruta({ estado: k }), text: t + ' ' + porFiltro(lics, k).length }))),
-    el('div', { class: 'chips' }, [['cierre', 'por cierre'], ['importe', 'por importe']].map(([k, t]) => el('a', { class: 'chip' + (k === orden ? ' activo' : ''), href: ruta({ orden: k }), text: t }))),
-    el('div', { class: 'filtros-select' }, selects),
-    el('input', { class: 'campo mini', type: 'search', placeholder: 'Buscar expediente, objeto u órgano', 'aria-label': 'Buscar licitación', oninput: e => pintarLista(e.target.value) }),
-  ]));
-  raiz.append(lista);
-  pintarLista('');
+  raiz.append(el('div', { class: 'fila enlace-kpis' }, [el('a', { class: 'btn-enlace', href: '#kpis?grupo=licitaciones', text: 'KPIs ›' })]));
+  const chips = el('div', { class: 'chips chips-embudo' });
+  const zonaPills = el('div', { class: 'zona-pills' });
+  const lista = el('div', { class: (estado === 'nuevas' ? 'lista-criba' : 'lista-rica') + ' con-fab' });
 
-  // Pestana 'descartadas': el payload no las trae (o trae solo las recientes); se piden al servidor y se
+  const pintarChips = () => {
+    chips.innerHTML = '';
+    for (const [k, t] of ESTADOS) {
+      const a = el('a', { class: 'chip' + (k === estado ? ' activo' : ''), href: construirRuta({ ...valores, estado: k }), text: t + ' ' + cuenta(k) });
+      chips.append(a);
+      // En móvil la fila va con scroll horizontal: el chip activo tiene que quedar a la vista.
+      if (k === estado && a.scrollIntoView) setTimeout(() => a.scrollIntoView({ block: 'nearest', inline: 'center' }), 0);
+    }
+  };
+  const pintarPills = () => {
+    zonaPills.innerHTML = '';
+    const p = pillsActivos(valores, secciones, clave => { const v = { ...valores }; delete v[clave]; location.hash = construirRuta(v); });
+    if (p) zonaPills.append(p);
+  };
+  // Las Nuevas son más de mil filas: se siguen pintando como cola compacta agrupada por elegible (lo que
+  // hacía la pestaña 'criba'), no como tarjetas ricas, que colgaban el móvil.
+  const pintarLista = v => {
+    const rows = filasDe(v);
+    lista.innerHTML = '';
+    if (!rows.length) lista.append(el('p', { class: 'mudo', text: 'nada con este filtro' }));
+    else if ((estadoChip(v.estado) || estado) === 'nuevas') porElegible(rows).forEach((g, i) => lista.append(grupoCriba(g, i === 0)));
+    else rows.forEach(l => lista.append(tarjetaLic(l, ahora)));
+    return rows.length;
+  };
+
+  const hoja = hojaFiltros({ secciones, valores, total: 0,
+    onCambio: v => filasDe(v).length,
+    onAplicar: v => { location.hash = construirRuta(v); } });
+
+  pintarChips(); pintarPills();
+  raiz.append(chips, zonaPills, lista, hoja.fab, hoja.hoja);
+  const n0 = pintarLista(valores);
+  hoja.actualizar(valores, n0);
+
+  // Chip 'descartadas': el payload no las trae (o trae solo las recientes); se piden al servidor y se
   // repinta la lista cuando llegan, salvo que otro render haya tomado el relevo mientras tanto.
   if (estado !== 'descartadas') return;
   const mio = ++turno;
-  const clave = f.motivo || '';
+  const clave = valores.motivo || '';
   const cache = S.cacheDescartadas;
   const pintarServidor = rows => {
-    base = filtrar(rows, f);
-    pintarLista('');
+    descartadas = rows;
+    secciones[0].opciones = ESTADOS.map(([k, t]) => [k, t, cuenta(k)]);
+    pintarChips();
+    hoja.actualizar(valores, pintarLista(valores));
     if (rows.length >= 300) lista.append(el('p', { class: 'mudo', text: 'se muestran las 300 descartadas más recientes' }));
   };
   if (cache && cache.clave === clave && Date.now() - cache.ts < CACHE_MS) { pintarServidor(cache.rows); return; }
   const aviso = el('p', { class: 'mudo', text: 'cargando descartadas…' });
-  if (!base.length) lista.innerHTML = '';
+  if (!n0) lista.innerHTML = '';
   lista.append(aviso);
   return cargador(clave).then(rows => {
     if (mio !== turno || raiz.isConnected === false) return;

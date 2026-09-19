@@ -1,5 +1,9 @@
 // Estado en memoria y funciones puras de la interfaz. Sin DOM: se prueba con node --test.
-export const S = { datos: null, filtros: { frente: null, bloque: null, agente: null, texto: '', etiqueta: null }, columnaMovil: 'en_curso' };
+// (ui.js solo aporta `horas`; su ámbito de módulo no toca el DOM, así que importarlo aquí es seguro.)
+import { horas } from './ui.js';
+// 2.0.20: fuera `columnaMovil`. La columna que se ve en el Tablero viaja en la ruta (?estado=<columna>),
+// no en memoria, para que un enlace lleve siempre al mismo sitio.
+export const S ={ datos: null, filtros: { frente: null, bloque: null, agente: null, texto: '', etiqueta: null } };
 export const COLUMNAS = [['backlog', 'Backlog'], ['por_hacer', 'Por hacer'], ['en_curso', 'En curso'], ['bloqueado', 'Bloqueado'], ['hecho', 'Hecho']];
 export function poner(datos) { S.datos = datos; S.derivado = derivar(datos); }
 export function sinAcentos(s) { return String(s || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase(); }
@@ -68,6 +72,24 @@ export function cierres(encargos, ahora = new Date(), dias = 7) {
 export function contador(datos) {
   if (datos?.rol === 'owner') return { texto: 'Depende de ti', n: (datos.pendientes || []).length, href: '#hoy' };
   return { texto: 'En curso', n: enCurso(datos?.encargos).length, href: '#operacion/tablero' };
+}
+// Latido compartido (2.0.20): el punto verde del organigrama, el "activo ahora" de decidirSesion en
+// expedientes y el recuento de agentes activos de Home salían de dos sitios distintos. Ahora hay una
+// sola función y `vistas/equipo.js` la reexporta como `tramo` para no cambiar sus llamadas. Cuatro
+// tramos: activo (menos de 1 h), hoy (menos de 24 h), dormido (más de 24 h), sin latido.
+export function tramoLatido(a, ahora = new Date()) {
+  const h = horas(a?.ultima_actividad, ahora);
+  return h == null ? 'sin' : h < 1 ? 'activo' : h < 24 ? 'hoy' : 'dormido';
+}
+// "Qué se está haciendo ahora mismo" (orden de Diego 19-sep): única fuente de la verdad para la pill de
+// Home y para la cabecera del Tablero con estado=en_curso. Activo = el agente no está dado de baja y su
+// latido es reciente. `encargo` es el encargo en curso más reciente que tiene asignado, si lo hay.
+export function agentesActivos(agentes, encargos, ahora = new Date()) {
+  const curso = enCurso(encargos);
+  const suyo = id => curso.filter(e => e.agente === id || (!e.agente && e.responsable === id))
+    .sort((a, b) => String(b.fecha_estado || b.fecha || '').localeCompare(String(a.fecha_estado || a.fecha || '')) || (b.id - a.id))[0] || null;
+  const activos = (agentes || []).filter(a => a && a.activo !== false && tramoLatido(a, ahora) === 'activo');
+  return { n: activos.length, agentes: activos.map(a => { const e = suyo(a.id); return { id: a.id, nombre: a.nombre || a.id, encargo: e ? { id: e.id, titulo: e.texto || '' } : null }; }) };
 }
 // semáforo de cuentas: `cuentas` viene en el payload desde el lote 1e (#1054, RPC omc_cuentas_estado, solo owner);
 // sin datos devuelve null y la barra no pinta nada. Una cuenta se bloquea por cualquiera de sus dos límites, así

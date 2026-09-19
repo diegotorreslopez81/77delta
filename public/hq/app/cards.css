@@ -52,3 +52,69 @@
   .ficha-cab{flex-direction:column;align-items:center;text-align:center}
   .ficha-cab .chips{justify-content:center}
 }
+
+/* === 2.0.20 filtros === */
+/* Boton flotante del embudo + hoja inferior de filtros (app/filtros.js). Solo tokens de tokens.css y
+   las clases que ya existen (.chip, .chip.activo, .pill, .btn, .btn-enlace, .campo). Oro plano. El
+   tema oscuro sale solo porque todo son tokens; las dos guardas de tokens.css ya los redefinen. */
+[hidden]{display:none !important}
+
+.fab-filtros{position:fixed;right:16px;bottom:calc(16px + env(safe-area-inset-bottom));z-index:19;
+  width:52px;height:52px;border-radius:50%;border:1px solid var(--oro);background:var(--oro);color:var(--marino);
+  display:inline-flex;align-items:center;justify-content:center;cursor:pointer;padding:0;
+  box-shadow:0 8px 24px rgba(6,16,31,.28);transition:transform .18s var(--ease),box-shadow .18s var(--ease)}
+.fab-filtros:hover{transform:translateY(-1px);box-shadow:0 12px 28px rgba(6,16,31,.34)}
+.fab-filtros .globo{position:absolute;top:-3px;right:-3px;min-width:20px;height:20px;padding:0 5px;box-sizing:border-box;
+  border-radius:999px;background:var(--tinta);color:var(--papel);font:700 11px/20px var(--body);text-align:center}
+/* El FAB no puede tapar los botones de la ultima tarjeta ni el pie de la hoja */
+.con-fab{padding-bottom:88px}
+
+.hoja-fondo{display:none;position:fixed;inset:0;z-index:22;background:rgba(0,0,0,.45);align-items:flex-end;justify-content:center}
+.hoja-fondo.abierta{display:flex}
+.hoja{display:flex;flex-direction:column;width:100%;max-height:85dvh;box-sizing:border-box;
+  background:var(--papel);color:var(--tinta);border-radius:16px 16px 0 0;
+  box-shadow:0 -12px 40px rgba(6,16,31,.35);padding:8px 14px calc(10px + env(safe-area-inset-bottom));
+  animation:hoja-sube .18s var(--ease)}
+@keyframes hoja-sube{from{transform:translateY(100%)}to{transform:none}}
+.hoja-asa{width:40px;height:4px;border-radius:2px;background:var(--linea-fuerte);margin:2px auto 6px;flex:none}
+.hoja-cab{display:flex;align-items:center;justify-content:space-between;gap:8px;flex:none}
+.hoja-cab h2{font-size:18px;margin:0}
+.hoja-cab .btn-x{min-width:44px;min-height:44px}
+.hoja-buscar{flex:none;margin:8px 0 2px;box-sizing:border-box}
+.hoja-cuerpo{flex:1 1 auto;overflow-y:auto;-webkit-overflow-scrolling:touch;padding:4px 0 10px}
+.hoja-seccion{margin:12px 0 0}
+.hoja-seccion h3{margin:0 0 6px;font-size:11px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:var(--tinta-2)}
+.hoja .chips{flex-wrap:wrap;overflow:visible}
+.hoja .chip{min-height:34px;display:inline-flex;align-items:center}
+.hoja-pie{display:flex;align-items:center;justify-content:space-between;gap:12px;flex:none;
+  padding:10px 0 2px;border-top:1px solid var(--linea);background:var(--papel)}
+.hoja-pie .btn.primario{flex:1;justify-content:center;min-height:44px}
+body.con-hoja{overflow:hidden}
+
+/* Pills de los filtros activos encima de la lista */
+.chips.chips-activos{flex-wrap:wrap;overflow:visible;margin:0 0 10px}
+.pill-activo{gap:2px;padding-right:2px}
+.quita-pill{font:inherit;font-size:14px;line-height:1;background:none;border:0;color:inherit;cursor:pointer;
+  min-width:26px;min-height:26px;border-radius:999px;padding:0 4px}
+.quita-pill:hover{background:var(--oro-suave)}
+
+@media (prefers-reduced-motion: reduce){
+  .hoja{animation:none}
+  .fab-filtros{transition:none}
+}
+@media (min-width:900px){
+  .hoja-fondo{align-items:center}
+  .hoja{width:520px;max-width:92vw;max-height:80vh;border-radius:var(--radio);animation:none;padding-bottom:10px}
+}
+
+/* Chips del embudo (Licitaciones, Expedientes, Tablero): una sola fila que se arrastra en el movil.
+   La regla global de .chips ya hace nowrap + scroll bajo 899px; aqui solo se separa del contenido. */
+.chips-embudo{margin:0 0 10px;scroll-padding-inline:16px}
+.chips-embudo .chip{white-space:nowrap}
+
+/* Tablero: una sola columna cuando la ruta trae ?estado=<columna>, y cabecera "Ahora mismo" */
+@media (min-width:900px){.kanban.una{grid-template-columns:minmax(200px,720px)}}
+.ahora-mismo{margin:0 0 10px}
+.ahora-mismo h2{font-size:14px;margin:0 0 6px;color:var(--tinta-2)}
+.chips-ahora{flex-wrap:wrap;overflow:visible}
+.chips-ahora .pill{max-width:100%}

@@ -35,6 +35,7 @@ globalThis.document = {
   getElementById: () => crearNodo('div'),
   body: crearNodo('body'),
   addEventListener: () => {},
+  removeEventListener: () => {},
 };
 globalThis.location = { hash: '', search: '', pathname: '/hq/' };
 globalThis.history = { replaceState: () => {} };
@@ -45,7 +46,7 @@ if (typeof globalThis.localStorage === 'undefined') {
   globalThis.localStorage = { getItem: (k) => (mem.has(k) ? mem.get(k) : null), setItem: (k, v) => mem.set(k, String(v)), removeItem: (k) => mem.delete(k) };
 }
 
-const { estadoSesion, render, tarjetaExp, pasoEconomico, porFase, sinActualizar, buscarExp, panelesExpedientes, decidirSesion } = await import('../app/vistas/expedientes.js');
+const { estadoSesion, render, tarjetaExp, pasoEconomico, porFase, sinActualizar, buscarExp, panelesExpedientes, decidirSesion, filtrarExp, ordenarExp, seccionesExp, construirRutaExp } = await import('../app/vistas/expedientes.js');
 
 test('estadoSesion prioriza abierta, luego solicitada, luego nada', () => {
   const ses = [{ id: 1, expediente_id: 5, estado: 'cerrada' }, { id: 2, expediente_id: 5, estado: 'solicitada' }, { id: 3, expediente_id: 6, estado: 'abierta' }];
@@ -118,17 +119,41 @@ test('lista: clientes por defecto ordenados por importe, chips con recuento y si
   assert.deepEqual(nombres(pintar({ tipo: 'producto' })), ['Regulia']);
 });
 
-test('lista: buscador sin acentos por nombre o por el nombre del agente responsable; alta solo owner', () => {
+// 2.0.20: el buscador y los filtros nuevos viven en la hoja; la lista se repinta por la ruta.
+test('hoja: buscador sin acentos, secciones con recuento y "Ver N resultados" a la ruta; alta solo owner', () => {
   const r = pintar();
-  const input = buscarNodos(r, n => n.tag === 'input')[0];
+  const clase2 = (n, c) => (n.className || '').split(' ').includes(c);
+  const input = buscarNodos(r, n => n.tag === 'input' && clase2(n, 'hoja-buscar'))[0];
+  const ver = buscarNodos(r, n => n.tag === 'button' && clase2(n, 'primario') && /^Ver /.test(n.textContent))[0];
   input.listeners.input[0]({ target: { value: 'organo' } });
-  assert.deepEqual(nombres(r), ['Órgano Uno']);
-  input.listeners.input[0]({ target: { value: 'nil' } });
-  assert.deepEqual(nombres(r), ['Zimeron', 'Aresa']);
-  input.listeners.input[0]({ target: { value: 'zzz' } });
-  assert.ok(r.textContent.includes('nada con este filtro'));
-  assert.equal(buscarNodos(r, n => n.tag === 'button').length, 0);
+  assert.equal(ver.textContent, 'Ver 1 resultado');
+  globalThis.location.hash = '';
+  ver.listeners.click[0]({});
+  assert.equal(globalThis.location.hash, '#operacion/expedientes?tipo=cliente&texto=organo');
+  assert.deepEqual(nombres(pintar({ texto: 'organo' })), ['Órgano Uno']);
+  assert.deepEqual(nombres(pintar({ texto: 'nil' })), ['Zimeron', 'Aresa']);
+  assert.ok(pintar({ texto: 'zzz' }).textContent.includes('nada con este filtro'));
+  assert.equal(buscarNodos(r, n => n.tag === 'button' && n.textContent === '+ Expediente').length, 0);
   assert.equal(buscarNodos(pintar({}, 'owner'), n => n.tag === 'button' && n.textContent === '+ Expediente').length, 1);
+});
+
+test('hoja de expedientes: fase, responsable, tipología y orden, con pills de lo activo', () => {
+  const secc = r => buscarNodos(r, n => n.tag === 'section' && (n.className || '').includes('hoja-seccion')).map(s2 => s2.children[0].textContent);
+  assert.deepEqual(secc(pintar()), ['Fase', 'Responsable', 'Tipología', 'Orden']);
+  const r = pintar({ fase: 'ejecución', orden: 'nombre' });
+  assert.deepEqual(nombres(r), ['Aresa', 'Zimeron']);
+  assert.deepEqual(nombres(pintar({ fase: 'activo' })), ['Órgano Uno']);
+  assert.deepEqual(nombres(pintar({ tipologia: 'cupon' })), ['Aresa']);
+  // Orden por actualización: primero el que tiene resumen reciente, el resto por nombre.
+  assert.deepEqual(nombres(pintar({ orden: 'actualizacion' })), ['Zimeron', 'Aresa', 'Órgano Uno']);
+  assert.deepEqual(buscarNodos(r, n => n.tag === 'span' && (n.className || '').includes('pill-activo')).map(n => n.textContent),
+    ['Fase: ejecución×', 'Orden: Nombre×']);
+  // La x de la pill reescribe la ruta sin ese filtro.
+  globalThis.location.hash = '';
+  buscarNodos(r, n => n.tag === 'button' && (n.className || '').includes('quita-pill'))[0].listeners.click[0]({});
+  assert.equal(globalThis.location.hash, '#operacion/expedientes?tipo=cliente&orden=nombre');
+  // Orden por nombre y por actualización sobre todos los tipos.
+  assert.deepEqual(nombres(pintar({ tipo: 'todos', orden: 'nombre' })), ['ACCIÓ Exploració', 'Aresa', 'Órgano Uno', 'Regulia', 'Zimeron']);
 });
 
 test('tarjetaExp: fase con punto, sesión, responsable por nombre, importe, paso económico y enlaces seguros', () => {
@@ -194,4 +219,28 @@ test('pasoEconomico, porFase, sinActualizar y buscarExp: funciones puras', () =>
   assert.deepEqual(sinActualizar(xs.slice(0, 2), AHORA).map(x => x.id), [1]);
   assert.deepEqual(sinActualizar(xs.slice(1, 2), new Date('2026-09-30T10:00:00Z')).map(x => x.id), [2]);
   assert.equal(buscarExp(xs, ' ').length, xs.length);
+});
+
+// 2.0.20: funciones puras de los filtros de la lista.
+test('filtrarExp, ordenarExp, seccionesExp y construirRutaExp: puras', () => {
+  const vivos = xs.filter(x => x.activo !== false);
+  assert.deepEqual(filtrarExp(vivos, { fase: 'ejecución' }).map(x => x.nombre), ['Aresa', 'Zimeron']);
+  assert.deepEqual(filtrarExp(vivos, { responsable: 'chief' }).map(x => x.nombre), ['Órgano Uno']);
+  assert.deepEqual(filtrarExp(vivos, { tipologia: 'cupon' }).map(x => x.nombre), ['Aresa']);
+  assert.deepEqual(filtrarExp(vivos, { texto: 'accio' }).map(x => x.nombre), ['ACCIÓ Exploració']);
+  assert.equal(filtrarExp(vivos, {}).length, 5);
+  assert.deepEqual(filtrarExp([{ nombre: 'Sin fase' }], { fase: 'sin fase' }).map(x => x.nombre), ['Sin fase']);
+  assert.deepEqual(ordenarExp(vivos).map(x => x.nombre), ['Zimeron', 'Aresa', 'Órgano Uno', 'ACCIÓ Exploració', 'Regulia']);
+  assert.deepEqual(ordenarExp(vivos, 'nombre').map(x => x.nombre), ['ACCIÓ Exploració', 'Aresa', 'Órgano Uno', 'Regulia', 'Zimeron']);
+  assert.equal(ordenarExp(vivos, 'actualizacion')[0].nombre, 'Zimeron');
+  assert.deepEqual(ordenarExp(), []);
+  const ss = seccionesExp(vivos, [{ id: 'chief', nombre: 'Marc' }]);
+  assert.deepEqual(ss.map(x => x.clave), ['fase', 'responsable', 'tipologia', 'orden', 'texto']);
+  assert.deepEqual(ss[0].opciones[0], ['ejecución', 'ejecución', 2]);
+  assert.deepEqual(ss[1].opciones.find(o => o[0] === 'chief'), ['chief', 'Marc', 1]);
+  assert.equal(ss[3].defecto, 'importe');
+  assert.equal(construirRutaExp({ tipo: 'cliente' }), '#operacion/expedientes?tipo=cliente');
+  assert.equal(construirRutaExp({ tipo: 'todos', fase: 'beta', orden: 'nombre', texto: 'x' }), '#operacion/expedientes?tipo=todos&fase=beta&texto=x&orden=nombre');
+  assert.equal(construirRutaExp({ tipo: 'cliente', orden: 'importe' }), '#operacion/expedientes?tipo=cliente', 'el orden por defecto no ensucia la ruta');
+  assert.equal(construirRutaExp(), '#operacion/expedientes');
 });

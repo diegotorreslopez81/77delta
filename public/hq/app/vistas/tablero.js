@@ -3,7 +3,8 @@ import { rpc } from '../api.js';
 import { el, modal, toast, fecha, campoTexto } from '../ui.js';
 import { apilada } from '../graficos.js';
 import { panel, cifra, grafico, leyenda, filaBarra } from '../cuadro.js';
-import { kanban, COLUMNAS, yo } from '../estado.js';
+import { kanban, filtrar, COLUMNAS, yo, enCurso, agentesActivos } from '../estado.js';
+import { hojaFiltros, pillsActivos } from '../filtros.js';
 import { tarjetaEncargo } from '../tarjeta.js';
 import { accionAlSoltar, habilitarArrastre } from '../dnd.js';
 import { abrirDetalle, moverEncargo } from '../detalle.js';
@@ -15,17 +16,38 @@ import { recargar } from '../main.js';
 // owner, así que el arrastre queda restringido al owner hasta que el backend exponga la identidad
 // del agente (se anota en el informe).
 
-function filtros(S, pintar) {
-  const d = S.datos, f = S.filtros;
-  const sel = (clave, opciones, todo) => el('select', { class: 'campo mini', onchange: e => { f[clave] = e.target.value || null; pintar(); } }, [el('option', { value: '', text: todo }), ...opciones.map(([v, t]) => el('option', { value: v, selected: f[clave] === v, text: t }))]);
+// 2.0.20 (feedback de Diego del 19-sep desde el iPhone): fuera la barra `filtros fila` con selects y
+// fuera las pestañas de móvil. Arriba, chips de columna (el embudo del Tablero); el resto de filtros,
+// en la hoja común de app/filtros.js. Puras y probadas sin DOM: columnaChip y seccionesTablero.
+export function columnaChip(valorRuta) {
+  const v = String(valorRuta || '');
+  return COLUMNAS.some(([c]) => c === v) ? v : '';
+}
+export function seccionesTablero(d = {}) {
   const etiquetas = [...new Set((d.encargos || []).flatMap(e => e.etiquetas || []))].sort();
-  return el('div', { class: 'filtros fila' }, [
-    sel('bloque', (d.bloques || []).map(b => [b.letra, b.letra + ' ' + b.nombre]), 'Todos los bloques'),
-    sel('frente', (d.frentes || []).filter(x => !f.bloque || x.bloque_letra === f.bloque).map(x => [x.codigo, x.codigo + ' ' + x.linea]), 'Todos los frentes'),
-    sel('agente', (d.agentes || []).map(a => [a.id, a.nombre]), 'Todos'), etiquetas.length ? sel('etiqueta', etiquetas.map(x => [x, x]), 'Etiquetas') : null,
-    el('input', { class: 'campo mini', placeholder: 'buscar', value: f.texto, oninput: e => { f.texto = e.target.value; pintar(); } }),
-    (f.frente || f.bloque || f.agente || f.etiqueta || f.texto) ? el('button', { class: 'btn-enlace', text: 'quitar filtros', onclick: () => { Object.assign(f, { frente: null, bloque: null, agente: null, etiqueta: null, texto: '' }); pintar(); } }) : null,
-    el('button', { class: 'btn primario', text: '+ Encargo', onclick: () => nuevoEncargo(S) })]);
+  return [
+    { clave: 'bloque', titulo: 'Bloque', opciones: (d.bloques || []).map(b => [b.letra, b.letra + ' ' + b.nombre]) },
+    // Los frentes no se recortan por el bloque elegido: el código ya lleva la letra delante y así la
+    // hoja no depende del orden en que se tocan las secciones.
+    { clave: 'frente', titulo: 'Frente', opciones: (d.frentes || []).map(x => [x.codigo, x.codigo + ' ' + x.linea]) },
+    { clave: 'agente', titulo: 'Agente', opciones: (d.agentes || []).map(a => [a.id, a.nombre || a.id]) },
+    { clave: 'etiqueta', titulo: 'Etiqueta', opciones: etiquetas.map(x => [x, x]) },
+    { clave: 'texto', titulo: 'Buscar', libre: true },
+  ];
+}
+// Cabecera "Ahora mismo" del Tablero con estado=en_curso. El recuento sale de agentesActivos(), la
+// misma función que la pill de Home: no hay dos criterios de "activo".
+export function cabeceraAhora(S, ahora = new Date()) {
+  const { n, agentes } = agentesActivos(S.datos.agentes, S.datos.encargos, ahora);
+  const m = enCurso(S.datos.encargos).length;
+  return el('section', { class: 'ahora-mismo' }, [
+    el('h2', { text: 'Ahora mismo · ' + n + (n === 1 ? ' agente activo' : ' agentes activos') + ' · ' + m + (m === 1 ? ' encargo en curso' : ' encargos en curso') }),
+    el('div', { class: 'chips chips-ahora' }, n ? agentes.map(a => el('a', {
+      class: 'pill verde', href: '#equipo/agente/' + encodeURIComponent(a.id),
+      title: a.encargo ? '#' + a.encargo.id + ' ' + a.encargo.titulo : 'sin encargo en curso',
+    }, [el('i', { class: 'punto g-verde' }), a.nombre + ' · ' + (a.encargo ? corto(a.encargo.titulo, 40) : 'sin encargo en curso')]))
+      : [el('span', { class: 'pill', text: 'ningún agente activo' })]),
+  ]);
 }
 
 // T4-b (correccion del controlador vs. lo verificado en schema-v2.sql, se anota en el informe): la
@@ -74,30 +96,53 @@ export function cuadroTablero(S, k, ahora = new Date()) {
 }
 
 export function render(raiz, S, arg, filtrosRuta = {}, ahora = new Date()) {
-  if (filtrosRuta.frente) { S.filtros.frente = filtrosRuta.frente; history.replaceState(null, '', '#operacion/tablero'); }
-  if (filtrosRuta.agente) { S.filtros.agente = filtrosRuta.agente; history.replaceState(null, '', '#operacion/tablero'); }
-  if (arg && /^\d+$/.test(arg)) { history.replaceState(null, '', '#operacion/tablero'); abrirDetalle(Number(arg), S, recargar); }
+  const columna = columnaChip(filtrosRuta.estado);
+  // Los enlaces viejos '?frente=' y '?agente=' siguen funcionando: vuelcan a S.filtros y limpian la
+  // ruta, pero sin perder el chip de columna si venía puesto.
+  const limpia = () => history.replaceState(null, '', '#operacion/tablero' + (columna ? '?estado=' + columna : ''));
+  if (filtrosRuta.frente) { S.filtros.frente = filtrosRuta.frente; limpia(); }
+  if (filtrosRuta.agente) { S.filtros.agente = filtrosRuta.agente; limpia(); }
+  if (arg && /^\d+$/.test(arg)) { limpia(); abrirDetalle(Number(arg), S, recargar); }
   const movil = matchMedia('(max-width: 899px)').matches;
-  const cont = el('div', { class: 'kanban' + (movil ? ' movil' : '') }), barra = el('div', { class: 'barra-filtros' });
+  const cont = el('div', { class: 'kanban' + (movil ? ' movil' : '') + (columna ? ' una' : '') + ' con-fab' });
+  const barra = el('div', { class: 'barra-filtros' });
+  const secciones = seccionesTablero(S.datos);
+  const valores = () => ({ bloque: S.filtros.bloque || '', frente: S.filtros.frente || '', agente: S.filtros.agente || '', etiqueta: S.filtros.etiqueta || '', texto: S.filtros.texto || '' });
+  const aplicar = v => { Object.assign(S.filtros, { bloque: v.bloque || null, frente: v.frente || null, agente: v.agente || null, etiqueta: v.etiqueta || null, texto: v.texto || '' }); pintar(); };
   const pintar = () => {
-    barra.innerHTML = ''; barra.append(filtros(S, pintar));
-    const k = kanban(S.datos.encargos, S.filtros); cont.innerHTML = '';
-    if (movil) cont.append(el('div', { class: 'pestanas' }, COLUMNAS.map(([c, t]) => el('button', { class: 'btn' + (S.columnaMovil === c ? ' primario' : ''), text: t + ' ' + k[c].length, onclick: () => { S.columnaMovil = c; pintar(); } }))));
+    const k = kanban(S.datos.encargos, S.filtros);
+    barra.innerHTML = '';
+    barra.append(el('div', { class: 'chips chips-embudo' }, [
+      el('a', { class: 'chip' + (columna ? '' : ' activo'), href: '#operacion/tablero', text: 'Todas' }),
+      ...COLUMNAS.map(([c, t]) => el('a', { class: 'chip' + (columna === c ? ' activo' : ''), href: '#operacion/tablero?estado=' + c, text: t + ' ' + k[c].length })),
+    ]));
+    const pills = pillsActivos(valores(), secciones, clave => { aplicar({ ...valores(), [clave]: '' }); });
+    if (pills) barra.append(pills);
+    if (columna === 'en_curso') barra.append(cabeceraAhora(S, ahora));
+    if (hoja) hoja.actualizar(valores(), filtrar(S.datos.encargos, S.filtros).length);
+    cont.innerHTML = '';
     for (const [c, t] of COLUMNAS) {
-      if (movil && c !== S.columnaMovil) continue;
+      if (columna && c !== columna) continue;
       cont.append(el('section', { class: 'columna', 'data-columna': c }, [el('h2', {}, [t, el('span', { class: 'mudo', text: ' ' + k[c].length })]), ...k[c].map(e => {
         const tj = tarjetaEncargo(e, { onAbrir: x => abrirDetalle(x.id, S, recargar) });
         if (S.datos.rol === 'owner' || e.agente === yo(S)) { tj.draggable = !movil; tj.append(el('button', { class: 'btn-enlace mover', text: 'mover', onclick: ev => { ev.stopPropagation(); menuMover(e, S); } })); }
         return tj; })]));
     }
   };
-  habilitarArrastre(cont, { onSoltar: async (id, columna, indice) => {
+  const hoja = hojaFiltros({ secciones, valores: valores(), total: filtrar(S.datos.encargos, S.filtros).length,
+    onCambio: v => filtrar(S.datos.encargos, { ...v, bloque: v.bloque || null, frente: v.frente || null, agente: v.agente || null, etiqueta: v.etiqueta || null }).length,
+    onAplicar: aplicar });
+  habilitarArrastre(cont, { onSoltar: async (id, columnaDestino, indice) => {
     const e = S.datos.encargos.find(x => x.id === id); if (!e) return;
-    const a = accionAlSoltar(e.columna, columna); a.destino = columna;
-    if (a.tipo === 'nada') { try { const vecinos = kanban(S.datos.encargos, S.filtros)[columna].filter(x => x.id !== id); const orden = indice === 0 ? (vecinos[0]?.orden_kanban ?? 1000) - 10 : indice >= vecinos.length ? (vecinos.at(-1)?.orden_kanban ?? 0) + 10 : Math.floor(((vecinos[indice - 1].orden_kanban ?? 0) + (vecinos[indice].orden_kanban ?? 1000)) / 2); await rpc('omc_encargo_editar', { p_id: id, p: { orden_kanban: orden } }); await recargar(); } catch (err) { toast('HQ rechaza: ' + err.message); } return; }
+    const a = accionAlSoltar(e.columna, columnaDestino); a.destino = columnaDestino;
+    if (a.tipo === 'nada') { try { const vecinos = kanban(S.datos.encargos, S.filtros)[columnaDestino].filter(x => x.id !== id); const orden = indice === 0 ? (vecinos[0]?.orden_kanban ?? 1000) - 10 : indice >= vecinos.length ? (vecinos.at(-1)?.orden_kanban ?? 0) + 10 : Math.floor(((vecinos[indice - 1].orden_kanban ?? 0) + (vecinos[indice].orden_kanban ?? 1000)) / 2); await rpc('omc_encargo_editar', { p_id: id, p: { orden_kanban: orden } }); await recargar(); } catch (err) { toast('HQ rechaza: ' + err.message); } return; }
     await moverEncargo(e, a, S, recargar);
   } });
-  raiz.append(el('div', { class: 'fila enlace-kpis' }, [el('a', { class: 'btn-enlace', href: '#kpis?grupo=tablero', text: 'KPIs ›' })]), barra, cont); pintar();
+  raiz.append(el('div', { class: 'fila enlace-kpis' }, [
+    el('a', { class: 'btn-enlace', href: '#kpis?grupo=tablero', text: 'KPIs ›' }),
+    el('button', { class: 'btn primario', text: '+ Encargo', onclick: () => nuevoEncargo(S) })]),
+    barra, cont, hoja.fab, hoja.hoja);
+  pintar();
 }
 function menuMover(e, S) {
   const m = modal({ titulo: 'Mover #' + e.id, cuerpo: COLUMNAS.filter(([c]) => c !== e.columna).map(([c, t]) => el('button', { class: 'btn ancho', text: t, onclick: () => { m.cerrar(); const a = accionAlSoltar(e.columna, c); a.destino = c; moverEncargo(e, a, S, recargar); } })) });

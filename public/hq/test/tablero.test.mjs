@@ -39,6 +39,7 @@ globalThis.document = {
   getElementById: () => crearNodo('div'),
   body: crearNodo('body'),
   addEventListener: () => {},
+  removeEventListener: () => {},
 };
 globalThis.location = { hash: '', search: '', pathname: '/hq/' };
 globalThis.history = { replaceState: () => {} };
@@ -50,7 +51,7 @@ if (typeof globalThis.localStorage === 'undefined') {
   globalThis.localStorage = { getItem: (k) => (mem.has(k) ? mem.get(k) : null), setItem: (k, v) => mem.set(k, String(v)), removeItem: (k) => mem.delete(k) };
 }
 
-const { render, cuadroTablero, vencidos, porResponsable } = await import('../app/vistas/tablero.js');
+const { render, cuadroTablero, vencidos, porResponsable, columnaChip, seccionesTablero, cabeceraAhora } = await import('../app/vistas/tablero.js');
 const { kanban } = await import('../app/estado.js');
 
 test('render con filtro de ruta no lanza y vuelca el filtro a S.filtros (regresion shadowing filtros/filtrosRuta)', () => {
@@ -98,11 +99,80 @@ test('vencidos ordena por hito más antiguo e ignora hechos y sin hito; porRespo
 });
 
 // #1057 tarea 29: el cuadro se va a Operación/KPIs (grupo tablero); render() ya solo deja el enlace.
-test('render pinta el enlace a KPIs antes de los filtros y del kanban', () => {
+// 2.0.20: la barra de selects y las pestañas de móvil se van; quedan los chips de columna y la hoja.
+test('render pinta el enlace a KPIs, los chips de columna y el FAB de la hoja', () => {
   const raiz = crearNodo('main');
   render(raiz, Sx(), null, {}, AHORA);
-  assert.deepEqual(raiz.children.map(n => n.className), ['fila enlace-kpis', 'barra-filtros', 'kanban']);
+  assert.deepEqual(raiz.children.map(n => n.className), ['fila enlace-kpis', 'barra-filtros', 'kanban con-fab', 'fab-filtros', 'hoja-fondo']);
   const enlace = buscarNodos(raiz.children[0], n => n.tag === 'a')[0];
   assert.equal(enlace.attrs.href, '#kpis?grupo=tablero');
   assert.equal(enlace.textContent, 'KPIs ›');
+  assert.equal(buscarNodos(raiz, n => n.tag === 'select').length, 0, 'fuera los selects de la barra vieja');
+  assert.equal(buscarNodos(raiz, n => (n.className || '').includes('pestanas')).length, 0);
+  const chips = buscarNodos(raiz.children[1], n => n.tag === 'a' && (n.className || '').includes('chip'));
+  assert.deepEqual(chips.map(c => [c.textContent, c.attrs.href, (c.className || '').includes('activo')]), [
+    ['Todas', '#operacion/tablero', true],
+    ['Backlog 1', '#operacion/tablero?estado=backlog', false],
+    ['Por hacer 0', '#operacion/tablero?estado=por_hacer', false],
+    ['En curso 2', '#operacion/tablero?estado=en_curso', false],
+    ['Bloqueado 1', '#operacion/tablero?estado=bloqueado', false],
+    ['Hecho 1', '#operacion/tablero?estado=hecho', false]]);
+  // Sin chip activo se ven las cinco columnas, como hasta ahora.
+  assert.deepEqual(buscarNodos(raiz.children[2], n => (n.className || '') === 'columna').map(n => n.attrs['data-columna']),
+    ['backlog', 'por_hacer', 'en_curso', 'bloqueado', 'hecho']);
+});
+
+test('estado=<columna> en la ruta deja solo esa columna y marca su chip', () => {
+  const raiz = crearNodo('main');
+  render(raiz, Sx(), null, { estado: 'bloqueado' }, AHORA);
+  assert.deepEqual(buscarNodos(raiz.children[2], n => (n.className || '') === 'columna').map(n => n.attrs['data-columna']), ['bloqueado']);
+  assert.ok(raiz.children[2].className.includes('una'));
+  const activo = buscarNodos(raiz.children[1], n => n.tag === 'a' && (n.className || '').includes('activo'))[0];
+  assert.equal(activo.attrs.href, '#operacion/tablero?estado=bloqueado');
+  // Una columna inventada no filtra nada.
+  const otra = crearNodo('main');
+  render(otra, Sx(), null, { estado: 'chorra' }, AHORA);
+  assert.equal(buscarNodos(otra.children[2], n => (n.className || '') === 'columna').length, 5);
+  assert.equal(columnaChip('en_curso'), 'en_curso');
+  assert.equal(columnaChip('chorra'), '');
+  assert.equal(columnaChip(null), '');
+});
+
+test('secciones de la hoja del tablero: bloque, frente, agente, etiqueta y buscador', () => {
+  const d = { bloques: [{ letra: 'A', nombre: 'Licitaciones' }], frentes: [{ codigo: 'A1', linea: 'Fuentes' }], agentes: [{ id: 'chief', nombre: 'Marc' }], encargos: [{ etiquetas: ['urgente'] }, { etiquetas: ['urgente', 'kit'] }] };
+  const ss = seccionesTablero(d);
+  assert.deepEqual(ss.map(s2 => s2.clave), ['bloque', 'frente', 'agente', 'etiqueta', 'texto']);
+  assert.deepEqual(ss[0].opciones, [['A', 'A Licitaciones']]);
+  assert.deepEqual(ss[1].opciones, [['A1', 'A1 Fuentes']]);
+  assert.deepEqual(ss[2].opciones, [['chief', 'Marc']]);
+  assert.deepEqual(ss[3].opciones, [['kit', 'kit'], ['urgente', 'urgente']]);
+  assert.equal(ss[4].libre, true);
+  assert.deepEqual(seccionesTablero().map(s2 => (s2.opciones || []).length), [0, 0, 0, 0, 0]);
+});
+
+// 2.0.20 punto 4: la cabecera "Ahora mismo" sale de agentesActivos(), la misma fuente que Home.
+test('cabecera Ahora mismo con estado=en_curso: recuento y una pill por agente activo', () => {
+  const ahora = new Date('2026-09-19T12:00:00Z');
+  const S = { datos: { rol: 'owner', bloques: [], frentes: [], encargos: [
+    { id: 7, columna: 'en_curso', estado: 'en_curso', agente: 'chief', texto: 'Cerrar la oferta de Calp con toda la documentación del sobre B' },
+    { id: 8, columna: 'en_curso', estado: 'en_curso', agente: 'nadie', texto: 'Otro' }],
+    agentes: [{ id: 'chief', nombre: 'Marc', ultima_actividad: '2026-09-19T11:50:00Z' }, { id: 'guillem', nombre: 'Guillem', ultima_actividad: '2026-09-19T11:55:00Z' }, { id: 'nil', nombre: 'Nil', ultima_actividad: '2026-09-17T10:00:00Z' }] },
+    filtros: {} };
+  const cab = cabeceraAhora(S, ahora);
+  assert.equal(cab.children[0].textContent, 'Ahora mismo · 2 agentes activos · 2 encargos en curso');
+  const pills = buscarNodos(cab, n => n.tag === 'a' && (n.className || '').includes('pill'));
+  assert.deepEqual(pills.map(a => [a.textContent, a.attrs.href]), [
+    ['Marc · Cerrar la oferta de Calp con toda la do…', '#equipo/agente/chief'],
+    ['Guillem · sin encargo en curso', '#equipo/agente/guillem']]);
+  const raiz = crearNodo('main');
+  render(raiz, S, null, { estado: 'en_curso' }, ahora);
+  assert.ok(raiz.children[1].textContent.includes('Ahora mismo · 2 agentes activos'));
+  // Sin el chip de En curso no hay cabecera.
+  const otra = crearNodo('main');
+  render(otra, S, null, {}, ahora);
+  assert.ok(!otra.children[1].textContent.includes('Ahora mismo'));
+  // Sin nadie con latido reciente, una pill neutra.
+  const solos = { ...S, datos: { ...S.datos, agentes: [{ id: 'nil', nombre: 'Nil', ultima_actividad: null }] } };
+  assert.ok(cabeceraAhora(solos, ahora).textContent.includes('0 agentes activos'));
+  assert.ok(cabeceraAhora(solos, ahora).textContent.includes('ningún agente activo'));
 });

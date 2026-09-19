@@ -118,8 +118,25 @@ test('owner: la franja enciende urgentes, parados, cuentas y correo; sin nada, "
   const t = pintar().children[0].textContent;
   for (const x of ['1 urgentes tuyas', '1 encargos parados', 'cuentas saturadas', '2 correos sin contestar']) assert.ok(t.includes(x), x);
   const raiz = pintar({ rol: 'owner' });
-  assert.equal(raiz.children[0].textContent, 'sin alertas');
-  assert.match(raiz.children[0].children[0].className, /verde/);
+  assert.ok(raiz.children[0].textContent.endsWith('sin alertas'));
+  assert.match(raiz.children[0].children.at(-1).className, /verde/);
+});
+
+// 2.0.20 punto 4: la primera pill de la franja es "N agentes activos", de agentesActivos().
+test('owner: la franja abre con los agentes activos y enlaza al tablero en curso; nunca coste en Home', () => {
+  const con = { ...datosOwner, agentes: [
+    { id: 'ariadna', nombre: 'Ariadna', activo: true, ultima_actividad: '2026-09-17T06:40:00Z' },
+    { id: 'guillem', nombre: 'Guillem', activo: true, ultima_actividad: '2026-09-15T06:40:00Z' }] };
+  const primera = pintar(con).children[0].children[0];
+  assert.equal(primera.textContent, '1 agente activo');
+  assert.equal(primera.attrs.href, '#operacion/tablero?estado=en_curso');
+  assert.match(primera.className, /verde/);
+  // Sin nadie con latido reciente, pill neutra pero con el mismo enlace.
+  const sin = pintar().children[0].children[0];
+  assert.equal(sin.textContent, 'ningún agente activo');
+  assert.match(sin.className, /neutro-2/);
+  assert.equal(sin.attrs.href, '#operacion/tablero?estado=en_curso');
+  assert.ok(!/EUR|USD|\$|€/.test(pintar(con).textContent), 'Home nunca habla de coste');
 });
 
 test('owner: Vencidos y parados marca alerta y lista lo peor primero', () => {

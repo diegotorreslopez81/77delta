@@ -82,3 +82,41 @@ test('cierres: fecha_hito dentro de la ventana, nunca hecho/descartado, ordenado
   assert.deepEqual(cierres(encargosC, ahoraC, 15).map(e => e.id), [2, 1, 3]);
   assert.deepEqual(cierres(undefined, ahoraC), []);
 });
+
+// 2.0.20: latido compartido y "quién está activo ahora mismo".
+test('tramoLatido: cuatro tramos desde la ultima actividad', async () => {
+  const { tramoLatido } = await import('../app/estado.js');
+  const ahora = new Date('2026-09-19T12:00:00Z');
+  assert.equal(tramoLatido({ ultima_actividad: '2026-09-19T11:40:00Z' }, ahora), 'activo');
+  assert.equal(tramoLatido({ ultima_actividad: '2026-09-19T05:00:00Z' }, ahora), 'hoy');
+  assert.equal(tramoLatido({ ultima_actividad: '2026-09-17T05:00:00Z' }, ahora), 'dormido');
+  assert.equal(tramoLatido({ ultima_actividad: null }, ahora), 'sin');
+  assert.equal(tramoLatido(null, ahora), 'sin');
+});
+
+test('agentesActivos: solo agentes de alta con latido reciente, con su encargo en curso', async () => {
+  const { agentesActivos } = await import('../app/estado.js');
+  const ahora = new Date('2026-09-19T12:00:00Z');
+  const agentes = [
+    { id: 'ariadna', nombre: 'Ariadna', ultima_actividad: '2026-09-19T11:50:00Z' },
+    { id: 'guillem', nombre: 'Guillem', ultima_actividad: '2026-09-19T11:59:00Z' },
+    { id: 'marta', nombre: 'Marta', ultima_actividad: '2026-09-19T08:00:00Z' },   // latido viejo
+    { id: 'pau', nombre: 'Pau', ultima_actividad: null },                          // sin latido
+    { id: 'jordi', nombre: 'Jordi', ultima_actividad: '2026-09-19T11:55:00Z', activo: false }, // de baja
+  ];
+  const encargos = [
+    { id: 1, texto: 'Oferta Calp', estado: 'en_curso', agente: 'ariadna', fecha_estado: '2026-09-18T10:00:00Z' },
+    { id: 2, texto: 'Oferta Durango', estado: 'en_curso', agente: 'ariadna', fecha_estado: '2026-09-19T09:00:00Z' },
+    { id: 3, texto: 'Ya cerrado', estado: 'hecho', agente: 'guillem' },
+    { id: 4, texto: 'Por responsable', estado: 'en_curso', agente: null, responsable: 'guillem', fecha: '2026-09-19T07:00:00Z' },
+  ];
+  const r = agentesActivos(agentes, encargos, ahora);
+  assert.equal(r.n, 2);
+  assert.deepEqual(r.agentes.map(a => a.id), ['ariadna', 'guillem']);
+  assert.deepEqual(r.agentes[0].encargo, { id: 2, titulo: 'Oferta Durango' }, 'el mas reciente de los suyos en curso');
+  assert.deepEqual(r.agentes[1].encargo, { id: 4, titulo: 'Por responsable' });
+  assert.deepEqual(agentesActivos([], [], ahora), { n: 0, agentes: [] });
+  assert.deepEqual(agentesActivos(undefined, undefined, ahora), { n: 0, agentes: [] });
+  // Un agente activo sin encargo en curso sale igual, con encargo null.
+  assert.equal(agentesActivos([agentes[0]], [], ahora).agentes[0].encargo, null);
+});

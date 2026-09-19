@@ -5,7 +5,7 @@
 // Los diez paneles agregados (Objetivo, Pipeline, Embudo, Expedientes, Frentes, Encargos, Cierres,
 // Equipo, Consumo) se fueron a #kpis; aquí no se calcula ni se pinta ningún agregado, solo lo accionable.
 import { el, fecha } from '../ui.js';
-import { enCurso } from '../estado.js';
+import { enCurso, agentesActivos } from '../estado.js';
 import { tarjetaEncargo } from '../tarjeta.js';
 import { panel, cifra } from '../cuadro.js';
 import { urgeTercera } from './recursos.js';
@@ -20,7 +20,9 @@ function kpi(clave, kpis) { const k = (kpis || {})[clave]; return k && k.valor !
 const dia = t => new Date(t).toISOString().slice(0, 10);
 
 // Franja de semáforos: lo que pide atención ahora, una píldora por alerta (o "sin alertas" en verde).
-function franja(d, urg) {
+// 2.0.20 (orden de Diego 19-sep): la primera píldora es siempre "N agentes activos", que sale de
+// agentesActivos() en estado.js, la misma fuente que la cabecera del Tablero. Nunca coste aquí.
+export function franja(d, urg, ahora = new Date()) {
   const sesiones = (d.sesiones || []).filter(x => x.estado !== 'cerrada').length;
   const parados = (d.encargos || []).filter(e => e.rojo).length;
   const correo = kpi('correo.pendientes.n', d.kpis) || 0;
@@ -32,7 +34,13 @@ function franja(d, urg) {
     correo ? ['ambar', correo + ' correos sin contestar', '#operacion/expedientes'] : null,
     sesiones ? ['ambar', sesiones + ' sesiones abiertas', '#operacion/expedientes'] : null,
   ].filter(Boolean);
-  return el('div', { class: 'franja' }, (pills.length ? pills : [['verde', 'sin alertas', '#operacion/tablero']]).map(([c, t, h]) => el('a', { class: 'semaforo-pill ' + c, href: h }, [el('i', { class: 'punto g-' + c }), el('span', { text: t })])));
+  const act = agentesActivos(d.agentes, d.encargos, ahora);
+  const todas = [
+    act.n ? ['verde', act.n + (act.n === 1 ? ' agente activo' : ' agentes activos'), '#operacion/tablero?estado=en_curso']
+      : ['neutro-2', 'ningún agente activo', '#operacion/tablero?estado=en_curso'],
+    ...(pills.length ? pills : [['verde', 'sin alertas', '#operacion/tablero']]),
+  ];
+  return el('div', { class: 'franja' }, todas.map(([c, t, h]) => el('a', { class: 'semaforo-pill ' + c, href: h }, [el('i', { class: 'punto g-' + c }), el('span', { text: t })])));
 }
 
 export function urgentes(pendientes, ahora = new Date()) {
@@ -89,7 +97,7 @@ function panelSesiones(sesiones) {
 export function render(raiz, S, arg, filtros, ahora = new Date()) {
   const d = S.datos || {};
   if (d.rol === 'owner') {
-    raiz.append(franja(d, urgentes(d.pendientes, ahora).length));
+    raiz.append(franja(d, urgentes(d.pendientes, ahora).length, ahora));
     decisiones.montar(raiz, S, arg);
     raiz.append(el('div', { class: 'cuadro' }, [panelVencidosParados(d.encargos, ahora), panelProximosCierres(d.licitaciones, ahora), panelSesiones(d.sesiones)]));
   } else {

@@ -27,10 +27,12 @@ function crearNodo(tag) {
 globalThis.document = {
   createElement: (tag) => crearNodo(tag),
   createTextNode: (data) => ({ nodeType: 3, data }),
+  body: crearNodo('body'),
+  addEventListener() {}, removeEventListener() {},
 };
 globalThis.location = { hash: '' };
 
-const { render, diasA, plazo, plazoConsumido, porFiltro, ordenar, buscar, tarjetaLic, usarCargador } = await import('../app/vistas/licitaciones.js');
+const { render, diasA, plazo, plazoConsumido, porEstado, estadoChip, estadoPorDefecto, ordenar, buscar, tarjetaLic, usarCargador } = await import('../app/vistas/licitaciones.js');
 // La pestana 'descartadas' pide las filas al servidor tras pintar el payload (#1063): en los tests no hay
 // red ni api.js, asi que el cargador por defecto se sustituye por uno mudo (null = no repintar).
 usarCargador(async () => null);
@@ -42,6 +44,14 @@ const expedientes = raiz => tarjetas(raiz).map(t => t.attrs['data-expediente']);
 const chips = raiz => buscarNodos(raiz, n => n.tag === 'a' && clase(n, 'chip'));
 const selects = raiz => buscarNodos(raiz, n => n.tag === 'select');
 const raizVacia = () => crearNodo('main');
+// 2.0.20: los filtros viven en la hoja (app/filtros.js), que se pinta dentro de la misma raiz.
+const fab = raiz => buscarNodos(raiz, n => clase(n, 'fab-filtros'))[0];
+const seccion = (raiz, titulo) => buscarNodos(raiz, n => n.tag === 'section' && clase(n, 'hoja-seccion')).find(s2 => s2.children[0].textContent === titulo);
+const chipsHoja = (raiz, titulo) => { const s2 = seccion(raiz, titulo); return s2 ? buscarNodos(s2, n => n.tag === 'button' && clase(n, 'chip')) : []; };
+const buscadorHoja = raiz => buscarNodos(raiz, n => n.tag === 'input' && clase(n, 'hoja-buscar'))[0];
+const botonVer = raiz => buscarNodos(raiz, n => n.tag === 'button' && clase(n, 'primario'))[0];
+const pillsX = raiz => buscarNodos(raiz, n => n.tag === 'span' && clase(n, 'pill-activo')).map(n => n.textContent);
+const abrirHoja = raiz => { fab(raiz).listeners.click[0]({}); };
 
 const lics = [
   { expediente: 'L1', elegible: 'Probable', estado: 'Nueva', decision: null, cierre: '2026-10-05', importe: '10000', resumen_corto: 'Resumen L1', objeto: 'Objeto L1' },
@@ -63,24 +73,41 @@ test('render: enlace a KPIs arriba, sin el cuadro de paneles de antes', () => {
   assert.equal(buscarNodos(raiz, n => n.tag === 'section' && clase(n, 'panel-kpi')).length, 0);
 });
 
-test('filtros: activas por defecto, ordenadas por cierre, chips con recuento y enlace que conserva el orden', () => {
+// 2.0.20: chips del embudo (uno por estado), defecto 'decidir' y alias de las rutas viejas.
+test('embudo: siete chips con recuento, por decidir por defecto y alias de las rutas viejas', () => {
   const raiz = pintar({ licitaciones: lics });
-  assert.deepEqual(expedientes(raiz), ['L7', 'L6']);
+  assert.deepEqual(expedientes(raiz), ['L5', 'L2']);
   assert.deepEqual(chips(raiz).map(c => [c.textContent, c.attrs.href, clase(c, 'activo')]), [
-    ['Activas 2', '#operacion/licitaciones?estado=activas', true], ['Por decidir 2', '#operacion/licitaciones?estado=decidir', false],
-    ['Pausadas 0', '#operacion/licitaciones?estado=pausadas', false], ['En criba 3', '#operacion/licitaciones?estado=criba', false],
-    ['por cierre', '#operacion/licitaciones?estado=activas', true], ['por importe', '#operacion/licitaciones?estado=activas&orden=importe', false]]);
-  assert.deepEqual(expedientes(pintar({ licitaciones: lics }, { orden: 'importe' })), ['L6', 'L7']);
-  assert.deepEqual(expedientes(pintar({ licitaciones: lics }, { estado: 'raro' })), ['L7', 'L6']);
+    ['Nuevas 3', '#operacion/licitaciones?estado=nuevas', false],
+    ['Por decidir 2', '#operacion/licitaciones?estado=decidir', true],
+    ['Aprobadas 1', '#operacion/licitaciones?estado=aprobadas', false],
+    ['En redacción 0', '#operacion/licitaciones?estado=redaccion', false],
+    ['Presentadas 1', '#operacion/licitaciones?estado=presentadas', false],
+    ['Pausadas 0', '#operacion/licitaciones?estado=pausadas', false],
+    ['Descartadas 0', '#operacion/licitaciones?estado=descartadas', false]]);
+  assert.deepEqual(expedientes(pintar({ licitaciones: lics }, { estado: 'activas' })), ['L6']);
+  assert.deepEqual(expedientes(pintar({ licitaciones: lics }, { estado: 'aprobadas', orden: 'importe' })), ['L6']);
+  assert.deepEqual(expedientes(pintar({ licitaciones: lics }, { estado: 'raro' })), ['L5', 'L2']);
+  assert.equal(estadoChip('criba'), 'nuevas');
+  assert.equal(estadoChip('activas'), 'aprobadas');
+  assert.equal(estadoChip('descartadas'), 'descartadas');
+  assert.equal(estadoChip('loquesea'), '');
+  // 'Analizada' cae bajo 'Por decidir'.
+  assert.equal(porEstado([{ estado: 'Analizada' }, { estado: 'Por decidir' }, { estado: 'Nueva' }], 'decidir').length, 2);
+  assert.equal(estadoPorDefecto([{ estado: 'Analizada' }]), 'decidir');
+  assert.equal(estadoPorDefecto([{ estado: 'En redacción' }, { estado: 'Nueva' }]), 'redaccion');
+  assert.equal(estadoPorDefecto([{ estado: 'Nueva' }]), 'aprobadas');
+  assert.equal(estadoPorDefecto([]), 'aprobadas');
 });
 
-test('filtros: por decidir con enlace Decidir; en criba agrupada por elegible, la mayor abierta, Perfil solo con http', () => {
+test('filtros: por decidir con enlace Decidir; nuevas agrupadas por elegible, la mayor abierta, Perfil solo con http', () => {
   const dec = pintar({ licitaciones: lics }, { estado: 'decidir' });
-  assert.deepEqual(expedientes(dec), ['L2', 'L1']);
-  assert.ok(tarjetas(dec).every(t => buscarNodos(t, n => n.tag === 'a' && n.textContent === 'Decidir').length === 1));
+  assert.deepEqual(expedientes(dec), ['L5', 'L2']);
+  // El enlace Decidir sigue siendo solo para las decidibles (Probable/Dudosa), no para todo el chip.
+  assert.deepEqual(tarjetas(dec).map(t => buscarNodos(t, n => n.tag === 'a' && n.textContent === 'Decidir').length), [0, 1]);
   const cri = pintar({ licitaciones: lics }, { estado: 'criba' });
   const gs = buscarNodos(cri, n => n.tag === 'details');
-  assert.deepEqual(gs.map(g => g.children[0].textContent), ['Revisar (2)', 'No viable (1)']);
+  assert.deepEqual(gs.map(g => g.children[0].textContent), ['Revisar (1)', 'Probable (1)', 'No viable (1)']);
   assert.equal(gs[0].attrs.open, '');
   assert.equal(gs[1].attrs.open, undefined);
   const perfiles = buscarNodos(cri, n => n.tag === 'a' && n.textContent === 'Perfil');
@@ -88,29 +115,69 @@ test('filtros: por decidir con enlace Decidir; en criba agrupada por elegible, l
   assert.equal(tarjetas(cri).length, 0);
 });
 
-test('buscador: filtra la lista sin acentos por expediente, objeto u órgano, y avisa si no queda nada', () => {
-  const raiz = pintar({ licitaciones: lics });
-  const input = buscarNodos(raiz, n => n.tag === 'input' && n.attrs.type === 'search')[0];
-  input.listeners.input[0]({ target: { value: 'l6' } });
-  assert.deepEqual(expedientes(raiz), ['L6']);
-  input.listeners.input[0]({ target: { value: 'zzz' } });
-  assert.ok(raiz.textContent.includes('nada con este filtro'));
+test('hoja: el FAB con el globo de filtros activos, las secciones en orden y las pills con x encima de la lista', () => {
+  const raiz = pintar({ licitaciones: lics.map(l => ({ ...l, pestana: 'PLACSP', tipo: 'servicios' })) }, { tipologia: 'Estatal', presencial: 'no' });
+  assert.equal(selects(raiz).length, 0, 'los selects de filtros desaparecen');
+  const b = fab(raiz);
+  assert.equal(b.attrs['aria-label'], 'Filtros');
+  assert.equal(b.children.at(-1).textContent, '2');
+  assert.equal(b.children.at(-1).hidden, false);
+  assert.deepEqual(buscarNodos(raiz, n => n.tag === 'section' && clase(n, 'hoja-seccion')).map(s2 => s2.children[0].textContent),
+    ['Estado', 'Orden', 'Tipología', 'Solvencia', 'Tipo', 'Presencial']);
+  assert.deepEqual(pillsX(raiz), ['Tipología: Estatal×', 'Presencial: Sin presencia×']);
+  // El estado del embudo y el orden por defecto no cuentan como filtro activo.
+  assert.equal(fab(pintar({ licitaciones: lics })).children.at(-1).hidden, true);
+  // Motivo de NO solo con descartadas; fuente y desiertas solo por ruta, como pill.
+  const des = pintar({ licitaciones: [{ expediente: 'D1', estado: 'Descartada', motivos: ['Sin pliego'], pestana: 'PLACSP' }] }, { estado: 'descartadas', fuente: 'PLACSP', desiertas: '1' });
+  assert.ok(seccion(des, 'Motivo de NO'));
+  assert.equal(seccion(des, 'Fuente'), undefined);
+  assert.deepEqual(pillsX(des), ['Fuente: PLACSP×', 'Desiertas: Solo desiertas×']);
 });
 
-test('filtros nuevos: tipologia, solvencia y motivo de NO siempre visibles; fuente y tipo solo si el payload los trae; desiertas solo en la pestaña criba', () => {
-  const base = pintar({ licitaciones: lics });
-  // #1063: tipologia, solvencia y Motivo de NO (catalogo fijo, como TIPOLOGIAS).
-  assert.equal(selects(base).length, 3);
-  assert.equal(buscarNodos(base, n => n.tag === 'input' && n.attrs.type === 'checkbox').length, 0);
-  const conFuenteTipo = lics.map(l => ({ ...l, pestana: 'PLACSP', tipo: 'servicios' }));
-  assert.equal(selects(pintar({ licitaciones: conFuenteTipo })).length, 5);
-  assert.equal(buscarNodos(pintar({ licitaciones: lics }, { estado: 'criba' }), n => n.tag === 'input' && n.attrs.type === 'checkbox').length, 1);
+test('hoja: elegir un chip recuenta en vivo y "Ver N resultados" escribe la ruta; la x quita ese filtro', () => {
+  const raiz = pintar({ licitaciones: lics }, { estado: 'nuevas' });
+  abrirHoja(raiz);
+  assert.equal(botonVer(raiz).textContent, 'Ver 3 resultados');
+  const chipDe = (titulo, texto) => chipsHoja(raiz, titulo).find(c => c.textContent === texto);
+  chipDe('Orden', 'Importe').listeners.click[0]({});
+  // La hoja se repinta en cada toque, hay que volver a buscar el chip.
+  assert.equal(chipDe('Orden', 'Importe').attrs['aria-pressed'], 'true');
+  chipDe('Presencial', 'Requiere presencia').listeners.click[0]({});
+  assert.equal(botonVer(raiz).textContent, 'Ver 0 resultados');
+  chipDe('Presencial', 'Requiere presencia').listeners.click[0]({});
+  assert.equal(botonVer(raiz).textContent, 'Ver 3 resultados', 'tocar el chip activo lo quita');
+  globalThis.location.hash = '';
+  botonVer(raiz).listeners.click[0]({});
+  assert.equal(globalThis.location.hash, '#operacion/licitaciones?estado=nuevas&orden=importe');
+  const conPill = pintar({ licitaciones: lics.map(l => ({ ...l, tipo: 'servicios' })) }, { estado: 'nuevas', tipo: 'servicios' });
+  buscarNodos(conPill, n => n.tag === 'button' && clase(n, 'quita-pill'))[0].listeners.click[0]({});
+  assert.equal(globalThis.location.hash, '#operacion/licitaciones?estado=nuevas');
+});
+
+test('buscador de la hoja: recuenta en vivo, viaja en la ruta y avisa si no queda nada', () => {
+  const raiz = pintar({ licitaciones: lics }, { estado: 'aprobadas' });
+  const input = buscadorHoja(raiz);
+  assert.equal(input.attrs.autocapitalize, 'off');
+  assert.equal(input.attrs.placeholder, 'Buscar en la lista');
+  input.listeners.input[0]({ target: { value: 'l6' } });
+  assert.equal(botonVer(raiz).textContent, 'Ver 1 resultado');
+  globalThis.location.hash = '';
+  botonVer(raiz).listeners.click[0]({});
+  assert.equal(globalThis.location.hash, '#operacion/licitaciones?estado=aprobadas&texto=l6');
+  assert.deepEqual(expedientes(pintar({ licitaciones: lics }, { estado: 'aprobadas', texto: 'l6' })), ['L6']);
+  assert.ok(pintar({ licitaciones: lics }, { estado: 'aprobadas', texto: 'zzz' }).textContent.includes('nada con este filtro'));
+});
+
+test('hoja: la seccion Tipo solo aparece si el payload trae tipos', () => {
+  assert.equal(seccion(pintar({ licitaciones: lics }), 'Tipo'), undefined);
+  assert.ok(seccion(pintar({ licitaciones: lics.map(l => ({ ...l, tipo: 'servicios' })) }), 'Tipo'));
 });
 
 test('filtro de tipologia desde la ruta se aplica a la lista de tarjetas', () => {
   const conOrgano = lics.map(l => ({ ...l, organo: l.expediente === 'L6' ? 'Ministerio de Hacienda' : 'Ajuntament de Girona' }));
-  assert.deepEqual(expedientes(pintar({ licitaciones: conOrgano }, { tipologia: 'Estatal' })), ['L6']);
-  assert.deepEqual(expedientes(pintar({ licitaciones: conOrgano }, { tipologia: 'Ayuntamiento' })), ['L7']);
+  assert.deepEqual(expedientes(pintar({ licitaciones: conOrgano }, { estado: 'aprobadas', tipologia: 'Estatal' })), ['L6']);
+  assert.deepEqual(expedientes(pintar({ licitaciones: conOrgano }, { estado: 'aprobadas', tipologia: 'Ayuntamiento' })), []);
+  assert.deepEqual(expedientes(pintar({ licitaciones: conOrgano }, { estado: 'presentadas', tipologia: 'Ayuntamiento' })), ['L7']);
 });
 
 test('tarjetaLic: colapsada por defecto con etiquetas, título y órgano; el detalle trae objeto, expediente, solvencia y enlaces seguros', () => {
@@ -165,20 +232,19 @@ test('tarjetaLic: aprobada con motivos de SI no muestra tags de NO ni "sin motiv
   assert.ok(!tags.includes('sin motivo'));
 });
 
-test('select "Motivo de NO": opciones Todos + catalogo + Sin motivo, filtra la lista de descartadas', () => {
+test('hoja "Motivo de NO": catalogo + Sin motivo, filtra la lista de descartadas', () => {
   const conMotivos = [
     { expediente: 'D1', estado: 'Descartada', motivos: ['Sin pliego'] },
-    { expediente: 'D2', estado: 'Descartada', motivos: [] },
+    { expediente: 'D2', estado: 'Descartada: solo viable en UTE', motivos: [] },
   ];
   const raiz = pintar({ licitaciones: conMotivos }, { estado: 'descartadas' });
-  const sel = selects(raiz).find(s => s.attrs['aria-label'] === 'Motivo de NO');
-  assert.ok(sel);
-  const opts = buscarNodos(sel, n => n.tag === 'option').map(o => o.textContent);
-  assert.equal(opts[0], 'Motivo de NO (todos)');
+  const opts = chipsHoja(raiz, 'Motivo de NO').map(c => c.textContent);
+  assert.equal(opts[0], 'Fuera de España');
   assert.ok(opts.includes('Sin pliego'));
-  assert.equal(opts[opts.length - 1], 'Sin motivo');
-  assert.equal(opts.length, 12);
+  assert.equal(opts.at(-1), 'Sin motivo');
+  assert.equal(opts.length, 11);
   assert.deepEqual(expedientes(pintar({ licitaciones: conMotivos }, { estado: 'descartadas', motivo: 'Sin pliego' })), ['D1']);
+  // El estado sucio del Sheet cuenta como Descartada sin motivo del catalogo.
   assert.deepEqual(expedientes(pintar({ licitaciones: conMotivos }, { estado: 'descartadas', motivo: 'sin' })), ['D2']);
 });
 
@@ -221,12 +287,12 @@ test('descartadas: si el cargador falla, el payload se queda y se avisa en mudo'
   } finally { usarCargador(async () => null); }
 });
 
-test('select "Motivo de NO": el cambio persiste el filtro en la URL junto al resto de filtros activos', () => {
+test('hoja: el chip de motivo persiste en la URL junto al resto de filtros activos', () => {
   globalThis.location.hash = '';
-  const raiz = pintar({ licitaciones: lics }, { estado: 'decidir' });
-  const sel = selects(raiz).find(s => s.attrs['aria-label'] === 'Motivo de NO');
-  sel.listeners.change[0]({ target: { value: 'Sin pliego' } });
-  assert.equal(globalThis.location.hash, '#operacion/licitaciones?estado=decidir&motivo=Sin+pliego');
+  const raiz = pintar({ licitaciones: [{ expediente: 'D1', estado: 'Descartada', motivos: ['Sin pliego'] }] }, { estado: 'descartadas', tipologia: 'Estatal' });
+  chipsHoja(raiz, 'Motivo de NO').find(c => c.textContent === 'Sin pliego').listeners.click[0]({});
+  botonVer(raiz).listeners.click[0]({});
+  assert.equal(globalThis.location.hash, '#operacion/licitaciones?estado=descartadas&tipologia=Estatal&motivo=Sin+pliego');
 });
 
 test('diasA, plazo y plazoConsumido: bordes', () => {
@@ -240,8 +306,8 @@ test('diasA, plazo y plazoConsumido: bordes', () => {
   assert.equal(plazoConsumido({ detectada: '2026-09-01', cierre: '2026-09-10' }, AHORA), 100);
 });
 
-test('porFiltro, ordenar y buscar: funciones puras', () => {
-  assert.deepEqual(porFiltro([{ estado: 'Pausada', expediente: 'P' }, { estado: 'Aprobada' }], 'pausadas').map(l => l.expediente), ['P']);
+test('porEstado, ordenar y buscar: funciones puras', () => {
+  assert.deepEqual(porEstado([{ estado: 'Pausada', expediente: 'P' }, { estado: 'Aprobada' }], 'pausadas').map(l => l.expediente), ['P']);
   assert.deepEqual(ordenar([{ expediente: 'a', importe: '1' }, { expediente: 'b', importe: '9' }], 'importe').map(l => l.expediente), ['b', 'a']);
   assert.deepEqual(buscar([{ organo: 'Ajuntament de Badalona' }, { organo: 'Calonge' }], 'BADALONA').length, 1);
   assert.equal(buscar(lics, '  ').length, lics.length);
@@ -253,9 +319,10 @@ test('sin licitaciones ni resumen: pinta "sin licitaciones" y nada mas', () => {
   assert.equal(pintar({}).textContent, 'sin licitaciones');
 });
 
-test('sin licitaciones pero con lic_resumen: enlace a KPIs y lista vacía, sin fuente ni tipo (el payload no los trae)', () => {
+test('sin licitaciones pero con lic_resumen: enlace a KPIs y lista vacía, con el FAB y sin secciones de fuente ni tipo', () => {
   const raiz = pintar({ licitaciones: [], lic_resumen: { total: { n: 1500, eur: 9000000 }, contratadas: { n: 20, eur: 200000 } } });
   assert.ok(buscarNodos(raiz, n => n.tag === 'a' && n.attrs.href === '#kpis?grupo=licitaciones').length === 1);
-  assert.equal(selects(raiz).length, 3);
+  assert.equal(selects(raiz).length, 0);
+  assert.ok(fab(raiz));
   assert.ok(raiz.textContent.includes('nada con este filtro'));
 });

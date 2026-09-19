@@ -346,3 +346,36 @@ test('enlacesLic prefiere los pliegos de Drive y cae al portal si no hay copia',
   assert.deepEqual(enlacesLic(con), [['Perfil', 'https://p.example/1'], ['Carpeta', 'https://drive.google.com/drive/folders/abc'], ['PPT', 'https://drive.google.com/file/d/PPT1/view'], ['PCAP', 'https://p.example/pcap']]);
   assert.deepEqual(enlacesLic({ enlace: 'https://p.example/2' }), [['Perfil', 'https://p.example/2']]);
 });
+
+// 2.0.20: estado sucio ('Descartada: motivo libre'), presencialidad y buscador como filtro.
+test('estadoPartido y estadoBase: separan el motivo que viene pegado al estado', async () => {
+  const { estadoPartido, estadoBase } = await import('../app/licitaciones.js');
+  assert.deepEqual(estadoPartido({ estado: 'Descartada: solo viable en UTE' }), { estado: 'Descartada', motivo: 'solo viable en UTE' });
+  assert.deepEqual(estadoPartido({ estado: 'Aprobada' }), { estado: 'Aprobada', motivo: '' });
+  assert.equal(estadoBase({ estado: 'Descartada: sin pliego' }), 'Descartada');
+  assert.equal(estadoBase({}), 'Nueva', 'sin estado, Nueva, igual que estadoDe');
+});
+
+test('presencial: lo detecta por el motivo de NO y por el texto de la licitacion', async () => {
+  const { presencial } = await import('../app/licitaciones.js');
+  assert.equal(presencial({ motivos: ['Presencial'] }), true);
+  assert.equal(presencial({ motivo_auto: 'Requiere trabajo presencial en Bilbao' }), true);
+  assert.equal(presencial({ objeto: 'Soporte IN SITU en las oficinas' }), true);
+  assert.equal(presencial({ objeto: 'Servicio remoto de consultoria' }), false);
+  assert.equal(presencial({}), false);
+});
+
+test('filtrar con presencial y texto: sin acentos y sobre expediente, objeto, organo y provincia', async () => {
+  const { filtrar, coincideTexto } = await import('../app/licitaciones.js');
+  const rows = [
+    { expediente: 'P1', objeto: 'Auditoría de IA', organo: 'Ajuntament de Girona', provincia: 'Girona', motivos: ['Presencial'] },
+    { expediente: 'P2', objeto: 'Formación en remoto', organo: 'Diputación de Málaga', provincia: 'Málaga', motivos: [] },
+  ];
+  assert.deepEqual(filtrar(rows, { presencial: 'si' }).map(l => l.expediente), ['P1']);
+  assert.deepEqual(filtrar(rows, { presencial: 'no' }).map(l => l.expediente), ['P2']);
+  assert.deepEqual(filtrar(rows, { texto: 'girona' }).map(l => l.expediente), ['P1']);
+  assert.deepEqual(filtrar(rows, { texto: 'MALAGA' }).map(l => l.expediente), ['P2']);
+  assert.deepEqual(filtrar(rows, { texto: 'auditoria de ia' }).map(l => l.expediente), ['P1']);
+  assert.deepEqual(filtrar(rows, { texto: '  ' }).map(l => l.expediente), ['P1', 'P2']);
+  assert.equal(coincideTexto(rows[0], 'zzz'), false);
+});

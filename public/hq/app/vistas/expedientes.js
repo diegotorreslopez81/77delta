@@ -22,6 +22,7 @@ import { rpc } from '../api.js';
 import { el, modal, toast, fecha, eur, pedirTexto, enlazar, urlSegura } from '../ui.js';
 import { tarjetaEncargo } from '../tarjeta.js';
 import { sinAcentos } from '../estado.js';
+import { hojaFiltros, pillsActivos } from '../filtros.js';
 import { donut, apilada, progreso } from '../graficos.js';
 import { eurCorto, anchoLog, panel, cifra, grafico, leyenda, filaBarra } from '../cuadro.js';
 import { recargar } from '../main.js';
@@ -110,6 +111,44 @@ export function buscarExp(xs, texto, agentes = []) {
   return xs.filter(x => sinAcentos([x.nombre, x.codigo, x.responsable, nombre(x.responsable), x.estado_funnel, x.tipologia].filter(Boolean).join(' ').toLowerCase()).includes(q));
 }
 
+// 2.0.20: los filtros de la lista dejan de ser un buscador suelto y pasan a la hoja común
+// (app/filtros.js). Puras y probadas sin DOM: filtrarExp, ordenarExp, seccionesExp y construirRutaExp.
+export const ORDENES_EXP = [['actualizacion', 'Actualización'], ['importe', 'Importe'], ['nombre', 'Nombre']];
+const porNombre = (a, b) => String(a.nombre || '').localeCompare(String(b.nombre || ''));
+export function ordenarExp(xs, orden = 'importe') {
+  const r = (xs || []).slice();
+  if (orden === 'nombre') return r.sort(porNombre);
+  if (orden === 'actualizacion') return r.sort((a, b) => String(b.resumen_fecha || '').localeCompare(String(a.resumen_fecha || '')) || porNombre(a, b));
+  return r.sort((a, b) => (Number(b.importe) || 0) - (Number(a.importe) || 0) || porNombre(a, b));
+}
+export function filtrarExp(xs, f = {}, agentes = []) {
+  const r = (xs || []).filter(x =>
+    (!f.fase || (x.estado_funnel || 'sin fase') === f.fase) &&
+    (!f.responsable || x.responsable === f.responsable) &&
+    (!f.tipologia || x.tipologia === f.tipologia));
+  return buscarExp(r, f.texto, agentes);
+}
+export function seccionesExp(xs = [], agentes = []) {
+  const nombre = id => (agentes.find(a => a.id === id) || {}).nombre || id;
+  const cuenta = (clave, v) => xs.filter(x => (clave === 'fase' ? (x.estado_funnel || 'sin fase') : x[clave]) === v).length;
+  const unicos = clave => [...new Set(xs.map(x => x[clave]).filter(Boolean))].sort((a, b) => String(a).localeCompare(String(b)));
+  return [
+    { clave: 'fase', titulo: 'Fase', opciones: porFase(xs).map(s => [s.l, s.l, s.v]) },
+    { clave: 'responsable', titulo: 'Responsable', opciones: unicos('responsable').map(id => [id, nombre(id), cuenta('responsable', id)]) },
+    { clave: 'tipologia', titulo: 'Tipología', opciones: unicos('tipologia').map(t => [t, t, cuenta('tipologia', t)]) },
+    { clave: 'orden', titulo: 'Orden', defecto: 'importe', opciones: ORDENES_EXP },
+    { clave: 'texto', titulo: 'Buscar', libre: true },
+  ];
+}
+export function construirRutaExp(v = {}) {
+  const q = new URLSearchParams();
+  if (v.tipo) q.set('tipo', v.tipo);
+  for (const k of ['fase', 'responsable', 'tipologia', 'texto']) if (v[k]) q.set(k, v[k]);
+  if (v.orden && v.orden !== 'importe') q.set('orden', v.orden);
+  const s = q.toString();
+  return '#operacion/expedientes' + (s ? '?' + s : '');
+}
+
 function panelCartera(clientes) {
   const tramos = ECONOMICO.map(([k, color]) => ({ l: k, color, xs: clientes.filter(x => x.estado_economico === k) }));
   tramos.push({ l: 'sin estado', color: 'neutro-3', xs: clientes.filter(x => !ECONOMICO.some(([k]) => k === x.estado_economico)) });
@@ -171,21 +210,26 @@ function lista(raiz, S, filtrosRuta = {}, ahora = new Date()) {
   const xs = (S.datos.expedientes || []).filter(x => x.activo !== false);
   const tipo = TIPOS.some(([k]) => k === filtrosRuta.tipo) ? filtrosRuta.tipo : 'cliente';
   const colorFase = Object.fromEntries(porFase(xs).map(s => [s.l, s.color]));
+  const base = porTipo(xs, tipo);
+  const secciones = seccionesExp(base, S.datos.agentes);
+  const valores = { tipo, orden: filtrosRuta.orden || 'importe' };
+  for (const k of ['fase', 'responsable', 'tipologia', 'texto']) if (filtrosRuta[k]) valores[k] = filtrosRuta[k];
+  const filasDe = v => ordenarExp(filtrarExp(base, v, S.datos.agentes), v.orden);
+
   raiz.append(el('div', { class: 'fila enlace-kpis' }, [el('a', { class: 'btn-enlace', href: '#kpis?grupo=expedientes', text: 'KPIs ›' })]));
-  const base = porTipo(xs, tipo).slice().sort((a, b) => (Number(b.importe) || 0) - (Number(a.importe) || 0) || String(a.nombre).localeCompare(String(b.nombre)));
-  const cont = el('div', { class: 'lista-rica' });
-  const pintarLista = texto => {
-    const rows = buscarExp(base, texto, S.datos.agentes);
-    cont.innerHTML = '';
-    if (!rows.length) { cont.append(el('p', { class: 'mudo', text: 'nada con este filtro' })); return; }
-    rows.forEach(x => cont.append(tarjetaExp(x, S, colorFase)));
-  };
-  raiz.append(el('div', { class: 'filtros-rica' }, [
-    el('div', { class: 'chips' }, TIPOS.filter(([k]) => k === 'todos' || k === tipo || porTipo(xs, k).length).map(([k, t]) => el('a', { class: 'chip' + (k === tipo ? ' activo' : ''), href: '#operacion/expedientes?tipo=' + k, text: t + ' ' + porTipo(xs, k).length }))),
-    el('input', { class: 'campo mini', type: 'search', placeholder: 'Buscar por nombre, código o responsable', 'aria-label': 'Buscar expedientes', oninput: e => pintarLista(e.target.value) }),
-  ]));
-  raiz.append(cont);
-  pintarLista('');
+  const chips = el('div', { class: 'chips chips-embudo' }, TIPOS.filter(([k]) => k === 'todos' || k === tipo || porTipo(xs, k).length)
+    .map(([k, t]) => el('a', { class: 'chip' + (k === tipo ? ' activo' : ''), href: construirRutaExp({ ...valores, tipo: k }), text: t + ' ' + porTipo(xs, k).length })));
+  const zonaPills = el('div');
+  const p = pillsActivos(valores, secciones, clave => { const v = { ...valores }; delete v[clave]; location.hash = construirRutaExp(v); });
+  if (p) zonaPills.append(p);
+  const cont = el('div', { class: 'lista-rica con-fab' });
+  const rows = filasDe(valores);
+  if (!rows.length) cont.append(el('p', { class: 'mudo', text: 'nada con este filtro' }));
+  else rows.forEach(x => cont.append(tarjetaExp(x, S, colorFase)));
+  const hoja = hojaFiltros({ secciones, valores, total: rows.length,
+    onCambio: v => filasDe({ ...v, tipo }).length,
+    onAplicar: v => { location.hash = construirRutaExp({ ...v, tipo }); } });
+  raiz.append(chips, zonaPills, cont, hoja.fab, hoja.hoja);
   if (S.datos.rol === 'owner') raiz.append(el('button', { class: 'btn primario', text: '+ Expediente', onclick: () => alta(S) }));
 }
 

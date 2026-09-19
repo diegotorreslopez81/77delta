@@ -22,7 +22,7 @@
 // para ese uso.
 import { rpc } from '../api.js';
 import { el, modal, toast, horas, urlSegura } from '../ui.js';
-import { filtrar } from '../estado.js';
+import { filtrar, tramoLatido } from '../estado.js';
 import { donut, apilada } from '../graficos.js';
 import { panel, cifra, grafico, leyenda, filaBarra } from '../cuadro.js';
 import { tarjetaEncargo } from '../tarjeta.js';
@@ -70,7 +70,9 @@ function editarFrentes(a, S) {
 // cuadro), COLOR_LATIDO alimenta el semaforo de la tarjeta/ficha (verde/ambar/rojo/gris): son dos
 // escalas distintas a proposito, no se fusionan.
 export const TRAMOS = [['activo', 'activo ahora', 'tinta'], ['hoy', 'hoy', 'tinta-2'], ['dormido', 'más de 24 h', 'neutro-2'], ['sin', 'sin latido', 'neutro-3']];
-export function tramo(a, ahora = new Date()) { const h = horas(a.ultima_actividad, ahora); return h == null ? 'sin' : h < 1 ? 'activo' : h < 24 ? 'hoy' : 'dormido'; }
+// 2.0.20: el criterio del latido vive en estado.js (tramoLatido), única fuente para el punto verde,
+// para decidirSesion de expedientes y para "N agentes activos" de Home. Aquí solo se reexporta.
+export const tramo = tramoLatido;
 const COLOR_LATIDO = { activo: 'verde', hoy: 'ambar', dormido: 'rojo', sin: 'neutro-2' };
 function textoLatido(a, ahora) {
   const t = tramo(a, ahora);

@@ -1,6 +1,7 @@
 // Funciones puras de licitaciones (plan 3b, tanda 2a): que Diego decida sobre las decidibles (unas
 // 60) en vez de las 1.475 filas del feed, y el embudo de KPIs de Operacion/Licitaciones. Sin DOM,
 // sin imports de vistas: se prueba con node --test.
+import { sinAcentos } from './estado.js';
 export const DECIDIBLES = new Set(['Probable', 'Dudosa']);
 export const ABIERTAS = new Set(['Nueva', 'Por decidir']);
 
@@ -151,8 +152,32 @@ export function motivosNo(l) {
   return (l?.motivos || []).filter(m => MOTIVOS_NO.includes(m));
 }
 
-// Filtro puro para la vista: tipologia/solvencia/fuente/tipo/motivo/desiertas, todos opcionales (sin
-// valor no filtra). 'desiertas' lo aplica la vista solo cuando tiene sentido mostrarlo (pestaña criba).
+// Desde 2.0.20 omc_licitaciones_descartadas devuelve tambien estados sucios del Sheet con el motivo
+// pegado al estado ("Descartada: solo viable en UTE"). Se parte una sola vez y en un sitio: la pill de
+// la tarjeta muestra el estado limpio y el resto viaja como texto de motivo.
+export function estadoPartido(l) {
+  const e = estadoDe(l), i = e.indexOf(':');
+  return i > 0 ? { estado: e.slice(0, i).trim(), motivo: e.slice(i + 1).trim() } : { estado: e, motivo: '' };
+}
+export function estadoBase(l) { return estadoPartido(l).estado; }
+
+// Presencialidad (2.0.20, filtro nuevo de la hoja): no hay columna en BD. La senal fiable es el motivo
+// de NO 'Presencial' del catalogo cerrado (lo pone Diego al descartar); para lo que aun no se ha
+// decidido solo queda la heuristica de texto sobre lo que escribe el bot y el pliego.
+export function presencial(l) {
+  if (motivosNo(l).includes('Presencial')) return true;
+  const t = [l?.motivo_auto, l?.solvencia, l?.objeto, l?.resumen_corto].filter(Boolean).join(' ').toLowerCase();
+  return /presencial|in situ/.test(t);
+}
+
+const CAMPOS_TEXTO = l => [l.expediente, l.resumen_corto, l.objeto, l.organo, l.provincia];
+export function coincideTexto(l, texto) {
+  const q = sinAcentos(texto).trim();
+  return !q || sinAcentos(CAMPOS_TEXTO(l).join(' ')).includes(q);
+}
+
+// Filtro puro para la vista: tipologia/solvencia/fuente/tipo/motivo/presencial/texto/desiertas, todos
+// opcionales (sin valor no filtra). Es la unica funcion que filtra la lista de licitaciones.
 // 'motivo' es un motivo del catalogo, o 'sin' para las descartadas sin ningun motivo reconocido.
 export function filtrar(rows, f = {}) {
   return (rows || []).filter(l =>
@@ -160,7 +185,9 @@ export function filtrar(rows, f = {}) {
     && (!f.solvencia || f.solvencia === 'todas' || (f.solvencia === 'sin solvencia' ? sinSolvencia(l) : !sinSolvencia(l)))
     && (!f.fuente || l.pestana === f.fuente)
     && (!f.tipo || l.tipo === f.tipo)
-    && (!f.motivo || (f.motivo === 'sin' ? (estadoDe(l) === 'Descartada' && motivosNo(l).length === 0) : motivosNo(l).includes(f.motivo)))
+    && (!f.motivo || (f.motivo === 'sin' ? (estadoBase(l) === 'Descartada' && motivosNo(l).length === 0) : motivosNo(l).includes(f.motivo)))
+    && (!f.presencial || (f.presencial === 'si' ? presencial(l) : !presencial(l)))
+    && (!f.texto || coincideTexto(l, f.texto))
     && (!f.desiertas || estadoDe(l) === 'Cerrada sin presentar'));
 }
 
