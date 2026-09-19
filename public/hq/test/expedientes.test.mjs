@@ -46,7 +46,7 @@ if (typeof globalThis.localStorage === 'undefined') {
   globalThis.localStorage = { getItem: (k) => (mem.has(k) ? mem.get(k) : null), setItem: (k, v) => mem.set(k, String(v)), removeItem: (k) => mem.delete(k) };
 }
 
-const { estadoSesion, render, tarjetaExp, pasoEconomico, porFase, sinActualizar, buscarExp, panelesExpedientes, decidirSesion, filtrarExp, ordenarExp, seccionesExp, construirRutaExp } = await import('../app/vistas/expedientes.js');
+const { estadoSesion, render, tarjetaExp, pasoEconomico, porFase, sinActualizar, buscarExp, panelesExpedientes, decidirSesion, filtrarExp, ordenarExp, seccionesExp, construirRutaExp, conSesionAbierta } = await import('../app/vistas/expedientes.js');
 
 test('estadoSesion prioriza abierta, luego solicitada, luego nada', () => {
   const ses = [{ id: 1, expediente_id: 5, estado: 'cerrada' }, { id: 2, expediente_id: 5, estado: 'solicitada' }, { id: 3, expediente_id: 6, estado: 'abierta' }];
@@ -243,4 +243,32 @@ test('filtrarExp, ordenarExp, seccionesExp y construirRutaExp: puras', () => {
   assert.equal(construirRutaExp({ tipo: 'todos', fase: 'beta', orden: 'nombre', texto: 'x' }), '#operacion/expedientes?tipo=todos&fase=beta&texto=x&orden=nombre');
   assert.equal(construirRutaExp({ tipo: 'cliente', orden: 'importe' }), '#operacion/expedientes?tipo=cliente', 'el orden por defecto no ensucia la ruta');
   assert.equal(construirRutaExp(), '#operacion/expedientes');
+});
+
+// Brief B (19-sep, píldora "N sesiones abiertas" de Home): construirRutaExp lleva 'sesion=abierta'
+// solo cuando se pide, y conSesionAbierta es la funcion pura que de verdad filtra.
+test('construirRutaExp con sesion=abierta; sin el parametro no ensucia la ruta', () => {
+  assert.equal(construirRutaExp({ tipo: 'todos', sesion: 'abierta' }), '#operacion/expedientes?tipo=todos&sesion=abierta');
+  assert.equal(construirRutaExp({ tipo: 'todos' }), '#operacion/expedientes?tipo=todos', 'sin sesion, la ruta no lleva el parametro');
+  assert.equal(construirRutaExp({ tipo: 'todos', sesion: 'lo-que-sea' }), '#operacion/expedientes?tipo=todos', 'solo "abierta" cuenta como valor valido');
+});
+
+test('conSesionAbierta: solo los expedientes con sesion abierta o solicitada, nunca cerrada', () => {
+  const ses = [{ id: 1, expediente_id: 1, estado: 'abierta' }, { id: 2, expediente_id: 2, estado: 'solicitada' }, { id: 3, expediente_id: 3, estado: 'cerrada' }];
+  assert.deepEqual(conSesionAbierta(xs, ses).map(x => x.nombre), ['Aresa', 'Zimeron']);
+  assert.deepEqual(conSesionAbierta(xs, []), []);
+  assert.deepEqual(conSesionAbierta(xs, undefined), []);
+});
+
+// Brief B: la lista filtrada por ?sesion=abierta muestra solo esos expedientes y una pill "sesión
+// abierta x" removible que devuelve a la misma ruta sin el parametro (mismo patron que las demas pills).
+test('lista con sesion=abierta: solo expedientes con sesion abierta y pill removible', () => {
+  const r = pintar({ tipo: 'todos', sesion: 'abierta' });
+  assert.deepEqual(nombres(r), ['Aresa'], 'solo Aresa tiene sesion abierta en el fixture S()');
+  const pill = buscarNodos(r, n => n.tag === 'span' && clase(n, 'pill-activo') && n.textContent.startsWith('sesión abierta'))[0];
+  assert.ok(pill, 'la pill "sesión abierta x" debe pintarse');
+  globalThis.location.hash = '#algo-previo';
+  buscarNodos(pill, n => n.tag === 'button' && clase(n, 'quita-pill'))[0].listeners.click[0]({});
+  assert.equal(globalThis.location.hash, '#operacion/expedientes?tipo=todos', 'quitar la pill vuelve a la ruta sin sesion');
+  assert.equal(buscarNodos(pintar({ tipo: 'todos' }), n => n.tag === 'span' && clase(n, 'pill-activo') && n.textContent.startsWith('sesión abierta')).length, 0, 'sin el parametro no se pinta la pill');
 });

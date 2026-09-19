@@ -14,7 +14,7 @@ import { AREAS } from './rutas.js';
 import { el, toast } from './ui.js';
 // 2.0.19: mismo texto para el title (hover en escritorio) y el toast del tap en movil del punto de
 // saturacion de cuentas, para no repetirlo en dos sitios.
-const textoSemaforo = s => s.cuenta + ' al ' + s.pct + ' % de la ventana';
+const textoSemaforo = s => s.cuenta + ' al ' + s.pct + ' % de la ' + (s.tramo === 'semana' ? 'semana' : 'ventana de 5 h');
 import { buscar } from './buscador.js';
 import { contador, semaforoCuentas } from './estado.js';
 
@@ -107,7 +107,7 @@ export function pintarBarra(datos) {
   // Punto de saturacion de cuentas (19-sep, feedback movil de Diego: "punto rosa" sin explicar que era).
   // aria-label y title llevan ya el estado real (antes el aria-label era el fijo 'Cuentas' de index.html);
   // ref.semaforo guarda el texto para el toast del click, que se cablea una sola vez en cablearShell().
-  if (s) { sem.className = 'semaforo ' + s.color; const t = textoSemaforo(s); sem.setAttribute('title', t); sem.setAttribute('aria-label', t); ref.semaforo = t; }
+  if (s) { sem.className = 'semaforo ' + s.color; sem.textContent = 'cuentas'; const t = textoSemaforo(s); sem.setAttribute('title', t); sem.setAttribute('aria-label', t); ref.semaforo = t; }
   else ref.semaforo = null;
 }
 // Minor 4 (revision final): aria-label del hamburguesa alterna Abrir/Cerrar menu junto con aria-expanded.
@@ -135,7 +135,7 @@ export function cablearShell() {
   $('velo').addEventListener('click', cerrarMenu);
   // Punto de saturacion de cuentas: en escritorio ya se lee al pasar el raton (title); en movil no hay
   // hover, asi que un toque muestra el mismo texto en un toast (19-sep).
-  $('semaforo').addEventListener('click', () => { if (ref.semaforo) toast(ref.semaforo); });
+  $('semaforo').addEventListener('click', () => { if (ref.semaforo) toast(ref.semaforo); location.hash = '#recursos/computo'; });
   // Plegado del menú (solo escritorio). Se recuerda en localStorage hq_menu ('plegado' o 'abierto').
   let plegado = false; try { plegado = localStorage.getItem('hq_menu') === 'plegado'; } catch {}
   document.body.classList.toggle('menu-plegado', plegado);

@@ -1,10 +1,10 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 
-// KPIs (#1057 tarea 29). kpis.js importa objetivo/licitaciones/expedientes/tablero/equipo/colaboradores,
-// y tablero.js y equipo.js importan `recargar` de main.js: mismo shim completo (con classList, dataset,
-// querySelector/querySelectorAll/closest) que tablero.test.mjs y equipo.test.mjs, porque los import()
-// estaticos de esa cadena se ejecutan antes que cualquier otra sentencia de este fichero.
+// KPIs (#1057 tarea 29, rediseño brief 2022 19-sep: embudos por área con importes, ver app/embudos.js).
+// kpis.js ya no importa las vistas de licitaciones/expedientes/tablero/equipo/colaboradores ni hace
+// fetch propio (los helpers de embudos.js son puros y síncronos), pero sigue usando `el()` y las piezas
+// de cuadro.js, que sí tocan `document`: mismo shim mínimo que el resto de vistas.
 function crearNodo(tag) {
   const n = {
     tag, nodeType: 1, children: [], attrs: {}, className: '', _text: '', _html: '', listeners: {}, parent: null, dataset: {},
@@ -43,28 +43,29 @@ if (typeof globalThis.localStorage === 'undefined') {
 
 const { render, GRUPOS, porMotivo, filasMotivos } = await import('../app/vistas/kpis.js');
 const { derivar } = await import('../app/estado.js');
-const { cargarColaboradores, limpiarCache } = await import('../app/vistas/colaboradores.js');
 
 const buscarNodos = (n, f, out = []) => { if (n && n.nodeType === 1) { if (f(n)) out.push(n); n.children.forEach(c => buscarNodos(c, f, out)); } return out; };
 const clase = (n, c) => (n.className || '').split(' ').includes(c);
 const AHORA = new Date('2026-09-18T10:00:00Z');
 
-// Fixture de owner: un objetivo/bloque validos (mismo patron que objetivo.test.mjs), dos licitaciones
-// (mismo fixture que licitaciones-vista.test.mjs), un expediente y un tablero minimos.
+// Fixture de owner: un objetivo/bloque válidos (mismo patrón que objetivo.test.mjs), dos licitaciones en
+// pasos distintos del embudo, un expediente, un encargo con hito vencido (para probar el lateral
+// "Caducados" del Tablero) y un agente activo hace 5 minutos (para el grupo Equipo, con una cuenta al
+// límite de consumo).
 const lics = [
   { expediente: 'L1', elegible: 'Probable', estado: 'Nueva', decision: null, cierre: '2026-10-05', importe: '10000', resumen_corto: 'Resumen L1', objeto: 'Objeto L1' },
   { expediente: 'L6', elegible: 'Probable', estado: 'Aprobada', decision: 'OK', cierre: '2026-09-30', importe: '40000', resumen_corto: 'Resumen L6', objeto: 'Objeto L6' },
 ];
-const xs = [{ id: 1, codigo: 'B2', nombre: 'Aresa', tipo: 'cliente', estado_funnel: 'ejecución', estado_economico: 'contratado', importe: '8000', encargos_abiertos: 1, responsable: 'nil' }];
+const xs = [{ id: 1, codigo: 'B2', nombre: 'Aresa', tipo: 'cliente', estado_funnel: 'ejecución', estado_economico: 'contratado', importe: '18000', encargos_abiertos: 1, responsable: 'nil' }];
 const encargos = [{ id: 1, columna: 'en_curso', responsable: 'nil', texto: 'Uno', fecha_hito: '2026-09-10' }];
-const ags = [{ id: 'nil', nombre: 'Nil', depto: 'Delivery', nivel: 3, ultima_actividad: '2026-09-18T09:00:00Z', encargos_abiertos: 1, frentes_codigos: [] }];
-const cs = [{ id: 1, nombre: 'Ana', especialidades: ['salud'], estado: 'activo', origen: 'red', colaboraciones: [] }];
+const ags = [{ id: 'nil', nombre: 'Nil', depto: 'Delivery', nivel: 3, ultima_actividad: '2026-09-18T09:55:00Z', encargos_abiertos: 1, frentes_codigos: [] }];
 
 const datosOwner = {
   rol: 'owner',
   objetivos: [{ horizonte: 2026, meta: 300000, contratado_eur: 20000, presentado_eur: 90000 }],
   bloques: [{ id: 1, letra: 'A', nombre: 'Licitaciones', meta_eur: 200000, encargos_abiertos: 1 }],
   frentes: [], licitaciones: lics, lic_resumen: {}, kpis: {}, expedientes: xs, encargos, agentes: ags, sesiones: [],
+  cuentas: [{ cuenta: 'diego', pct_ventana: 40, pct_semana: 97 }],
 };
 const sOwner = () => ({ datos: datosOwner, derivado: derivar(datosOwner) });
 
@@ -73,67 +74,83 @@ const sOwner = () => ({ datos: datosOwner, derivado: derivar(datosOwner) });
 const datosAgente = { rol: 'agente', encargos, agentes: ags, sesiones: [] };
 const sAgente = () => ({ datos: datosAgente, derivado: derivar(datosAgente) });
 
-const pintar = async (S, filtrosRuta = {}) => { const raiz = crearNodo('main'); await render(raiz, S, undefined, filtrosRuta, AHORA); return raiz; };
+// render() ya no es async (embudos.js es puro y síncrono, sin fetch propio): `pintar` sigue devolviendo
+// el nodo directamente, y los `await pintar(...)` de los tests de abajo siguen siendo válidos (await
+// sobre un valor que no es promesa se resuelve igual).
+const pintar = (S, filtrosRuta = {}) => { const raiz = crearNodo('main'); render(raiz, S, undefined, filtrosRuta, AHORA); return raiz; };
 const grupos = r => buscarNodos(r, n => n.tag === 'section' && clase(n, 'kpi-grupo'));
 const nombreGrupo = g => g.children[0].textContent;
 const chips = r => buscarNodos(r, n => n.tag === 'a' && clase(n, 'chip'));
 
 test('GRUPOS.disponible depende de las claves crudas del payload, no de S.derivado normalizado', () => {
   assert.deepEqual(GRUPOS.map(g => g.disponible(datosOwner)), [true, true, true, true, true]);
-  assert.deepEqual(GRUPOS.map(g => [g.clave, g.disponible(datosAgente)]), [['plan', false], ['licitaciones', false], ['expedientes', false], ['tablero', true], ['equipo', true]]);
+  assert.deepEqual(GRUPOS.map(g => [g.clave, g.disponible(datosAgente)]), [['licitaciones', false], ['expedientes', false], ['tablero', true], ['equipo', true], ['plan', false]]);
   // derivar() normaliza objetivos/bloques a [] aunque el payload nunca los trajera: disponible() se
   // calcula siempre sobre S.datos crudo, nunca sobre S.derivado (que enmascararía la ausencia).
   assert.deepEqual(derivar(datosAgente), { objetivos: [], bloques: [] });
 });
 
-test('render (owner, sin filtro): las 5 secciones en orden Plan, Licitaciones, Expedientes, Tablero, Equipo', async () => {
-  limpiarCache();
-  await cargarColaboradores(async () => cs);
-  const r = await pintar(sOwner());
-  assert.deepEqual(grupos(r).map(nombreGrupo), ['Plan', 'Licitaciones', 'Expedientes', 'Tablero', 'Equipo']);
-  assert.ok(r.textContent.includes('Objetivo 2026'), 'paneles reales de objetivo.js dentro de Plan');
-  assert.ok(r.textContent.includes('Cartera de clientes'), 'paneles reales de expedientes.js dentro de Expedientes');
-  assert.ok(r.textContent.includes('Equipo activo') && r.textContent.includes('Colaboradores'), 'equipo + colaboradores fusionados en Equipo');
+test('GRUPOS: nombre "Objetivo" (antes "Plan"), misma clave "plan" para no romper #kpis?grupo=plan', () => {
+  const plan = GRUPOS.find(g => g.clave === 'plan');
+  assert.equal(plan.nombre, 'Objetivo');
 });
 
-test('chips: "Todos" activo sin filtro, uno por grupo disponible en el payload de owner', async () => {
-  const r = await pintar(sOwner());
-  assert.deepEqual(chips(r).map(c => c.textContent), ['Todos', 'Plan', 'Licitaciones', 'Expedientes', 'Tablero', 'Equipo']);
+test('render (owner, sin filtro): las 5 secciones en el orden del brief: Licitaciones, Expedientes, Tablero, Equipo, Objetivo', () => {
+  const r = pintar(sOwner());
+  assert.deepEqual(grupos(r).map(nombreGrupo), ['Licitaciones', 'Expedientes', 'Tablero', 'Equipo', 'Objetivo']);
+  assert.ok(r.textContent.includes('Embudo de licitaciones') && r.textContent.includes('Nuevas') && r.textContent.includes('Ganadas') && r.textContent.includes('Perdidas'));
+  assert.ok(r.textContent.includes('10 k EUR sin IVA') && r.textContent.includes('40 k EUR sin IVA'), 'importe de cada paso, etiquetado sin IVA');
+  assert.ok(r.textContent.includes('Embudo de expedientes') && r.textContent.includes('ejecución') && r.textContent.includes('18 k EUR sin IVA'));
+  assert.ok(r.textContent.includes('Encargos por columna') && r.textContent.includes('Backlog') && r.textContent.includes('En curso'));
+  assert.ok(r.textContent.includes('Fuera del embudo') && r.textContent.includes('Caducados'), 'el encargo con hito 2026-09-10 esta vencido a fecha de AHORA');
+  assert.ok(r.textContent.includes('Equipo activo') && r.textContent.includes('Nil'), 'agente activo hace 5 minutos, via agentesActivos()');
+  assert.ok(r.textContent.includes('diego') && r.textContent.includes('97 %'), 'consumo semanal por cuenta, nunca EUR/USD');
+  assert.ok(!r.textContent.includes('EUR/USD') && !r.textContent.includes('$'));
+  assert.ok(r.textContent.includes('Objetivo 2026'), 'panel de una sola cifra, enlazado a #direccion/objetivo');
+});
+
+test('chips: "Todos" activo sin filtro, uno por grupo disponible en el payload de owner, en el orden del brief', () => {
+  const r = pintar(sOwner());
+  assert.deepEqual(chips(r).map(c => c.textContent), ['Todos', 'Licitaciones', 'Expedientes', 'Tablero', 'Equipo', 'Objetivo']);
   assert.ok(clase(chips(r)[0], 'activo'));
   assert.ok(chips(r).slice(1).every(c => !clase(c, 'activo')));
 });
 
-test('#kpis?grupo=tablero: solo esa sección, chip Tablero activo y "Todos" no', async () => {
-  const r = await pintar(sOwner(), { grupo: 'tablero' });
+test('#kpis?grupo=tablero: solo esa sección, chip Tablero activo y "Todos" no', () => {
+  const r = pintar(sOwner(), { grupo: 'tablero' });
   assert.deepEqual(grupos(r).map(nombreGrupo), ['Tablero']);
   const cs2 = chips(r);
   assert.ok(!clase(cs2.find(c => c.textContent === 'Todos'), 'activo'));
   assert.ok(clase(cs2.find(c => c.textContent === 'Tablero'), 'activo'));
 });
 
-test('un grupo de la ruta que no existe en GRUPOS se trata como sin filtro (todas las secciones disponibles)', async () => {
-  const r = await pintar(sOwner(), { grupo: 'inventado' });
-  assert.deepEqual(grupos(r).map(nombreGrupo), ['Plan', 'Licitaciones', 'Expedientes', 'Tablero', 'Equipo']);
+test('un grupo de la ruta que no existe en GRUPOS se trata como sin filtro (todas las secciones disponibles)', () => {
+  const r = pintar(sOwner(), { grupo: 'inventado' });
+  assert.deepEqual(grupos(r).map(nombreGrupo), ['Licitaciones', 'Expedientes', 'Tablero', 'Equipo', 'Objetivo']);
 });
 
-test('rol agente: payload sin objetivos/bloques/licitaciones/expedientes solo pinta chips y secciones de Tablero y Equipo', async () => {
-  limpiarCache();
-  await cargarColaboradores(async () => []);
-  const r = await pintar(sAgente());
+test('rol agente: payload sin objetivos/bloques/licitaciones/expedientes solo pinta chips y secciones de Tablero y Equipo', () => {
+  const r = pintar(sAgente());
   assert.deepEqual(chips(r).map(c => c.textContent), ['Todos', 'Tablero', 'Equipo']);
   assert.deepEqual(grupos(r).map(nombreGrupo), ['Tablero', 'Equipo']);
   assert.ok(!r.textContent.includes('Objetivo'));
-  assert.ok(!r.textContent.includes('Pipeline activo'));
-  assert.ok(!r.textContent.includes('Cartera de clientes'));
+  assert.ok(!r.textContent.includes('Embudo de licitaciones'));
+  assert.ok(!r.textContent.includes('Embudo de expedientes'));
 });
 
-test('un grupo de owner pedido explícitamente sobre un payload de agente no se pinta (grupo no disponible)', async () => {
-  const r = await pintar(sAgente(), { grupo: 'plan' });
+test('un grupo de owner pedido explícitamente sobre un payload de agente no se pinta (grupo no disponible)', () => {
+  const r = pintar(sAgente(), { grupo: 'plan' });
   assert.deepEqual(grupos(r).map(nombreGrupo), []);
   assert.ok(r.textContent.includes('Sin KPIs disponibles para este filtro'));
 });
 
-// Motivos de NO (#1063): recuento puro multietiqueta para el panel "Por qué no vamos".
+test('render: sin expedientes en el payload, la sección Expedientes no se pinta (panelEmbudo devuelve null)', () => {
+  const sinExp = { ...datosOwner, expedientes: [] };
+  const r = pintar({ datos: sinExp, derivado: derivar(sinExp) });
+  assert.ok(!grupos(r).map(nombreGrupo).includes('Expedientes'));
+});
+
+// Motivos de NO (#1063): recuento puro multietiqueta para el panel "Por qué no vamos". Sin cambios.
 test('porMotivo: cuenta multietiqueta por motivo del catalogo, descendente, sin ceros, "Sin motivo" al final', () => {
   const conMotivos = [
     { expediente: 'D1', estado: 'Descartada', motivos: ['Sin pliego', 'Plazo corto'] },
@@ -154,12 +171,12 @@ test('porMotivo: sin descartadas devuelve []; todas con motivo no añaden fila "
   assert.deepEqual(porMotivo([{ expediente: 'D1', estado: 'Descartada', motivos: ['Duplicada'] }]), [{ motivo: 'Duplicada', n: 1 }]);
 });
 
-test('render: panel "Por qué no vamos" en Licitaciones cuando hay descartadas con motivo, con subtitulo N de M', async () => {
+test('render: panel "Por qué no vamos" en Licitaciones cuando hay descartadas con motivo, con subtitulo N de M', () => {
   const conDescartadas = { ...datosOwner, licitaciones: [...lics,
     { expediente: 'D1', estado: 'Descartada', motivos: ['Sin pliego'] },
     { expediente: 'D2', estado: 'Descartada', motivos: [] },
   ] };
-  const r = await pintar({ datos: conDescartadas, derivado: derivar(conDescartadas) });
+  const r = pintar({ datos: conDescartadas, derivado: derivar(conDescartadas) });
   assert.ok(r.textContent.includes('Por qué no vamos'));
   assert.ok(r.textContent.includes('Sin pliego'));
   assert.ok(r.textContent.includes('descartadas con motivo del catálogo · 1 de 2'));
@@ -182,9 +199,9 @@ test('filasMotivos: sin lic_motivos cae al recuento del payload (porMotivo); agr
   assert.deepEqual(filasMotivos({ licitaciones: [], lic_motivos: {} }).filas, []);
 });
 
-test('render: panel "Por qué no vamos" servido por lic_motivos aunque el payload no traiga descartadas', async () => {
+test('render: panel "Por qué no vamos" servido por lic_motivos aunque el payload no traiga descartadas', () => {
   const d = { ...datosOwner, lic_motivos: { descartadas: 1391, con_motivo: 1185, motivos: [{ motivo: 'Fuera de España', n: 638 }, { motivo: 'Sin pliego', n: 29 }] } };
-  const r = await pintar({ datos: d, derivado: derivar(d) });
+  const r = pintar({ datos: d, derivado: derivar(d) });
   assert.ok(r.textContent.includes('Por qué no vamos'));
   assert.ok(r.textContent.includes('Fuera de España'));
   assert.ok(r.textContent.includes('descartadas con motivo del catálogo · 1185 de 1391'));
@@ -193,21 +210,7 @@ test('render: panel "Por qué no vamos" servido por lic_motivos aunque el payloa
   assert.ok(enlaces.includes('#operacion/licitaciones?estado=descartadas&motivo=sin'));
 });
 
-test('render: sin descartadas, no se pinta el panel "Por qué no vamos"', async () => {
-  const r = await pintar(sOwner());
+test('render: sin descartadas, no se pinta el panel "Por qué no vamos"', () => {
+  const r = pintar(sOwner());
   assert.ok(!r.textContent.includes('Por qué no vamos'));
-});
-
-// Mismo patrón de guarda de carrera que colaboradores.test.mjs: turno es de módulo, así que basta con
-// no esperar la primera llamada antes de lanzar la segunda; cargarColaboradores() ya viene con caché
-// caliente (arriba) así que ambas resuelven rápido, pero el orden de `mio` queda fijado al llamar.
-test('render: la respuesta tardía del grupo equipo no se pinta si llegó otra después', async () => {
-  limpiarCache();
-  await cargarColaboradores(async () => cs);
-  const vieja = crearNodo('main'), nueva = crearNodo('main');
-  const p1 = render(vieja, sOwner(), undefined, { grupo: 'equipo' }, AHORA);
-  const p2 = render(nueva, sOwner(), undefined, { grupo: 'equipo' }, AHORA);
-  await p1; await p2;
-  assert.deepEqual(grupos(vieja).map(nombreGrupo), []);
-  assert.deepEqual(grupos(nueva).map(nombreGrupo), ['Equipo']);
 });

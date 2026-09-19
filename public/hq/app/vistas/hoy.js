@@ -27,12 +27,16 @@ export function franja(d, urg, ahora = new Date()) {
   const parados = (d.encargos || []).filter(e => e.rojo).length;
   const correo = kpi('correo.pendientes.n', d.kpis) || 0;
   const tercera = kpi('cuentas.urge_tercera', d.kpis) === 1 || urgeTercera(d.cuentas);
+  // Cada píldora lleva a su sitio (feedback de Diego, iPhone 19-sep): "urgentes tuyas" baja al bloque
+  // de urgentes de la propia Home (sin cambio de hash, por eso lleva su propio onclick con
+  // preventDefault + scrollIntoView); el resto navega a la ruta que de verdad filtra por esa alerta.
+  const bajarAUrgentes = ev => { ev.preventDefault(); document.getElementById('urgentes')?.scrollIntoView?.({ behavior: 'smooth', block: 'start' }); };
   const pills = [
-    urg ? ['rojo', urg + ' urgentes tuyas', '#hoy'] : null,
-    parados ? ['rojo', parados + ' encargos parados', '#operacion/tablero'] : null,
+    urg ? ['rojo', urg + ' urgentes tuyas', '#hoy', bajarAUrgentes] : null,
+    parados ? ['rojo', parados + ' encargos parados', '#operacion/tablero?estado=parados'] : null,
     tercera ? ['rojo', 'cuentas saturadas', '#recursos/computo'] : null,
     correo ? ['ambar', correo + ' correos sin contestar', '#operacion/expedientes'] : null,
-    sesiones ? ['ambar', sesiones + ' sesiones abiertas', '#operacion/expedientes'] : null,
+    sesiones ? ['ambar', sesiones + ' sesiones abiertas', '#operacion/expedientes?tipo=todos&sesion=abierta'] : null,
   ].filter(Boolean);
   const act = agentesActivos(d.agentes, d.encargos, ahora);
   const todas = [
@@ -40,7 +44,7 @@ export function franja(d, urg, ahora = new Date()) {
       : ['neutro-2', 'ningún agente activo', '#operacion/tablero?estado=en_curso'],
     ...(pills.length ? pills : [['verde', 'sin alertas', '#operacion/tablero']]),
   ];
-  return el('div', { class: 'franja' }, todas.map(([c, t, h]) => el('a', { class: 'semaforo-pill ' + c, href: h }, [el('i', { class: 'punto g-' + c }), el('span', { text: t })])));
+  return el('div', { class: 'franja' }, todas.map(([c, t, h, onclick]) => el('a', { class: 'semaforo-pill ' + c, href: h, onclick }, [el('i', { class: 'punto g-' + c }), el('span', { text: t })])));
 }
 
 export function urgentes(pendientes, ahora = new Date()) {
@@ -98,6 +102,11 @@ export function render(raiz, S, arg, filtros, ahora = new Date()) {
   const d = S.datos || {};
   if (d.rol === 'owner') {
     raiz.append(franja(d, urgentes(d.pendientes, ahora).length, ahora));
+    // Ancla de la píldora "N urgentes tuyas" (feedback de Diego, iPhone 19-sep): la bandeja de
+    // decisiones (decisiones.montar, justo debajo) es lo primero que hay que mirar, así que este div
+    // marca el punto exacto al que baja el scroll suave sin tocar el id 'bandeja' que ya usa
+    // decisiones.js para su propio scroll desde la campana.
+    raiz.append(el('div', { id: 'urgentes' }));
     decisiones.montar(raiz, S, arg);
     raiz.append(el('div', { class: 'cuadro' }, [panelVencidosParados(d.encargos, ahora), panelProximosCierres(d.licitaciones, ahora), panelSesiones(d.sesiones)]));
   } else {

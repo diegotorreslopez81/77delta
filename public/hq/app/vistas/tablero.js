@@ -21,7 +21,9 @@ import { recargar } from '../main.js';
 // en la hoja común de app/filtros.js. Puras y probadas sin DOM: columnaChip y seccionesTablero.
 export function columnaChip(valorRuta) {
   const v = String(valorRuta || '');
-  return COLUMNAS.some(([c]) => c === v) ? v : '';
+  // 'parados' es un valor virtual (brief B 19-sep, píldora "N encargos parados" de Home): no es una
+  // columna del kanban, agrupa e.rojo de cualquier columna abierta. Se valida aparte de COLUMNAS.
+  return COLUMNAS.some(([c]) => c === v) || v === 'parados' ? v : '';
 }
 export function seccionesTablero(d = {}) {
   const etiquetas = [...new Set((d.encargos || []).flatMap(e => e.etiquetas || []))].sort();
@@ -113,16 +115,31 @@ export function render(raiz, S, arg, filtrosRuta = {}, ahora = new Date()) {
   const aplicar = v => { Object.assign(S.filtros, { bloque: v.bloque || null, frente: v.frente || null, agente: v.agente || null, etiqueta: v.etiqueta || null, texto: v.texto || '' }); pintar(); };
   const pintar = () => {
     const k = kanban(S.datos.encargos, S.filtros);
+    // Parados (brief B 19-sep): en_curso sin avance 48h (e.rojo, ver schema-v2.sql), de cualquier
+    // columna abierta; no es una columna del kanban, así que no sale de kanban() sino del propio
+    // filtro de encargos.
+    const parados = filtrar(S.datos.encargos, S.filtros).filter(e => e.rojo && e.columna !== 'hecho');
     barra.innerHTML = '';
     barra.append(el('div', { class: 'chips chips-embudo' }, [
       el('a', { class: 'chip' + (columna ? '' : ' activo'), href: '#operacion/tablero', text: 'Todas' }),
       ...COLUMNAS.map(([c, t]) => el('a', { class: 'chip' + (columna === c ? ' activo' : ''), href: '#operacion/tablero?estado=' + c, text: t + ' ' + k[c].length })),
+      el('a', { class: 'chip rojo' + (columna === 'parados' ? ' activo' : ''), href: '#operacion/tablero?estado=parados', text: 'Parados ' + parados.length }),
     ]));
     const pills = pillsActivos(valores(), secciones, clave => { aplicar({ ...valores(), [clave]: '' }); });
     if (pills) barra.append(pills);
     if (columna === 'en_curso') barra.append(cabeceraAhora(S, ahora));
     if (hoja) hoja.actualizar(valores(), filtrar(S.datos.encargos, S.filtros).length);
     cont.innerHTML = '';
+    if (columna === 'parados') {
+      // Sección virtual: mismo tarjetón que las columnas reales, pero sin arrastre (no es una columna
+      // del kanban a la que soltar) y con el botón "mover" que sigue usando e.columna, la columna real.
+      cont.append(el('section', { class: 'columna', 'data-columna': 'parados' }, [el('h2', {}, ['Parados', el('span', { class: 'mudo', text: ' ' + parados.length })]), ...parados.map(e => {
+        const tj = tarjetaEncargo(e, { onAbrir: x => abrirDetalle(x.id, S, recargar) });
+        tj.draggable = false;
+        if (S.datos.rol === 'owner' || e.agente === yo(S)) tj.append(el('button', { class: 'btn-enlace mover', text: 'mover', onclick: ev => { ev.stopPropagation(); menuMover(e, S); } }));
+        return tj; })]));
+      return;
+    }
     for (const [c, t] of COLUMNAS) {
       if (columna && c !== columna) continue;
       cont.append(el('section', { class: 'columna', 'data-columna': c }, [el('h2', {}, [t, el('span', { class: 'mudo', text: ' ' + k[c].length })]), ...k[c].map(e => {

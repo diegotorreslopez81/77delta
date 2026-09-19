@@ -116,7 +116,9 @@ test('render pinta el enlace a KPIs, los chips de columna y el FAB de la hoja', 
     ['Por hacer 0', '#operacion/tablero?estado=por_hacer', false],
     ['En curso 2', '#operacion/tablero?estado=en_curso', false],
     ['Bloqueado 1', '#operacion/tablero?estado=bloqueado', false],
-    ['Hecho 1', '#operacion/tablero?estado=hecho', false]]);
+    ['Hecho 1', '#operacion/tablero?estado=hecho', false],
+    // Brief B (19-sep): chip virtual "Parados" al final del embudo, ninguno en este fixture (sin e.rojo).
+    ['Parados 0', '#operacion/tablero?estado=parados', false]]);
   // Sin chip activo se ven las cinco columnas, como hasta ahora.
   assert.deepEqual(buscarNodos(raiz.children[2], n => (n.className || '') === 'columna').map(n => n.attrs['data-columna']),
     ['backlog', 'por_hacer', 'en_curso', 'bloqueado', 'hecho']);
@@ -136,6 +138,32 @@ test('estado=<columna> en la ruta deja solo esa columna y marca su chip', () => 
   assert.equal(columnaChip('en_curso'), 'en_curso');
   assert.equal(columnaChip('chorra'), '');
   assert.equal(columnaChip(null), '');
+  // Brief B (19-sep, pill "N encargos parados" de Home): 'parados' es virtual, no columna del kanban.
+  assert.equal(columnaChip('parados'), 'parados');
+});
+
+// Brief B (19-sep): sección virtual "Parados" (e.rojo de cualquier columna abierta), con su chip rojo,
+// sin arrastre y sin contar los ya 'hecho' aunque vinieran marcados rojo por error.
+test('estado=parados: chip rojo con el recuento, solo tarjetas con e.rojo de columnas abiertas y sin arrastre', () => {
+  const encargosParados = [
+    { id: 10, columna: 'en_curso', agente: 'chief', texto: 'Parado uno', rojo: true },
+    { id: 11, columna: 'bloqueado', agente: 'chief', texto: 'Parado dos', rojo: true },
+    { id: 12, columna: 'hecho', agente: 'chief', texto: 'Hecho marcado rojo, no cuenta', rojo: true },
+    { id: 13, columna: 'en_curso', agente: 'chief', texto: 'Sano', rojo: false },
+  ];
+  const S = { datos: { encargos: encargosParados, bloques: [], frentes: [], agentes: [{ id: 'chief', nombre: 'Marc' }], rol: 'owner' }, filtros: {}, columnaMovil: null };
+  const raiz = crearNodo('main');
+  render(raiz, S, null, { estado: 'parados' }, AHORA);
+  const chip = buscarNodos(raiz.children[1], n => n.tag === 'a' && n.textContent.startsWith('Parados'))[0];
+  assert.equal(chip.textContent, 'Parados 2');
+  assert.ok(chip.className.includes('chip rojo') && chip.className.includes('activo'), chip.className);
+  const secciones = buscarNodos(raiz.children[2], n => (n.className || '') === 'columna');
+  assert.deepEqual(secciones.map(s => s.attrs['data-columna']), ['parados']);
+  const tarjetas = buscarNodos(secciones[0], n => (n.className || '').includes('tarjeta'));
+  assert.equal(tarjetas.length, 2);
+  assert.deepEqual(tarjetas.map(t => t.draggable), [false, false], 'la sección virtual no admite soltar');
+  assert.ok(secciones[0].textContent.includes('Parado uno') && secciones[0].textContent.includes('Parado dos'));
+  assert.ok(!secciones[0].textContent.includes('Sano') && !secciones[0].textContent.includes('Hecho marcado rojo'));
 });
 
 test('secciones de la hoja del tablero: bloque, frente, agente, etiqueta y buscador', () => {

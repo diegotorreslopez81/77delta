@@ -25,9 +25,9 @@ a{color:inherit}
    44x44 (mismo objetivo tactil que el resto de botones de la cabecera) con el punto de color en
    ::before, y shell.js le añade cursor y el toast al tocarlo en movil (aria-label/title ya se rellenan
    ahi con el texto real, p.ej. 'team@ al 98 % de la ventana'). */
-.semaforo{width:44px;height:44px;flex:none;display:flex;align-items:center;justify-content:center;padding:0;background:none;border:0;cursor:pointer}
-.semaforo::before{content:'';display:block;width:14px;height:14px;border-radius:50%;background:currentColor}
-.semaforo.verde{color:var(--exito)}.semaforo.ambar{color:var(--oro-luz)}.semaforo.rojo{color:var(--error)}
+.semaforo{min-width:44px;height:44px;flex:none;display:flex;align-items:center;justify-content:center;gap:6px;padding:0 4px;background:none;border:0;cursor:pointer;color:var(--pizarra-clara);font-size:12px}
+.semaforo::before{content:'';display:block;width:14px;height:14px;flex:none;border-radius:50%;background:var(--pizarra-clara)}
+.semaforo.verde::before{background:var(--exito)}.semaforo.ambar::before{background:var(--oro-luz)}.semaforo.rojo::before{background:var(--error)}
 .cab .salir{color:var(--pizarra-clara);font-size:13px}
 .ver{font-family:var(--mono);font-size:11px;opacity:.6}
 .cuerpo{display:flex;align-items:stretch;min-height:calc(100vh - 52px)}
@@ -202,6 +202,8 @@ a{color:inherit}
 .card-agente .chips{flex-wrap:wrap;overflow:visible}
 .chip{padding:5px 12px;border-radius:999px;border:1px solid var(--linea);background:var(--panel);color:var(--tinta-2);text-decoration:none;font-size:13px;font-weight:600}
 .chip.activo{background:var(--tinta);border-color:var(--tinta);color:var(--papel)}
+.chip.rojo{border-color:var(--error);color:var(--error)}
+.chip.rojo.activo{background:var(--error);border-color:var(--error);color:#fff}
 .filtros-rica .campo.mini{flex:1 1 220px;max-width:360px}
 .lista-rica{display:grid;grid-template-columns:minmax(0,1fr);gap:12px}
 @media(min-width:760px){.lista-rica{grid-template-columns:repeat(2,minmax(0,1fr))}}

@@ -104,10 +104,13 @@ test('proximosCierres: aprobadas o presentadas que cierran en los próximos 7 d�
   assert.deepEqual(proximosCierres(undefined, ahora), []);
 });
 
-test('owner: franja primero, luego la bandeja de decisiones y por último los tres paneles accionables', () => {
+test('owner: franja primero, luego el ancla de urgentes, la bandeja de decisiones y por último los tres paneles accionables', () => {
   const raiz = pintar();
   assert.equal(raiz.children[0].className, 'franja');
-  assert.equal(raiz.children[1].className, 'seccion bandeja');
+  // Brief B (19-sep): ancla para el scroll de la píldora "N urgentes tuyas", justo antes de la bandeja
+  // (lo primero que se lee), sin tocar el id 'bandeja' que decisiones.js ya usa para su propio scroll.
+  assert.equal(raiz.children[1].attrs.id, 'urgentes');
+  assert.equal(raiz.children[2].className, 'seccion bandeja');
   assert.deepEqual(paneles(raiz).map(p => p.children[0].textContent), ['Vencidos y parados', 'Próximos cierres', 'Sesiones abiertas']);
   assert.deepEqual(paneles(raiz).map(p => p.children[0].children[0].attrs.href), ['#operacion/tablero', '#operacion/licitaciones', '#operacion/expedientes']);
   // nada de los diez paneles agregados del cuadro anterior (Objetivo, Pipeline, Embudo, Equipo...): eso vive en KPIs
@@ -120,6 +123,31 @@ test('owner: la franja enciende urgentes, parados, cuentas y correo; sin nada, "
   const raiz = pintar({ rol: 'owner' });
   assert.ok(raiz.children[0].textContent.endsWith('sin alertas'));
   assert.match(raiz.children[0].children.at(-1).className, /verde/);
+});
+
+// Brief B (19-sep, feedback móvil de Diego: "los bullets deberían llevarte a su sitio"): cada píldora
+// enlaza a la vista ya filtrada por esa misma alerta, no a una ruta genérica.
+test('franja: "parados" y "sesiones" abren la vista ya filtrada; "urgentes" conserva #hoy como respaldo', () => {
+  const raiz = pintar();
+  const pills = raiz.children[0].children;
+  const porTexto = t => pills.find(a => a.textContent.includes(t));
+  assert.equal(porTexto('encargos parados').attrs.href, '#operacion/tablero?estado=parados');
+  assert.equal(porTexto('sesiones abiertas').attrs.href, '#operacion/expedientes?tipo=todos&sesion=abierta');
+  assert.equal(porTexto('correos sin contestar').attrs.href, '#operacion/expedientes', 'esta píldora no cambia (brief B)');
+  assert.equal(porTexto('urgentes tuyas').attrs.href, '#hoy', 'respaldo si el onclick no llega a dispararse');
+});
+
+test('franja: la píldora "N urgentes tuyas" no navega por hash, evita el salto y baja al ancla #urgentes', () => {
+  const raiz = pintar();
+  const urg = raiz.children[0].children.find(a => a.textContent.includes('urgentes tuyas'));
+  let prevenido = false, opciones = null;
+  const espia = { scrollIntoView: (o) => { opciones = o; } };
+  const original = document.getElementById;
+  document.getElementById = (id) => (id === 'urgentes' ? espia : original(id));
+  try { urg.listeners.click[0]({ preventDefault: () => { prevenido = true; } }); }
+  finally { document.getElementById = original; }
+  assert.ok(prevenido, 'debe evitar el salto brusco del href');
+  assert.deepEqual(opciones, { behavior: 'smooth', block: 'start' });
 });
 
 // 2.0.20 punto 4: la primera pill de la franja es "N agentes activos", de agentesActivos().

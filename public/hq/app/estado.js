@@ -96,8 +96,13 @@ export function agentesActivos(agentes, encargos, ahora = new Date()) {
 // que cuenta el mayor de % ventana (5 h) y % semana. Umbrales de la spec 2.1: verde < 80, ámbar 80-94, rojo >= 95.
 export function semaforoCuentas(datos) {
   const cs = (datos?.cuentas || []).filter(c => c && (c.pct_ventana != null || c.pct_semana != null))
-    .map(c => ({ cuenta: c.cuenta, pct: Math.max(Number(c.pct_ventana) || 0, Number(c.pct_semana) || 0) }));
+    .map(c => {
+      const ventana = Number(c.pct_ventana) || 0, semana = Number(c.pct_semana) || 0;
+      // tramo: cuál de los dos manda (2.0.22, revisión del chief): el texto del semáforo decía siempre
+      // "de la ventana" aunque lo saturado fuera la cuota semanal, que es el caso habitual de team@.
+      return { cuenta: c.cuenta, pct: Math.max(ventana, semana), tramo: semana > ventana ? 'semana' : 'ventana' };
+    });
   if (!cs.length) return null;
   const peor = cs.reduce((a, b) => (b.pct > a.pct ? b : a));
-  return { color: peor.pct >= 95 ? 'rojo' : peor.pct >= 80 ? 'ambar' : 'verde', pct: peor.pct, cuenta: peor.cuenta };
+  return { color: peor.pct >= 95 ? 'rojo' : peor.pct >= 80 ? 'ambar' : 'verde', pct: peor.pct, cuenta: peor.cuenta, tramo: peor.tramo };
 }

@@ -8,6 +8,10 @@ function crearNodo(tag) {
     addEventListener(ev, fn) { (this.listeners[ev] ||= []).push(fn); },
     append(...kids) { for (const k of kids) { if (k == null) continue; k.parent = this; this.children.push(k); } },
     prepend(...kids) { for (const k of kids.reverse()) { if (k == null) continue; k.parent = this; this.children.unshift(k); } },
+    // Brief B (19-sep): el click del semaforo llama a toast(), y toast() programa t.remove() con
+    // setTimeout; sin este metodo el temporizador real revienta fuera del test (mismo patron de
+    // remove() ya usado en los shims de hoy.test.mjs y tablero.test.mjs).
+    remove() { if (this.parent) { const i = this.parent.children.indexOf(this); if (i >= 0) this.parent.children.splice(i, 1); this.parent = null; } },
     querySelector() { return null; }, querySelectorAll() { return []; }, closest() { return null; },
     get textContent() { return this.children.length ? this.children.map(c => (c.nodeType === 3 ? c.data : c.textContent)).join('') : this._text; },
     set textContent(v) { this._text = v; this.children = []; }, set innerHTML(v) { this._html = v; this.children = []; }, get innerHTML() { return this._html; } };
@@ -76,7 +80,7 @@ test('pintarBarra: contador con número y href; semáforo oculto sin cuentas y c
   const c = document.getElementById('contador'), s = document.getElementById('semaforo');
   assert.equal(c.textContent, 'Depende de ti 2'); assert.equal(c.attrs.href, '#hoy'); assert.equal(c.hidden, false); assert.equal(s.hidden, true);
   pintarBarra({ rol: 'owner', pendientes: [], cuentas: [{ cuenta: 'team@', pct_ventana: 96 }] });
-  assert.equal(c.hidden, true, 'a cero se oculta'); assert.equal(s.hidden, false); assert.ok(s.className.includes('rojo')); assert.equal(s.attrs.title, 'team@ al 96 % de la ventana');
+  assert.equal(c.hidden, true, 'a cero se oculta'); assert.equal(s.hidden, false); assert.ok(s.className.includes('rojo')); assert.equal(s.attrs.title, 'team@ al 96 % de la ventana de 5 h');
 });
 test('pintarBarra refleja el contador en el icono de la app instalada (Badging API), sin lanzar si no existe', () => {
   const original = Object.getOwnPropertyDescriptor(globalThis, 'navigator');
@@ -220,4 +224,25 @@ test('pintarBarra actualiza el número y la visibilidad de la campana', () => {
   assert.equal(badge.textContent, '2'); assert.equal(badge.hidden, false);
   pintarBarra({ rol: 'owner', pendientes: [] });
   assert.equal(badge.hidden, true, 'sin pendientes se oculta la campana');
+});
+
+// Brief B (19-sep, feedback móvil de Diego: "no entiendo qué significa la bolita"): la bolita del
+// semáforo lleva ahora la etiqueta "cuentas" junto al punto; el toque mantiene el toast de siempre Y
+// navega a Recursos/Cómputo (misma ruta que ya usaba la píldora "cuentas saturadas" de Home).
+test('pintarBarra pinta "cuentas" junto al punto; el click en el semáforo mantiene el toast y navega a Recursos/Cómputo', () => {
+  delete nodos.menu; delete nodos.hamburguesa; delete nodos.velo; delete nodos.plegar; delete nodos.busqueda; delete nodos.resultados; delete nodos.buscador; delete nodos.semaforo; delete nodos.contador;
+  document.body.classList.remove('menu-abierto');
+  const nav = document.createElement('nav'); montarMenu(nav);
+  cablearShell();
+  pintarBarra({ rol: 'owner', pendientes: [], cuentas: [{ cuenta: 'team@', pct_ventana: 96 }] });
+  const s = document.getElementById('semaforo');
+  assert.equal(s.textContent, 'cuentas', 'la bolita lleva la etiqueta "cuentas"');
+  assert.equal(s.attrs.title, 'team@ al 96 % de la ventana de 5 h', 'title sigue con el texto real del estado');
+  assert.equal(s.attrs['aria-label'], 'team@ al 96 % de la ventana de 5 h');
+  // 2.0.22: si lo saturado es la cuota semanal, el texto lo dice (antes siempre decía "de la ventana")
+  pintarBarra({ rol: 'owner', pendientes: [], cuentas: [{ cuenta: 'team@', pct_ventana: 0, pct_semana: 99 }] });
+  assert.equal(s.attrs.title, 'team@ al 99 % de la semana');
+  location.hash = '#hoy';
+  disparar(s, 'click');
+  assert.equal(location.hash, '#recursos/computo', 'el click navega a Recursos/Cómputo');
 });

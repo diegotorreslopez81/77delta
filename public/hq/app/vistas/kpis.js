@@ -1,26 +1,21 @@
-// KPIs (#1057 tarea 29): cuadro de mando único con los paneles que antes encabezaban Tablero,
-// Expedientes, Licitaciones, Plan estratégico y Equipo/Colaboradores. Esta vista no calcula nada
-// nuevo: reúne por chip los paneles que cada módulo ya exporta (panelesObjetivo, panelesLicitaciones,
-// panelesExpedientes, cuadroTablero, cuadroEquipo, cuadroColaboradores). Un agente solo ve los grupos
-// cuyo dato viaja en su payload: tablero (encargos) y equipo (agentes) siempre; plan, licitaciones y
-// expedientes son datos de owner (si faltan en el payload, el chip ni se pinta).
+// KPIs (#1057 tarea 29, rediseño brief 2022 19-sep): cuadro de mando único con TODO lo que antes vivía
+// disperso por pestañas, agrupado por área y cada área como embudo de conversión con nº e importe por
+// estado (petición literal de Diego: "el funnel de conversión y los importes en cada estado del funnel").
+// Los helpers de agregación son puros y viven en ../embudos.js (se prueban sin DOM); esta vista solo los
+// llama y los pinta con las piezas de cuadro.js. Orden de arriba a abajo: Licitaciones, Expedientes,
+// Tablero, Equipo, Objetivo (antes "Plan"; mismo clave 'plan' para no romper la ruta #kpis?grupo=plan).
+// Un agente solo ve los grupos cuyo dato viaja en su payload (mismo criterio que antes, GRUPOS.disponible).
 import { el } from '../ui.js';
-import { kanban } from '../estado.js';
 import { estadoDe, motivosNo, MOTIVOS_NO } from '../licitaciones.js';
-import { panel, filaBarra, anchoLog } from '../cuadro.js';
-import * as objetivo from './objetivo.js';
-import * as licitaciones from './licitaciones.js';
-import * as expedientes from './expedientes.js';
-import * as tablero from './tablero.js';
-import * as equipo from './equipo.js';
-import * as colaboradores from './colaboradores.js';
+import { panel, cifra, filaBarra, anchoLog, eurCorto } from '../cuadro.js';
+import { embudoLicitaciones, embudoExpedientes, embudoTablero, resumenEquipo } from '../embudos.js';
 
 export const GRUPOS = [
-  { clave: 'plan', nombre: 'Plan', disponible: d => Array.isArray(d.objetivos) || Array.isArray(d.bloques) },
   { clave: 'licitaciones', nombre: 'Licitaciones', disponible: d => Array.isArray(d.licitaciones) },
   { clave: 'expedientes', nombre: 'Expedientes', disponible: d => Array.isArray(d.expedientes) },
   { clave: 'tablero', nombre: 'Tablero', disponible: d => Array.isArray(d.encargos) },
   { clave: 'equipo', nombre: 'Equipo', disponible: d => Array.isArray(d.agentes) },
+  { clave: 'plan', nombre: 'Objetivo', disponible: d => Array.isArray(d.objetivos) || Array.isArray(d.bloques) },
 ];
 
 function chips(d, grupo) {
@@ -82,35 +77,93 @@ function panelPorQueNo(d) {
   ]);
 }
 
-// main.js vacía raiz y vuelve a llamar a render en cada recarga o cambio de ruta (mismo patrón que
-// colaboradores.js): si mientras se espera la lista de colaboradores llega otro render, la respuesta
-// tardía no se pinta.
-let turno = 0;
-export async function render(raiz, S, arg, filtrosRuta = {}, ahora = new Date()) {
-  const mio = ++turno;
+// --- Embudo genérico (brief 2022) ---------------------------------------------------------------------
+// Ancho de barra proporcional al nº de forma lineal sobre el paso mayor del grupo (no logarítmica como
+// anchoLog: en un embudo lo que importa es ver el estrechamiento real entre pasos consecutivos). Mínimo
+// 3% si n > 0 para que un paso pequeño no desaparezca visualmente.
+function anchoEmbudo(n, max) { return n > 0 ? Math.max(3, Math.round(100 * n / max)) : 0; }
+// Texto de cada fila: nº siempre; importe si el paso lo trae (siempre "sin IVA", el mismo campo que ya
+// muestran las cards de Licitaciones y Expedientes, ver decisión en el informe); % de conversión si
+// embudos.js lo calculó para ese paso (solo Licitaciones lo pide el brief).
+function valorPaso(f) {
+  const partes = [String(f.n)];
+  if (f.importe != null) partes.push(eurCorto(f.importe) + ' sin IVA');
+  if (f.conversion != null) partes.push(String(f.conversion).replace('.', ',') + ' %');
+  return partes.join(' · ');
+}
+// Panel de un grupo con forma { pasos, laterales } (de embudos.js). Los laterales (pausadas,
+// descartadas, otros, caducados...) van debajo de un rótulo separador: no son un paso de la secuencia
+// (Diego: "descartadas/pausadas como salida lateral del embudo, no como paso"). null si no hay nada que
+// pintar (p. ej. Expedientes sin ningún expediente en el payload), para que seccion() no deje un hueco.
+function panelEmbudo(titulo, ruta, resultado) {
+  const { pasos, laterales } = resultado;
+  if (!pasos.length && !laterales.length) return null;
+  const max = Math.max(1, ...pasos.map(f => f.n), ...laterales.map(f => f.n));
+  const fila = f => filaBarra(f.titulo, valorPaso(f), anchoEmbudo(f.n, max), 'tinta-2', f.ruta);
+  return panel(titulo, ruta, [
+    pasos.length ? el('div', { class: 'filas' }, pasos.map(fila)) : null,
+    laterales.length ? el('p', { class: 'sub', text: 'Fuera del embudo' }) : null,
+    laterales.length ? el('div', { class: 'filas' }, laterales.map(fila)) : null,
+  ], 'ancho-2');
+}
+
+// --- Equipo (brief 2022) -------------------------------------------------------------------------------
+// No es un embudo: agentes activos ahora (agentesActivos(), única fuente, vía resumenEquipo) y, si el
+// payload trae cuentas (solo owner), consumo semanal por cuenta en %. Mismos umbrales de color que
+// semaforoCuentas() en estado.js (rojo >= 95, ámbar >= 80): no se inventa una escala nueva.
+const colorConsumo = n => (n >= 95 ? 'rojo' : n >= 80 ? 'ambar' : 'tinta-2');
+function panelEquipo(r) {
+  const { activos, cuentas } = r;
+  const nombres = activos.agentes.map(a => a.nombre).join(' · ');
+  return panel('Equipo activo', '#equipo/organigrama', [
+    cifra(String(activos.n), activos.n ? nombres : 'ningún agente activo ahora mismo'),
+    cuentas.length ? el('div', { class: 'filas' }, cuentas.map(c => filaBarra(c.titulo, Math.round(c.n) + ' %', c.n, colorConsumo(c.n), c.ruta))) : null,
+  ], 'ancho-2');
+}
+
+// --- Objetivo (antes "Plan") ---------------------------------------------------------------------------
+// Brief: "una sola cifra de avance del objetivo anual, enlazada al Plan". Busca el objetivo del año en
+// curso en d.objetivos (crudo, no S.derivado: mismo criterio que GRUPOS.disponible más abajo); si no lo
+// hay, el más próximo en el futuro. Sin objetivos en el payload, no se pinta nada.
+function panelObjetivoKpi(d, ahora) {
+  const obs = d.objetivos || [];
+  if (!obs.length) return null;
+  const anio = ahora.getUTCFullYear();
+  const o = obs.find(x => Number(x.horizonte) === anio) || [...obs].sort((a, b) => Number(a.horizonte) - Number(b.horizonte)).find(x => Number(x.horizonte) > anio);
+  if (!o) return null;
+  const meta = Number(o.meta) || 0, contratado = Number(o.contratado_eur) || 0;
+  const pct = meta > 0 ? Math.round(100 * contratado / meta) : 0;
+  return panel('Objetivo ' + o.horizonte, '#direccion/objetivo', [cifra(pct + ' %', eurCorto(contratado) + ' contratado de ' + eurCorto(meta) + ' de meta')]);
+}
+
+// Sin fetch propio (a diferencia de la versión anterior, que esperaba a cargarColaboradores()): todos los
+// helpers de embudos.js son puros y síncronos, así que render() ya no necesita ser async ni el guardia de
+// "turno" que evitaba pintar una respuesta tardía (app/main.js llama a render() sin esperar su resultado,
+// así que tampoco depende de que siga siendo una promesa).
+export function render(raiz, S, arg, filtrosRuta = {}, ahora = new Date()) {
   const d = S.datos || {};
   const grupo = GRUPOS.some(g => g.clave === filtrosRuta.grupo) ? filtrosRuta.grupo : null;
   const quiere = clave => (!grupo || grupo === clave) && GRUPOS.find(g => g.clave === clave).disponible(d);
   raiz.append(el('h1', { text: 'KPIs' }), chips(d, grupo));
-  const cont = el('div', {});
-  raiz.append(cont);
   const bloques = [];
-  if (quiere('plan')) bloques.push(seccion('Plan', objetivo.panelesObjetivo(S.derivado || { objetivos: [], bloques: [] }, ahora)));
   if (quiere('licitaciones')) {
+    const emb = panelEmbudo('Embudo de licitaciones', '#operacion/licitaciones', embudoLicitaciones(d.licitaciones, d.lic_resumen));
     const pqn = panelPorQueNo(d);
-    bloques.push(seccion('Licitaciones', [...licitaciones.panelesLicitaciones(d, ahora), ...(pqn ? [pqn] : [])]));
+    bloques.push(seccion('Licitaciones', [...(emb ? [emb] : []), ...(pqn ? [pqn] : [])]));
   }
-  if (quiere('expedientes')) bloques.push(seccion('Expedientes', expedientes.panelesExpedientes(d, ahora)));
-  if (quiere('tablero')) bloques.push(seccion('Tablero', tablero.cuadroTablero(S, kanban(d.encargos, {}), ahora)));
-  if (quiere('equipo')) {
-    const ags = d.agentes.filter(a => a.activo !== false);
-    let cs = [];
-    try { cs = await colaboradores.cargarColaboradores(); } catch { cs = []; }
-    if (mio !== turno || raiz.isConnected === false) return;
-    bloques.push(seccion('Equipo', [...equipo.cuadroEquipo(ags, S, ahora), ...colaboradores.cuadroColaboradores(cs, S)]));
+  if (quiere('expedientes')) {
+    const emb = panelEmbudo('Embudo de expedientes', '#operacion/expedientes?tipo=todos', embudoExpedientes(d.expedientes));
+    bloques.push(seccion('Expedientes', emb ? [emb] : []));
+  }
+  if (quiere('tablero')) {
+    const emb = panelEmbudo('Encargos por columna', '#operacion/tablero', embudoTablero(d.encargos, ahora));
+    bloques.push(seccion('Tablero', emb ? [emb] : []));
+  }
+  if (quiere('equipo')) bloques.push(seccion('Equipo', [panelEquipo(resumenEquipo(d.agentes, d.encargos, d.cuentas, ahora))]));
+  if (quiere('plan')) {
+    const p = panelObjetivoKpi(d, ahora);
+    bloques.push(seccion('Objetivo', p ? [p] : []));
   }
   const visibles = bloques.filter(Boolean);
-  if (mio !== turno || raiz.isConnected === false) return;
-  cont.append(...visibles);
-  if (!visibles.length) cont.append(el('p', { class: 'mudo', text: 'Sin KPIs disponibles para este filtro.' }));
+  raiz.append(el('div', {}, visibles.length ? visibles : [el('p', { class: 'mudo', text: 'Sin KPIs disponibles para este filtro.' })]));
 }

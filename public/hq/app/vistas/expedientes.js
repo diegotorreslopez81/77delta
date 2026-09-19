@@ -145,8 +145,17 @@ export function construirRutaExp(v = {}) {
   if (v.tipo) q.set('tipo', v.tipo);
   for (const k of ['fase', 'responsable', 'tipologia', 'texto']) if (v[k]) q.set(k, v[k]);
   if (v.orden && v.orden !== 'importe') q.set('orden', v.orden);
+  // Filtro "sesión abierta" (brief B 19-sep, píldora de Home): no vive en seccionesExp/la hoja común,
+  // así que se serializa aparte; sin este valor la ruta no lleva 'sesion' (se quita pasando v sin él).
+  if (v.sesion === 'abierta') q.set('sesion', 'abierta');
   const s = q.toString();
   return '#operacion/expedientes' + (s ? '?' + s : '');
+}
+// Expedientes con una sesión no cerrada (abierta o solicitada), función pura reutilizada por lista()
+// y probada sin DOM. Usa estadoSesion, que ya solo encuentra sesiones abiertas o solicitadas: el
+// estado !== 'cerrada' queda explícito aquí para que la condición se lea igual que en el brief.
+export function conSesionAbierta(xs, sesiones) {
+  return (xs || []).filter(x => { const s = estadoSesion(x, sesiones); return s.hay && s.estado !== 'cerrada'; });
 }
 
 function panelCartera(clientes) {
@@ -209,12 +218,16 @@ export function panelesExpedientes(d, ahora = new Date()) {
 function lista(raiz, S, filtrosRuta = {}, ahora = new Date()) {
   const xs = (S.datos.expedientes || []).filter(x => x.activo !== false);
   const tipo = TIPOS.some(([k]) => k === filtrosRuta.tipo) ? filtrosRuta.tipo : 'cliente';
+  const sesionAbierta = filtrosRuta.sesion === 'abierta';
   const colorFase = Object.fromEntries(porFase(xs).map(s => [s.l, s.color]));
   const base = porTipo(xs, tipo);
   const secciones = seccionesExp(base, S.datos.agentes);
   const valores = { tipo, orden: filtrosRuta.orden || 'importe' };
   for (const k of ['fase', 'responsable', 'tipologia', 'texto']) if (filtrosRuta[k]) valores[k] = filtrosRuta[k];
-  const filasDe = v => ordenarExp(filtrarExp(base, v, S.datos.agentes), v.orden);
+  if (sesionAbierta) valores.sesion = 'abierta';
+  // "sesión abierta" (brief B 19-sep, píldora de Home) no es un filtro de filtrarExp: se aplica aparte
+  // con conSesionAbierta, siempre sobre `base` (el tipo elegido), antes de ordenar/buscar.
+  const filasDe = v => { const src = v.sesion === 'abierta' ? conSesionAbierta(base, S.datos.sesiones) : base; return ordenarExp(filtrarExp(src, v, S.datos.agentes), v.orden); };
 
   raiz.append(el('div', { class: 'fila enlace-kpis' }, [el('a', { class: 'btn-enlace', href: '#kpis?grupo=expedientes', text: 'KPIs ›' })]));
   const chips = el('div', { class: 'chips chips-embudo' }, TIPOS.filter(([k]) => k === 'todos' || k === tipo || porTipo(xs, k).length)
@@ -222,6 +235,13 @@ function lista(raiz, S, filtrosRuta = {}, ahora = new Date()) {
   const zonaPills = el('div');
   const p = pillsActivos(valores, secciones, clave => { const v = { ...valores }; delete v[clave]; location.hash = construirRutaExp(v); });
   if (p) zonaPills.append(p);
+  // Pill "sesión abierta ×" (junto a los chips de tipo, brief B 19-sep): fuera de seccionesExp porque
+  // no es un filtro de la hoja común; quitarla vuelve a construirRutaExp sin 'sesion'.
+  if (sesionAbierta) {
+    const { sesion, ...sinSesion } = valores;
+    zonaPills.append(el('span', { class: 'pill pill-activo' }, ['sesión abierta',
+      el('button', { class: 'quita-pill', type: 'button', 'aria-label': 'Quitar filtro sesión abierta', text: '×', onclick: () => { location.hash = construirRutaExp(sinSesion); } })]));
+  }
   const cont = el('div', { class: 'lista-rica con-fab' });
   const rows = filasDe(valores);
   if (!rows.length) cont.append(el('p', { class: 'mudo', text: 'nada con este filtro' }));
